@@ -21,8 +21,9 @@ logging.basicConfig(
 # Set specific loggers to DEBUG for detailed logging
 logging.getLogger("game_engine.ai.llm_player").setLevel(logging.DEBUG)
 logging.getLogger("game_engine.data.card_loader").setLevel(logging.DEBUG)
-logging.getLogger("api.game_service").setLevel(logging.DEBUG)
+logging.getLogger("src.api.game_service").setLevel(logging.DEBUG)
 logging.getLogger("game_engine.game_engine").setLevel(logging.DEBUG)
+logging.getLogger("src.game_engine.game_engine").setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
