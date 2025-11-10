@@ -94,8 +94,13 @@ npm install
 
 ```bash
 cd backend
+# Option 1: Activate venv first
 source venv/bin/activate
 python run_server.py
+
+# Option 2: Run directly with venv Python (no activation needed)
+./venv/bin/python3 run_server.py
+
 # Server runs at http://localhost:8000
 # API docs at http://localhost:8000/docs
 ```

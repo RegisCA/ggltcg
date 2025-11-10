@@ -7,8 +7,13 @@ or Google's Gemini to make strategic decisions in GGLTCG games.
 
 import json
 import os
+import logging
 from typing import Optional, Dict, Any, Literal
 from pathlib import Path
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Load environment variables from .env file
 try:
@@ -103,17 +108,26 @@ class LLMPlayer:
             or None if selection failed
         """
         if not valid_actions:
+            logger.warning("No valid actions available for AI")
             return None
+        
+        logger.info(f"🤖 AI Turn {game_state.turn_number} - {len(valid_actions)} actions available")
         
         # Build the prompt
         prompt = get_ai_turn_prompt(game_state, ai_player_id, valid_actions)
         
+        logger.debug(f"AI Prompt:\n{prompt}")
+        
         try:
             # Call LLM API based on provider
+            logger.info(f"Calling {self.provider} API ({self.model_name if self.provider == 'gemini' else self.model})...")
+            
             if self.provider == "anthropic":
                 response_text = self._call_anthropic(prompt)
             else:  # gemini
                 response_text = self._call_gemini(prompt)
+            
+            logger.debug(f"Raw API Response:\n{response_text}")
             
             # Parse JSON response
             # Handle markdown code blocks if present
@@ -127,13 +141,14 @@ class LLMPlayer:
                 response_text = response_text[json_start:json_end].strip()
             
             response_data = json.loads(response_text)
+            logger.debug(f"Parsed JSON: {response_data}")
             
             # Extract action number (1-based from prompt, convert to 0-based index)
             action_number = response_data.get("action_number")
             reasoning = response_data.get("reasoning", "No reasoning provided")
             
             if action_number is None:
-                print(f"AI response missing action_number: {response_data}")
+                logger.error(f"AI response missing action_number: {response_data}")
                 return None
             
             # Convert to 0-based index
@@ -141,24 +156,23 @@ class LLMPlayer:
             
             # Validate index
             if action_index < 0 or action_index >= len(valid_actions):
-                print(f"AI selected invalid action number {action_number} (max {len(valid_actions)})")
+                logger.error(f"AI selected invalid action number {action_number} (max {len(valid_actions)})")
                 return None
             
             # Log the decision
             selected_action = valid_actions[action_index]
-            print(f"\n🤖 AI Decision (Turn {game_state.turn_number}) [{self.provider}]:")
-            print(f"   Action: {selected_action.description}")
-            print(f"   Reasoning: {reasoning}\n")
+            logger.info(f"✅ AI Decision: {selected_action.description}")
+            logger.info(f"💭 Reasoning: {reasoning}")
             
             return action_index
         
         except json.JSONDecodeError as e:
-            print(f"Failed to parse AI response as JSON: {e}")
-            print(f"Response was: {response_text}")
+            logger.error(f"Failed to parse AI response as JSON: {e}")
+            logger.error(f"Response was: {response_text}")
             return None
         
         except Exception as e:
-            print(f"Error getting AI decision: {e}")
+            logger.exception(f"Error getting AI decision: {e}")
             return None
     
     def _call_anthropic(self, prompt: str) -> str:
@@ -179,24 +193,39 @@ class LLMPlayer:
     
     def _call_gemini(self, prompt: str) -> str:
         """Call Google Gemini API."""
-        response = self.client.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.7,
-                "max_output_tokens": 1024,
-            }
-        )
-        
-        # Check if response was blocked or empty (finish_reason 2 = SAFETY)
-        if not response.candidates or not response.candidates[0].content.parts:
-            # Try to get finish reason for debugging
-            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-            raise ValueError(
-                f"Gemini returned empty response (finish_reason: {finish_reason}). "
-                "This may be due to safety filters or rate limits. Try again or adjust the prompt."
+        try:
+            response = self.client.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.7,
+                    "max_output_tokens": 1024,
+                }
             )
-        
-        return response.text.strip()
+            
+            # Log response metadata for debugging
+            logger.debug(f"Gemini response candidates: {len(response.candidates) if response.candidates else 0}")
+            
+            # Check if response was blocked or empty
+            if not response.candidates or not response.candidates[0].content.parts:
+                finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+                safety_ratings = response.candidates[0].safety_ratings if response.candidates else []
+                
+                logger.error(f"Gemini returned empty response")
+                logger.error(f"Finish reason: {finish_reason}")
+                logger.error(f"Safety ratings: {safety_ratings}")
+                
+                raise ValueError(
+                    f"Gemini returned empty response (finish_reason: {finish_reason}). "
+                    "This may be due to safety filters or rate limits. Try again or adjust the prompt."
+                )
+            
+            result = response.text.strip()
+            logger.debug(f"Gemini response length: {len(result)} characters")
+            return result
+            
+        except Exception as e:
+            logger.exception(f"Gemini API call failed: {e}")
+            raise
     
     def get_action_details(
         self,

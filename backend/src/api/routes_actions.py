@@ -4,6 +4,7 @@ Player action API routes.
 Endpoints for playing cards, initiating tussles, ending turns, etc.
 """
 
+import logging
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 
@@ -19,6 +20,8 @@ from api.schemas import (
 from api.game_service import get_game_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["actions"])
 
@@ -409,11 +412,15 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     
     # Get AI player and have it select an action
     try:
+        logger.info(f"🤖 AI turn starting for player {player_id} in game {game_id}")
+        logger.debug(f"Available actions: {[a.description for a in valid_actions]}")
+        
         ai_player = get_ai_player()
         action_index = ai_player.select_action(game_state, player_id, valid_actions)
         
         if action_index is None:
             # AI failed to select - default to end turn
+            logger.warning("AI failed to select action, defaulting to end turn")
             engine.end_turn()
             return ActionResponse(
                 success=True,
@@ -487,7 +494,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             )
         
         else:
+            logger.error(f"Unknown action type from AI: {action_details['action_type']}")
             raise HTTPException(status_code=500, detail=f"Unknown action type: {action_details['action_type']}")
     
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
+        logger.exception(f"AI turn failed with exception: {e}")
         raise HTTPException(status_code=500, detail=f"AI turn failed: {str(e)}")

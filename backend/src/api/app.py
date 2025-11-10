@@ -4,11 +4,24 @@ FastAPI application for GGLTCG.
 Main entry point for the REST API server.
 """
 
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes_games import router as games_router
 from .routes_actions import router as actions_router
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Set specific loggers to DEBUG for detailed AI logging
+logging.getLogger("game_engine.ai.llm_player").setLevel(logging.DEBUG)
+
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
