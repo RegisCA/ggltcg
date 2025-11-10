@@ -13,13 +13,16 @@ from .routes_actions import router as actions_router
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Set to DEBUG to see all our debug logs
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# Set specific loggers to DEBUG for detailed AI logging
+# Set specific loggers to DEBUG for detailed logging
 logging.getLogger("game_engine.ai.llm_player").setLevel(logging.DEBUG)
+logging.getLogger("game_engine.data.card_loader").setLevel(logging.DEBUG)
+logging.getLogger("api.game_service").setLevel(logging.DEBUG)
+logging.getLogger("game_engine.game_engine").setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
