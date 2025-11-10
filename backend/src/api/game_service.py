@@ -156,6 +156,8 @@ class GameService:
             if template is None:
                 raise ValueError(f"Card '{name}' not found in card database")
             
+            logger.debug(f"Template for {name}: speed={template.speed}, strength={template.strength}, stamina={template.stamina}, card_type={template.card_type}")
+            
             # Create a copy of the card
             card = Card(
                 name=template.name,
