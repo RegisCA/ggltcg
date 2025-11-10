@@ -43,8 +43,8 @@ class RushEffect(PlayEffect):
     
     Grants 2 CC to the player who played Rush.
     Restriction: Cannot be played on each player's first turn.
-    - Player 1 cannot play on Turn 1
-    - Player 2 cannot play on Turn 2
+    - Player 1 (first player) cannot play on Turn 1
+    - Player 2 (second player) cannot play on Turn 2
     """
     
     def can_apply(self, game_state: "GameState", **kwargs: Any) -> bool:
@@ -53,17 +53,22 @@ class RushEffect(PlayEffect):
         if not player:
             return False
         
-        # Determine if this is the player's first turn
-        # Player 1's first turn is turn 1 (odd)
-        # Player 2's first turn is turn 2 (even)
-        is_player1 = player.name == "Player 1"
-        current_turn_is_odd = game_state.turn_number % 2 == 1
+        # Determine player ID from the player's name ("human" or "ai")
+        player_id = None
+        for pid, p in game_state.players.items():
+            if p == player:
+                player_id = pid
+                break
         
-        # It's a player's first turn if:
-        # - Player 1 on Turn 1 (odd turn 1)
-        # - Player 2 on Turn 2 (even turn 2)
-        is_first_turn = (is_player1 and game_state.turn_number == 1) or \
-                       (not is_player1 and game_state.turn_number == 2)
+        if not player_id:
+            return False
+        
+        # Check if this is the player's first turn
+        # First player's first turn is Turn 1
+        # Second player's first turn is Turn 2
+        is_first_player = (player_id == game_state.first_player_id)
+        is_first_turn = (is_first_player and game_state.turn_number == 1) or \
+                       (not is_first_player and game_state.turn_number == 2)
         
         return not is_first_turn
     
