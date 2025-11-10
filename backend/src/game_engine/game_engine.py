@@ -399,8 +399,10 @@ class GameEngine:
         """
         # Validate
         can_tussle, reason = self.can_tussle(attacker, defender, player)
+        logger.debug(f"initiate_tussle: can_tussle={can_tussle}, reason='{reason}'")
         if not can_tussle:
             self.game_state.log_event(f"Cannot tussle: {reason}")
+            logger.warning(f"Tussle failed: {reason}")
             return False
         
         # Calculate and pay cost
