@@ -66,22 +66,25 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       gameState &&
       gameState.active_player_id === aiPlayerId &&
       !gameState.is_game_over &&
-      !isProcessing
+      !isProcessing &&
+      !aiTurnMutation.isPending
     ) {
       // Delay AI turn slightly for better UX
       const timer = setTimeout(() => {
+        console.log(`Triggering AI turn for turn ${gameState.turn_number}`);
         aiTurnMutation.mutate(aiPlayerId, {
           onSuccess: (response) => {
             setMessage(response.message);
           },
           onError: (error) => {
+            console.error('AI turn error:', error);
             setMessage(`AI Error: ${error.message}`);
           },
         });
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [gameState?.active_player_id, aiPlayerId, isProcessing]);
+  }, [gameState?.active_player_id, gameState?.turn_number, aiPlayerId, isProcessing, aiTurnMutation.isPending]);
 
   const handleAction = (action: ValidAction) => {
     setMessage('');

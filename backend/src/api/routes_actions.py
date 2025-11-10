@@ -343,6 +343,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     
     # Verify it's the AI player's turn
     if game_state.active_player_id != player_id:
+        logger.warning(
+            f"AI turn request rejected: player_id={player_id}, "
+            f"active_player_id={game_state.active_player_id}, "
+            f"turn={game_state.turn_number}"
+        )
         raise HTTPException(
             status_code=400,
             detail=f"It's not {player_id}'s turn (active player: {game_state.active_player_id})"
