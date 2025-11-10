@@ -275,7 +275,7 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
                 )
         
         # Check which cards can tussle
-        opponent = game_state.get_opponent(player)
+        opponent = game_state.get_opponent(player_id)
         for card in player.in_play:
             if card.card_type == CardType.TOY:
                 # Check if can tussle
@@ -375,7 +375,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             )
     
     # Check which cards can tussle
-    opponent = game_state.get_opponent(player)
+    opponent = game_state.get_opponent(player_id)
     for card in player.in_play:
         if card.card_type.value == "TOY":
             # Check if can tussle
