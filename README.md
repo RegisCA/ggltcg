@@ -9,15 +9,22 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 ## Tech Stack
 
 ### Backend
-- **Python 3.11+** with FastAPI
+
+- **Python 3.13** with FastAPI 0.115.6
+- Uvicorn 0.34.0 ASGI server
 - Card data stored in CSV format
 - Game state management with JSON serialization
-- AI player powered by Claude Sonnet 4.5 (Anthropic API)
+- AI player powered by Google Gemini 2.0 Flash Lite (30 RPM free tier)
+- Alternative Claude Sonnet support (Anthropic API)
 
 ### Frontend
-- **React** with Vite
-- **Tailwind CSS** for styling
-- RESTful API communication
+
+- **React 18** with TypeScript
+- **Vite 7.2.2** for fast development
+- **React Query** (@tanstack/react-query) for server state management
+- **Axios** for HTTP client
+- Plain CSS utilities (200+ classes)
+- Dark theme UI with responsive design
 
 ## Project Structure
 
@@ -28,9 +35,10 @@ ggltcg/
 │   │   ├── game_engine/
 │   │   │   ├── models/          # Card, Player, GameState classes
 │   │   │   ├── rules/           # Game logic, turn management, tussles
-│   │   │   ├── ai/              # LLM player integration
+│   │   │   │   └── effects/     # Card effect system (18 cards)
+│   │   │   ├── ai/              # LLM player integration (Gemini/Claude)
 │   │   │   └── data/            # Card loader, CSV handling
-│   │   └── api/                 # FastAPI routes
+│   │   └── api/                 # FastAPI routes (8 endpoints)
 │   ├── data/
 │   │   └── cards.csv            # 18-card starter pack
 │   ├── tests/
@@ -38,13 +46,16 @@ ggltcg/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/          # React UI components
-│   │   ├── utils/               # API client, helpers
-│   │   └── App.jsx
+│   │   ├── hooks/               # React Query hooks
+│   │   ├── api/                 # API client
+│   │   ├── types/               # TypeScript definitions
+│   │   ├── data/                # Card data
+│   │   └── App.tsx
 │   ├── public/
 │   └── package.json
 ├── docs/
 │   ├── rules/                   # Game rules documentation
-│   └── development/             # Development guides
+│   └── development/             # Development guides, MVP progress
 ├── COPILOT_CONTEXT.md           # GitHub Copilot seed prompt
 └── README.md
 ```
@@ -52,17 +63,22 @@ ggltcg/
 ## Development Setup
 
 ### Prerequisites
-- Python 3.11+
+
+- Python 3.13+
 - Node.js 18+
-- Anthropic API key (for AI player)
+- Google Gemini API key (free tier, 30 RPM) or Anthropic API key (for AI player)
 
 ### Backend Setup
 
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # On macOS/Linux
+source venv/bin/activate  # On macOS/Linux; use venv\Scripts\activate on Windows
 pip install -r requirements.txt
+
+# Copy .env.example to .env and add your API key
+cp .env.example .env
+# Edit .env and add: GOOGLE_API_KEY=your_key_here
 ```
 
 ### Frontend Setup
@@ -70,22 +86,29 @@ pip install -r requirements.txt
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
 ### Running the Application
 
 **Backend:**
+
 ```bash
 cd backend
-uvicorn src.api.main:app --reload
+source venv/bin/activate
+python run_server.py
+# Server runs at http://localhost:8000
+# API docs at http://localhost:8000/docs
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm run dev
+# App runs at http://localhost:5175
 ```
+
+Open <http://localhost:5175> in your browser to play!
 
 ## Game Rules Quick Reference
 
@@ -98,25 +121,32 @@ See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
 
 ## Development Roadmap
 
-### Phase 1: MVP Foundation (Current)
-- [x] Project setup and structure
-- [ ] Core game engine (card loading, game state)
-- [ ] Turn management and CC system
-- [ ] Tussle resolution
-- [ ] Card effect system
-- [ ] Basic React UI
-- [ ] AI player integration
+### Phase 1: MVP Foundation ✅ COMPLETE
 
-### Phase 2: Complete Gameplay
-- [ ] All 18 card effects implemented
-- [ ] Polished UI with animations
-- [ ] Game log and history
+- [x] Project setup and structure
+- [x] Core game engine (card loading, game state)
+- [x] Turn management and CC system
+- [x] Tussle resolution
+- [x] Card effect system (all 18 cards)
+- [x] FastAPI REST API (8 endpoints)
+- [x] React + TypeScript UI
+- [x] AI player integration (Gemini)
+- [x] **First complete game played: November 10, 2025** 🎉
+
+### Phase 2: Polish & Improvements (Current)
+
+- [ ] Fix card name display in player zones (Issue #4)
+- [ ] Additional UI/UX improvements (Issue #5)
+- [ ] Game log display
+- [ ] Animations and visual polish
 
 ### Phase 3: Admin UI - Card Management
+
 - [ ] Card editor interface
 - [ ] Effect documentation system
 
 ### Phase 4: Simulation System
+
 - [ ] Automated game runner
 - [ ] Statistics collection and reporting
 

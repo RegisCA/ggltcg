@@ -63,7 +63,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         )
     
     # Prepare kwargs for effect
-    kwargs: Dict[str, Any] = {"player": player}
+    kwargs: Dict[str, Any] = {}
     
     # Add target if specified
     if request.target_card_name:
@@ -263,8 +263,8 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
         
         # Check which cards can be played
         for card in player.hand:
-            if engine.can_play_card(player, card):
-                cost = engine.calculate_card_cost(player, card)
+            if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
+                cost = engine.calculate_card_cost(card, player)
                 valid_actions.append(
                     ValidAction(
                         action_type="play_card",
@@ -277,7 +277,7 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
         # Check which cards can tussle
         opponent = game_state.get_opponent(player)
         for card in player.in_play:
-            if card.card_type == "TOY":
+            if card.card_type == CardType.TOY:
                 # Check if can tussle
                 if engine.can_tussle(card, None, player):
                     # Can do direct attack
@@ -363,8 +363,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     
     # Check which cards can be played
     for card in player.hand:
-        if engine.can_play_card(player, card):
-            cost = engine.calculate_card_cost(player, card)
+        if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
+            cost = engine.calculate_card_cost(card, player)
             valid_actions.append(
                 ValidAction(
                     action_type="play_card",
