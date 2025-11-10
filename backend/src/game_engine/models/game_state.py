@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
 from enum import Enum
 from .player import Player
-from .card import Card
+from .card import Card, Zone
 
 
 class Phase(Enum):
@@ -93,6 +93,139 @@ class GameState:
         for player in self.players.values():
             cards.extend(player.in_play)
         return cards
+    
+    def get_cards_in_play(self, player: Player) -> List[Card]:
+        """Get all cards in play for a specific player."""
+        return list(player.in_play)
+    
+    def get_card_controller(self, card: Card) -> Optional[Player]:
+        """
+        Get the player who currently controls a card.
+        
+        Args:
+            card: Card to check
+            
+        Returns:
+            Player controlling the card, or None if not in play
+        """
+        for player in self.players.values():
+            if card in player.in_play:
+                return player
+        return None
+    
+    def get_card_owner(self, card: Card) -> Optional[Player]:
+        """
+        Get the player who owns a card (from their original deck).
+        
+        Args:
+            card: Card to check
+            
+        Returns:
+            Player who owns the card, or None if not found
+        """
+        for player in self.players.values():
+            if card in player.hand or card in player.in_play or card in player.sleep_zone:
+                return player
+        return None
+    
+    def sleep_card(self, card: Card, was_in_play: bool) -> None:
+        """
+        Move a card to its owner's sleep zone.
+        
+        Args:
+            card: Card to sleep
+            was_in_play: Whether the card was in play (affects triggers)
+        """
+        owner = self.get_card_owner(card)
+        if owner:
+            owner.sleep_card(card)
+    
+    def unsleep_card(self, card: Card, player: Player) -> None:
+        """
+        Return a card from sleep zone to hand.
+        
+        Args:
+            card: Card to unsleep
+            player: Player to return card to
+        """
+        player.unsleep_card(card)
+    
+    def return_card_to_hand(self, card: Card, owner: Player) -> None:
+        """
+        Return a card from play to owner's hand.
+        
+        Used by Toynado effect.
+        
+        Args:
+            card: Card to return
+            owner: Owner to return card to
+        """
+        # Remove from wherever it is
+        for player in self.players.values():
+            if card in player.in_play:
+                player.in_play.remove(card)
+                break
+        
+        # Add to owner's hand
+        card.zone = Zone.HAND
+        card.reset_modifications()
+        owner.hand.append(card)
+    
+    def change_control(self, card: Card, new_controller: Player) -> None:
+        """
+        Change control of a card to a different player.
+        
+        Used by Twist effect. Ownership remains unchanged.
+        
+        Args:
+            card: Card to change control of
+            new_controller: Player to give control to
+        """
+        # Remove from current controller
+        current_controller = self.get_card_controller(card)
+        if current_controller:
+            current_controller.in_play.remove(card)
+        
+        # Add to new controller
+        new_controller.in_play.append(card)
+    
+    def play_card_from_hand(self, card: Card, player: Player) -> None:
+        """
+        Play a card from hand (move to in play).
+        
+        Used by Beary's tussle cancel effect.
+        
+        Args:
+            card: Card to play
+            player: Player playing the card
+        """
+        if card in player.hand:
+            player.hand.remove(card)
+            card.zone = Zone.IN_PLAY
+            player.in_play.append(card)
+    
+    def is_protected_from_effect(self, card: Card, effect: Any) -> bool:
+        """
+        Check if a card is protected from an effect.
+        
+        Args:
+            card: Card being targeted
+            effect: Effect trying to affect the card
+            
+        Returns:
+            True if protected
+        """
+        from ..rules.effects import EffectRegistry
+        from ..rules.effects.base_effect import ProtectionEffect
+        
+        # Check card's own protection effects
+        effects = EffectRegistry.get_effects(card)
+        for card_effect in effects:
+            if isinstance(card_effect, ProtectionEffect):
+                if card_effect.is_protected_from(effect, self):
+                    return True
+        
+        return False
     
     def find_card_by_name(self, name: str) -> Optional[Card]:
         """
