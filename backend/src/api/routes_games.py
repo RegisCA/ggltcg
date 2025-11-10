@@ -133,21 +133,21 @@ def _card_to_state(card, engine) -> CardState:
     current_strength = None
     current_stamina = None
     
-    if card.card_type == "TOY":
+    if card.is_toy():  # Use the is_toy() method instead of string comparison
         current_speed = engine.get_card_stat(card, "speed")
         current_strength = engine.get_card_stat(card, "strength")
         current_stamina = card.current_stamina
     
     return CardState(
         name=card.name,
-        card_type=card.card_type,
+        card_type=card.card_type.value,  # Convert enum to string
         cost=card.cost,
         zone=card.zone.value,
         owner=card.owner,
         controller=card.controller,
         speed=current_speed,
         strength=current_strength,
-        stamina=card.stamina if card.card_type == "TOY" else None,
+        stamina=card.stamina if card.is_toy() else None,  # Use is_toy() here too
         current_stamina=current_stamina,
         is_sleeped=(card.zone == Zone.SLEEP),
     )
