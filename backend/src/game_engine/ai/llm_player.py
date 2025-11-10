@@ -8,6 +8,7 @@ or Google's Gemini to make strategic decisions in GGLTCG games.
 import json
 import os
 import logging
+import time
 from typing import Optional, Dict, Any, Literal
 from pathlib import Path
 
@@ -77,10 +78,16 @@ class LLMPlayer:
                 )
             
             genai.configure(api_key=self.api_key)
-            # Use gemini-2.0-flash-lite for best free tier quotas (30 RPM, 1M TPM, 1.5K RPD)
-            # This allows ~7-8 actions per minute, plenty for gameplay testing
-            # Alternative: gemini-2.5-flash (10 RPM) if we need smarter AI
-            self.model_name = model or "gemini-2.0-flash-lite"
+            
+            # Allow model override via environment variable or parameter
+            # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
+            # Alternative: gemini-1.5-flash (15 RPM, more stable)
+            # Alternative: gemini-2.0-flash-exp (10 RPM, experimental but powerful)
+            default_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
+            self.model_name = model or default_model
+            
+            logger.info(f"Initializing Gemini with model: {self.model_name}")
+            
             self.client = genai.GenerativeModel(
                 model_name=self.model_name,
                 system_instruction=SYSTEM_PROMPT
@@ -191,41 +198,83 @@ class LLMPlayer:
         )
         return message.content[0].text.strip()
     
-    def _call_gemini(self, prompt: str) -> str:
-        """Call Google Gemini API."""
-        try:
-            response = self.client.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": 0.7,
-                    "max_output_tokens": 1024,
-                }
-            )
+    def _call_gemini(self, prompt: str, retry_count: int = 3) -> str:
+        """
+        Call Google Gemini API with retry logic for capacity issues.
+        
+        Args:
+            prompt: The prompt to send
+            retry_count: Number of retries for 429 errors (default: 3)
             
-            # Log response metadata for debugging
-            logger.debug(f"Gemini response candidates: {len(response.candidates) if response.candidates else 0}")
+        Returns:
+            The API response text
             
-            # Check if response was blocked or empty
-            if not response.candidates or not response.candidates[0].content.parts:
-                finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-                safety_ratings = response.candidates[0].safety_ratings if response.candidates else []
-                
-                logger.error(f"Gemini returned empty response")
-                logger.error(f"Finish reason: {finish_reason}")
-                logger.error(f"Safety ratings: {safety_ratings}")
-                
-                raise ValueError(
-                    f"Gemini returned empty response (finish_reason: {finish_reason}). "
-                    "This may be due to safety filters or rate limits. Try again or adjust the prompt."
+        Raises:
+            Exception if all retries fail
+        """
+        last_exception = None
+        
+        for attempt in range(retry_count):
+            try:
+                response = self.client.generate_content(
+                    prompt,
+                    generation_config={
+                        "temperature": 0.7,
+                        "max_output_tokens": 1024,
+                    }
                 )
-            
-            result = response.text.strip()
-            logger.debug(f"Gemini response length: {len(result)} characters")
-            return result
-            
-        except Exception as e:
-            logger.exception(f"Gemini API call failed: {e}")
-            raise
+                
+                # Log response metadata for debugging
+                logger.debug(f"Gemini response candidates: {len(response.candidates) if response.candidates else 0}")
+                
+                # Check if response was blocked or empty
+                if not response.candidates or not response.candidates[0].content.parts:
+                    finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+                    safety_ratings = response.candidates[0].safety_ratings if response.candidates else []
+                    
+                    logger.error(f"Gemini returned empty response")
+                    logger.error(f"Finish reason: {finish_reason}")
+                    logger.error(f"Safety ratings: {safety_ratings}")
+                    
+                    raise ValueError(
+                        f"Gemini returned empty response (finish_reason: {finish_reason}). "
+                        "This may be due to safety filters. Try again or adjust the prompt."
+                    )
+                
+                result = response.text.strip()
+                logger.debug(f"Gemini response length: {len(result)} characters")
+                return result
+                
+            except Exception as e:
+                error_str = str(e)
+                last_exception = e
+                
+                # Check if it's a 429 Resource Exhausted error
+                if "429" in error_str or "ResourceExhausted" in error_str or "Resource exhausted" in error_str:
+                    if attempt < retry_count - 1:
+                        # Exponential backoff: 1s, 2s, 4s
+                        wait_time = 2 ** attempt
+                        logger.warning(
+                            f"Gemini API capacity issue (429 Resource Exhausted). "
+                            f"Retry {attempt + 1}/{retry_count} after {wait_time}s..."
+                        )
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(
+                            f"Gemini API capacity exhausted after {retry_count} retries. "
+                            f"This is a Google infrastructure issue, not a rate limit. "
+                            f"Consider: 1) Try again in a few minutes, 2) Switch to gemini-1.5-flash model, "
+                            f"3) Use Anthropic Claude instead"
+                        )
+                else:
+                    # Not a 429 error, don't retry
+                    logger.exception(f"Gemini API call failed: {e}")
+                
+                raise last_exception
+        
+        # If we get here, all retries failed
+        raise last_exception
     
     def get_action_details(
         self,

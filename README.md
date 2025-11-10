@@ -79,6 +79,8 @@ pip install -r requirements.txt
 # Copy .env.example to .env and add your API key
 cp .env.example .env
 # Edit .env and add: GOOGLE_API_KEY=your_key_here
+# Optional: If you experience 429 capacity errors with gemini-2.0-flash-lite,
+# add GEMINI_MODEL=gemini-1.5-flash to use a more stable (but slower rate limit) model
 ```
 
 ### Frontend Setup
@@ -123,6 +125,38 @@ Open <http://localhost:5175> in your browser to play!
 - **Tussle:** Pay CC to have two Toys fight. Higher speed strikes first
 
 See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
+
+## Troubleshooting
+
+### AI Player Issues
+
+**429 Resource Exhausted Errors:**
+
+- This is a Google infrastructure capacity issue, not your API rate limit
+- The free tier `gemini-2.0-flash-lite` can be overloaded during peak times
+- **Solution 1:** Wait a few minutes and try again
+- **Solution 2:** Switch to `gemini-1.5-flash` (more stable, lower capacity issues):
+
+  ```bash
+  # Add to backend/.env:
+  GEMINI_MODEL=gemini-1.5-flash
+  ```
+
+- The code automatically retries with exponential backoff (1s, 2s, 4s)
+
+**Rate Limit Exceeded:**
+
+- Check your usage at <https://aistudio.google.com/usage>
+- Free tier limits: 30 RPM for gemini-2.0-flash-lite, 15 RPM for gemini-1.5-flash
+- Wait 1 minute and try again, or slow down gameplay
+
+**AI Not Making Decisions:**
+
+- Check backend terminal for detailed logs showing Gemini API calls
+- Logs include prompts, responses, and error details
+- Look for ERROR or WARNING messages in the output
+
+
 
 ## Development Roadmap
 
