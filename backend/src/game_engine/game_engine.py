@@ -5,6 +5,7 @@ The GameEngine class orchestrates all game actions, validates moves,
 applies effects, and manages game state.
 """
 
+import logging
 from typing import Optional, List, Dict, Any, Tuple
 from enum import Enum
 import random
@@ -18,6 +19,7 @@ from .rules.effects.base_effect import (
     ActivatedEffect, CostModificationEffect
 )
 
+logger = logging.getLogger(__name__)
 
 class ActionType(Enum):
     """Types of actions a player can take."""
@@ -316,6 +318,7 @@ class GameEngine:
         
         # Calculate tussle cost
         cost = self.calculate_tussle_cost(attacker, player)
+        logger.debug(f"Tussle cost check: player={player.name}, player_cc={player.cc}, cost={cost}, has_enough={player.has_cc(cost)}")
         if not player.has_cc(cost):
             return False, f"Not enough CC for tussle (need {cost}, have {player.cc})"
         
