@@ -18,6 +18,7 @@ from api.schemas import (
 )
 from api.game_service import get_game_service
 from game_engine.models.card import CardType
+from game_engine.ai.llm_player import get_ai_player
 
 router = APIRouter(prefix="/games", tags=["actions"])
 
@@ -311,3 +312,182 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
         player_id=player_id,
         valid_actions=valid_actions
     )
+
+
+@router.post("/{game_id}/ai-turn", response_model=ActionResponse)
+async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
+    """
+    Have the AI select and execute an action for the specified player.
+    
+    - **game_id**: The game ID
+    - **player_id**: ID of the AI player
+    
+    The AI will:
+    1. Analyze the current game state
+    2. Get all valid actions
+    3. Use Claude to select the best action
+    4. Execute that action
+    
+    Returns the result of the action.
+    """
+    service = get_game_service()
+    engine = service.get_game(game_id)
+    
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+    
+    game_state = engine.game_state
+    
+    # Verify it's the AI player's turn
+    if game_state.active_player_id != player_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"It's not {player_id}'s turn (active player: {game_state.active_player_id})"
+        )
+    
+    # Get player
+    player = game_state.players.get(player_id)
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    
+    # Get valid actions
+    valid_actions = []
+    
+    # Can always end turn
+    valid_actions.append(
+        ValidAction(
+            action_type="end_turn",
+            description="End your turn"
+        )
+    )
+    
+    # Check which cards can be played
+    for card in player.hand:
+        if engine.can_play_card(player, card):
+            cost = engine.calculate_card_cost(player, card)
+            valid_actions.append(
+                ValidAction(
+                    action_type="play_card",
+                    card_name=card.name,
+                    cost_cc=cost,
+                    description=f"Play {card.name} (Cost: {cost} CC)"
+                )
+            )
+    
+    # Check which cards can tussle
+    opponent = game_state.get_opponent(player)
+    for card in player.in_play:
+        if card.card_type.value == "TOY":
+            # Check if can tussle
+            if engine.can_tussle(card, None, player):
+                # Can do direct attack
+                cost = engine.calculate_tussle_cost(card, player)
+                valid_actions.append(
+                    ValidAction(
+                        action_type="tussle",
+                        card_name=card.name,
+                        cost_cc=cost,
+                        target_options=["direct_attack"],
+                        description=f"{card.name} direct attack (Cost: {cost} CC)"
+                    )
+                )
+            
+            # Check each potential defender
+            if opponent:
+                for defender in opponent.in_play:
+                    if engine.can_tussle(card, defender, player):
+                        cost = engine.calculate_tussle_cost(card, player)
+                        valid_actions.append(
+                            ValidAction(
+                                action_type="tussle",
+                                card_name=card.name,
+                                cost_cc=cost,
+                                target_options=[defender.name],
+                                description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
+                            )
+                        )
+    
+    # Get AI player and have it select an action
+    try:
+        ai_player = get_ai_player()
+        action_index = ai_player.select_action(game_state, player_id, valid_actions)
+        
+        if action_index is None:
+            # AI failed to select - default to end turn
+            engine.end_turn()
+            return ActionResponse(
+                success=True,
+                message="AI failed to select action, ended turn",
+                game_state={
+                    "turn": game_state.turn_number,
+                    "active_player": game_state.active_player_id
+                }
+            )
+        
+        selected_action = valid_actions[action_index]
+        action_details = ai_player.get_action_details(selected_action)
+        
+        # Execute the selected action
+        if action_details["action_type"] == "end_turn":
+            engine.end_turn()
+            return ActionResponse(
+                success=True,
+                message=f"AI ended turn",
+                game_state={
+                    "turn": game_state.turn_number,
+                    "active_player": game_state.active_player_id
+                }
+            )
+        
+        elif action_details["action_type"] == "play_card":
+            card_name = action_details["card_name"]
+            card = next((c for c in player.hand if c.name == card_name), None)
+            
+            if card is None:
+                raise HTTPException(status_code=500, detail=f"AI selected invalid card: {card_name}")
+            
+            success = engine.play_card(player, card)
+            engine.check_state_based_actions()
+            
+            return ActionResponse(
+                success=success,
+                message=f"AI played {card_name}",
+                game_state={"turn": game_state.turn_number}
+            )
+        
+        elif action_details["action_type"] == "tussle":
+            attacker_name = action_details["attacker_name"]
+            defender_name = action_details.get("defender_name")
+            
+            attacker = next((c for c in player.in_play if c.name == attacker_name), None)
+            if attacker is None:
+                raise HTTPException(status_code=500, detail=f"AI selected invalid attacker: {attacker_name}")
+            
+            defender = None
+            if defender_name:
+                defender = game_state.find_card_by_name(defender_name)
+            
+            success = engine.initiate_tussle(attacker, defender, player)
+            engine.check_state_based_actions()
+            
+            # Check for victory
+            winner = game_state.check_victory()
+            if winner:
+                return ActionResponse(
+                    success=True,
+                    message=f"AI tussle successful! {winner} wins!",
+                    game_state={"winner": winner}
+                )
+            
+            target_desc = defender_name if defender_name else "direct attack"
+            return ActionResponse(
+                success=success,
+                message=f"AI initiated tussle: {attacker_name} vs {target_desc}",
+                game_state={"turn": game_state.turn_number}
+            )
+        
+        else:
+            raise HTTPException(status_code=500, detail=f"Unknown action type: {action_details['action_type']}")
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI turn failed: {str(e)}")
