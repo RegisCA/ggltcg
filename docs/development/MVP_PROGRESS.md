@@ -173,8 +173,8 @@
 - Responsive layout
 
 **Known Issues (Tracked on GitHub):**
-- Issue #4: Need to display actual card names instead of "?" in player zones
-- Issue #5: Additional UI/UX improvements
+- ~~Issue #4: Players able to tussle their own cards~~ ✅ FIXED
+- Issue #5: Additional UI/UX improvements (card names in zones, game log, animations)
 
 #### 8. Documentation
 - `COPILOT_CONTEXT.md` - Comprehensive development guide for GitHub Copilot
@@ -207,15 +207,23 @@ All backend development finished:
 **Frontend is production-ready for MVP!**
 
 #### Phase 3: Testing & Polish (Current Focus)
-1. **Testing**
-   - Unit tests for all effects
-   - Integration tests for game flows
-   - Manual testing of all card interactions
 
-2. **Polish**
-   - Card animations
-   - Visual feedback for actions
-   - Improved UI/UX
+**Recent Bug Fixes (November 10, 2025):**
+1. ✅ **Card Stats Null in API Response** - Fixed CardType enum comparison in `_card_to_state()`. Was comparing enum to string "TOY" which always failed, causing all card stats to be null.
+2. ✅ **Defender Lookup Bug** - Fixed `find_card_by_name()` returning cards from any zone. Now searches specifically in opponent's play area to avoid finding cards with duplicate names in hand.
+3. ✅ **AI Player Improvements** - Added comprehensive logging, retry logic with exponential backoff for Gemini API, model fallback configuration
+4. ✅ **Rush Card Restriction** - Fixed to properly check each player's first turn (Turn 1 for first player, Turn 2 for second)
+5. ✅ **Duplicate AI Turn Calls** - Fixed React useEffect dependencies to prevent multiple AI turn triggers
+
+**Outstanding Issues:**
+- Issue #5: UI/UX improvements (card names in zones, game log display, animations)
+
+**Testing Status:**
+- ✅ End-to-end gameplay working
+- ✅ Tussle mechanics validated
+- ✅ AI opponent playing complete games
+- ✅ All card effects functional
+- ✅ Victory conditions working
 
 ### 📊 Project Statistics
 
@@ -255,7 +263,7 @@ All backend development finished:
 
 **Target:** Playable single-player game vs AI in 4-6 weeks
 
-**Current Progress:** ~90% complete (Backend + Frontend finished!)
+**Current Progress:** ~95% complete (Backend + Frontend complete, core bugs fixed!)
 
 **What's Working:**
 
@@ -266,14 +274,19 @@ All backend development finished:
 - React frontend with full game flow ✅
 - Deck selection and gameplay UI ✅
 - Comprehensive test coverage ✅
+- **Tussle mechanics fully working** ✅
+- **Card stats correctly displayed** ✅
+- **AI opponent playing strategically** ✅
 
 **What's Next:**
 
-1. Fix card name display in player zones (Issue #4)
-2. Additional UI/UX improvements (Issue #5)
-3. Add game log display
-4. Add animations and polish
-5. Deploy MVP!
+1. UI/UX polish (Issue #5):
+   - Display card names in player zones
+   - Add game log/history display
+   - Add animations for card actions
+   - Visual feedback for effects
+2. Code cleanup (remove debug statements)
+3. Deploy MVP!
 
 ### 🛠️ How to Run the Complete Game
 

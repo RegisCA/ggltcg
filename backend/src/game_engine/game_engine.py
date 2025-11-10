@@ -318,7 +318,6 @@ class GameEngine:
         
         # Calculate tussle cost
         cost = self.calculate_tussle_cost(attacker, player)
-        logger.debug(f"Tussle cost check: player={player.name}, player_cc={player.cc}, cost={cost}, has_enough={player.has_cc(cost)}")
         if not player.has_cc(cost):
             return False, f"Not enough CC for tussle (need {cost}, have {player.cc})"
         
@@ -399,10 +398,8 @@ class GameEngine:
         """
         # Validate
         can_tussle, reason = self.can_tussle(attacker, defender, player)
-        logger.debug(f"initiate_tussle: can_tussle={can_tussle}, reason='{reason}'")
         if not can_tussle:
             self.game_state.log_event(f"Cannot tussle: {reason}")
-            logger.warning(f"Tussle failed: {reason}")
             return False
         
         # Calculate and pay cost

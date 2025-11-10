@@ -66,8 +66,6 @@ class CardLoader:
         has_stats = row['speed'].strip() and row['strength'].strip() and row['stamina'].strip()
         card_type = CardType.TOY if has_stats else CardType.ACTION
         
-        logger.debug(f"Parsing card {name}: speed='{row['speed'].strip()}', strength='{row['strength'].strip()}', stamina='{row['stamina'].strip()}', has_stats={has_stats}, card_type={card_type}")
-        
         # Parse cost (handle special case of "?" for Copy)
         cost_str = row['cost'].strip()
         if cost_str == '?':
@@ -88,10 +86,8 @@ class CardLoader:
                 speed = int(row['speed'].strip())
                 strength = int(row['strength'].strip())
                 stamina = int(row['stamina'].strip())
-                logger.debug(f"Parsed stats for {name}: speed={speed}, strength={strength}, stamina={stamina}")
             except (ValueError, KeyError):
                 # If stats are missing or invalid, treat as Action
-                logger.warning(f"Failed to parse stats for {name}, treating as Action card")
                 card_type = CardType.ACTION
         
         return Card(
