@@ -8,6 +8,16 @@ or Google's Gemini to make strategic decisions in GGLTCG games.
 import json
 import os
 from typing import Optional, Dict, Any, Literal
+from pathlib import Path
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    # Look for .env in backend directory
+    env_path = Path(__file__).parent.parent.parent.parent / ".env"
+    load_dotenv(dotenv_path=env_path)
+except ImportError:
+    pass  # python-dotenv is optional
 
 from .prompts import SYSTEM_PROMPT, get_ai_turn_prompt
 from game_engine.models.game_state import GameState
@@ -62,7 +72,10 @@ class LLMPlayer:
                 )
             
             genai.configure(api_key=self.api_key)
-            self.model_name = model or "gemini-2.0-flash-exp"
+            # Use gemini-2.0-flash-lite for best free tier quotas (30 RPM, 1M TPM, 1.5K RPD)
+            # This allows ~7-8 actions per minute, plenty for gameplay testing
+            # Alternative: gemini-2.5-flash (10 RPM) if we need smarter AI
+            self.model_name = model or "gemini-2.0-flash-lite"
             self.client = genai.GenerativeModel(
                 model_name=self.model_name,
                 system_instruction=SYSTEM_PROMPT
@@ -173,6 +186,16 @@ class LLMPlayer:
                 "max_output_tokens": 1024,
             }
         )
+        
+        # Check if response was blocked or empty (finish_reason 2 = SAFETY)
+        if not response.candidates or not response.candidates[0].content.parts:
+            # Try to get finish reason for debugging
+            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+            raise ValueError(
+                f"Gemini returned empty response (finish_reason: {finish_reason}). "
+                "This may be due to safety filters or rate limits. Try again or adjust the prompt."
+            )
+        
         return response.text.strip()
     
     def get_action_details(
