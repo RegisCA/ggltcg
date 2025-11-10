@@ -152,11 +152,13 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
     # Find defender (if specified)
     defender = None
     if request.defender_name:
-        defender = game_state.find_card_by_name(request.defender_name)
+        # Search for defender specifically in opponent's play area
+        opponent = game_state.get_opponent(player.player_id)
+        defender = next((c for c in opponent.in_play if c.name == request.defender_name), None)
         if defender is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"Defender '{request.defender_name}' not found"
+                detail=f"Defender '{request.defender_name}' not found in opponent's play area"
             )
     
     # Initiate tussle
