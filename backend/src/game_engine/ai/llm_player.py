@@ -7,8 +7,14 @@ or Google's Gemini to make strategic decisions in GGLTCG games.
 
 import json
 import os
+import logging
+import time
 from typing import Optional, Dict, Any, Literal
 from pathlib import Path
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Load environment variables from .env file
 try:
@@ -72,10 +78,16 @@ class LLMPlayer:
                 )
             
             genai.configure(api_key=self.api_key)
-            # Use gemini-2.0-flash-lite for best free tier quotas (30 RPM, 1M TPM, 1.5K RPD)
-            # This allows ~7-8 actions per minute, plenty for gameplay testing
-            # Alternative: gemini-2.5-flash (10 RPM) if we need smarter AI
-            self.model_name = model or "gemini-2.0-flash-lite"
+            
+            # Allow model override via environment variable or parameter
+            # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
+            # Alternative: gemini-1.5-flash (15 RPM, more stable)
+            # Alternative: gemini-2.0-flash-exp (10 RPM, experimental but powerful)
+            default_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
+            self.model_name = model or default_model
+            
+            logger.info(f"Initializing Gemini with model: {self.model_name}")
+            
             self.client = genai.GenerativeModel(
                 model_name=self.model_name,
                 system_instruction=SYSTEM_PROMPT
@@ -103,17 +115,26 @@ class LLMPlayer:
             or None if selection failed
         """
         if not valid_actions:
+            logger.warning("No valid actions available for AI")
             return None
+        
+        logger.info(f"🤖 AI Turn {game_state.turn_number} - {len(valid_actions)} actions available")
         
         # Build the prompt
         prompt = get_ai_turn_prompt(game_state, ai_player_id, valid_actions)
         
+        logger.debug(f"AI Prompt:\n{prompt}")
+        
         try:
             # Call LLM API based on provider
+            logger.info(f"Calling {self.provider} API ({self.model_name if self.provider == 'gemini' else self.model})...")
+            
             if self.provider == "anthropic":
                 response_text = self._call_anthropic(prompt)
             else:  # gemini
                 response_text = self._call_gemini(prompt)
+            
+            logger.debug(f"Raw API Response:\n{response_text}")
             
             # Parse JSON response
             # Handle markdown code blocks if present
@@ -127,13 +148,14 @@ class LLMPlayer:
                 response_text = response_text[json_start:json_end].strip()
             
             response_data = json.loads(response_text)
+            logger.debug(f"Parsed JSON: {response_data}")
             
             # Extract action number (1-based from prompt, convert to 0-based index)
             action_number = response_data.get("action_number")
             reasoning = response_data.get("reasoning", "No reasoning provided")
             
             if action_number is None:
-                print(f"AI response missing action_number: {response_data}")
+                logger.error(f"AI response missing action_number: {response_data}")
                 return None
             
             # Convert to 0-based index
@@ -141,24 +163,23 @@ class LLMPlayer:
             
             # Validate index
             if action_index < 0 or action_index >= len(valid_actions):
-                print(f"AI selected invalid action number {action_number} (max {len(valid_actions)})")
+                logger.error(f"AI selected invalid action number {action_number} (max {len(valid_actions)})")
                 return None
             
             # Log the decision
             selected_action = valid_actions[action_index]
-            print(f"\n🤖 AI Decision (Turn {game_state.turn_number}) [{self.provider}]:")
-            print(f"   Action: {selected_action.description}")
-            print(f"   Reasoning: {reasoning}\n")
+            logger.info(f"✅ AI Decision: {selected_action.description}")
+            logger.info(f"💭 Reasoning: {reasoning}")
             
             return action_index
         
         except json.JSONDecodeError as e:
-            print(f"Failed to parse AI response as JSON: {e}")
-            print(f"Response was: {response_text}")
+            logger.error(f"Failed to parse AI response as JSON: {e}")
+            logger.error(f"Response was: {response_text}")
             return None
         
         except Exception as e:
-            print(f"Error getting AI decision: {e}")
+            logger.exception(f"Error getting AI decision: {e}")
             return None
     
     def _call_anthropic(self, prompt: str) -> str:
@@ -177,26 +198,83 @@ class LLMPlayer:
         )
         return message.content[0].text.strip()
     
-    def _call_gemini(self, prompt: str) -> str:
-        """Call Google Gemini API."""
-        response = self.client.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.7,
-                "max_output_tokens": 1024,
-            }
-        )
+    def _call_gemini(self, prompt: str, retry_count: int = 3) -> str:
+        """
+        Call Google Gemini API with retry logic for capacity issues.
         
-        # Check if response was blocked or empty (finish_reason 2 = SAFETY)
-        if not response.candidates or not response.candidates[0].content.parts:
-            # Try to get finish reason for debugging
-            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-            raise ValueError(
-                f"Gemini returned empty response (finish_reason: {finish_reason}). "
-                "This may be due to safety filters or rate limits. Try again or adjust the prompt."
-            )
+        Args:
+            prompt: The prompt to send
+            retry_count: Number of retries for 429 errors (default: 3)
+            
+        Returns:
+            The API response text
+            
+        Raises:
+            Exception if all retries fail
+        """
+        last_exception = None
         
-        return response.text.strip()
+        for attempt in range(retry_count):
+            try:
+                response = self.client.generate_content(
+                    prompt,
+                    generation_config={
+                        "temperature": 0.7,
+                        "max_output_tokens": 1024,
+                    }
+                )
+                
+                # Log response metadata for debugging
+                logger.debug(f"Gemini response candidates: {len(response.candidates) if response.candidates else 0}")
+                
+                # Check if response was blocked or empty
+                if not response.candidates or not response.candidates[0].content.parts:
+                    finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+                    safety_ratings = response.candidates[0].safety_ratings if response.candidates else []
+                    
+                    logger.error(f"Gemini returned empty response")
+                    logger.error(f"Finish reason: {finish_reason}")
+                    logger.error(f"Safety ratings: {safety_ratings}")
+                    
+                    raise ValueError(
+                        f"Gemini returned empty response (finish_reason: {finish_reason}). "
+                        "This may be due to safety filters. Try again or adjust the prompt."
+                    )
+                
+                result = response.text.strip()
+                logger.debug(f"Gemini response length: {len(result)} characters")
+                return result
+                
+            except Exception as e:
+                error_str = str(e)
+                last_exception = e
+                
+                # Check if it's a 429 Resource Exhausted error
+                if "429" in error_str or "ResourceExhausted" in error_str or "Resource exhausted" in error_str:
+                    if attempt < retry_count - 1:
+                        # Exponential backoff: 1s, 2s, 4s
+                        wait_time = 2 ** attempt
+                        logger.warning(
+                            f"Gemini API capacity issue (429 Resource Exhausted). "
+                            f"Retry {attempt + 1}/{retry_count} after {wait_time}s..."
+                        )
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(
+                            f"Gemini API capacity exhausted after {retry_count} retries. "
+                            f"This is a Google infrastructure issue, not a rate limit. "
+                            f"Consider: 1) Try again in a few minutes, 2) Switch to gemini-1.5-flash model, "
+                            f"3) Use Anthropic Claude instead"
+                        )
+                else:
+                    # Not a 429 error, don't retry
+                    logger.exception(f"Gemini API call failed: {e}")
+                
+                raise last_exception
+        
+        # If we get here, all retries failed
+        raise last_exception
     
     def get_action_details(
         self,

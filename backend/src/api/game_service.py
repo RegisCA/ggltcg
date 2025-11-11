@@ -6,8 +6,11 @@ methods for game lifecycle management.
 """
 
 import uuid
+import logging
 from typing import Dict, Optional
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from game_engine.game_engine import GameEngine
 from game_engine.models.game_state import GameState, Phase

@@ -99,6 +99,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
 def format_valid_actions_for_ai(valid_actions: list) -> str:
     """
     Format the list of valid actions into a numbered list for the AI.
+    Actions are numbered 1-based to match how the AI will reference them.
     
     Args:
         valid_actions: List of ValidAction objects
@@ -111,32 +112,9 @@ def format_valid_actions_for_ai(valid_actions: list) -> str:
     
     actions_text = "## YOUR VALID ACTIONS (Choose ONE):\n\n"
     
-    # Group actions by type for clarity
-    play_actions = [a for a in valid_actions if a.action_type == "play_card"]
-    tussle_actions = [a for a in valid_actions if a.action_type == "tussle"]
-    other_actions = [a for a in valid_actions if a.action_type not in ["play_card", "tussle"]]
-    
-    action_num = 1
-    
-    if play_actions:
-        actions_text += "### Play Cards:\n"
-        for action in play_actions:
-            actions_text += f"{action_num}. {action.description}\n"
-            action_num += 1
-        actions_text += "\n"
-    
-    if tussle_actions:
-        actions_text += "### Tussles (ATTACK TO WIN!):\n"
-        for action in tussle_actions:
-            actions_text += f"{action_num}. {action.description}\n"
-            action_num += 1
-        actions_text += "\n"
-    
-    if other_actions:
-        actions_text += "### Other Actions:\n"
-        for action in other_actions:
-            actions_text += f"{action_num}. {action.description}\n"
-            action_num += 1
+    # Number actions 1-based (action_number will be converted to 0-based index)
+    for i, action in enumerate(valid_actions, start=1):
+        actions_text += f"{i}. {action.description}\n"
     
     return actions_text
 

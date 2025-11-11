@@ -1,67 +1,83 @@
 # GGLTCG Quick Start Guide
 
-## What We've Built So Far
+## What We've Built
 
-You now have a fully functional GGLTCG game backend with:
+You now have a **fully functional GGLTCG game** with both backend and frontend:
 
-✅ **Complete project structure** - Backend and frontend directories organized  
+✅ **Complete project structure** - Backend and frontend fully implemented  
 ✅ **Core data models** - Card, Player, and GameState classes  
-✅ **Card loading system** - Parses all 18 cards from CSV  
-✅ **Effect system** - All 16 card effects implemented (7 files, 1,433 lines)  
+✅ **Card loading system** - All 18 cards from CSV  
+✅ **Effect system** - All 18 card effects implemented (7 files, 1,433 lines)  
 ✅ **Game engine** - Turn management, card playing, tussle system (680 lines)  
-✅ **FastAPI REST API** - Full server with game management and player actions  
+✅ **FastAPI REST API** - 8 endpoints with auto-docs and CORS  
+✅ **AI player** - Google Gemini integration for strategic opponent  
+✅ **React frontend** - Complete UI with TypeScript, React Query, and game flow  
 ✅ **Comprehensive tests** - Card loading, effects, and game engine all passing  
-✅ **Documentation** - Rules, design docs, and Copilot context  
+✅ **Documentation** - Rules, design docs, and progress tracking  
+✅ **First complete game played** - November 10, 2025 🎉
 
-## Testing the Setup
+## Running the Game
 
-Verify everything works:
+### Backend Setup
 
 ```bash
 cd backend
-python3.13 -m venv venv  # Use Python 3.13 (3.14 not yet supported by all dependencies)
-source venv/bin/activate
+python3.13 -m venv venv  # Use Python 3.13
+source venv/bin/activate  # On macOS/Linux; use venv\Scripts\activate on Windows
 pip install -r requirements.txt
-python tests/test_card_loader.py
+
+# Set up API key
+cp .env.example .env
+# Edit .env and add: GOOGLE_API_KEY=your_key_here
 ```
 
-You should see: `✅ All card loading tests passed!`
+### Frontend Setup
 
-**Note:** This project requires **Python 3.13**. Python 3.14 is too new and not yet supported by pydantic-core.
+```bash
+cd frontend
+npm install
+```
+
+### Start Playing
+
+**Terminal 1 - Backend:**
+
+```bash
+cd backend
+source venv/bin/activate
+python run_server.py
+# Server at http://localhost:8000
+# API docs at http://localhost:8000/docs
+```
+
+**Terminal 2 - Frontend:**
+
+```bash
+cd frontend
+npm run dev
+# Game at http://localhost:5175
+```
+
+Open <http://localhost:5175> and play against the AI!
+
+**Note:** This project requires **Python 3.13**. Python 3.14 is not yet supported by all dependencies.
 
 ## Next Development Session
 
-When you're ready to continue, here are the remaining tasks:
+Current focus: **Polish & Improvements**
 
-### 1. AI Player Integration (Next Priority)
+### Known Issues (Tracked on GitHub)
 
-Integrate the Anthropic Claude API to create an AI opponent:
+- **Issue #4:** Display actual card names instead of "?" in player zones
+- **Issue #5:** Additional UI/UX improvements
 
-**Files to create:**
-- `backend/src/game_engine/ai/llm_player.py` - AI player using Claude API
-- `backend/src/game_engine/ai/prompts.py` - System prompts for the AI
+### Potential Enhancements
 
-**Key features:**
-- Query Claude for next action based on game state
-- Parse AI responses into valid game actions
-- Handle multi-turn strategies
-
-### 2. Frontend Development
-
-Create the React-based user interface:
-
-**Files to create:**
-- `frontend/src/App.tsx` - Main application component
-- `frontend/src/components/GameBoard.tsx` - Game board layout
-- `frontend/src/components/CardDisplay.tsx` - Card visualization
-- `frontend/src/components/PlayerHand.tsx` - Hand management
-- `frontend/src/services/api.ts` - API client for backend
-
-**Key features:**
-- Visual card display with stats
-- Drag-and-drop for playing cards
-- Click to select tussle targets
-- Real-time game state updates
+1. **Game Log Display** - Show event history in UI
+2. **Animations** - Add card play and tussle animations
+3. **Better Targeting** - Drag-and-drop for tussles
+4. **Sound Effects** - Audio feedback for actions
+5. **Card Tooltips** - Hover to see full card details
 
 ## Project Structure Reference
 
@@ -172,17 +188,11 @@ Refer to:
 - **Progress:** `docs/development/MVP_PROGRESS.md`
 - **Copilot Guide:** `COPILOT_CONTEXT.md`
 
-## Ready to Continue?
+## Ready to Play
 
-The backend is now complete! You can:
+The MVP is complete! You can:
 
-1. **Test the API** - Start the server and try the interactive docs:
-   ```bash
-   cd backend
-   python run_server.py
-   # Visit http://localhost:8000/docs
-   ```
-
-2. **Build the AI player** - Integrate Claude for AI opponents
-
-3. **Create the frontend** - Build the React UI for gameplay
+1. **Play the game** - Full gameplay with AI opponent
+2. **Report issues** - Use GitHub issues for bugs or improvements
+3. **Add features** - Check issues #4 and #5 for next priorities
+4. **Explore the API** - Visit <http://localhost:8000/docs> when backend is running

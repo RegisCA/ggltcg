@@ -4,6 +4,7 @@ Player action API routes.
 Endpoints for playing cards, initiating tussles, ending turns, etc.
 """
 
+import logging
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 
@@ -19,6 +20,8 @@ from api.schemas import (
 from api.game_service import get_game_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["actions"])
 
@@ -63,7 +66,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         )
     
     # Prepare kwargs for effect
-    kwargs: Dict[str, Any] = {"player": player}
+    kwargs: Dict[str, Any] = {}
     
     # Add target if specified
     if request.target_card_name:
@@ -149,11 +152,13 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
     # Find defender (if specified)
     defender = None
     if request.defender_name:
-        defender = game_state.find_card_by_name(request.defender_name)
+        # Search for defender specifically in opponent's play area
+        opponent = game_state.get_opponent(player.player_id)
+        defender = next((c for c in opponent.in_play if c.name == request.defender_name), None)
         if defender is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"Defender '{request.defender_name}' not found"
+                detail=f"Defender '{request.defender_name}' not found in opponent's play area"
             )
     
     # Initiate tussle
@@ -263,8 +268,8 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
         
         # Check which cards can be played
         for card in player.hand:
-            if engine.can_play_card(player, card):
-                cost = engine.calculate_card_cost(player, card)
+            if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
+                cost = engine.calculate_card_cost(card, player)
                 valid_actions.append(
                     ValidAction(
                         action_type="play_card",
@@ -275,9 +280,9 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
                 )
         
         # Check which cards can tussle
-        opponent = game_state.get_opponent(player)
+        opponent = game_state.get_opponent(player_id)
         for card in player.in_play:
-            if card.card_type == "TOY":
+            if card.card_type == CardType.TOY:
                 # Check if can tussle
                 if engine.can_tussle(card, None, player):
                     # Can do direct attack
@@ -340,6 +345,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     
     # Verify it's the AI player's turn
     if game_state.active_player_id != player_id:
+        logger.warning(
+            f"AI turn request rejected: player_id={player_id}, "
+            f"active_player_id={game_state.active_player_id}, "
+            f"turn={game_state.turn_number}"
+        )
         raise HTTPException(
             status_code=400,
             detail=f"It's not {player_id}'s turn (active player: {game_state.active_player_id})"
@@ -363,8 +373,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     
     # Check which cards can be played
     for card in player.hand:
-        if engine.can_play_card(player, card):
-            cost = engine.calculate_card_cost(player, card)
+        if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
+            cost = engine.calculate_card_cost(card, player)
             valid_actions.append(
                 ValidAction(
                     action_type="play_card",
@@ -375,7 +385,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             )
     
     # Check which cards can tussle
-    opponent = game_state.get_opponent(player)
+    opponent = game_state.get_opponent(player_id)
     for card in player.in_play:
         if card.card_type.value == "TOY":
             # Check if can tussle
@@ -409,11 +419,15 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     
     # Get AI player and have it select an action
     try:
+        logger.info(f"🤖 AI turn starting for player {player_id} in game {game_id}")
+        logger.debug(f"Available actions: {[a.description for a in valid_actions]}")
+        
         ai_player = get_ai_player()
         action_index = ai_player.select_action(game_state, player_id, valid_actions)
         
         if action_index is None:
             # AI failed to select - default to end turn
+            logger.warning("AI failed to select action, defaulting to end turn")
             engine.end_turn()
             return ActionResponse(
                 success=True,
@@ -487,7 +501,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             )
         
         else:
+            logger.error(f"Unknown action type from AI: {action_details['action_type']}")
             raise HTTPException(status_code=500, detail=f"Unknown action type: {action_details['action_type']}")
     
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
+        logger.exception(f"AI turn failed with exception: {e}")
         raise HTTPException(status_code=500, detail=f"AI turn failed: {str(e)}")

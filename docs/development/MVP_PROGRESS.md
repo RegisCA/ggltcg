@@ -123,7 +123,60 @@
 - `backend/AI_SETUP.md` - Setup and usage documentation
 - `backend/.env.example` - Environment variable template
 
-#### 7. Documentation
+#### 7. React Frontend (100% Complete) 🎉
+**Complete React Application with TypeScript:**
+- `frontend/` - Vite + React 18 + TypeScript project
+- Vite 7.2.2 for fast development server
+- React Query (@tanstack/react-query) for server state management
+- Axios for HTTP client with configured base URL
+- Plain CSS utilities (Tailwind CSS v4 abandoned due to PostCSS compatibility issues)
+
+**Type Definitions:**
+- `types/game.ts` - Card, Player, GameState, ValidAction interfaces
+- `types/api.ts` - API request/response types
+- Full TypeScript coverage for type safety
+
+**API Client Layer:**
+- `api/client.ts` - Axios instance with http://localhost:8000 base URL
+- `api/gameService.ts` - All game API calls (createGame, getGameState, playCard, initiateTussle, endTurn, aiTakeTurn, getValidActions)
+
+**React Query Hooks:**
+- `hooks/useGame.ts` - Custom hooks for all game operations
+- `useGameState` - Polls game state every 2 seconds
+- `useValidActions` - Fetches available player actions
+- `usePlayCard`, `useTussle`, `useEndTurn`, `useAITurn` - Mutation hooks
+
+**UI Components:**
+- `DeckSelection.tsx` - Deck builder with all 18 cards displayed
+- `CardDisplay.tsx` - Individual card component showing stats, type, effect text
+- `PlayerZone.tsx` - Displays player zones (Hand, In Play, Sleep)
+- `ActionPanel.tsx` - Shows valid actions with click handlers
+- `GameBoard.tsx` - Main game interface orchestrating all components
+- `App.tsx` - Game flow state machine (deck selection → playing → game over)
+
+**Features:**
+- ✅ Deck selection UI (pick 6 cards for both players)
+- ✅ Game board with both player zones
+- ✅ Real-time game state updates via polling
+- ✅ Valid actions panel with click-to-play
+- ✅ Automatic AI turn triggering
+- ✅ Victory screen with "Play Again" button
+- ✅ Error handling (404 game not found detection)
+- ✅ Full game flow from deck selection to victory
+
+**Card Data:**
+- `data/cards.ts` - All 18 card definitions with stats and effect text
+
+**Styling:**
+- `index.css` - 200+ utility classes (manually written workaround for Tailwind v4 issues)
+- Dark theme with blue/pink color scheme
+- Responsive layout
+
+**Known Issues (Tracked on GitHub):**
+- ~~Issue #4: Players able to tussle their own cards~~ ✅ FIXED
+- Issue #5: Additional UI/UX improvements (card names in zones, game log, animations)
+
+#### 8. Documentation
 - `COPILOT_CONTEXT.md` - Comprehensive development guide for GitHub Copilot
 - Copied all game rules and design documents to `docs/` folder
 - Created test file to verify card loading works
@@ -139,36 +192,38 @@ All backend development finished:
 
 **Backend is production-ready for MVP!**
 
-#### Phase 2: Frontend (Current Focus - Week 3-4)
-1. **React Setup**
-   - Initialize Vite project
-   - Configure Tailwind CSS
-   - Set up API client utilities
 
-2. **UI Components**
-   - GameBoard - Main container
-   - PlayerZone - Show zones (Hand/In Play/Sleep)
-   - CardDisplay - Individual card rendering
-   - ActionPanel - Play/Tussle/End Turn controls
-   - GameLog - Event history
-   - ResourceDisplay - CC counter
+#### Phase 2: Frontend ✅ COMPLETE!
 
-3. **Game Flow**
-   - Card selection for deck building
-   - Turn-by-turn gameplay
-   - Tussle target selection
-   - Victory screen
+**All frontend development finished:**
 
-#### Phase 3: Testing & Polish (Week 3-4)
-1. **Testing**
-   - Unit tests for all effects
-   - Integration tests for game flows
-   - Manual testing of all card interactions
+- ✅ React + TypeScript setup with Vite
+- ✅ Complete UI components (DeckSelection, GameBoard, CardDisplay, PlayerZone, ActionPanel)
+- ✅ React Query integration for server state
+- ✅ Full game flow from deck selection to victory
+- ✅ AI turn automation
+- ✅ Error handling and recovery
 
-2. **Polish**
-   - Card animations
-   - Visual feedback for actions
-   - Improved UI/UX
+**Frontend is production-ready for MVP!**
+
+#### Phase 3: Testing & Polish (Current Focus)
+
+**Recent Bug Fixes (November 10, 2025):**
+1. ✅ **Card Stats Null in API Response** - Fixed CardType enum comparison in `_card_to_state()`. Was comparing enum to string "TOY" which always failed, causing all card stats to be null.
+2. ✅ **Defender Lookup Bug** - Fixed `find_card_by_name()` returning cards from any zone. Now searches specifically in opponent's play area to avoid finding cards with duplicate names in hand.
+3. ✅ **AI Player Improvements** - Added comprehensive logging, retry logic with exponential backoff for Gemini API, model fallback configuration
+4. ✅ **Rush Card Restriction** - Fixed to properly check each player's first turn (Turn 1 for first player, Turn 2 for second)
+5. ✅ **Duplicate AI Turn Calls** - Fixed React useEffect dependencies to prevent multiple AI turn triggers
+
+**Outstanding Issues:**
+- Issue #5: UI/UX improvements (card names in zones, game log display, animations)
+
+**Testing Status:**
+- ✅ End-to-end gameplay working
+- ✅ Tussle mechanics validated
+- ✅ AI opponent playing complete games
+- ✅ All card effects functional
+- ✅ Victory conditions working
 
 ### 📊 Project Statistics
 
@@ -205,9 +260,10 @@ All backend development finished:
 
 ### 🎯 MVP Goals
 
+
 **Target:** Playable single-player game vs AI in 4-6 weeks
 
-**Current Progress:** ~75% complete (Backend finished, Frontend next!)
+**Current Progress:** ~95% complete (Backend + Frontend complete, core bugs fixed!)
 
 **What's Working:**
 
@@ -215,31 +271,46 @@ All backend development finished:
 - All card effects functional ✅
 - REST API with 8 endpoints ✅
 - AI opponent with Gemini integration ✅
+- React frontend with full game flow ✅
+- Deck selection and gameplay UI ✅
 - Comprehensive test coverage ✅
+- **Tussle mechanics fully working** ✅
+- **Card stats correctly displayed** ✅
+- **AI opponent playing strategically** ✅
 
 **What's Next:**
 
-1. Build React frontend with Vite + Tailwind
-2. Create game UI components
-3. Integrate with FastAPI backend
-4. Add animations and polish
-5. Deploy MVP!
+1. UI/UX polish (Issue #5):
+   - Display card names in player zones
+   - Add game log/history display
+   - Add animations for card actions
+   - Visual feedback for effects
+2. Code cleanup (remove debug statements)
+3. Deploy MVP!
 
-### 🛠️ How to Test Current Progress
+### 🛠️ How to Run the Complete Game
+
+**Backend:**
 
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On macOS/Linux
 pip install -r requirements.txt
-python tests/test_card_loader.py
+python run_server.py
 ```
 
-This will verify that:
-- Card CSV parsing works correctly
-- All 18 cards load properly
-- Toy and Action cards are differentiated
-- Special cost handling works (Copy, Dream)
+**Frontend:**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open <http://localhost:5175> in your browser and play!
+
+**First Game Complete:** November 10, 2025 🎉
 
 ### 📝 Development Notes
 

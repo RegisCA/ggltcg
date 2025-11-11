@@ -5,6 +5,7 @@ The GameEngine class orchestrates all game actions, validates moves,
 applies effects, and manages game state.
 """
 
+import logging
 from typing import Optional, List, Dict, Any, Tuple
 from enum import Enum
 import random
@@ -18,6 +19,7 @@ from .rules.effects.base_effect import (
     ActivatedEffect, CostModificationEffect
 )
 
+logger = logging.getLogger(__name__)
 
 class ActionType(Enum):
     """Types of actions a player can take."""
@@ -68,10 +70,8 @@ class GameEngine:
         player.reset_turn_counters()
         
         # Determine CC gain
-        is_first_turn = self.game_state.is_first_turn()
-        is_starting_player = player.player_id == self.game_state.first_player_id
-        
-        cc_gain = 2 if (is_first_turn and is_starting_player) else 4
+        # Only turn 1 gets 2 CC, all other turns get 4 CC
+        cc_gain = 2 if self.game_state.turn_number == 1 else 4
         
         # Gain CC (respects 7 CC cap)
         player.gain_cc(cc_gain)

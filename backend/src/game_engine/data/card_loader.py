@@ -1,8 +1,11 @@
 """Card loader for reading card data from CSV file."""
 import csv
+import logging
 from pathlib import Path
 from typing import List, Dict
 from ..models.card import Card, CardType
+
+logger = logging.getLogger(__name__)
 
 
 class CardLoader:

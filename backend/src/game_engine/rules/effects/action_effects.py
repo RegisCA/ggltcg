@@ -42,12 +42,35 @@ class RushEffect(PlayEffect):
     Rush: "Gain 2 CC. This card may not be played on your first turn."
     
     Grants 2 CC to the player who played Rush.
-    Restriction: Cannot be played on Turn 1 (the starting player's first turn).
+    Restriction: Cannot be played on each player's first turn.
+    - Player 1 (first player) cannot play on Turn 1
+    - Player 2 (second player) cannot play on Turn 2
     """
     
     def can_apply(self, game_state: "GameState", **kwargs: Any) -> bool:
-        """Rush cannot be played on Turn 1."""
-        return game_state.turn_number > 1
+        """Rush cannot be played on a player's first turn."""
+        player: Optional["Player"] = kwargs.get("player")
+        if not player:
+            return False
+        
+        # Determine player ID from the player's name ("human" or "ai")
+        player_id = None
+        for pid, p in game_state.players.items():
+            if p == player:
+                player_id = pid
+                break
+        
+        if not player_id:
+            return False
+        
+        # Check if this is the player's first turn
+        # First player's first turn is Turn 1
+        # Second player's first turn is Turn 2
+        is_first_player = (player_id == game_state.first_player_id)
+        is_first_turn = (is_first_player and game_state.turn_number == 1) or \
+                       (not is_first_player and game_state.turn_number == 2)
+        
+        return not is_first_turn
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Grant 2 CC to the player who played Rush."""
