@@ -14,8 +14,8 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 - Uvicorn 0.34.0 ASGI server
 - Card data stored in CSV format
 - Game state management with JSON serialization
-- AI player powered by Google Gemini 2.0 Flash Lite (30 RPM free tier)
-- Alternative Claude Sonnet support (Anthropic API)
+- AI player powered by Google Gemini (free tier available)
+- Alternative LLM providers supported (see `backend/AI_SETUP.md`)
 
 ### Frontend
 
@@ -66,7 +66,7 @@ ggltcg/
 
 - Python 3.13+
 - Node.js 18+
-- Google Gemini API key (free tier, 30 RPM) or Anthropic API key (for AI player)
+- Google Gemini API key (get one free at <https://aistudio.google.com/api-keys>)
 
 ### Backend Setup
 
@@ -79,6 +79,7 @@ pip install -r requirements.txt
 # Copy .env.example to .env and add your API key
 cp .env.example .env
 # Edit .env and add: GOOGLE_API_KEY=your_key_here
+# Get your free API key at: https://aistudio.google.com/api-keys
 # Optional: If you experience 429 capacity errors with gemini-2.0-flash-lite,
 # add GEMINI_MODEL=gemini-2.5-flash to use a newer, more stable model
 ```
@@ -147,7 +148,7 @@ See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
 **Rate Limit Exceeded:**
 
 - Check your usage at <https://aistudio.google.com/usage>
-- Free tier has generous limits - capacity issues are more common than rate limits
+- Free tier limits: 15 requests per minute (RPM) for most models
 - Wait 1 minute and try again, or slow down gameplay
 
 **AI Not Making Decisions:**
@@ -155,6 +156,12 @@ See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
 - Check backend terminal for detailed logs showing Gemini API calls
 - Logs include prompts, responses, and error details
 - Look for ERROR or WARNING messages in the output
+
+**Using Alternative LLM Providers:**
+
+- This project supports multiple LLM providers (Gemini, Claude, etc.)
+- See `backend/AI_SETUP.md` for detailed setup instructions for each provider
+- Gemini is recommended for development due to its generous free tier
 
 
 
