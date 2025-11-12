@@ -176,12 +176,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           </div>
         )}
 
-        {/* AI Processing Indicator */}
-        {isProcessing && gameState.active_player_id === aiPlayerId && (
-          <div className="mb-3 p-2 bg-purple-900 rounded border border-purple-600 animate-pulse text-sm">
-            AI is thinking...
-          </div>
-        )}
+        {/* AI Processing Indicator - Fixed height to prevent layout shift */}
+        <div className="mb-3" style={{ minHeight: '40px' }}>
+          {isProcessing && gameState.active_player_id === aiPlayerId && (
+            <div className="p-2 bg-purple-900 rounded border border-purple-600 animate-pulse text-sm">
+              AI is thinking...
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {/* Left Column - AI Player */}
