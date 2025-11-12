@@ -232,7 +232,7 @@ class CopyEffect(PlayEffect):
         
         cards_in_play = game_state.get_cards_in_play(player)
         # Only Toys can be copied (not Actions)
-        return [card for card in cards_in_play if card.card_type == "TOY"]
+        return [card for card in cards_in_play if card.is_toy()]
     
     def get_copy_cost(self, target: "Card") -> int:
         """

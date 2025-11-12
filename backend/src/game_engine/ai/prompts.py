@@ -56,7 +56,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
     ai_hand = ", ".join([f"{c.name} (cost {c.cost})" for c in ai_player.hand])
     ai_in_play = []
     for card in ai_player.in_play:
-        if card.card_type.value == "TOY":
+        if card.is_toy():
             ai_in_play.append(
                 f"{card.name} ({card.speed} SPD, {card.strength} STR, {card.current_stamina}/{card.stamina} STA)"
             )
@@ -66,7 +66,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
     # Format opponent's state
     opp_in_play = []
     for card in opponent.in_play:
-        if card.card_type.value == "TOY":
+        if card.is_toy():
             opp_in_play.append(
                 f"{card.name} ({card.speed} SPD, {card.strength} STR, {card.current_stamina}/{card.stamina} STA)"
             )
