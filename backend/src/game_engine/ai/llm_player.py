@@ -154,12 +154,22 @@ class LLMPlayer:
             action_number = response_data.get("action_number")
             reasoning = response_data.get("reasoning", "No reasoning provided")
             
+            # DEBUG: Log all actions with their numbers
+            logger.info("=" * 60)
+            logger.info("DEBUG - Valid Actions List:")
+            for i, action in enumerate(valid_actions):
+                logger.info(f"  Prompt number {i+1} -> Index {i}: {action.description}")
+            logger.info("=" * 60)
+            
             if action_number is None:
                 logger.error(f"AI response missing action_number: {response_data}")
                 return None
             
+            logger.info(f"DEBUG - AI returned action_number: {action_number} (type: {type(action_number)})")
+            
             # Convert to 0-based index
             action_index = action_number - 1
+            logger.info(f"DEBUG - Converted to action_index: {action_index}")
             
             # Validate index
             if action_index < 0 or action_index >= len(valid_actions):
@@ -170,6 +180,8 @@ class LLMPlayer:
             selected_action = valid_actions[action_index]
             logger.info(f"✅ AI Decision: {selected_action.description}")
             logger.info(f"💭 Reasoning: {reasoning}")
+            logger.info(f"DEBUG - Returning action_index: {action_index}")
+            logger.info("=" * 60)
             
             return action_index
         

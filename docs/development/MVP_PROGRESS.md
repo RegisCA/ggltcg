@@ -215,8 +215,16 @@ All backend development finished:
 4. ✅ **Rush Card Restriction** - Fixed to properly check each player's first turn (Turn 1 for first player, Turn 2 for second)
 5. ✅ **Duplicate AI Turn Calls** - Fixed React useEffect dependencies to prevent multiple AI turn triggers
 
+**Critical Bug Fixes (November 12, 2025) - PR #15:**
+1. ✅ **Issue #11 - Direct Attack Bug** - Direct attacks were incorrectly allowed when opponent had cards in play. Fixed with explicit `opponent.has_cards_in_play()` check in both `get_valid_actions` and `ai_take_turn` endpoints.
+2. ✅ **Issue #12 - AI Never Tussles** - AI was filtering out all tussles due to incorrect CardType enum comparison (`card.card_type.value == "TOY"` vs `CardType.TOY`). Also fixed turn bonus logic in `predict_winner()` - attackers always get +1 speed, defenders don't. Added `TussleResolver.predict_winner()` method to filter guaranteed-loss tussles.
+3. ✅ **Issue #7 - Copy Card Implementation** - Implemented complete Copy card functionality with `copy.deepcopy()` for cloning, dynamic cost calculation based on target card, and target selection support in UI.
+4. ✅ **Issue #13 - AI Turn Summary** - Added `ai_turn_summary` field to `ActionResponse` schema for better UX visibility of AI actions.
+5. ✅ **CardType Enum Audit** - Fixed all incorrect CardType comparisons throughout codebase (prompts.py, action_effects.py, routes_actions.py).
+
 **Outstanding Issues:**
 - Issue #5: UI/UX improvements (card names in zones, game log display, animations)
+- Issue #14: Frontend enhancements for Copy card target selection and AI turn summary display
 
 **Testing Status:**
 - ✅ End-to-end gameplay working

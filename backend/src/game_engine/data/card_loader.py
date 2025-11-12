@@ -90,6 +90,23 @@ class CardLoader:
                 # If stats are missing or invalid, treat as Action
                 card_type = CardType.ACTION
         
+        # Parse colors with defaults
+        primary_color = '#C74444'  # Default red for Toys
+        accent_color = '#C74444'  # Default red accent
+        
+        # Try to read from CSV first
+        if 'primary_color' in row and row['primary_color'] and row['primary_color'].strip():
+            primary_color = row['primary_color'].strip()
+        elif card_type == CardType.ACTION:
+            # Default purple for Actions if not in CSV
+            primary_color = '#8B5FA8'
+            
+        if 'accent_color' in row and row['accent_color'] and row['accent_color'].strip():
+            accent_color = row['accent_color'].strip()
+        elif card_type == CardType.ACTION:
+            # Default purple for Actions if not in CSV
+            accent_color = '#8B5FA8'
+        
         return Card(
             name=name,
             card_type=card_type,
@@ -98,6 +115,8 @@ class CardLoader:
             speed=speed,
             strength=strength,
             stamina=stamina,
+            primary_color=primary_color,
+            accent_color=accent_color,
         )
     
     @staticmethod

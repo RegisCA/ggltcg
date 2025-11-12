@@ -18,6 +18,8 @@ export interface Card {
   stamina: number | null;
   current_stamina: number | null;
   is_sleeped: boolean;
+  primary_color: string;
+  accent_color: string;
 }
 
 export interface Player {

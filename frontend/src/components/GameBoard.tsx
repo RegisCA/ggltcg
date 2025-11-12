@@ -150,19 +150,19 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   }
 
   return (
-    <div className="min-h-screen bg-game-bg p-4">
+    <div className="min-h-screen bg-game-bg p-3">
       <div className="max-w-7xl mx-auto">
         {/* Game Header */}
-        <div className="mb-4 p-4 bg-game-card rounded-lg border-2 border-game-accent">
+        <div className="mb-3 p-3 bg-game-card rounded">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">GGLTCG</h1>
+            <h1 className="text-xl font-bold">GGLTCG</h1>
             <div className="text-center">
-              <div className="text-sm text-gray-400">Turn {gameState.turn_number}</div>
-              <div className="text-xl font-bold">{gameState.phase} PHASE</div>
+              <div className="text-xs text-gray-400">Turn {gameState.turn_number}</div>
+              <div className="text-lg font-bold">{gameState.phase} PHASE</div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-400">Active Player</div>
-              <div className="font-bold">
+              <div className="text-xs text-gray-400">Active Player</div>
+              <div className="font-bold text-sm">
                 {gameState.active_player_id === humanPlayerId ? humanPlayer.name : aiPlayer.name}
               </div>
             </div>
@@ -171,19 +171,19 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
         {/* Message Display */}
         {message && (
-          <div className="mb-4 p-3 bg-blue-900 rounded-lg border border-blue-600 animate-fade-in">
+          <div className="mb-3 p-2 bg-blue-900 rounded border border-blue-600 animate-fade-in text-sm">
             {message}
           </div>
         )}
 
         {/* AI Processing Indicator */}
         {isProcessing && gameState.active_player_id === aiPlayerId && (
-          <div className="mb-4 p-3 bg-purple-900 rounded-lg border border-purple-600 animate-pulse">
+          <div className="mb-3 p-2 bg-purple-900 rounded border border-purple-600 animate-pulse text-sm">
             AI is thinking...
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {/* Left Column - AI Player */}
           <div className="lg:col-span-2">
             <PlayerZone
@@ -194,7 +194,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           </div>
 
           {/* Right Column - Action Panel */}
-          <div>
+          <div className="lg:row-span-2">
             <ActionPanel
               validActions={validActionsData?.valid_actions || []}
               onAction={handleAction}
@@ -203,8 +203,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             />
           </div>
 
-          {/* Bottom - Human Player */}
-          <div className="lg:col-span-3">
+          {/* Bottom Left - Human Player */}
+          <div className="lg:col-span-2">
             <PlayerZone
               player={humanPlayer}
               isActive={gameState.active_player_id === humanPlayerId}

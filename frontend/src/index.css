@@ -1,5 +1,40 @@
 /* Temporary: Using plain CSS until Tailwind v4 issues are resolved */
 
+/* GGLTCG Design System - CSS Custom Properties */
+:root {
+  /* Primary Colors */
+  --ggltcg-black: #1A1A1A;
+  --ggltcg-cream: #F5F0E8;
+  --ggltcg-gray: #8B8680;
+  
+  /* Card Accent Colors (for borders/cost indicators) */
+  --ggltcg-red: #C74444;
+  --ggltcg-blue: #5B7FA8;
+  --ggltcg-purple: #8B5FA8;
+  --ggltcg-brown: #8B6F47;
+  
+  /* UI Colors */
+  --ui-dark-bg: #1A1F3A;
+  --ui-card-bg: #2A3556;
+  --ui-highlight: #4A7BFF;
+  --ui-toy-badge: #4A7BFF;
+  --ui-action-badge: #C850FF;
+  
+  /* Typography */
+  --font-card-name: 'Bangers', 'Impact', sans-serif;
+  --font-body: 'Lato', 'Arial', sans-serif;
+  
+  /* Card Dimensions */
+  --card-base-width: 825px;
+  --card-base-height: 1125px;
+  --card-small-width: 120px;
+  --card-small-height: 164px;
+  --card-medium-width: 165px;
+  --card-medium-height: 225px;
+  --card-large-width: 330px;
+  --card-large-height: 450px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -10,7 +45,7 @@ body {
   background-color: #1a1a2e;
   color: white;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* Utility classes we need */
@@ -173,6 +208,12 @@ body {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+@keyframes tussle-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px) rotate(-2deg); }
+  75% { transform: translateX(4px) rotate(2deg); }
 }
 
 .card-glow {

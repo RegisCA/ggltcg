@@ -5,6 +5,9 @@
 
 import { useState } from 'react';
 import { CARDS, getCardType } from '../data/cards';
+import { CardDisplay } from './CardDisplay';
+// import { CardHoverPreview } from './CardHoverPreview'; // Disabled until artwork is added
+import type { Card } from '../types/game';
 
 interface DeckSelectionProps {
   onDeckSelected: (deck: string[]) => void;
@@ -13,6 +16,7 @@ interface DeckSelectionProps {
 
 export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps) {
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
+  // const [hoveredCard, setHoveredCard] = useState<Card | null>(null); // Disabled until artwork is added
 
   const toggleCard = (cardName: string) => {
     if (selectedCards.includes(cardName)) {
@@ -28,86 +32,81 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
     }
   };
 
+  // Convert CardData to Card for display
+  const createCardForDisplay = (cardData: typeof CARDS[0]): Card => ({
+    name: cardData.name,
+    card_type: getCardType(cardData) as 'TOY' | 'ACTION',
+    cost: typeof cardData.cost === 'number' ? cardData.cost : -1,
+    zone: 'HAND',
+    owner: '',
+    controller: '',
+    speed: cardData.speed,
+    strength: cardData.strength,
+    stamina: cardData.stamina,
+    current_stamina: cardData.stamina,
+    is_sleeped: false,
+    primary_color: getCardType(cardData) === 'TOY' ? '#C74444' : '#8B5FA8',
+    accent_color: getCardType(cardData) === 'TOY' ? '#C74444' : '#8B5FA8',
+  });
+
   return (
     <div className="min-h-screen bg-game-bg p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-2">
-          {playerName} - Select Your Deck
-        </h1>
-        <p className="text-center text-gray-400 mb-8">
-          Choose 6 unique cards ({selectedCards.length}/6 selected)
-        </p>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-          {CARDS.map((card) => {
-            const isSelected = selectedCards.includes(card.name);
-            const cardType = getCardType(card);
-            
-            return (
-              <button
-                key={card.name}
-                onClick={() => toggleCard(card.name)}
-                disabled={!isSelected && selectedCards.length >= 6}
-                className={`
-                  p-4 rounded-lg border-2 transition-all duration-200
-                  ${isSelected
-                    ? 'border-game-highlight bg-game-accent scale-105 shadow-lg'
-                    : 'border-game-card bg-game-card hover:border-gray-500'
-                  }
-                  ${!isSelected && selectedCards.length >= 6
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'cursor-pointer hover:scale-105'
-                  }
-                `}
-              >
-                <div className="text-left">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-xl font-bold">{card.name}</h3>
-                    <span className={`
-                      px-2 py-1 rounded text-xs font-bold
-                      ${cardType === 'TOY' ? 'bg-blue-600' : 'bg-purple-600'}
-                    `}>
-                      {cardType}
-                    </span>
-                  </div>
-                  
-                  <div className="text-sm text-gray-300 mb-3">
-                    Cost: {card.cost} CC
-                  </div>
-
-                  {cardType === 'TOY' && (
-                    <div className="flex gap-3 text-sm mb-2">
-                      <div>SPD: {card.speed}</div>
-                      <div>STR: {card.strength}</div>
-                      <div>STA: {card.stamina}</div>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-gray-400 italic line-clamp-3">
-                    {card.effect}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="text-center">
+      <div className="max-w-7xl mx-auto">
+        {/* Header with title and Confirm button */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-4xl font-bold">
+              {playerName} - Select Your Deck
+            </h1>
+            <p className="text-gray-400 mt-2">
+              Choose 6 unique cards ({selectedCards.length}/6 selected)
+            </p>
+          </div>
+          
           <button
             onClick={handleConfirm}
             disabled={selectedCards.length !== 6}
             className={`
-              px-8 py-4 rounded-lg text-xl font-bold transition-all
+              px-8 py-4 rounded text-xl font-bold transition-all
               ${selectedCards.length === 6
                 ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                 : 'bg-gray-600 cursor-not-allowed opacity-50'
               }
             `}
           >
-            Confirm Deck
+            Confirm Deck {selectedCards.length === 6 ? '✓' : `(${selectedCards.length}/6)`}
           </button>
         </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {CARDS.map((cardData) => {
+            const isSelected = selectedCards.includes(cardData.name);
+            const card = createCardForDisplay(cardData);
+            const isDisabled = !isSelected && selectedCards.length >= 6;
+            
+            return (
+              <div
+                key={cardData.name}
+                // onMouseEnter={() => setHoveredCard(card)} // Disabled until artwork is added
+                // onMouseLeave={() => setHoveredCard(null)} // Disabled until artwork is added
+                onClick={() => !isDisabled && toggleCard(cardData.name)}
+                style={{ display: 'flex', justifyContent: 'center' }}
+              >
+                <CardDisplay
+                  card={card}
+                  size="medium"
+                  isSelected={isSelected}
+                  isClickable={!isDisabled}
+                  isDisabled={isDisabled}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Hover Preview - Disabled until artwork is added */}
+      {/* <CardHoverPreview card={hoveredCard} /> */}
     </div>
   );
 }

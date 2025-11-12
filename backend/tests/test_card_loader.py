@@ -30,6 +30,8 @@ def test_load_cards():
     assert beary.strength == 3, f"Beary strength should be 3, got {beary.strength}"
     assert beary.stamina == 5, f"Beary stamina should be 5, got {beary.stamina}"
     assert beary.cost == 1, f"Beary cost should be 1, got {beary.cost}"
+    assert beary.primary_color == "#C74444", f"Beary primary_color should be #C74444, got {beary.primary_color}"
+    assert beary.accent_color == "#C74444", f"Beary accent_color should be #C74444, got {beary.accent_color}"
     print(f"✓ Beary: {beary.name} - Speed {beary.speed}, Strength {beary.strength}, Stamina {beary.stamina}, Cost {beary.cost}")
     
     # Test Action card
@@ -38,6 +40,8 @@ def test_load_cards():
     assert rush.is_action(), "Rush should be an Action"
     assert rush.speed is None, "Rush should not have speed"
     assert rush.cost == 0, f"Rush cost should be 0, got {rush.cost}"
+    assert rush.primary_color == "#8B5FA8", f"Rush primary_color should be #8B5FA8 (purple), got {rush.primary_color}"
+    assert rush.accent_color == "#8B5FA8", f"Rush accent_color should be #8B5FA8 (purple), got {rush.accent_color}"
     print(f"✓ Rush: {rush.name} - Action card, Cost {rush.cost}")
     
     # Test variable cost card

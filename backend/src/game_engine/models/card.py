@@ -30,6 +30,8 @@ class Card:
         speed: Speed stat (Toys only)
         strength: Strength stat (Toys only)
         stamina: Stamina stat (Toys only)
+        primary_color: Hex code for card border color (based on faction/type)
+        accent_color: Hex code for icons and accents (based on faction/type)
         owner: Player ID who owns this card
         controller: Player ID who controls this card (can differ due to Twist)
         zone: Current zone where card is located
@@ -43,6 +45,8 @@ class Card:
     speed: Optional[int] = None
     strength: Optional[int] = None
     stamina: Optional[int] = None
+    primary_color: str = "#C74444"  # Default red for Toys
+    accent_color: str = "#C74444"  # Default red accent
     owner: str = ""
     controller: str = ""
     zone: Zone = Zone.HAND
@@ -105,6 +109,8 @@ class Card:
             "speed": self.speed,
             "strength": self.strength,
             "stamina": self.stamina,
+            "primary_color": self.primary_color,
+            "accent_color": self.accent_color,
             "owner": self.owner,
             "controller": self.controller,
             "zone": self.zone.value,
@@ -123,6 +129,8 @@ class Card:
             speed=data.get("speed"),
             strength=data.get("strength"),
             stamina=data.get("stamina"),
+            primary_color=data.get("primary_color", "#C74444"),
+            accent_color=data.get("accent_color", "#C74444"),
             owner=data.get("owner", ""),
             controller=data.get("controller", ""),
             zone=Zone(data.get("zone", "Hand")),

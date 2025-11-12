@@ -165,6 +165,8 @@ class GameService:
                 speed=template.speed,
                 strength=template.strength,
                 stamina=template.stamina,
+                primary_color=template.primary_color,
+                accent_color=template.accent_color,
                 owner=owner_id,
                 controller=owner_id,
             )
