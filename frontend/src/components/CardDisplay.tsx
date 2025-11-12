@@ -147,18 +147,18 @@ export function CardDisplay({
 
       {/* Toy Stats */}
       {isToy && (
-        <div className="flex gap-1 mb-2" style={{ fontSize: config.fontSize, position: 'relative', zIndex: 1 }}>
+        <div className="flex gap-1 mb-1" style={{ fontSize: config.fontSize, position: 'relative', zIndex: 1 }}>
           <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center">
-            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.625rem' : '0.75rem' }}>SPD</div>
-            <div className="font-bold" style={{ color: accentColor }}>{card.speed}</div>
+            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.5rem' : '0.625rem' }}>SPD</div>
+            <div className="font-bold" style={{ color: accentColor, fontSize: size === 'small' ? '0.875rem' : '1rem' }}>{card.speed}</div>
           </div>
           <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center">
-            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.625rem' : '0.75rem' }}>STR</div>
-            <div className="font-bold" style={{ color: accentColor }}>{card.strength}</div>
+            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.5rem' : '0.625rem' }}>STR</div>
+            <div className="font-bold" style={{ color: accentColor, fontSize: size === 'small' ? '0.875rem' : '1rem' }}>{card.strength}</div>
           </div>
           <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center">
-            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.625rem' : '0.75rem' }}>STA</div>
-            <div className="font-bold" style={{ color: accentColor }}>
+            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.5rem' : '0.625rem' }}>STA</div>
+            <div className="font-bold" style={{ color: accentColor, fontSize: size === 'small' ? '0.875rem' : '1rem' }}>
               {card.current_stamina !== null && card.current_stamina !== card.stamina ? (
                 <span className="text-red-400">
                   {card.current_stamina}/{card.stamina}
@@ -171,17 +171,17 @@ export function CardDisplay({
         </div>
       )}
 
-      {/* Effect Text */}
-      {cardData && (
+      {/* Effect Text - Only show on medium and large cards */}
+      {cardData && size !== 'small' && (
         <div 
           className="text-gray-300 italic mt-2"
           style={{
-            fontSize: size === 'small' ? '0.625rem' : size === 'medium' ? '0.75rem' : '0.875rem',
+            fontSize: size === 'medium' ? '0.75rem' : '0.875rem',
             lineHeight: '1.3',
             overflow: 'hidden',
             display: '-webkit-box',
             WebkitBoxOrient: 'vertical',
-            WebkitLineClamp: size === 'small' ? 2 : size === 'medium' ? 3 : 8,
+            WebkitLineClamp: size === 'medium' ? 3 : 8,
             position: 'relative',
             zIndex: 1,
           }}
