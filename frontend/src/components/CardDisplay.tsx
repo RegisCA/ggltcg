@@ -29,7 +29,7 @@ export function CardDisplay({
   size = 'medium',
 }: CardDisplayProps) {
   const cardData = getCardByName(card.name);
-  const isToy = card.card_type === 'TOY';
+  const isToy = card.card_type === 'Toy';  // Match backend enum value
 
   // Size configurations (px values from UX spec)
   const sizeConfig = {

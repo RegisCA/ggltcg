@@ -35,9 +35,9 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
   // Convert CardData to Card for display
   const createCardForDisplay = (cardData: typeof CARDS[0]): Card => ({
     name: cardData.name,
-    card_type: getCardType(cardData) as 'TOY' | 'ACTION',
+    card_type: getCardType(cardData) as 'Toy' | 'Action',
     cost: typeof cardData.cost === 'number' ? cardData.cost : -1,
-    zone: 'HAND',
+    zone: 'Hand',
     owner: '',
     controller: '',
     speed: cardData.speed,
@@ -45,8 +45,8 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
     stamina: cardData.stamina,
     current_stamina: cardData.stamina,
     is_sleeped: false,
-    primary_color: getCardType(cardData) === 'TOY' ? '#C74444' : '#8B5FA8',
-    accent_color: getCardType(cardData) === 'TOY' ? '#C74444' : '#8B5FA8',
+    primary_color: getCardType(cardData) === 'Toy' ? '#C74444' : '#8B5FA8',
+    accent_color: getCardType(cardData) === 'Toy' ? '#C74444' : '#8B5FA8',
   });
 
   return (
