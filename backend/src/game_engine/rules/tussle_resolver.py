@@ -5,6 +5,7 @@ from ..models.game_state import GameState
 from ..models.card import Card
 from ..models.player import Player
 import random
+import copy
 
 
 @dataclass
@@ -40,6 +41,78 @@ class TussleResult:
 
 class TussleResolver:
     """Handles tussle resolution logic."""
+    
+    @staticmethod
+    def predict_winner(game_state: GameState, attacker: Card, defender: Card) -> str:
+        """
+        Predict the winner of a tussle without mutating the real game state.
+        
+        Simulates a tussle to determine the outcome without side effects.
+        Used by AI to filter out guaranteed-loss tussles.
+        
+        Args:
+            game_state: Current game state
+            attacker: Attacking card
+            defender: Defending card
+            
+        Returns:
+            'attacker' if attacker wins (defender gets sleeped)
+            'defender' if defender wins (attacker gets sleeped)
+            'simultaneous' if both are sleeped or both survive
+        """
+        # Create copies of just the cards to avoid game_state deepcopy issues
+        attacker_copy = copy.deepcopy(attacker)
+        defender_copy = copy.deepcopy(defender)
+        
+        # Calculate effective speeds
+        attacker_speed = attacker_copy.get_effective_speed()
+        defender_speed = defender_copy.get_effective_speed()
+        
+        # Apply turn bonus: attacker ALWAYS gets +1 speed (attacking on their turn)
+        # Defender does NOT get turn bonus (defending on opponent's turn)
+        attacker_speed += 1
+        
+        # Get effective strengths
+        attacker_strength = attacker_copy.get_effective_strength()
+        defender_strength = defender_copy.get_effective_strength()
+        
+        # Check for Knight's auto-win ability
+        if TussleResolver._check_knight_auto_win(game_state, attacker_copy, defender_copy):
+            return "attacker"
+        
+        # Simulate the tussle outcome based on speed and strength
+        attacker_survives = True
+        defender_survives = True
+        
+        if attacker_speed > defender_speed:
+            # Attacker strikes first
+            if defender_copy.current_stamina <= attacker_strength:
+                defender_survives = False
+            else:
+                # Defender survives and strikes back
+                if attacker_copy.current_stamina <= defender_strength:
+                    attacker_survives = False
+        elif defender_speed > attacker_speed:
+            # Defender strikes first
+            if attacker_copy.current_stamina <= defender_strength:
+                attacker_survives = False
+            else:
+                # Attacker survives and strikes back
+                if defender_copy.current_stamina <= attacker_strength:
+                    defender_survives = False
+        else:
+            # Simultaneous strikes
+            if attacker_copy.current_stamina <= defender_strength:
+                attacker_survives = False
+            if defender_copy.current_stamina <= attacker_strength:
+                defender_survives = False
+        
+        # Determine winner
+        if not attacker_survives and defender_survives:
+            return "defender"
+        if not defender_survives and attacker_survives:
+            return "attacker"
+        return "simultaneous"
     
     @staticmethod
     def resolve_tussle(

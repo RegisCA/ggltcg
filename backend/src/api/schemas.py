@@ -69,6 +69,10 @@ class ActionResponse(BaseModel):
     success: bool
     message: str
     game_state: Optional[Dict[str, Any]] = None
+    ai_turn_summary: Optional[Dict[str, Any]] = Field(
+        None, 
+        description="Summary of AI's turn actions (action type, card, target, cost, reasoning)"
+    )
 
 
 # ============================================================================
