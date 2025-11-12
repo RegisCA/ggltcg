@@ -130,12 +130,12 @@ export function CardDisplay({
         </span>
       </div>
 
-      {/* Artwork Placeholder (for future) */}
-      {size !== 'small' && (
+      {/* Artwork Placeholder (for future) - Only show on large cards */}
+      {size === 'large' && (
         <div
           style={{
             width: '100%',
-            height: size === 'medium' ? '60px' : '120px',
+            height: '120px',
             backgroundColor: 'rgba(0,0,0,0.2)',
             borderRadius: '4px',
             marginBottom: '8px',
