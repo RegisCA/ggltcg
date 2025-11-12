@@ -9,6 +9,7 @@ import logging
 from typing import Optional, List, Dict, Any, Tuple
 from enum import Enum
 import random
+import copy
 
 from .models.game_state import GameState, Phase
 from .models.player import Player
@@ -134,8 +135,9 @@ class GameEngine:
         if self.game_state.phase != Phase.MAIN and card.name != "Beary":
             return False, "Can only play cards during Main phase"
         
-        # Calculate cost
-        cost = self.calculate_card_cost(card, player)
+        # Calculate cost (pass target_name for Copy if available)
+        target_name = kwargs.get("target_name")
+        cost = self.calculate_card_cost(card, player, target_name=target_name)
         
         # Check if player has enough CC
         if not player.has_cc(cost):
@@ -150,24 +152,37 @@ class GameEngine:
         
         return True, ""
     
-    def calculate_card_cost(self, card: Card, player: Player) -> int:
+    def calculate_card_cost(self, card: Card, player: Player, target_name: Optional[str] = None) -> int:
         """
         Calculate the actual cost to play a card after modifications.
         
         Args:
             card: Card being played
             player: Player playing the card
+            target_name: Optional target card name (for Copy)
             
         Returns:
             Final cost in CC
         """
         base_cost = card.cost
         
-        # Special handling for Copy
+        # Special handling for Copy - cost is determined by target card
         if card.name == "Copy":
-            # Cost is determined by target
-            # This should be provided when playing
-            return base_cost  # Will be set by CopyEffect
+            # For Copy, the cost equals the cost of the card being copied
+            target_card = None
+            
+            # If a specific target is named, use that
+            if target_name:
+                target_card = next((c for c in player.in_play if c.name == target_name), None)
+            
+            # Otherwise, use the lowest cost card in play (most conservative estimate)
+            if target_card is None and player.in_play:
+                target_card = min(player.in_play, key=lambda c: c.cost)
+            
+            if target_card:
+                base_cost = target_card.cost
+            else:
+                base_cost = 0  # No valid targets, effect will fizzle
         
         # Apply cost modifications from continuous effects
         final_cost = base_cost
@@ -201,8 +216,9 @@ class GameEngine:
             self.game_state.log_event(f"Cannot play {card.name}: {reason}")
             return False
         
-        # Calculate and pay cost
-        cost = self.calculate_card_cost(card, player)
+        # Calculate and pay cost (pass target_name for Copy if available)
+        target_name = kwargs.get("target_name")
+        cost = self.calculate_card_cost(card, player, target_name=target_name)
         if not player.spend_cc(cost):
             return False
         
@@ -244,6 +260,49 @@ class GameEngine:
     
     def _resolve_action_card(self, card: Card, player: Player, **kwargs: Any) -> None:
         """Resolve an Action card's effect."""
+        # Special handling for Copy card
+        if card.name.lower() == "copy" or card.effect_text.startswith("This card acts as an exact copy"):
+            # Determine target to copy (kwargs may supply target_name)
+            target_name = kwargs.get("target_name")
+            target_card = None
+            
+            if target_name:
+                # Try to find the target card in the player's in-play zone
+                for c in player.in_play:
+                    if c.name == target_name:
+                        target_card = c
+                        break
+            
+            # If no target_name supplied or not found, pick the first eligible card
+            if target_card is None:
+                if not player.in_play:
+                    self.game_state.log_event("Copy played but no cards to copy; effect fizzles.")
+                    return
+                target_card = player.in_play[0]
+            
+            # Create a clone of the target card
+            cloned = copy.deepcopy(target_card)
+            
+            # Reset stateful fields for the new copy
+            if hasattr(cloned, 'current_stamina') and hasattr(cloned, 'stamina'):
+                cloned.current_stamina = cloned.stamina
+            if hasattr(cloned, 'modifications'):
+                cloned.modifications = {}
+            
+            # Set zone and controller
+            cloned.zone = Zone.IN_PLAY
+            cloned.controller = player.player_id
+            cloned.owner = player.player_id
+            
+            # Add to player's in-play zone
+            player.in_play.append(cloned)
+            
+            self.game_state.log_event(
+                f"{player.name} played Copy and cloned {target_card.name} into play"
+            )
+            return
+        
+        # Fallback to existing generic action resolution for other action cards
         effects = EffectRegistry.get_effects(card)
         for effect in effects:
             if isinstance(effect, PlayEffect):

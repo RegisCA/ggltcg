@@ -6,7 +6,7 @@ Endpoints for playing cards, initiating tussles, ending turns, etc.
 
 import logging
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from api.schemas import (
     PlayCardRequest,
@@ -20,6 +20,7 @@ from api.schemas import (
 from api.game_service import get_game_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
+from game_engine.rules.tussle_resolver import TussleResolver
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
                 detail=f"Target card '{request.target_card_name}' not found"
             )
         kwargs["target"] = target
+        kwargs["target_name"] = request.target_card_name  # For Copy card
     
     # Add multiple targets if specified
     if request.target_card_names:
@@ -270,21 +272,37 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
         for card in player.hand:
             if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
                 cost = engine.calculate_card_cost(card, player)
-                valid_actions.append(
-                    ValidAction(
-                        action_type="play_card",
-                        card_name=card.name,
-                        cost_cc=cost,
-                        description=f"Play {card.name} (Cost: {cost} CC)"
+                
+                # Special handling for Copy - show available targets
+                if card.name == "Copy" and player.in_play:
+                    # List all cards in play as potential targets
+                    target_options = [c.name for c in player.in_play]
+                    valid_actions.append(
+                        ValidAction(
+                            action_type="play_card",
+                            card_name=card.name,
+                            cost_cc=cost,
+                            target_options=target_options,
+                            description=f"Play {card.name} (Cost varies by target: {', '.join(f'{t}={engine.calculate_card_cost(player.get_card_by_name(t), player)}' for t in target_options)})"
+                        )
                     )
-                )
+                else:
+                    valid_actions.append(
+                        ValidAction(
+                            action_type="play_card",
+                            card_name=card.name,
+                            cost_cc=cost,
+                            description=f"Play {card.name} (Cost: {cost} CC)"
+                        )
+                    )
         
         # Check which cards can tussle
         opponent = game_state.get_opponent(player_id)
         for card in player.in_play:
             if card.card_type == CardType.TOY:
-                # Check if can tussle
-                if engine.can_tussle(card, None, player):
+                # Check direct attack eligibility:
+                # Direct attacks are only allowed when opponent has NO cards in play
+                if not opponent.has_cards_in_play() and engine.can_tussle(card, None, player)[0]:
                     # Can do direct attack
                     cost = engine.calculate_tussle_cost(card, player)
                     valid_actions.append(
@@ -387,9 +405,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     # Check which cards can tussle
     opponent = game_state.get_opponent(player_id)
     for card in player.in_play:
-        if card.card_type.value == "TOY":
-            # Check if can tussle
-            if engine.can_tussle(card, None, player):
+        if card.card_type == CardType.TOY:
+            # Check direct attack eligibility:
+            # Direct attacks are only allowed when opponent has NO cards in play
+            if not opponent.has_cards_in_play() and engine.can_tussle(card, None, player)[0]:
                 # Can do direct attack
                 cost = engine.calculate_tussle_cost(card, player)
                 valid_actions.append(
@@ -405,7 +424,24 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             # Check each potential defender
             if opponent:
                 for defender in opponent.in_play:
-                    if engine.can_tussle(card, defender, player):
+                    if engine.can_tussle(card, defender, player)[0]:
+                        # Predict outcome to filter out guaranteed losses for AI
+                        predicted = TussleResolver.predict_winner(game_state, card, defender)
+                        
+                        # Log prediction for debugging
+                        logger.debug(
+                            f"Tussle prediction: {card.name} vs {defender.name} = {predicted} "
+                            f"(attacker {card.speed}/{card.strength}/{card.stamina} vs "
+                            f"defender {defender.speed}/{defender.strength}/{defender.stamina})"
+                        )
+                        
+                        # Skip guaranteed-loss tussles for AI consideration
+                        # (still valid in UI, but AI shouldn't choose them)
+                        if predicted == "defender":
+                            # Skip this tussle - AI would lose
+                            logger.debug(f"  → Skipping losing tussle for AI")
+                            continue
+                        
                         cost = engine.calculate_tussle_cost(card, player)
                         valid_actions.append(
                             ValidAction(
@@ -416,6 +452,13 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                                 description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
                             )
                         )
+    
+    # Prefer tussles when ranking options (so AI prioritizes combat)
+    # Sort by: tussles first, then by cost (lowest first)
+    valid_actions.sort(key=lambda a: (a.action_type != "tussle", a.cost_cc if a.cost_cc is not None else 999))
+    
+    # Log available actions for debugging
+    logger.debug(f"Available actions after filtering/prioritizing: {[a.description for a in valid_actions]}")
     
     # Get AI player and have it select an action
     try:
@@ -435,11 +478,24 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 game_state={
                     "turn": game_state.turn_number,
                     "active_player": game_state.active_player_id
+                },
+                ai_turn_summary={
+                    "action": "pass",
+                    "available_actions_count": len(valid_actions)
                 }
             )
         
         selected_action = valid_actions[action_index]
         action_details = ai_player.get_action_details(selected_action)
+        
+        # Build turn summary for response
+        turn_summary = {
+            "action": action_details["action_type"],
+            "card": action_details.get("card_name") or action_details.get("attacker_name"),
+            "target": action_details.get("defender_name"),
+            "cost_cc": selected_action.cost_cc,
+            "description": selected_action.description
+        }
         
         # Execute the selected action
         if action_details["action_type"] == "end_turn":
@@ -450,7 +506,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 game_state={
                     "turn": game_state.turn_number,
                     "active_player": game_state.active_player_id
-                }
+                },
+                ai_turn_summary=turn_summary
             )
         
         elif action_details["action_type"] == "play_card":
@@ -466,7 +523,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             return ActionResponse(
                 success=success,
                 message=f"AI played {card_name}",
-                game_state={"turn": game_state.turn_number}
+                game_state={"turn": game_state.turn_number},
+                ai_turn_summary=turn_summary
             )
         
         elif action_details["action_type"] == "tussle":
@@ -490,14 +548,16 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 return ActionResponse(
                     success=True,
                     message=f"AI tussle successful! {winner} wins!",
-                    game_state={"winner": winner}
+                    game_state={"winner": winner},
+                    ai_turn_summary=turn_summary
                 )
             
             target_desc = defender_name if defender_name else "direct attack"
             return ActionResponse(
                 success=success,
                 message=f"AI initiated tussle: {attacker_name} vs {target_desc}",
-                game_state={"turn": game_state.turn_number}
+                game_state={"turn": game_state.turn_number},
+                ai_turn_summary=turn_summary
             )
         
         else:
