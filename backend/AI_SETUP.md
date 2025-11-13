@@ -9,7 +9,7 @@ Gemini offers a generous free tier perfect for testing and development.
 ### Setup:
 
 1. **Get a free API key:**
-   - Visit: https://aistudio.google.com/apikey
+   - Visit: [https://aistudio.google.com/apikey](https://aistudio.google.com/api-keys)
    - Sign in with your Google account
    - Click "Get API key" or "Create API key"
    - Copy your API key
