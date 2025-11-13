@@ -12,8 +12,18 @@ import type {
   EndTurnRequest,
   ActionResponse,
   ValidActionsResponse,
+  CardDataResponse,
 } from '../types/api';
 import type { GameState } from '../types/game';
+
+// ============================================================================
+// CARD DATA
+// ============================================================================
+
+export async function getAllCards(): Promise<CardDataResponse[]> {
+  const response = await apiClient.get<CardDataResponse[]>('/games/cards');
+  return response.data;
+}
 
 // ============================================================================
 // GAME MANAGEMENT
@@ -79,4 +89,12 @@ export async function getValidActions(
     { params: { player_id: playerId } }
   );
   return response.data;
+}
+
+export async function generateNarrative(playByPlay: any[]): Promise<string> {
+  const response = await apiClient.post<{ narrative: string }>(
+    '/games/narrative',
+    { play_by_play: playByPlay }
+  );
+  return response.data.narrative;
 }

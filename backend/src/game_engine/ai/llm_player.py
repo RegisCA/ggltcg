@@ -81,12 +81,17 @@ class LLMPlayer:
             
             # Allow model override via environment variable or parameter
             # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
-            # Alternative: gemini-1.5-flash (15 RPM, more stable)
-            # Alternative: gemini-2.0-flash-exp (10 RPM, experimental but powerful)
+            # Alternative: gemini-2.5-flash (15 RPM, more stable, better capacity)
+            # Alternative: gemini-2.0-flash (10 RPM, stable)
             default_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
             self.model_name = model or default_model
             
+            # Fallback model for capacity issues (configurable via env var)
+            # Default: gemini-2.5-flash-lite (15 RPM, better capacity availability)
+            self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
+            
             logger.info(f"Initializing Gemini with model: {self.model_name}")
+            logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
             
             self.client = genai.GenerativeModel(
                 model_name=self.model_name,
@@ -210,21 +215,23 @@ class LLMPlayer:
         )
         return message.content[0].text.strip()
     
-    def _call_gemini(self, prompt: str, retry_count: int = 3) -> str:
+    def _call_gemini(self, prompt: str, retry_count: int = 3, allow_fallback: bool = True) -> str:
         """
-        Call Google Gemini API with retry logic for capacity issues.
+        Call Google Gemini API with retry logic and automatic fallback to more stable models.
         
         Args:
             prompt: The prompt to send
             retry_count: Number of retries for 429 errors (default: 3)
+            allow_fallback: Whether to fallback to GEMINI_FALLBACK_MODEL on capacity issues (default: True)
             
         Returns:
             The API response text
             
         Raises:
-            Exception if all retries fail
+            Exception if all retries and fallbacks fail
         """
         last_exception = None
+        current_model = self.model_name
         
         for attempt in range(retry_count):
             try:
@@ -273,12 +280,27 @@ class LLMPlayer:
                         time.sleep(wait_time)
                         continue
                     else:
-                        logger.error(
-                            f"Gemini API capacity exhausted after {retry_count} retries. "
-                            f"This is a Google infrastructure issue, not a rate limit. "
-                            f"Consider: 1) Try again in a few minutes, 2) Switch to gemini-1.5-flash model, "
-                            f"3) Use Anthropic Claude instead"
-                        )
+                        # All retries exhausted - try fallback model if enabled
+                        if allow_fallback and current_model != self.fallback_model:
+                            logger.warning(
+                                f"Gemini {current_model} capacity exhausted after {retry_count} retries. "
+                                f"Falling back to {self.fallback_model} (more stable, better availability)..."
+                            )
+                            # Switch to fallback model
+                            import google.generativeai as genai
+                            self.model_name = self.fallback_model
+                            self.client = genai.GenerativeModel(
+                                model_name=self.fallback_model,
+                                system_instruction=SYSTEM_PROMPT
+                            )
+                            # Try one more time with fallback model
+                            return self._call_gemini(prompt, retry_count=1, allow_fallback=False)
+                        else:
+                            logger.error(
+                                f"Gemini API capacity exhausted after {retry_count} retries. "
+                                f"This is a Google infrastructure issue, not a rate limit. "
+                                f"Consider: 1) Try again in a few minutes, 2) Use Anthropic Claude instead"
+                            )
                 else:
                     # Not a 429 error, don't retry
                     logger.exception(f"Gemini API call failed: {e}")
@@ -373,3 +395,66 @@ def get_ai_player(provider: str = None) -> LLMPlayer:
     if _ai_player is None:
         _ai_player = LLMPlayer(provider=provider)
     return _ai_player
+
+
+def get_llm_response(prompt: str, is_json: bool = True, provider: str = None) -> str:
+    """
+    Get a response from the LLM for a custom prompt.
+    
+    This is a utility function for getting LLM responses outside of game action selection,
+    such as generating narratives or other creative text.
+    
+    Args:
+        prompt: The prompt to send to the LLM
+        is_json: Whether to expect and parse JSON response (default: True)
+        provider: Optional provider override ("anthropic" or "gemini")
+    
+    Returns:
+        The LLM response text (parsed from JSON if is_json=True)
+    """
+    ai_player = get_ai_player(provider)
+    
+    # Call the appropriate LLM
+    if ai_player.provider == "anthropic":
+        # For Anthropic, we need to call without system prompt for custom prompts
+        from anthropic import Anthropic
+        client = Anthropic(api_key=ai_player.api_key)
+        message = client.messages.create(
+            model=ai_player.model,
+            max_tokens=2048,  # Allow longer responses for narratives
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.8,  # Higher temperature for more creative narratives
+        )
+        response_text = message.content[0].text.strip()
+    else:  # gemini
+        import google.generativeai as genai
+        # Create a new model instance without system instruction for custom prompts
+        model = genai.GenerativeModel(model_name=ai_player.model_name)
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.8,  # Higher temperature for creativity
+                "max_output_tokens": 2048,  # Allow longer responses
+            }
+        )
+        response_text = response.text.strip()
+    
+    if is_json:
+        # Parse JSON response
+        if "```json" in response_text:
+            json_start = response_text.find("```json") + 7
+            json_end = response_text.find("```", json_start)
+            response_text = response_text[json_start:json_end].strip()
+        elif "```" in response_text:
+            json_start = response_text.find("```") + 3
+            json_end = response_text.find("```", json_start)
+            response_text = response_text[json_start:json_end].strip()
+        
+        return json.loads(response_text)
+    
+    return response_text

@@ -1,6 +1,19 @@
 # GGLTCG Development Context
 
+## Project Status: Production-Ready MVP ✅
+
+The GGLTCG web application is **fully complete and production-ready** with polished features including:
+- Complete 18-card gameplay with all effects working
+- AI opponent powered by Google Gemini
+- Deck customization and player name editing
+- Victory screen with factual and narrative play-by-play modes
+- Backend CSV as single source of truth for card data
+- Clean, tested, documented codebase
+
+**First complete game played:** November 10, 2025 🎉
+
 ## Project Overview
+
 We are building a web application for the Googooland TCG (GGLTCG), a two-player tactical card game with no randomness in draws. The game is fully codified in rules and currently supports 18 unique cards.
 
 ## Core Game Rules Summary
@@ -29,16 +42,19 @@ Win immediately by putting all your opponent's cards into their Sleep Zone.
 ## Technical Stack
 
 ### Backend (Game Engine)
-- **Language:** Python 3.11+
-- **Framework:** FastAPI (async, lightweight, excellent Copilot support)
-- **Data Storage:** CSV for cards, JSON for game states
-- **AI Integration:** Anthropic SDK for Claude Sonnet 4.5
+
+- **Language:** Python 3.13
+- **Framework:** FastAPI 0.115.6 (async, lightweight, excellent Copilot support)
+- **Data Storage:** CSV for cards (single source of truth), JSON for game states
+- **AI Integration:** Google Gemini (gemini-2.0-flash or gemini-2.5-flash)
 
 ### Frontend (Player Interface)
-- **Framework:** React with Vite
-- **Styling:** Tailwind CSS
-- **State Management:** React Context API
+
+- **Framework:** React 19 with TypeScript and Vite 7.2
+- **Styling:** TailwindCSS 4.1
+- **State Management:** React Query (@tanstack/react-query)
 - **Communication:** REST API to FastAPI backend
+- **Card Data:** Loaded from backend `/games/cards` endpoint
 
 ### Development Tools
 - **Version Control:** Git/GitHub
@@ -73,11 +89,13 @@ Each card with special mechanics has a corresponding effect class:
 - `PlayEffect`: Action cards (one-time resolution)
 
 ### Adding New Cards
-1. Add row to `data/cards.csv` with card data
-2. Create effect class in `rules/effects/` if special mechanics needed
-3. Register effect in `effect_registry.py`
-4. Write unit test for effect behavior
-5. Update frontend card pool
+
+1. Add row to `data/cards.csv` with card data (SINGLE SOURCE OF TRUTH)
+2. Frontend automatically loads via `/games/cards` API endpoint
+3. Create effect class in `rules/effects/` if special mechanics needed
+4. Register effect in `effect_registry.py`
+5. Write unit test for effect behavior
+6. No frontend changes needed - backend is source of truth
 
 ## Development Guidelines
 
@@ -147,20 +165,26 @@ POST /api/game/{id}/end     - End turn
 
 ## Current Implementation Status
 
-### Completed
-- [x] Project structure created
-- [x] Documentation initialized
+### ✅ Completed - Production Ready
 
-### In Progress
-- [ ] Backend foundation (card loading, models)
-- [ ] Core game engine
-- [ ] Frontend setup
+- [x] Project structure and documentation
+- [x] Backend foundation (card loading from CSV, all models)
+- [x] Core game engine (turn management, tussles, effects)
+- [x] Effect system (all 18 cards fully implemented)
+- [x] FastAPI REST API (9 endpoints with auto-docs)
+- [x] AI player integration (Google Gemini with fallback)
+- [x] React frontend (complete UI with 6 components)
+- [x] Production features (deck picker, player names, narrative mode)
+- [x] Code quality (clean, tested, documented)
+- [x] Architecture (backend CSV as single source of truth)
 
-### Planned
-- [ ] Effect system implementation
-- [ ] API endpoints
-- [ ] AI player integration
-- [ ] UI components
+### 🎯 Future Enhancements
+
+- [ ] Animations and visual effects
+- [ ] Sound effects  
+- [ ] Game replay system
+- [ ] Statistics and match history
+- [ ] Additional card sets
 
 ## Critical Design Decisions
 
@@ -247,30 +271,20 @@ def resolve_tussle(attacker: Card, defender: Card, game_state: GameState) -> Tus
 3. Use Copilot Chat to refactor and improve
 4. Add error handling and edge cases
 
-## Next Tasks
-
-1. Set up Python environment and install dependencies
-2. Create card loader to parse CSV file
-3. Implement core data models (Card, Player, GameState)
-4. Build turn manager with CC system
-5. Implement tussle resolver
-6. Create effect registry and base effect classes
-7. Set up FastAPI with basic endpoints
-8. Initialize React frontend with Vite
-9. Build basic UI components
-10. Integrate AI player with Anthropic API
-
 ## Reference Files
 
 - **Rules:** `docs/rules/GGLTCG-Rules-v1_1.md`
-- **Cards:** `backend/data/cards.csv`
+- **Cards:** `backend/data/cards.csv` (SINGLE SOURCE OF TRUTH)
 - **Game Prompt:** `docs/GGLTCG-game-starting-prompt-v0_3.md`
 - **Design Doc:** `docs/GGLTCG-design.md`
+- **API Endpoints:** `backend/src/api/routes_games.py` (9 endpoints)
+- **Progress:** `docs/development/MVP_PROGRESS.md`
 
-## Success Metrics for MVP
+## Success Metrics ✅ ACHIEVED
 
-1. All 18 cards work correctly with proper effects
-2. AI makes legal, strategic moves 90%+ of time
-3. Human can complete full game without bugs
-4. Code is maintainable and well-documented
-5. Development completed in 4-6 weeks solo with Copilot
+1. ✅ All 18 cards work correctly with proper effects
+2. ✅ AI makes legal, strategic moves consistently
+3. ✅ Human can complete full game without bugs
+4. ✅ Code is maintainable and well-documented
+5. ✅ Production-ready with polished features
+6. ✅ Backend CSV is single source of truth for card data

@@ -58,3 +58,16 @@ export interface ErrorResponse {
   error: string;
   details?: string;
 }
+
+// Card Data
+export interface CardDataResponse {
+  name: string;
+  card_type: 'Toy' | 'Action';
+  cost: number; // -1 for variable cost
+  effect: string;
+  speed: number | null;
+  strength: number | null;
+  stamina: number | null;
+  primary_color: string;
+  accent_color: string;
+}

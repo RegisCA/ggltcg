@@ -3,7 +3,9 @@
  * Displays game winner with play-by-play summary and AI reasoning
  */
 
+import { useState, useEffect } from 'react';
 import type { GameState } from '../types/game';
+import { generateNarrative } from '../api/gameService';
 
 interface VictoryScreenProps {
   gameState: GameState;
@@ -13,11 +15,28 @@ interface VictoryScreenProps {
 export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
   const winnerPlayer = gameState.players[gameState.winner || ''];
   const playByPlay = gameState.play_by_play || [];
+  const [narrativeMode, setNarrativeMode] = useState(false);
+  const [narrative, setNarrative] = useState<string>('');
+  const [isLoadingNarrative, setIsLoadingNarrative] = useState(false);
 
-  // Debug: Log the play-by-play data
-  console.log('VictoryScreen - playByPlay:', playByPlay);
-  console.log('VictoryScreen - playByPlay.length:', playByPlay.length);
-  console.log('VictoryScreen - full gameState:', gameState);
+  // Load narrative when mode is switched
+  useEffect(() => {
+    if (narrativeMode && !narrative && playByPlay.length > 0) {
+      setIsLoadingNarrative(true);
+      generateNarrative(playByPlay)
+        .then((narrativeText) => {
+          setNarrative(narrativeText);
+        })
+        .catch((error) => {
+          console.error('Failed to generate narrative:', error);
+          alert('Failed to generate narrative story. Please try again.');
+          setNarrativeMode(false); // Fall back to factual mode
+        })
+        .finally(() => {
+          setIsLoadingNarrative(false);
+        });
+    }
+  }, [narrativeMode, narrative, playByPlay]);
 
   // Group actions by turn and player
   const groupedActions: Record<string, typeof playByPlay> = {};
@@ -65,9 +84,60 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
         {/* Play-by-Play Summary */}
         {playByPlay.length > 0 && (
           <div className="bg-gray-800 bg-opacity-95 rounded-lg p-8 shadow-2xl max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold mb-6 text-center border-b border-gray-700 pb-4">Game Summary</h2>
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-700">
+              <h2 className="text-3xl font-bold text-center">Game Summary</h2>
+              
+              {/* Mode Toggle */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setNarrativeMode(false)}
+                  className={`px-4 py-2 rounded font-semibold transition-all ${
+                    !narrativeMode
+                      ? 'bg-game-highlight text-white'
+                      : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                  }`}
+                >
+                  📋 Factual
+                </button>
+                <button
+                  onClick={() => setNarrativeMode(true)}
+                  disabled={isLoadingNarrative}
+                  className={`px-4 py-2 rounded font-semibold transition-all ${
+                    narrativeMode
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                  } ${isLoadingNarrative ? 'opacity-50 cursor-wait' : ''}`}
+                >
+                  {isLoadingNarrative ? '⏳ Loading...' : '📖 Story Mode'}
+                </button>
+              </div>
+            </div>
             
-            <div className="space-y-4">
+            {/* Narrative Mode */}
+            {narrativeMode ? (
+              <div className="prose prose-invert max-w-none">
+                {isLoadingNarrative ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-4xl mb-4">⏳</div>
+                    <p>Generating your epic bedtime story...</p>
+                  </div>
+                ) : narrative ? (
+                  <div className="text-gray-100 leading-loose space-y-4 text-lg">
+                    {narrative.split('\n\n').map((paragraph, idx) => (
+                      <p key={idx} className="text-justify">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>No narrative available</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Factual Mode */
+              <div className="space-y-4">
               {Object.entries(groupedActions).map(([key, actions]) => {
                 const firstAction = actions[0];
                 const isAI = firstAction.reasoning !== undefined;
@@ -115,9 +185,10 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                 );
               })}
             </div>
+            )}
 
-            {/* AI Endpoint Summary */}
-            {playByPlay.some(entry => entry.ai_endpoint) && (
+            {/* AI Endpoint Summary - Only show in factual mode */}
+            {!narrativeMode && playByPlay.some(entry => entry.ai_endpoint) && (
               <div className="mt-8 pt-6 border-t border-gray-700 text-center">
                 <p className="text-sm text-gray-400">
                   🤖 AI decisions powered by{' '}

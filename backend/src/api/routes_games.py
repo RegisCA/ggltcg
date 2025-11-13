@@ -5,7 +5,7 @@ Endpoints for creating, retrieving, and deleting games.
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from api.schemas import (
     GameCreate,
@@ -16,12 +16,46 @@ from api.schemas import (
     ErrorResponse,
     RandomDeckRequest,
     RandomDeckResponse,
+    NarrativeRequest,
+    NarrativeResponse,
+    CardDataResponse,
 )
 from api.game_service import get_game_service
 from game_engine.models.card import Zone
-from game_engine.data.card_loader import random_deck
+from game_engine.data.card_loader import random_deck, load_all_cards
+from game_engine.ai.prompts import get_narrative_prompt
+from game_engine.ai.llm_player import get_llm_response
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+
+@router.get("/cards", response_model=List[CardDataResponse])
+async def get_all_cards() -> List[CardDataResponse]:
+    """
+    Get all available cards from the card database.
+    
+    Returns a list of all cards with their stats, effects, and metadata.
+    This is the single source of truth for card data.
+    """
+    try:
+        all_cards = load_all_cards()
+        
+        return [
+            CardDataResponse(
+                name=card.name,
+                card_type=card.card_type.value,
+                cost=card.cost,
+                effect=card.effect_text,
+                speed=card.speed,
+                strength=card.strength,
+                stamina=card.stamina,
+                primary_color=card.primary_color,
+                accent_color=card.accent_color,
+            )
+            for card in all_cards
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load cards: {str(e)}")
 
 
 @router.post("", response_model=GameCreated, status_code=201)
@@ -181,3 +215,28 @@ def _card_to_state(card, engine) -> CardState:
         primary_color=card.primary_color,
         accent_color=card.accent_color,
     )
+
+
+@router.post("/narrative", response_model=NarrativeResponse)
+async def generate_narrative(request: NarrativeRequest) -> NarrativeResponse:
+    """
+    Generate a narrative "bedtime story" version of the play-by-play.
+    
+    Takes the factual play-by-play entries and transforms them into an enchanting
+    narrative suitable for a bedtime story about epic toy battles in Googooland.
+    
+    - **play_by_play**: List of play-by-play entries from the game
+    
+    Returns a narrative story version of the game events.
+    """
+    try:
+        # Generate narrative prompt
+        prompt = get_narrative_prompt(request.play_by_play)
+        
+        # Get narrative from LLM
+        narrative = get_llm_response(prompt, is_json=False)
+        
+        return NarrativeResponse(narrative=narrative)
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate narrative: {str(e)}")

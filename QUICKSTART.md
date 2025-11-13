@@ -6,15 +6,16 @@ You now have a **fully functional GGLTCG game** with both backend and frontend:
 
 ✅ **Complete project structure** - Backend and frontend fully implemented  
 ✅ **Core data models** - Card, Player, and GameState classes  
-✅ **Card loading system** - All 18 cards from CSV  
-✅ **Effect system** - All 18 card effects implemented (7 files, 1,433 lines)  
-✅ **Game engine** - Turn management, card playing, tussle system (680 lines)  
-✅ **FastAPI REST API** - 8 endpoints with auto-docs and CORS  
+✅ **Card loading system** - All 18 cards from CSV (single source of truth)  
+✅ **Effect system** - All 18 card effects implemented  
+✅ **Game engine** - Turn management, card playing, tussle system  
+✅ **FastAPI REST API** - 9 endpoints with auto-docs and CORS  
 ✅ **AI player** - Google Gemini integration for strategic opponent  
 ✅ **React frontend** - Complete UI with TypeScript, React Query, and game flow  
 ✅ **Comprehensive tests** - Card loading, effects, and game engine all passing  
 ✅ **Documentation** - Rules, design docs, and progress tracking  
-✅ **First complete game played** - November 10, 2025 🎉
+✅ **First complete game played** - November 10, 2025 🎉  
+✅ **Production features** - Play-by-play tracking, narrative mode, player customization  
 
 ## Running the Game
 
@@ -62,22 +63,24 @@ Open <http://localhost:5175> and play against the AI!
 
 **Note:** This project requires **Python 3.13**. Python 3.14 is not yet supported by all dependencies.
 
-## Next Development Session
+## Key Features
 
-Current focus: **Polish & Improvements**
+### 🎮 Gameplay
+- **Deck Selection** - Automated random deck picker with customizable toy/action ratio
+- **Player Customization** - Click to edit player names
+- **Strategic AI** - Powered by Google Gemini with intelligent decision-making
+- **Live Play-by-Play** - Track every action with AI reasoning displayed
 
-### Known Issues (Tracked on GitHub)
+### 📖 Victory Screen
+- **Factual Mode** - Complete play-by-play with CC costs and AI reasoning
+- **Story Mode** - AI-generated "bedtime story" narrative of your epic battle
+- **Beautiful Formatting** - Organized by turns with clear visual hierarchy
 
-- **Issue #4:** Display actual card names instead of "?" in player zones
-- **Issue #5:** Additional UI/UX improvements
-
-### Potential Enhancements
-
-1. **Game Log Display** - Show event history in UI
-2. **Animations** - Add card play and tussle animations
-3. **Better Targeting** - Drag-and-drop for tussles
-4. **Sound Effects** - Audio feedback for actions
-5. **Card Tooltips** - Hover to see full card details
+### 🎨 UI/UX Polish
+- **Card Size Options** - Medium-sized hand cards show effects clearly
+- **Responsive Design** - Works on desktop and tablet
+- **Dark Theme** - Easy on the eyes with GGLTCG branding
+- **Victory Screen** - Comprehensive game summary with play-by-play
 
 ## Project Structure Reference
 
@@ -86,113 +89,99 @@ ggltcg/
 ├── backend/
 │   ├── src/
 │   │   ├── game_engine/
-│   │   │   ├── models/          ✅ DONE - Card, Player, GameState
-│   │   │   ├── rules/           ✅ DONE - TurnManager, TussleResolver
-│   │   │   │   └── effects/     ✅ DONE - Effect system (7 files, 1,433 lines)
-│   │   │   ├── ai/              ⏳ TODO - LLM player
-│   │   │   ├── data/            ✅ DONE - CardLoader
-│   │   │   └── game_engine.py   ✅ DONE - Main controller (680 lines)
-│   │   └── api/                 ✅ DONE - FastAPI REST API (5 files)
+│   │   │   ├── models/          ✅ Card, Player, GameState
+│   │   │   ├── rules/           ✅ TurnManager, TussleResolver
+│   │   │   │   └── effects/     ✅ Effect system (7 files)
+│   │   │   ├── ai/              ✅ LLM player (Gemini)
+│   │   │   ├── data/            ✅ CardLoader (CSV single source of truth)
+│   │   │   └── game_engine.py   ✅ Main controller
+│   │   └── api/                 ✅ FastAPI REST API (9 endpoints)
 │   ├── data/
-│   │   └── cards.csv            ✅ DONE - 18 cards loaded
-│   ├── tests/                   ✅ DONE - All tests passing
+│   │   └── cards.csv            ✅ 18 cards - SINGLE SOURCE OF TRUTH
+│   ├── tests/                   ✅ All tests passing
 │   └── requirements.txt         ✅ DONE
-├── frontend/                    ⏳ TODO - React app
+├── frontend/                    ✅ React + TypeScript + Vite
+│   ├── src/
+│   │   ├── components/          ✅ 6 UI components
+│   │   ├── hooks/               ✅ React Query hooks
+│   │   ├── api/                 ✅ API client & services
+│   │   └── types/               ✅ TypeScript definitions
+│   └── package.json             ✅ Dependencies installed
 ├── docs/
-│   ├── rules/                   ✅ DONE - Game rules
-│   └── development/             ✅ DONE - Progress tracking
-├── COPILOT_CONTEXT.md           ✅ DONE - Development guide
+│   ├── rules/                   ✅ Game rules
+│   └── development/             ✅ Progress tracking
+├── COPILOT_CONTEXT.md           ✅ Development guide
 └── README.md                    ✅ DONE
 ```
 
-## Key Files to Reference
+## API Endpoints
 
-When working with GitHub Copilot, keep these files open for context:
+The backend provides 9 REST endpoints:
 
-1. **COPILOT_CONTEXT.md** - Your development guide
+**Game Management:**
+- `GET /games/cards` - Get all card data from CSV (frontend loads this on startup)
+- `POST /games` - Create new game
+- `GET /games/{id}` - Get game state
+- `DELETE /games/{id}` - Delete game
+- `POST /games/random-deck` - Generate random deck
+
+**Game Actions:**
+- `POST /games/{id}/play-card` - Play a card
+- `POST /games/{id}/tussle` - Initiate tussle
+- `POST /games/{id}/end-turn` - End turn
+- `POST /games/{id}/ai-turn` - AI takes action
+
+**Game Features:**
+- `GET /games/{id}/valid-actions` - Get available actions
+- `POST /games/narrative` - Generate bedtime story from play-by-play
+
+**Other:**
+- `GET /` - API info
+- `GET /health` - Health check
+
+Visit `http://localhost:8000/docs` when running to see interactive API documentation.
+
+## Development Workflow
+
+### Making Changes
+
+1. **Backend Changes** - Edit files in `backend/src/`
+2. **Frontend Changes** - Edit files in `frontend/src/`
+3. **Card Data** - Edit `backend/data/cards.csv` (SINGLE SOURCE OF TRUTH)
+4. **Testing** - Run `pytest` in backend directory
+
+### Adding New Cards
+
+1. Add row to `backend/data/cards.csv`
+2. Frontend will automatically load it via `/games/cards` API
+3. If special effect needed, add effect class in `backend/src/game_engine/rules/effects/`
+4. No frontend changes needed - backend CSV is the source of truth
+
+### Code Organization
+
+- **Backend CSV** is the single source of truth for all card data
+- Frontend fetches cards via `/games/cards` API endpoint on startup
+- Card data cached in frontend to avoid repeated API calls
+- No duplicate card definitions anywhere
+
+## Key Files for Contributors
+
+When contributing or working with GitHub Copilot, reference these files:
+
+1. **backend/data/cards.csv** - All card definitions (SINGLE SOURCE OF TRUTH)
 2. **docs/rules/GGLTCG-Rules-v1_1.md** - Complete game rules
-3. **backend/data/cards.csv** - All card definitions
-4. **docs/development/MVP_PROGRESS.md** - Current progress
-
-## GitHub Copilot Tips
-
-### Getting Better Suggestions
-
-1. **Write descriptive docstrings first:**
-```python
-def resolve_umbruh_effect(game_state: GameState, card: Card):
-    """
-    Resolve Umbruh's triggered effect: "When sleeped, gain 1 CC."
-    
-    This triggers when Umbruh is sleeped from play (not from hand).
-    The card's controller gains 1 CC immediately.
-    """
-    # Copilot will generate the implementation
-```
-
-2. **Reference existing patterns:**
-```python
-# See TussleResolver._get_strength_modifiers for similar pattern
-def apply_continuous_effects(game_state: GameState, card: Card):
-```
-
-3. **Use the chat for complex questions:**
-- "How should I implement the Copy card mechanics?"
-- "What's the best way to structure the effect registry?"
-- "How do I handle Beary's tussle cancellation?"
-
-## Common Development Tasks
-
-### Add a New Card Effect
-
-1. Identify effect type (Continuous/Triggered/Activated/Play)
-2. Create effect class in appropriate file
-3. Register in effect_registry.py
-4. Write unit test
-5. Update game engine to apply effect
-
-### Test a Game Mechanic
-
-1. Write a test in `backend/tests/`
-2. Create sample game state
-3. Execute the action
-4. Assert expected outcome
-
-### Run the API Server (once created)
-
-```bash
-cd backend
-source venv/bin/activate
-uvicorn src.api.main:app --reload
-```
-
-Visit: http://localhost:8000/docs for interactive API documentation
-
-## Estimated Timeline
-
-- ~~Effect System: 2-3 days~~ ✅ **COMPLETED**
-- ~~Game Engine: 2-3 days~~ ✅ **COMPLETED**
-- ~~FastAPI Endpoints: 1-2 days~~ ✅ **COMPLETED**
-- **AI Player Integration:** 1-2 days ⏳ NEXT
-- **Frontend Setup:** 2-3 days
-- **UI Components:** 3-4 days
-- **Testing & Polish:** 3-5 days
-
-**Remaining:** 2-3 weeks (solo with Copilot)
-
-## Questions or Issues?
-
-Refer to:
-- **Game Rules:** `docs/rules/GGLTCG-Rules-v1_1.md`
-- **Design Doc:** `docs/GGLTCG-design.md`
-- **Progress:** `docs/development/MVP_PROGRESS.md`
-- **Copilot Guide:** `COPILOT_CONTEXT.md`
+3. **backend/src/api/routes_games.py** - API endpoints
+4. **frontend/src/components/** - UI components
+5. **COPILOT_CONTEXT.md** - Development guidelines
+6. **docs/development/MVP_PROGRESS.md** - Current progress
 
 ## Ready to Play
 
-The MVP is complete! You can:
+The MVP is complete with production features! You can:
 
-1. **Play the game** - Full gameplay with AI opponent
-2. **Report issues** - Use GitHub issues for bugs or improvements
-3. **Add features** - Check issues #4 and #5 for next priorities
+1. **Play the game** - Full gameplay with AI opponent, player customization, and narrative mode
+2. **Review the code** - Clean, well-documented, tested, and production-ready
+3. **Add features** - Backend CSV makes adding cards trivial
 4. **Explore the API** - Visit <http://localhost:8000/docs> when backend is running
+
+Enjoy your epic toy battles in Googooland! 🎮✨
