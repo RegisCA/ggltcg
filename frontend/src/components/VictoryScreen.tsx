@@ -19,11 +19,6 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
   const [narrative, setNarrative] = useState<string>('');
   const [isLoadingNarrative, setIsLoadingNarrative] = useState(false);
 
-  // Debug: Log the play-by-play data
-  console.log('VictoryScreen - playByPlay:', playByPlay);
-  console.log('VictoryScreen - playByPlay.length:', playByPlay.length);
-  console.log('VictoryScreen - full gameState:', gameState);
-
   // Load narrative when mode is switched
   useEffect(() => {
     if (narrativeMode && !narrative && playByPlay.length > 0) {

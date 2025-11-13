@@ -12,8 +12,18 @@ import type {
   EndTurnRequest,
   ActionResponse,
   ValidActionsResponse,
+  CardDataResponse,
 } from '../types/api';
 import type { GameState } from '../types/game';
+
+// ============================================================================
+// CARD DATA
+// ============================================================================
+
+export async function getAllCards(): Promise<CardDataResponse[]> {
+  const response = await apiClient.get<CardDataResponse[]>('/games/cards');
+  return response.data;
+}
 
 // ============================================================================
 // GAME MANAGEMENT

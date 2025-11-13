@@ -90,9 +90,6 @@ function GameApp() {
     setGameState(null);
   };
 
-  // Debug output
-  console.log('GameApp rendering, phase:', gamePhase);
-
   if (gamePhase === 'deck-selection-p1') {
     return <DeckSelection playerName="Player" onDeckSelected={handlePlayer1DeckSelected} />;
   }
@@ -124,7 +121,6 @@ function GameApp() {
 }
 
 function App() {
-  console.log('App component rendering');
   return (
     <QueryClientProvider client={queryClient}>
       <GameApp />

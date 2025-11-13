@@ -55,6 +55,19 @@ class NarrativeResponse(BaseModel):
     narrative: str = Field(..., description="Bedtime story narrative of the game")
 
 
+class CardDataResponse(BaseModel):
+    """Response with card information from CSV."""
+    name: str
+    card_type: str  # "Toy" or "Action"
+    cost: int  # -1 for variable cost (Copy)
+    effect: str
+    speed: Optional[int] = None
+    strength: Optional[int] = None
+    stamina: Optional[int] = None
+    primary_color: str
+    accent_color: str
+
+
 # ============================================================================
 # PLAYER ACTIONS
 # ============================================================================

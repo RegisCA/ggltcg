@@ -4,11 +4,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { CARDS, getCardType } from '../data/cards';
 import { CardDisplay } from './CardDisplay';
-import { getRandomDeck } from '../api/gameService';
-// import { CardHoverPreview } from './CardHoverPreview'; // Disabled until artwork is added
+import { getRandomDeck, getAllCards } from '../api/gameService';
 import type { Card } from '../types/game';
+import type { CardDataResponse } from '../types/api';
 
 interface DeckSelectionProps {
   onDeckSelected: (deck: string[], customName?: string) => void;
@@ -22,7 +21,22 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [customName, setCustomName] = useState(playerName);
   const [isEditingName, setIsEditingName] = useState(false);
-  // const [hoveredCard, setHoveredCard] = useState<Card | null>(null); // Disabled until artwork is added
+  const [cards, setCards] = useState<CardDataResponse[]>([]);
+  const [isLoadingCards, setIsLoadingCards] = useState(true);
+
+  // Load cards from backend on mount
+  useEffect(() => {
+    getAllCards()
+      .then((cardData) => {
+        setCards(cardData);
+        setIsLoadingCards(false);
+      })
+      .catch((error) => {
+        console.error('Failed to load cards:', error);
+        alert('Failed to load card database. Please refresh the page.');
+        setIsLoadingCards(false);
+      });
+  }, []);
 
   // Reset customName when playerName prop changes (when switching between player 1 and player 2)
   useEffect(() => {
@@ -63,11 +77,11 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
     }
   };
 
-  // Convert CardData to Card for display
-  const createCardForDisplay = (cardData: typeof CARDS[0]): Card => ({
+  // Convert CardDataResponse to Card for display
+  const createCardForDisplay = (cardData: CardDataResponse): Card => ({
     name: cardData.name,
-    card_type: getCardType(cardData) as 'Toy' | 'Action',
-    cost: typeof cardData.cost === 'number' ? cardData.cost : -1,
+    card_type: cardData.card_type,
+    cost: cardData.cost,
     zone: 'Hand',
     owner: '',
     controller: '',
@@ -76,9 +90,17 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
     stamina: cardData.stamina,
     current_stamina: cardData.stamina,
     is_sleeped: false,
-    primary_color: getCardType(cardData) === 'Toy' ? '#C74444' : '#8B5FA8',
-    accent_color: getCardType(cardData) === 'Toy' ? '#C74444' : '#8B5FA8',
+    primary_color: cardData.primary_color,
+    accent_color: cardData.accent_color,
   });
+
+  if (isLoadingCards) {
+    return (
+      <div className="min-h-screen bg-game-bg flex items-center justify-center">
+        <div className="text-2xl">Loading cards...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-game-bg p-8">
@@ -206,7 +228,7 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {CARDS.map((cardData) => {
+          {cards.map((cardData) => {
             const isSelected = selectedCards.includes(cardData.name);
             const card = createCardForDisplay(cardData);
             const isDisabled = !isSelected && selectedCards.length >= 6;
@@ -214,8 +236,6 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
             return (
               <div
                 key={cardData.name}
-                // onMouseEnter={() => setHoveredCard(card)} // Disabled until artwork is added
-                // onMouseLeave={() => setHoveredCard(null)} // Disabled until artwork is added
                 onClick={() => !isDisabled && toggleCard(cardData.name)}
                 style={{ display: 'flex', justifyContent: 'center' }}
               >

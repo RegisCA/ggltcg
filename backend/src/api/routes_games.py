@@ -5,7 +5,7 @@ Endpoints for creating, retrieving, and deleting games.
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from api.schemas import (
     GameCreate,
@@ -18,14 +18,44 @@ from api.schemas import (
     RandomDeckResponse,
     NarrativeRequest,
     NarrativeResponse,
+    CardDataResponse,
 )
 from api.game_service import get_game_service
 from game_engine.models.card import Zone
-from game_engine.data.card_loader import random_deck
+from game_engine.data.card_loader import random_deck, load_all_cards
 from game_engine.ai.prompts import get_narrative_prompt
 from game_engine.ai.llm_player import get_llm_response
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+
+@router.get("/cards", response_model=List[CardDataResponse])
+async def get_all_cards() -> List[CardDataResponse]:
+    """
+    Get all available cards from the card database.
+    
+    Returns a list of all cards with their stats, effects, and metadata.
+    This is the single source of truth for card data.
+    """
+    try:
+        all_cards = load_all_cards()
+        
+        return [
+            CardDataResponse(
+                name=card.name,
+                card_type=card.card_type.value,
+                cost=card.cost,
+                effect=card.effect_text,
+                speed=card.speed,
+                strength=card.strength,
+                stamina=card.stamina,
+                primary_color=card.primary_color,
+                accent_color=card.accent_color,
+            )
+            for card in all_cards
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load cards: {str(e)}")
 
 
 @router.post("", response_model=GameCreated, status_code=201)

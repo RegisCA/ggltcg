@@ -71,7 +71,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     ) {
       // Delay AI turn slightly for better UX
       const timer = setTimeout(() => {
-        console.log(`Triggering AI turn for turn ${gameState.turn_number}`);
         aiTurnMutation.mutate(aiPlayerId, {
           onSuccess: (response) => {
             setMessage(response.message);
