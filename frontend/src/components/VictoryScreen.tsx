@@ -127,8 +127,12 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                     <p>Generating your epic bedtime story...</p>
                   </div>
                 ) : narrative ? (
-                  <div className="text-gray-100 leading-relaxed whitespace-pre-wrap text-lg">
-                    {narrative}
+                  <div className="text-gray-100 leading-loose space-y-4 text-lg">
+                    {narrative.split('\n\n').map((paragraph, idx) => (
+                      <p key={idx} className="text-justify">
+                        {paragraph}
+                      </p>
+                    ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-400">

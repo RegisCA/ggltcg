@@ -210,21 +210,23 @@ class LLMPlayer:
         )
         return message.content[0].text.strip()
     
-    def _call_gemini(self, prompt: str, retry_count: int = 3) -> str:
+    def _call_gemini(self, prompt: str, retry_count: int = 3, allow_fallback: bool = True) -> str:
         """
-        Call Google Gemini API with retry logic for capacity issues.
+        Call Google Gemini API with retry logic and automatic fallback to more stable models.
         
         Args:
             prompt: The prompt to send
             retry_count: Number of retries for 429 errors (default: 3)
+            allow_fallback: Whether to fallback to gemini-1.5-flash on capacity issues (default: True)
             
         Returns:
             The API response text
             
         Raises:
-            Exception if all retries fail
+            Exception if all retries and fallbacks fail
         """
         last_exception = None
+        current_model = self.model_name
         
         for attempt in range(retry_count):
             try:
@@ -273,12 +275,27 @@ class LLMPlayer:
                         time.sleep(wait_time)
                         continue
                     else:
-                        logger.error(
-                            f"Gemini API capacity exhausted after {retry_count} retries. "
-                            f"This is a Google infrastructure issue, not a rate limit. "
-                            f"Consider: 1) Try again in a few minutes, 2) Switch to gemini-1.5-flash model, "
-                            f"3) Use Anthropic Claude instead"
-                        )
+                        # All retries exhausted - try fallback model if enabled
+                        if allow_fallback and current_model != "gemini-1.5-flash":
+                            logger.warning(
+                                f"Gemini {current_model} capacity exhausted after {retry_count} retries. "
+                                f"Falling back to gemini-1.5-flash (more stable, higher quota)..."
+                            )
+                            # Switch to fallback model
+                            import google.generativeai as genai
+                            self.model_name = "gemini-1.5-flash"
+                            self.client = genai.GenerativeModel(
+                                model_name="gemini-1.5-flash",
+                                system_instruction=SYSTEM_PROMPT
+                            )
+                            # Try one more time with fallback model
+                            return self._call_gemini(prompt, retry_count=1, allow_fallback=False)
+                        else:
+                            logger.error(
+                                f"Gemini API capacity exhausted after {retry_count} retries. "
+                                f"This is a Google infrastructure issue, not a rate limit. "
+                                f"Consider: 1) Try again in a few minutes, 2) Use Anthropic Claude instead"
+                            )
                 else:
                     # Not a 429 error, don't retry
                     logger.exception(f"Gemini API call failed: {e}")
