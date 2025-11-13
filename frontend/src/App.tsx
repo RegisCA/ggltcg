@@ -7,7 +7,9 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DeckSelection } from './components/DeckSelection';
 import { GameBoard } from './components/GameBoard';
+import { VictoryScreen } from './components/VictoryScreen';
 import { useCreateGame } from './hooks/useGame';
+import type { GameState } from './types/game';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,7 +27,7 @@ function GameApp() {
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
   const [player2Deck, _setPlayer2Deck] = useState<string[]>([]);
   const [gameId, setGameId] = useState<string | null>(null);
-  const [winner, setWinner] = useState<string | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(null);
 
   const createGameMutation = useCreateGame();
 
@@ -65,8 +67,8 @@ function GameApp() {
     );
   };
 
-  const handleGameEnd = (winnerName: string) => {
-    setWinner(winnerName);
+  const handleGameEnd = (_winnerName: string, finalGameState: GameState) => {
+    setGameState(finalGameState);
     setGamePhase('game-over');
   };
 
@@ -75,7 +77,7 @@ function GameApp() {
     setPlayer1Deck([]);
     _setPlayer2Deck([]);
     setGameId(null);
-    setWinner(null);
+    setGameState(null);
   };
 
   // Debug output
@@ -100,30 +102,8 @@ function GameApp() {
     );
   }
 
-  if (gamePhase === 'game-over' && winner) {
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontSize: '3.75rem', fontWeight: 'bold', marginBottom: '1rem' }}>Game Over!</h1>
-          <p style={{ fontSize: '1.875rem', marginBottom: '2rem' }}>{winner} Wins!</p>
-          <button
-            onClick={handlePlayAgain}
-            style={{
-              padding: '1rem 2rem',
-              backgroundColor: '#e94560',
-              borderRadius: '0.5rem',
-              fontSize: '1.25rem',
-              fontWeight: 'bold',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer'
-            }}
-          >
-            Play Again
-          </button>
-        </div>
-      </div>
-    );
+  if (gamePhase === 'game-over' && gameState) {
+    return <VictoryScreen gameState={gameState} onPlayAgain={handlePlayAgain} />;
   }
 
   return (

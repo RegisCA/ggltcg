@@ -101,7 +101,7 @@ class LLMPlayer:
         game_state: GameState,
         ai_player_id: str,
         valid_actions: list[ValidAction]
-    ) -> Optional[int]:
+    ) -> Optional[tuple[int, str]]:
         """
         Use LLM to select the best action from valid options.
         
@@ -111,7 +111,7 @@ class LLMPlayer:
             valid_actions: List of valid actions the AI can take
             
         Returns:
-            Index of selected action in valid_actions list (0-based),
+            Tuple of (action_index, reasoning) where action_index is 0-based,
             or None if selection failed
         """
         if not valid_actions:
@@ -183,7 +183,7 @@ class LLMPlayer:
             logger.info(f"DEBUG - Returning action_index: {action_index}")
             logger.info("=" * 60)
             
-            return action_index
+            return (action_index, reasoning)
         
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI response as JSON: {e}")
@@ -323,6 +323,31 @@ class LLMPlayer:
             result["action_type"] = "end_turn"
         
         return result
+    
+    def get_endpoint_name(self) -> str:
+        """
+        Get a human-readable name for the AI endpoint being used.
+        
+        Returns:
+            String like "Gemini 2.0 Flash Lite" or "Claude Sonnet 4"
+        """
+        if self.provider == "anthropic":
+            # Map model names to friendly names
+            model_map = {
+                "claude-sonnet-4-20250514": "Claude Sonnet 4",
+                "claude-3-5-sonnet-20241022": "Claude 3.5 Sonnet",
+                "claude-3-opus-20240229": "Claude 3 Opus",
+            }
+            return model_map.get(self.model, f"Claude ({self.model})")
+        else:  # gemini
+            # Map Gemini models to friendly names
+            model_map = {
+                "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",
+                "gemini-2.0-flash-exp": "Gemini 2.0 Flash (Experimental)",
+                "gemini-1.5-flash": "Gemini 1.5 Flash",
+                "gemini-1.5-pro": "Gemini 1.5 Pro",
+            }
+            return model_map.get(self.model_name, f"Gemini ({self.model_name})")
 
 
 # Singleton instance

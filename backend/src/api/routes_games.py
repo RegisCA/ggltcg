@@ -14,9 +14,12 @@ from api.schemas import (
     PlayerState,
     CardState,
     ErrorResponse,
+    RandomDeckRequest,
+    RandomDeckResponse,
 )
 from api.game_service import get_game_service
 from game_engine.models.card import Zone
+from game_engine.data.card_loader import random_deck
 
 router = APIRouter(prefix="/games", tags=["games"])
 
@@ -51,6 +54,30 @@ async def create_game(game_data: GameCreate) -> GameCreated:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create game: {str(e)}")
+
+
+@router.post("/random-deck", response_model=RandomDeckResponse)
+async def get_random_deck(request: RandomDeckRequest) -> RandomDeckResponse:
+    """
+    Generate a random deck with specified composition.
+    
+    - **num_toys**: Number of Toy cards to include (0-6)
+    - **num_actions**: Number of Action cards to include (0-6)
+    - Sum must equal 6
+    
+    Returns a list of unique card names for the deck.
+    """
+    try:
+        deck = random_deck(num_toys=request.num_toys, num_actions=request.num_actions)
+        return RandomDeckResponse(
+            deck=deck,
+            num_toys=request.num_toys,
+            num_actions=request.num_actions,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate random deck: {str(e)}")
 
 
 @router.get("/{game_id}", response_model=GameStateResponse)
@@ -106,6 +133,7 @@ async def get_game_state(game_id: str, player_id: str = None) -> GameStateRespon
         players=players_state,
         winner=winner,
         is_game_over=winner is not None,
+        play_by_play=game_state.play_by_play,  # Include play-by-play history
     )
 
 

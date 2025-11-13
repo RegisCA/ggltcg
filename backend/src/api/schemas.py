@@ -32,6 +32,19 @@ class GameCreated(BaseModel):
     message: str = "Game created successfully"
 
 
+class RandomDeckRequest(BaseModel):
+    """Request to generate a random deck."""
+    num_toys: int = Field(..., ge=0, le=6, description="Number of Toy cards (0-6)")
+    num_actions: int = Field(..., ge=0, le=6, description="Number of Action cards (0-6)")
+
+
+class RandomDeckResponse(BaseModel):
+    """Response with randomly generated deck."""
+    deck: list[str] = Field(..., description="List of card names")
+    num_toys: int = Field(..., description="Number of Toy cards in deck")
+    num_actions: int = Field(..., description="Number of Action cards in deck")
+
+
 # ============================================================================
 # PLAYER ACTIONS
 # ============================================================================
@@ -118,6 +131,10 @@ class GameStateResponse(BaseModel):
     players: Dict[str, PlayerState]
     winner: Optional[str] = None
     is_game_over: bool = False
+    play_by_play: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description="Complete play-by-play history of all actions taken in the game"
+    )
 
 
 class ValidAction(BaseModel):

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { ValidAction } from '../types/game';
+import type { ValidAction, GameState } from '../types/game';
 import { useGameState, useValidActions, usePlayCard, useTussle, useEndTurn, useAITurn } from '../hooks/useGame';
 import { PlayerZone } from './PlayerZone';
 import { ActionPanel } from './ActionPanel';
@@ -13,7 +13,7 @@ interface GameBoardProps {
   gameId: string;
   humanPlayerId: string;
   aiPlayerId: string;
-  onGameEnd: (winner: string) => void;
+  onGameEnd: (winner: string, gameState: GameState) => void;
 }
 
 export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: GameBoardProps) {
@@ -56,9 +56,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   // Check for game over
   useEffect(() => {
     if (gameState?.winner) {
-      onGameEnd(gameState.winner);
+      onGameEnd(gameState.winner, gameState);
     }
-  }, [gameState?.winner, onGameEnd]);
+  }, [gameState?.winner, onGameEnd, gameState]);
 
   // Auto-trigger AI turn
   useEffect(() => {

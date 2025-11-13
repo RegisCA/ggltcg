@@ -95,6 +95,9 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
     
     # Play the card
     try:
+        # Calculate cost before playing
+        cost = engine.calculate_card_cost(card, player)
+        
         success = engine.play_card(player, card, **kwargs)
         
         if not success:
@@ -105,6 +108,18 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         
         # Check state-based actions
         engine.check_state_based_actions()
+        
+        # Build description with card effect for Action cards
+        description = f"Spent {cost} CC to play {request.card_name}"
+        if card.is_action():
+            description += f" ({card.effect_text})"
+        
+        # Log to play-by-play
+        game_state.add_play_by_play(
+            player_name=player.name,
+            action_type="play_card",
+            description=description,
+        )
         
         return ActionResponse(
             success=True,
@@ -165,6 +180,9 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
     
     # Initiate tussle
     try:
+        # Calculate cost before tussle
+        cost = engine.calculate_tussle_cost(attacker, player)
+        
         success = engine.initiate_tussle(attacker, defender, player)
         
         if not success:
@@ -175,6 +193,14 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         
         # Check state-based actions
         engine.check_state_based_actions()
+        
+        # Log to play-by-play with cost
+        target_desc = request.defender_name if request.defender_name else "opponent directly"
+        game_state.add_play_by_play(
+            player_name=player.name,
+            action_type="tussle",
+            description=f"Spent {cost} CC for {request.attacker_name} to tussle {target_desc}",
+        )
         
         # Check for victory
         winner = game_state.check_victory()
@@ -215,8 +241,19 @@ async def end_turn(game_id: str, request: EndTurnRequest) -> ActionResponse:
     if game_state.active_player_id != request.player_id:
         raise HTTPException(status_code=400, detail="It's not your turn")
     
+    # Get player for logging
+    player = game_state.players.get(request.player_id)
+    
     # End turn
     try:
+        # Log to play-by-play BEFORE ending turn (so turn number is correct)
+        if player:
+            game_state.add_play_by_play(
+                player_name=player.name,
+                action_type="end_turn",
+                description="Ended turn",
+            )
+        
         engine.end_turn()
         
         return ActionResponse(
@@ -466,12 +503,21 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         logger.debug(f"Available actions: {[a.description for a in valid_actions]}")
         
         ai_player = get_ai_player()
-        action_index = ai_player.select_action(game_state, player_id, valid_actions)
+        result = ai_player.select_action(game_state, player_id, valid_actions)
         
-        if action_index is None:
+        if result is None:
             # AI failed to select - default to end turn
             logger.warning("AI failed to select action, defaulting to end turn")
             engine.end_turn()
+            
+            # Log to play-by-play
+            game_state.add_play_by_play(
+                player_name=player.name,
+                action_type="pass",
+                description="AI failed to select action, ended turn",
+                ai_endpoint=ai_player.get_endpoint_name(),
+            )
+            
             return ActionResponse(
                 success=True,
                 message="AI failed to select action, ended turn",
@@ -481,12 +527,15 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 },
                 ai_turn_summary={
                     "action": "pass",
-                    "available_actions_count": len(valid_actions)
+                    "available_actions_count": len(valid_actions),
+                    "ai_endpoint": ai_player.get_endpoint_name(),
                 }
             )
         
+        action_index, reasoning = result
         selected_action = valid_actions[action_index]
         action_details = ai_player.get_action_details(selected_action)
+        ai_endpoint_name = ai_player.get_endpoint_name()
         
         # Build turn summary for response
         turn_summary = {
@@ -494,12 +543,24 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             "card": action_details.get("card_name") or action_details.get("attacker_name"),
             "target": action_details.get("defender_name"),
             "cost_cc": selected_action.cost_cc,
-            "description": selected_action.description
+            "description": selected_action.description,
+            "reasoning": reasoning,
+            "ai_endpoint": ai_endpoint_name,
         }
         
         # Execute the selected action
         if action_details["action_type"] == "end_turn":
+            # Log to play-by-play BEFORE ending turn
+            game_state.add_play_by_play(
+                player_name=player.name,
+                action_type="end_turn",
+                description="Ended turn",
+                reasoning=reasoning,
+                ai_endpoint=ai_endpoint_name,
+            )
+            
             engine.end_turn()
+            
             return ActionResponse(
                 success=True,
                 message=f"AI ended turn",
@@ -517,8 +578,25 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             if card is None:
                 raise HTTPException(status_code=500, detail=f"AI selected invalid card: {card_name}")
             
+            # Calculate cost before playing
+            cost = engine.calculate_card_cost(card, player)
+            
             success = engine.play_card(player, card)
             engine.check_state_based_actions()
+            
+            # Build description with card effect for Action cards
+            description = f"Spent {cost} CC to play {card_name}"
+            if card.is_action():
+                description += f" ({card.effect_text})"
+            
+            # Log to play-by-play
+            game_state.add_play_by_play(
+                player_name=player.name,
+                action_type="play_card",
+                description=description,
+                reasoning=reasoning,
+                ai_endpoint=ai_endpoint_name,
+            )
             
             return ActionResponse(
                 success=success,
@@ -539,8 +617,21 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             if defender_name:
                 defender = game_state.find_card_by_name(defender_name)
             
+            # Calculate cost before tussle
+            cost = engine.calculate_tussle_cost(attacker, player)
+            
             success = engine.initiate_tussle(attacker, defender, player)
             engine.check_state_based_actions()
+            
+            # Log to play-by-play with cost
+            target_desc = defender_name if defender_name else "opponent directly"
+            game_state.add_play_by_play(
+                player_name=player.name,
+                action_type="tussle",
+                description=f"Spent {cost} CC for {attacker_name} to tussle {target_desc}",
+                reasoning=reasoning,
+                ai_endpoint=ai_endpoint_name,
+            )
             
             # Check for victory
             winner = game_state.check_victory()
@@ -552,7 +643,6 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     ai_turn_summary=turn_summary
                 )
             
-            target_desc = defender_name if defender_name else "direct attack"
             return ActionResponse(
                 success=success,
                 message=f"AI initiated tussle: {attacker_name} vs {target_desc}",
