@@ -43,5 +43,5 @@
     <circle cx="760" cy="260" r="110" fill="#F5F0E8" id="circle9" style="fill:#f5f0e8;fill-opacity:0" />
   </g>
   <!-- Eye dot -->
-  <circle cx="630" cy="470" r="70" fill="#000000" id="circle10" />
+  <circle cx="650" cy="474" r="70" fill="#000000" id="circle10" />
 </svg>

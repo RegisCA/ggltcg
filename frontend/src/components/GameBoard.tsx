@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { ValidAction } from '../types/game';
+import type { ValidAction, GameState } from '../types/game';
 import { useGameState, useValidActions, usePlayCard, useTussle, useEndTurn, useAITurn } from '../hooks/useGame';
 import { PlayerZone } from './PlayerZone';
 import { ActionPanel } from './ActionPanel';
@@ -13,7 +13,7 @@ interface GameBoardProps {
   gameId: string;
   humanPlayerId: string;
   aiPlayerId: string;
-  onGameEnd: (winner: string) => void;
+  onGameEnd: (winner: string, gameState: GameState) => void;
 }
 
 export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: GameBoardProps) {
@@ -56,9 +56,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   // Check for game over
   useEffect(() => {
     if (gameState?.winner) {
-      onGameEnd(gameState.winner);
+      onGameEnd(gameState.winner, gameState);
     }
-  }, [gameState?.winner, onGameEnd]);
+  }, [gameState?.winner, onGameEnd, gameState]);
 
   // Auto-trigger AI turn
   useEffect(() => {
@@ -157,13 +157,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-bold">GGLTCG</h1>
             <div className="text-center">
-              <div className="text-xs text-gray-400">Turn {gameState.turn_number}</div>
-              <div className="text-lg font-bold">{gameState.phase} PHASE</div>
+              <div className="text-lg font-bold">Turn {gameState.turn_number}</div>
             </div>
             <div className="text-right">
-              <div className="text-xs text-gray-400">Active Player</div>
-              <div className="font-bold text-sm">
-                {gameState.active_player_id === humanPlayerId ? humanPlayer.name : aiPlayer.name}
+              <div className="text-sm">
+                <span className="text-gray-400">Active Player:</span>{' '}
+                <span className="font-bold">
+                  {gameState.active_player_id === humanPlayerId ? humanPlayer.name : aiPlayer.name}
+                </span>
               </div>
             </div>
           </div>

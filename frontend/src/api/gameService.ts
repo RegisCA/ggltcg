@@ -24,6 +24,14 @@ export async function createGame(data: GameCreateRequest): Promise<GameCreateRes
   return response.data;
 }
 
+export async function getRandomDeck(numToys: number, numActions: number): Promise<string[]> {
+  const response = await apiClient.post<{ deck: string[]; num_toys: number; num_actions: number }>(
+    '/games/random-deck',
+    { num_toys: numToys, num_actions: numActions }
+  );
+  return response.data.deck;
+}
+
 export async function getGameState(gameId: string, playerId?: string): Promise<GameState> {
   const params = playerId ? { player_id: playerId } : {};
   const response = await apiClient.get<GameState>(`/games/${gameId}`, { params });

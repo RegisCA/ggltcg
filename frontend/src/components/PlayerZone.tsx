@@ -77,7 +77,7 @@ export function PlayerZone({
                 <h3 className="text-sm font-bold text-gray-400 mb-2">
                   HAND ({player.hand ? player.hand.length : player.hand_count})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[140px] p-2 bg-black bg-opacity-20 rounded">
+                <div className="flex gap-2 flex-wrap min-h-[230px] p-2 bg-black bg-opacity-20 rounded">
                   {player.hand ? (
                     player.hand.length === 0 ? (
                       <div className="text-gray-500 italic text-sm m-auto">No cards in hand</div>
@@ -86,7 +86,7 @@ export function PlayerZone({
                         <CardDisplay
                           key={`${card.name}-${card.owner}`}
                           card={card}
-                          size="small"
+                          size="medium"
                           isClickable={isHuman && isActive}
                           isSelected={selectedCard === card.name}
                           onClick={() => onCardClick?.(card.name, 'hand')}

@@ -7,7 +7,9 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DeckSelection } from './components/DeckSelection';
 import { GameBoard } from './components/GameBoard';
+import { VictoryScreen } from './components/VictoryScreen';
 import { useCreateGame } from './hooks/useGame';
+import type { GameState } from './types/game';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,30 +26,38 @@ function GameApp() {
   const [gamePhase, setGamePhase] = useState<GamePhase>('deck-selection-p1');
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
   const [player2Deck, _setPlayer2Deck] = useState<string[]>([]);
+  const [player1Name, setPlayer1Name] = useState('Player');
+  const [player2Name, setPlayer2Name] = useState('AI Opponent');
   const [gameId, setGameId] = useState<string | null>(null);
-  const [winner, setWinner] = useState<string | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(null);
 
   const createGameMutation = useCreateGame();
 
-  const handlePlayer1DeckSelected = (deck: string[]) => {
+  const handlePlayer1DeckSelected = (deck: string[], customName?: string) => {
     setPlayer1Deck(deck);
+    if (customName) {
+      setPlayer1Name(customName);
+    }
     setGamePhase('deck-selection-p2');
   };
 
-  const handlePlayer2DeckSelected = (deck: string[]) => {
+  const handlePlayer2DeckSelected = (deck: string[], customName?: string) => {
     _setPlayer2Deck(deck);
+    if (customName) {
+      setPlayer2Name(customName);
+    }
     
     // Create the game
     createGameMutation.mutate(
       {
         player1: {
           player_id: 'human',
-          name: 'Player',
+          name: player1Name,
           deck: player1Deck,
         },
         player2: {
           player_id: 'ai',
-          name: 'AI Opponent',
+          name: customName || player2Name,
           deck,
         },
       },
@@ -65,8 +75,8 @@ function GameApp() {
     );
   };
 
-  const handleGameEnd = (winnerName: string) => {
-    setWinner(winnerName);
+  const handleGameEnd = (_winnerName: string, finalGameState: GameState) => {
+    setGameState(finalGameState);
     setGamePhase('game-over');
   };
 
@@ -74,15 +84,17 @@ function GameApp() {
     setGamePhase('deck-selection-p1');
     setPlayer1Deck([]);
     _setPlayer2Deck([]);
+    setPlayer1Name('Player');
+    setPlayer2Name('AI Opponent');
     setGameId(null);
-    setWinner(null);
+    setGameState(null);
   };
 
   // Debug output
   console.log('GameApp rendering, phase:', gamePhase);
 
   if (gamePhase === 'deck-selection-p1') {
-    return <DeckSelection playerName="Player 1" onDeckSelected={handlePlayer1DeckSelected} />;
+    return <DeckSelection playerName="Player" onDeckSelected={handlePlayer1DeckSelected} />;
   }
 
   if (gamePhase === 'deck-selection-p2') {
@@ -100,30 +112,8 @@ function GameApp() {
     );
   }
 
-  if (gamePhase === 'game-over' && winner) {
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontSize: '3.75rem', fontWeight: 'bold', marginBottom: '1rem' }}>Game Over!</h1>
-          <p style={{ fontSize: '1.875rem', marginBottom: '2rem' }}>{winner} Wins!</p>
-          <button
-            onClick={handlePlayAgain}
-            style={{
-              padding: '1rem 2rem',
-              backgroundColor: '#e94560',
-              borderRadius: '0.5rem',
-              fontSize: '1.25rem',
-              fontWeight: 'bold',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer'
-            }}
-          >
-            Play Again
-          </button>
-        </div>
-      </div>
-    );
+  if (gamePhase === 'game-over' && gameState) {
+    return <VictoryScreen gameState={gameState} onPlayAgain={handlePlayAgain} />;
   }
 
   return (

@@ -27,6 +27,7 @@ class GameState:
         first_player_id: ID of the player who went first
         winner_id: ID of the winning player (None if game ongoing)
         game_log: List of game events for history
+        play_by_play: List of detailed action records for end-game summary
     """
     game_id: str
     players: Dict[str, Player]
@@ -36,6 +37,7 @@ class GameState:
     first_player_id: str = ""
     winner_id: Optional[str] = None
     game_log: List[str] = field(default_factory=list)
+    play_by_play: List[Dict[str, Any]] = field(default_factory=list)
     
     def get_active_player(self) -> Player:
         """Get the active player object."""
@@ -71,6 +73,38 @@ class GameState:
     def log_event(self, message: str):
         """Add an event to the game log."""
         self.game_log.append(f"Turn {self.turn_number} ({self.phase.value}): {message}")
+    
+    def add_play_by_play(
+        self,
+        player_name: str,
+        action_type: str,
+        description: str,
+        reasoning: Optional[str] = None,
+        ai_endpoint: Optional[str] = None,
+    ):
+        """
+        Add a detailed action record to the play-by-play history.
+        
+        Args:
+            player_name: Name of the player who took the action
+            action_type: Type of action (play_card, tussle, end_turn, etc.)
+            description: Human-readable description of the action
+            reasoning: Optional AI reasoning for the action
+            ai_endpoint: Optional AI endpoint name if this was an AI action
+        """
+        entry = {
+            "turn": self.turn_number,
+            "player": player_name,
+            "action_type": action_type,
+            "description": description,
+        }
+        
+        if reasoning:
+            entry["reasoning"] = reasoning
+        if ai_endpoint:
+            entry["ai_endpoint"] = ai_endpoint
+        
+        self.play_by_play.append(entry)
     
     def check_victory(self) -> Optional[str]:
         """
@@ -265,6 +299,7 @@ class GameState:
                 for pid, player in self.players.items()
             },
             "game_log": self.game_log[-20:],  # Last 20 events only
+            "play_by_play": self.play_by_play,  # Full play-by-play for victory screen
         }
     
     @classmethod
@@ -282,4 +317,5 @@ class GameState:
             first_player_id=data["first_player_id"],
             winner_id=data.get("winner_id"),
             game_log=data.get("game_log", []),
+            play_by_play=data.get("play_by_play", []),
         )

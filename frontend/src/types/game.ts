@@ -33,6 +33,15 @@ export interface Player {
   direct_attacks_this_turn: number;
 }
 
+export interface PlayByPlayEntry {
+  turn: number;
+  player: string;
+  action_type: string;
+  description: string;
+  reasoning?: string;
+  ai_endpoint?: string;
+}
+
 export interface GameState {
   game_id: string;
   turn_number: number;
@@ -42,6 +51,7 @@ export interface GameState {
   players: Record<string, Player>;
   winner: string | null;
   is_game_over: boolean;
+  play_by_play?: PlayByPlayEntry[];
 }
 
 export interface ValidAction {
