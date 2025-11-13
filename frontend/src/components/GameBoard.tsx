@@ -6,7 +6,10 @@
 import { useState, useEffect } from 'react';
 import type { ValidAction, GameState } from '../types/game';
 import { useGameState, useValidActions, usePlayCard, useTussle, useEndTurn, useAITurn } from '../hooks/useGame';
-import { PlayerZone } from './PlayerZone';
+import { PlayerInfoBar } from './PlayerInfoBar';
+import { InPlayZone } from './InPlayZone';
+import { HandZone } from './HandZone';
+import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
 
 interface GameBoardProps {
@@ -150,53 +153,91 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   return (
     <div className="min-h-screen bg-game-bg p-3">
-      <div className="max-w-7xl mx-auto">
-        {/* Game Header */}
-        <div className="mb-3 p-3 bg-game-card rounded">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-bold">GGLTCG</h1>
-            <div className="text-center">
-              <div className="text-lg font-bold">Turn {gameState.turn_number}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm">
-                <span className="text-gray-400">Active Player:</span>{' '}
-                <span className="font-bold">
-                  {gameState.active_player_id === humanPlayerId ? humanPlayer.name : aiPlayer.name}
-                </span>
-              </div>
-            </div>
+      <div className="max-w-[1400px] mx-auto">
+        {/* Game Header - Player Info Bars */}
+        <div className="mb-3 p-3 bg-game-card rounded grid grid-cols-3 gap-4 items-center">
+          {/* AI Player Info - Left */}
+          <PlayerInfoBar 
+            player={aiPlayer} 
+            isActive={gameState.active_player_id === aiPlayerId} 
+          />
+          
+          {/* Turn Info - Center */}
+          <div className="text-center">
+            <div className="text-lg font-bold">Turn {gameState.turn_number}</div>
+          </div>
+          
+          {/* Human Player Info - Right */}
+          <div className="flex justify-end">
+            <PlayerInfoBar 
+              player={humanPlayer} 
+              isActive={gameState.active_player_id === humanPlayerId} 
+            />
           </div>
         </div>
 
-        {/* Message Display */}
-        {message && (
-          <div className="mb-3 p-2 bg-blue-900 rounded border border-blue-600 animate-fade-in text-sm">
-            {message}
-          </div>
-        )}
-
-        {/* AI Processing Indicator - Fixed height to prevent layout shift */}
-        <div className="mb-3" style={{ minHeight: '40px' }}>
-          {isProcessing && gameState.active_player_id === aiPlayerId && (
-            <div className="p-2 bg-purple-900 rounded border border-purple-600 animate-pulse text-sm">
-              AI is thinking...
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Left Column - AI Player */}
-          <div className="lg:col-span-2">
-            <PlayerZone
-              player={aiPlayer}
-              isActive={gameState.active_player_id === aiPlayerId}
+        {/* Main Game Area - 3 Columns */}
+        <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 280px 350px' }}>
+          {/* Left Column - In Play Zones */}
+          <div className="space-y-3">
+            {/* AI In Play - Top */}
+            <InPlayZone
+              cards={aiPlayer.in_play}
+              playerName={aiPlayer.name}
               isHuman={false}
+            />
+            
+            {/* Divider */}
+            <div className="border-t-2 border-game-highlight"></div>
+            
+            {/* Human In Play - Bottom */}
+            <InPlayZone
+              cards={humanPlayer.in_play}
+              playerName={humanPlayer.name}
+              isHuman={true}
+              selectedCard={selectedCard || undefined}
+              onCardClick={(cardName) => setSelectedCard(cardName)}
             />
           </div>
 
-          {/* Right Column - Action Panel */}
-          <div className="lg:row-span-2">
+          {/* Center Column - Sleep Zones */}
+          <div className="space-y-3">
+            {/* AI Sleep Zone - Top */}
+            <SleepZoneDisplay
+              cards={aiPlayer.sleep_zone}
+              playerName={aiPlayer.name}
+            />
+            
+            {/* Divider */}
+            <div className="border-t-2 border-game-highlight"></div>
+            
+            {/* Human Sleep Zone - Bottom */}
+            <SleepZoneDisplay
+              cards={humanPlayer.sleep_zone}
+              playerName={humanPlayer.name}
+            />
+          </div>
+
+          {/* Right Column - Messages + Actions */}
+          <div className="space-y-3">
+            {/* Messages Area - Top */}
+            <div className="bg-gray-800 rounded p-3 border border-gray-700" style={{ minHeight: '200px' }}>
+              <div className="text-sm text-gray-400 mb-2">Game Messages</div>
+              <div className="space-y-2">
+                {message && (
+                  <div className="p-2 bg-blue-900 rounded text-sm">
+                    {message}
+                  </div>
+                )}
+                {isProcessing && gameState.active_player_id === aiPlayerId && (
+                  <div className="p-2 bg-purple-900 rounded text-sm animate-pulse">
+                    AI is thinking...
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Actions Panel - Bottom */}
             <ActionPanel
               validActions={validActionsData?.valid_actions || []}
               onAction={handleAction}
@@ -204,17 +245,15 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               currentCC={humanPlayer.cc}
             />
           </div>
+        </div>
 
-          {/* Bottom Left - Human Player */}
-          <div className="lg:col-span-2">
-            <PlayerZone
-              player={humanPlayer}
-              isActive={gameState.active_player_id === humanPlayerId}
-              isHuman={true}
-              selectedCard={selectedCard || undefined}
-              onCardClick={(cardName) => setSelectedCard(cardName)}
-            />
-          </div>
+        {/* Human Hand - Full Width at Bottom */}
+        <div className="mt-3">
+          <HandZone
+            cards={humanPlayer.hand || []}
+            selectedCard={selectedCard || undefined}
+            onCardClick={(cardName) => setSelectedCard(cardName)}
+          />
         </div>
       </div>
     </div>

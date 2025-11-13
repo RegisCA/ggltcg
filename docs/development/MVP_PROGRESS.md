@@ -222,6 +222,18 @@ All backend development finished:
 4. ✅ **Issue #13 - AI Turn Summary** - Added `ai_turn_summary` field to `ActionResponse` schema for better UX visibility of AI actions.
 5. ✅ **CardType Enum Audit** - Fixed all incorrect CardType comparisons throughout codebase (prompts.py, action_effects.py, routes_actions.py).
 
+**UI/UX Improvements (November 13, 2025) - Issue #21:**
+1. ✅ **GameBoard Redesign** - Complete layout overhaul to horizontal 3-column design:
+   - Created new zone components: `PlayerInfoBar`, `InPlayZone`, `HandZone`, `SleepZoneDisplay`
+   - Restructured to 3-column grid: in-play zones (left) | sleep zones (center) | messages+actions (right)
+   - Hand now spans full width at bottom for better card visibility
+   - Sleep zones use stacked/overlapping card display to save vertical space
+   - Added vertical labels for IN PLAY and HAND zones
+   - Fixed hand count display to use `hand_count` field for AI player
+   - Added horizontal dividers between AI and player zones
+   - Improved visual distinction with blue background for hand zone
+   - All zones properly handle null/empty states
+
 **Outstanding Issues:**
 - Issue #5: UI/UX improvements (card names in zones, game log display, animations)
 - Issue #14: Frontend enhancements for Copy card target selection and AI turn summary display
