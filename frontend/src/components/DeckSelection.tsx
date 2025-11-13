@@ -38,9 +38,12 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
       });
   }, []);
 
-  // Reset customName when playerName prop changes (when switching between player 1 and player 2)
+  // Reset customName and clear selections when playerName prop changes (when switching between player 1 and player 2)
   useEffect(() => {
     setCustomName(playerName);
+    setSelectedCards([]);
+    setNumToys(4);
+    setNumActions(2);
   }, [playerName]);
 
   const toggleCard = (cardName: string) => {
