@@ -103,59 +103,58 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
   }
 
   return (
-    <div className="min-h-screen bg-game-bg p-8">
+    <div className="min-h-screen bg-game-bg p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header with title and Confirm button */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <div className="flex items-center gap-3">
-              {isEditingName ? (
-                <input
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  onBlur={() => setIsEditingName(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setIsEditingName(false);
-                  }}
-                  autoFocus
-                  maxLength={30}
-                  className="text-4xl font-bold bg-gray-800 border-2 border-game-highlight rounded px-3 py-1 focus:outline-none"
-                />
-              ) : (
-                <h1 
-                  className="text-4xl font-bold cursor-pointer hover:text-game-highlight transition-colors"
-                  onClick={() => setIsEditingName(true)}
-                  title="Click to edit name"
-                >
-                  {customName}
-                </h1>
-              )}
-              <button
-                onClick={() => setIsEditingName(true)}
-                className="text-gray-400 hover:text-game-highlight transition-colors text-sm"
-                style={{ 
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  fontSize: '1.25rem'
+        {/* Header with title, card count, and Confirm button */}
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-3">
+            {isEditingName ? (
+              <input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                onBlur={() => setIsEditingName(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setIsEditingName(false);
                 }}
-                title="Edit name"
+                autoFocus
+                maxLength={30}
+                className="text-3xl font-bold bg-gray-800 border-2 border-game-highlight rounded px-3 py-1 focus:outline-none"
+              />
+            ) : (
+              <h1 
+                className="text-3xl font-bold cursor-pointer hover:text-game-highlight transition-colors"
+                onClick={() => setIsEditingName(true)}
+                title="Click to edit name"
               >
-                ✏️
-              </button>
-            </div>
-            <p className="text-gray-400 mt-2">
-              Choose 6 unique cards ({selectedCards.length}/6 selected)
-            </p>
+                {customName}
+              </h1>
+            )}
+            <button
+              onClick={() => setIsEditingName(true)}
+              className="text-gray-400 hover:text-game-highlight transition-colors"
+              style={{ 
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontSize: '1.25rem'
+              }}
+              title="Edit name"
+            >
+              ✏️
+            </button>
           </div>
+
+          <p className="text-xl font-semibold text-game-highlight">
+            Choose 6 unique cards ({selectedCards.length}/6 selected)
+          </p>
           
           <button
             onClick={handleConfirm}
             disabled={selectedCards.length !== 6}
             className={`
-              px-8 py-4 rounded text-xl font-bold transition-all
+              px-8 py-3 rounded text-xl font-bold transition-all
               ${selectedCards.length === 6
                 ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                 : 'bg-gray-600 cursor-not-allowed opacity-50'
@@ -166,68 +165,59 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
           </button>
         </div>
 
-        {/* Deck Composition Slider */}
-        <div className="mb-8 p-6 bg-gray-800 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">Deck Composition</h2>
-            <button
-              onClick={handleRandomize}
-              disabled={isRandomizing}
-              className={`
-                px-6 py-3 rounded font-bold transition-all
-                ${isRandomizing
-                  ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                  : 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
-                }
-              `}
-            >
-              {isRandomizing ? 'Randomizing...' : '🎲 Random Deck'}
-            </button>
+        {/* Deck Composition Controls */}
+        <div className="mb-3 p-3 bg-gray-800 rounded-lg flex items-center justify-between gap-6">
+          <div className="flex items-center gap-4" style={{ maxWidth: '600px' }}>
+            <span className="text-lg font-semibold whitespace-nowrap">
+              <span className="text-red-400">Toys:</span> {numToys}
+            </span>
+            
+            <input
+              type="range"
+              min="0"
+              max="6"
+              value={numToys}
+              onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+              className="flex-1 h-4 bg-gray-700 rounded-lg appearance-none cursor-pointer
+                [&::-webkit-slider-thumb]:appearance-none
+                [&::-webkit-slider-thumb]:w-8
+                [&::-webkit-slider-thumb]:h-8
+                [&::-webkit-slider-thumb]:rounded-full
+                [&::-webkit-slider-thumb]:bg-game-highlight
+                [&::-webkit-slider-thumb]:cursor-pointer
+                [&::-webkit-slider-thumb]:shadow-lg
+                [&::-moz-range-thumb]:w-8
+                [&::-moz-range-thumb]:h-8
+                [&::-moz-range-thumb]:rounded-full
+                [&::-moz-range-thumb]:bg-game-highlight
+                [&::-moz-range-thumb]:cursor-pointer
+                [&::-moz-range-thumb]:border-0
+                [&::-moz-range-thumb]:shadow-lg
+              "
+              style={{ minWidth: '200px', maxWidth: '400px' }}
+            />
+            
+            <span className="text-lg font-semibold whitespace-nowrap">
+              <span className="text-purple-400">Actions:</span> {numActions}
+            </span>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-lg">
-                  <span className="text-red-400 font-bold">Toys:</span> {numToys}
-                </span>
-                <span className="text-lg">
-                  <span className="text-purple-400 font-bold">Actions:</span> {numActions}
-                </span>
-              </div>
-              
-              <input
-                type="range"
-                min="0"
-                max="6"
-                value={numToys}
-                onChange={(e) => handleSliderChange(parseInt(e.target.value))}
-                className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer
-                  [&::-webkit-slider-thumb]:appearance-none
-                  [&::-webkit-slider-thumb]:w-6
-                  [&::-webkit-slider-thumb]:h-6
-                  [&::-webkit-slider-thumb]:rounded-full
-                  [&::-webkit-slider-thumb]:bg-game-highlight
-                  [&::-webkit-slider-thumb]:cursor-pointer
-                  [&::-moz-range-thumb]:w-6
-                  [&::-moz-range-thumb]:h-6
-                  [&::-moz-range-thumb]:rounded-full
-                  [&::-moz-range-thumb]:bg-game-highlight
-                  [&::-moz-range-thumb]:cursor-pointer
-                  [&::-moz-range-thumb]:border-0
-                "
-              />
-              
-              <div className="flex justify-between text-sm text-gray-500 mt-1">
-                <span>All Actions</span>
-                <span>3-3 Split</span>
-                <span>All Toys</span>
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={handleRandomize}
+            disabled={isRandomizing}
+            className={`
+              px-6 py-3 rounded font-bold transition-all whitespace-nowrap
+              ${isRandomizing
+                ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                : 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
+              }
+            `}
+          >
+            {isRandomizing ? 'Randomizing...' : '🎲 Random Deck'}
+          </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
           {cards.map((cardData) => {
             const isSelected = selectedCards.includes(cardData.name);
             const card = createCardForDisplay(cardData);
