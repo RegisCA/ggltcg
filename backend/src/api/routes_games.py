@@ -16,10 +16,14 @@ from api.schemas import (
     ErrorResponse,
     RandomDeckRequest,
     RandomDeckResponse,
+    NarrativeRequest,
+    NarrativeResponse,
 )
 from api.game_service import get_game_service
 from game_engine.models.card import Zone
 from game_engine.data.card_loader import random_deck
+from game_engine.ai.prompts import get_narrative_prompt
+from game_engine.ai.llm_player import get_llm_response
 
 router = APIRouter(prefix="/games", tags=["games"])
 
@@ -181,3 +185,28 @@ def _card_to_state(card, engine) -> CardState:
         primary_color=card.primary_color,
         accent_color=card.accent_color,
     )
+
+
+@router.post("/narrative", response_model=NarrativeResponse)
+async def generate_narrative(request: NarrativeRequest) -> NarrativeResponse:
+    """
+    Generate a narrative "bedtime story" version of the play-by-play.
+    
+    Takes the factual play-by-play entries and transforms them into an enchanting
+    narrative suitable for a bedtime story about epic toy battles in Googooland.
+    
+    - **play_by_play**: List of play-by-play entries from the game
+    
+    Returns a narrative story version of the game events.
+    """
+    try:
+        # Generate narrative prompt
+        prompt = get_narrative_prompt(request.play_by_play)
+        
+        # Get narrative from LLM
+        narrative = get_llm_response(prompt, is_json=False)
+        
+        return NarrativeResponse(narrative=narrative)
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate narrative: {str(e)}")

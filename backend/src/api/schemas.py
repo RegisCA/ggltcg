@@ -45,6 +45,16 @@ class RandomDeckResponse(BaseModel):
     num_actions: int = Field(..., description="Number of Action cards in deck")
 
 
+class NarrativeRequest(BaseModel):
+    """Request to generate narrative play-by-play."""
+    play_by_play: List[Dict[str, Any]] = Field(..., description="Play-by-play entries from the game")
+
+
+class NarrativeResponse(BaseModel):
+    """Response with narrative story."""
+    narrative: str = Field(..., description="Bedtime story narrative of the game")
+
+
 # ============================================================================
 # PLAYER ACTIONS
 # ============================================================================

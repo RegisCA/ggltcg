@@ -373,3 +373,66 @@ def get_ai_player(provider: str = None) -> LLMPlayer:
     if _ai_player is None:
         _ai_player = LLMPlayer(provider=provider)
     return _ai_player
+
+
+def get_llm_response(prompt: str, is_json: bool = True, provider: str = None) -> str:
+    """
+    Get a response from the LLM for a custom prompt.
+    
+    This is a utility function for getting LLM responses outside of game action selection,
+    such as generating narratives or other creative text.
+    
+    Args:
+        prompt: The prompt to send to the LLM
+        is_json: Whether to expect and parse JSON response (default: True)
+        provider: Optional provider override ("anthropic" or "gemini")
+    
+    Returns:
+        The LLM response text (parsed from JSON if is_json=True)
+    """
+    ai_player = get_ai_player(provider)
+    
+    # Call the appropriate LLM
+    if ai_player.provider == "anthropic":
+        # For Anthropic, we need to call without system prompt for custom prompts
+        from anthropic import Anthropic
+        client = Anthropic(api_key=ai_player.api_key)
+        message = client.messages.create(
+            model=ai_player.model,
+            max_tokens=2048,  # Allow longer responses for narratives
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.8,  # Higher temperature for more creative narratives
+        )
+        response_text = message.content[0].text.strip()
+    else:  # gemini
+        import google.generativeai as genai
+        # Create a new model instance without system instruction for custom prompts
+        model = genai.GenerativeModel(model_name=ai_player.model_name)
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.8,  # Higher temperature for creativity
+                "max_output_tokens": 2048,  # Allow longer responses
+            }
+        )
+        response_text = response.text.strip()
+    
+    if is_json:
+        # Parse JSON response
+        if "```json" in response_text:
+            json_start = response_text.find("```json") + 7
+            json_end = response_text.find("```", json_start)
+            response_text = response_text[json_start:json_end].strip()
+        elif "```" in response_text:
+            json_start = response_text.find("```") + 3
+            json_end = response_text.find("```", json_start)
+            response_text = response_text[json_start:json_end].strip()
+        
+        return json.loads(response_text)
+    
+    return response_text
