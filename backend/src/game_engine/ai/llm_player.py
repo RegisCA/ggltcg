@@ -87,8 +87,8 @@ class LLMPlayer:
             self.model_name = model or default_model
             
             # Fallback model for capacity issues (configurable via env var)
-            # Default: gemini-2.5-flash (newest, more stable, better availability)
-            self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash")
+            # Default: gemini-2.5-flash-lite (15 RPM, better capacity availability)
+            self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
             
             logger.info(f"Initializing Gemini with model: {self.model_name}")
             logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
