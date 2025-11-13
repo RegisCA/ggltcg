@@ -3,7 +3,7 @@
  * Allows players to select 6 unique cards for their deck
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CARDS, getCardType } from '../data/cards';
 import { CardDisplay } from './CardDisplay';
 import { getRandomDeck } from '../api/gameService';
@@ -11,7 +11,7 @@ import { getRandomDeck } from '../api/gameService';
 import type { Card } from '../types/game';
 
 interface DeckSelectionProps {
-  onDeckSelected: (deck: string[]) => void;
+  onDeckSelected: (deck: string[], customName?: string) => void;
   playerName: string;
 }
 
@@ -20,7 +20,14 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
   const [numToys, setNumToys] = useState(4); // Default: 4 Toys
   const [numActions, setNumActions] = useState(2); // Default: 2 Actions
   const [isRandomizing, setIsRandomizing] = useState(false);
+  const [customName, setCustomName] = useState(playerName);
+  const [isEditingName, setIsEditingName] = useState(false);
   // const [hoveredCard, setHoveredCard] = useState<Card | null>(null); // Disabled until artwork is added
+
+  // Reset customName when playerName prop changes (when switching between player 1 and player 2)
+  useEffect(() => {
+    setCustomName(playerName);
+  }, [playerName]);
 
   const toggleCard = (cardName: string) => {
     if (selectedCards.includes(cardName)) {
@@ -52,7 +59,7 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
 
   const handleConfirm = () => {
     if (selectedCards.length === 6) {
-      onDeckSelected(selectedCards);
+      onDeckSelected(selectedCards, customName);
     }
   };
 
@@ -79,9 +86,44 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
         {/* Header with title and Confirm button */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold">
-              {playerName} - Select Your Deck
-            </h1>
+            <div className="flex items-center gap-3">
+              {isEditingName ? (
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setIsEditingName(false);
+                  }}
+                  autoFocus
+                  maxLength={30}
+                  className="text-4xl font-bold bg-gray-800 border-2 border-game-highlight rounded px-3 py-1 focus:outline-none"
+                />
+              ) : (
+                <h1 
+                  className="text-4xl font-bold cursor-pointer hover:text-game-highlight transition-colors"
+                  onClick={() => setIsEditingName(true)}
+                  title="Click to edit name"
+                >
+                  {customName}
+                </h1>
+              )}
+              <button
+                onClick={() => setIsEditingName(true)}
+                className="text-gray-400 hover:text-game-highlight transition-colors text-sm"
+                style={{ 
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontSize: '1.25rem'
+                }}
+                title="Edit name"
+              >
+                ✏️
+              </button>
+            </div>
             <p className="text-gray-400 mt-2">
               Choose 6 unique cards ({selectedCards.length}/6 selected)
             </p>

@@ -26,30 +26,38 @@ function GameApp() {
   const [gamePhase, setGamePhase] = useState<GamePhase>('deck-selection-p1');
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
   const [player2Deck, _setPlayer2Deck] = useState<string[]>([]);
+  const [player1Name, setPlayer1Name] = useState('Player');
+  const [player2Name, setPlayer2Name] = useState('AI Opponent');
   const [gameId, setGameId] = useState<string | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
 
   const createGameMutation = useCreateGame();
 
-  const handlePlayer1DeckSelected = (deck: string[]) => {
+  const handlePlayer1DeckSelected = (deck: string[], customName?: string) => {
     setPlayer1Deck(deck);
+    if (customName) {
+      setPlayer1Name(customName);
+    }
     setGamePhase('deck-selection-p2');
   };
 
-  const handlePlayer2DeckSelected = (deck: string[]) => {
+  const handlePlayer2DeckSelected = (deck: string[], customName?: string) => {
     _setPlayer2Deck(deck);
+    if (customName) {
+      setPlayer2Name(customName);
+    }
     
     // Create the game
     createGameMutation.mutate(
       {
         player1: {
           player_id: 'human',
-          name: 'Player',
+          name: player1Name,
           deck: player1Deck,
         },
         player2: {
           player_id: 'ai',
-          name: 'AI Opponent',
+          name: customName || player2Name,
           deck,
         },
       },
@@ -76,6 +84,8 @@ function GameApp() {
     setGamePhase('deck-selection-p1');
     setPlayer1Deck([]);
     _setPlayer2Deck([]);
+    setPlayer1Name('Player');
+    setPlayer2Name('AI Opponent');
     setGameId(null);
     setGameState(null);
   };
@@ -84,7 +94,7 @@ function GameApp() {
   console.log('GameApp rendering, phase:', gamePhase);
 
   if (gamePhase === 'deck-selection-p1') {
-    return <DeckSelection playerName="Player 1" onDeckSelected={handlePlayer1DeckSelected} />;
+    return <DeckSelection playerName="Player" onDeckSelected={handlePlayer1DeckSelected} />;
   }
 
   if (gamePhase === 'deck-selection-p2') {
