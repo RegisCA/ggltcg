@@ -19,12 +19,13 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 
 ### Frontend
 
-- **React 18** with TypeScript
+- **React 19** with TypeScript
 - **Vite 7.2.2** for fast development
 - **React Query** (@tanstack/react-query) for server state management
 - **Axios** for HTTP client
-- Plain CSS utilities (200+ classes)
+- **TailwindCSS 4.1** for styling
 - Dark theme UI with responsive design
+- 6 polished components for complete game experience
 
 ## Project Structure
 
@@ -38,18 +39,17 @@ ggltcg/
 │   │   │   │   └── effects/     # Card effect system (18 cards)
 │   │   │   ├── ai/              # LLM player integration (Gemini/Claude)
 │   │   │   └── data/            # Card loader, CSV handling
-│   │   └── api/                 # FastAPI routes (8 endpoints)
+│   │   └── api/                 # FastAPI routes (9 endpoints)
 │   ├── data/
-│   │   └── cards.csv            # 18-card starter pack
+│   │   └── cards.csv            # 18-card starter pack (SINGLE SOURCE OF TRUTH)
 │   ├── tests/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/          # React UI components
+│   │   ├── components/          # React UI components (6 components)
 │   │   ├── hooks/               # React Query hooks
 │   │   ├── api/                 # API client
 │   │   ├── types/               # TypeScript definitions
-│   │   ├── data/                # Card data
 │   │   └── App.tsx
 │   ├── public/
 │   └── package.json
@@ -174,27 +174,28 @@ See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
 - [x] Turn management and CC system
 - [x] Tussle resolution
 - [x] Card effect system (all 18 cards)
-- [x] FastAPI REST API (8 endpoints)
+- [x] FastAPI REST API (9 endpoints)
 - [x] React + TypeScript UI
 - [x] AI player integration (Gemini)
 - [x] **First complete game played: November 10, 2025** 🎉
 
-### Phase 2: Polish & Improvements (Current)
+### Phase 2: Production Polish ✅ COMPLETE
 
-- [ ] Fix card name display in player zones (Issue #4)
-- [ ] Additional UI/UX improvements (Issue #5)
-- [ ] Game log display
-- [ ] Animations and visual polish
+- [x] Automated deck picker with slider (Issue #19)
+- [x] Victory screen with play-by-play and AI reasoning (Issue #20)
+- [x] Medium-sized hand cards showing effects (Issue #22)
+- [x] Player name customization (Issue #23)
+- [x] Narrative "bedtime story" mode (Issue #21)
+- [x] Backend CSV as single source of truth
+- [x] Production-ready code cleanup
 
-### Phase 3: Admin UI - Card Management
+### Phase 3: Future Enhancements
 
-- [ ] Card editor interface
-- [ ] Effect documentation system
-
-### Phase 4: Simulation System
-
-- [ ] Automated game runner
-- [ ] Statistics collection and reporting
+- [ ] Card animations and visual effects
+- [ ] Sound effects
+- [ ] Game replay system
+- [ ] Statistics and match history
+- [ ] Additional card sets
 
 ## Contributing
 
