@@ -150,4 +150,6 @@ def _card_to_state(card, engine) -> CardState:
         stamina=card.stamina if card.is_toy() else None,  # Use is_toy() here too
         current_stamina=current_stamina,
         is_sleeped=(card.zone == Zone.SLEEP),
+        primary_color=card.primary_color,
+        accent_color=card.accent_color,
     )

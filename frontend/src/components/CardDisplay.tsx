@@ -1,6 +1,7 @@
 /**
  * CardDisplay Component
- * Renders a single card with all its stats and effects
+ * Renders a single card with GGLTCG design system
+ * Supports multiple sizes and states according to UX spec
  */
 
 import type { Card } from '../types/game';
@@ -11,6 +12,9 @@ interface CardDisplayProps {
   onClick?: () => void;
   isSelected?: boolean;
   isClickable?: boolean;
+  isHighlighted?: boolean;
+  isDisabled?: boolean;
+  isTussling?: boolean;
   size?: 'small' | 'medium' | 'large';
 }
 
@@ -19,59 +23,142 @@ export function CardDisplay({
   onClick,
   isSelected = false,
   isClickable = false,
+  isHighlighted = false,
+  isDisabled = false,
+  isTussling = false,
   size = 'medium',
 }: CardDisplayProps) {
   const cardData = getCardByName(card.name);
-  const isToy = card.card_type === 'TOY';
+  const isToy = card.card_type === 'Toy';  // Match backend enum value
 
-  const sizeClasses = {
-    small: 'w-32 p-2 text-xs',
-    medium: 'w-48 p-3 text-sm',
-    large: 'w-64 p-4 text-base',
+  // Size configurations (px values from UX spec)
+  const sizeConfig = {
+    small: { width: 120, height: 164, padding: 8, fontSize: 'xs', statSize: 'xs' },
+    medium: { width: 165, height: 225, padding: 12, fontSize: 'sm', statSize: 'sm' },
+    large: { width: 330, height: 450, padding: 24, fontSize: 'base', statSize: 'lg' },
   };
+
+  const config = sizeConfig[size];
+  
+  // Use card's color attributes from backend (faction/type based)
+  const borderColor = card.primary_color || (isToy ? '#C74444' : '#8B5FA8');
+  const accentColor = card.accent_color || (isToy ? '#C74444' : '#8B5FA8');
+
+  // Determine border and effects based on state
+  let effectiveBorderColor = borderColor;
+  let boxShadow = undefined;
+  let animation = undefined;
+  let borderWidth = '2px';
+  
+  if (isTussling) {
+    effectiveBorderColor = 'var(--ggltcg-red)';
+    boxShadow = '0 0 16px rgba(199, 68, 68, 0.8)';
+    animation = 'tussle-shake 0.3s ease-in-out infinite';
+  } else if (isSelected) {
+    effectiveBorderColor = '#FFD700'; // Gold color for selection
+    boxShadow = '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4)';
+    borderWidth = '3px';
+  } else if (isHighlighted) {
+    effectiveBorderColor = 'var(--ui-highlight)';
+    boxShadow = '0 0 12px rgba(74, 123, 255, 0.4)';
+  }
 
   return (
     <div
-      onClick={isClickable ? onClick : undefined}
+      onClick={isClickable && !isDisabled ? onClick : undefined}
       className={`
-        ${sizeClasses[size]}
-        rounded-lg border-2 transition-all duration-200
-        ${isClickable ? 'cursor-pointer hover:scale-105 hover:shadow-xl' : ''}
-        ${isSelected ? 'border-yellow-400 shadow-xl scale-105' : 'border-gray-600'}
-        ${isToy ? 'bg-gradient-to-br from-blue-900 to-blue-800' : 'bg-gradient-to-br from-purple-900 to-purple-800'}
+        transition-all duration-200 rounded
+        ${isClickable && !isDisabled ? 'cursor-pointer hover:scale-105 hover:shadow-xl' : ''}
+        ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}
+        ${isSelected ? 'scale-105 shadow-xl' : ''}
         ${card.is_sleeped ? 'opacity-50 grayscale' : ''}
       `}
+      style={{
+        width: `${config.width}px`,
+        height: `${config.height}px`,
+        padding: `${config.padding}px`,
+        backgroundColor: 'var(--ui-card-bg)',
+        border: `${borderWidth} solid ${effectiveBorderColor}`,
+        boxShadow,
+        animation,
+      }}
     >
-      {/* Card Header */}
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="font-bold truncate flex-1">{card.name}</h3>
-        <span className={`
-          px-1.5 py-0.5 rounded text-xs font-bold ml-1
-          ${isToy ? 'bg-blue-600' : 'bg-purple-600'}
-        `}>
+      {/* Card Header: Cost + Name + Type Badge */}
+      <div className="flex justify-between items-start mb-2" style={{ position: 'relative', zIndex: 1 }}>
+        {/* Cost Indicator */}
+        <div 
+          className="font-bold flex items-center justify-center"
+          style={{
+            width: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
+            height: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
+            backgroundColor: accentColor,
+            color: 'white',
+            borderRadius: '4px',
+            fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '1rem' : '1.5rem',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+          }}
+        >
+          {card.cost}
+        </div>
+
+        {/* Card Name */}
+        <h3 
+          className="flex-1 font-bold truncate mx-2"
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '0.875rem' : '1.25rem',
+            lineHeight: '1.2',
+            fontWeight: 700,
+          }}
+        >
+          {card.name}
+        </h3>
+
+        {/* Type Badge */}
+        <span 
+          className="font-bold text-white"
+          style={{
+            padding: size === 'small' ? '2px 6px' : size === 'medium' ? '4px 8px' : '6px 12px',
+            borderRadius: '4px',
+            fontSize: size === 'small' ? '0.625rem' : size === 'medium' ? '0.75rem' : '0.875rem',
+            backgroundColor: isToy ? 'var(--ui-toy-badge)' : 'var(--ui-action-badge)',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+          }}
+        >
           {card.card_type}
         </span>
       </div>
 
-      {/* Cost */}
-      <div className="text-xs text-gray-300 mb-2">
-        Cost: {card.cost} CC
-      </div>
+      {/* Artwork Placeholder (for future) - Only show on large cards */}
+      {size === 'large' && (
+        <div
+          style={{
+            width: '100%',
+            height: '120px',
+            backgroundColor: 'rgba(0,0,0,0.2)',
+            borderRadius: '4px',
+            marginBottom: '8px',
+            border: `1px solid ${borderColor}`,
+            opacity: 0.3,
+          }}
+        />
+      )}
 
       {/* Toy Stats */}
       {isToy && (
-        <div className="flex gap-2 mb-2 text-xs">
-          <div className="flex-1 bg-black bg-opacity-30 rounded px-1.5 py-1">
-            <div className="text-gray-400">SPD</div>
-            <div className="font-bold">{card.speed}</div>
+        <div className="flex gap-1 mb-1" style={{ fontSize: config.fontSize, position: 'relative', zIndex: 1 }}>
+          <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center">
+            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.5rem' : '0.625rem' }}>SPD</div>
+            <div className="font-bold" style={{ color: accentColor, fontSize: size === 'small' ? '0.875rem' : '1rem' }}>{card.speed}</div>
           </div>
-          <div className="flex-1 bg-black bg-opacity-30 rounded px-1.5 py-1">
-            <div className="text-gray-400">STR</div>
-            <div className="font-bold">{card.strength}</div>
+          <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center">
+            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.5rem' : '0.625rem' }}>STR</div>
+            <div className="font-bold" style={{ color: accentColor, fontSize: size === 'small' ? '0.875rem' : '1rem' }}>{card.strength}</div>
           </div>
-          <div className="flex-1 bg-black bg-opacity-30 rounded px-1.5 py-1">
-            <div className="text-gray-400">STA</div>
-            <div className="font-bold">
+          <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center">
+            <div className="text-gray-400" style={{ fontSize: size === 'small' ? '0.5rem' : '0.625rem' }}>STA</div>
+            <div className="font-bold" style={{ color: accentColor, fontSize: size === 'small' ? '0.875rem' : '1rem' }}>
               {card.current_stamina !== null && card.current_stamina !== card.stamina ? (
                 <span className="text-red-400">
                   {card.current_stamina}/{card.stamina}
@@ -84,16 +171,31 @@ export function CardDisplay({
         </div>
       )}
 
-      {/* Effect Text */}
-      {cardData && (
-        <p className="text-xs text-gray-300 italic line-clamp-4 mt-2">
+      {/* Effect Text - Only show on medium and large cards */}
+      {cardData && size !== 'small' && (
+        <div 
+          className="text-gray-300 italic mt-2"
+          style={{
+            fontSize: size === 'medium' ? '0.75rem' : '0.875rem',
+            lineHeight: '1.3',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitBoxOrient: 'vertical',
+            WebkitLineClamp: size === 'medium' ? 3 : 8,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
           {cardData.effect}
-        </p>
+        </div>
       )}
 
       {/* Sleeped Indicator */}
       {card.is_sleeped && (
-        <div className="mt-2 text-center text-xs font-bold text-red-400">
+        <div 
+          className="mt-2 text-center font-bold text-red-400"
+          style={{ fontSize: size === 'small' ? '0.625rem' : '0.75rem', position: 'relative', zIndex: 1 }}
+        >
           SLEEPED
         </div>
       )}

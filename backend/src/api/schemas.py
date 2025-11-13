@@ -92,6 +92,8 @@ class CardState(BaseModel):
     stamina: Optional[int] = None
     current_stamina: Optional[int] = None
     is_sleeped: bool = False
+    primary_color: str = "#C74444"
+    accent_color: str = "#C74444"
 
 
 class PlayerState(BaseModel):

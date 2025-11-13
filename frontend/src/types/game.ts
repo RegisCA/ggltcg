@@ -2,9 +2,9 @@
  * Type definitions for GGLTCG game entities
  */
 
-export type CardType = 'TOY' | 'ACTION';
-export type Zone = 'HAND' | 'IN_PLAY' | 'SLEEP';
-export type Phase = 'START' | 'MAIN' | 'END';
+export type CardType = 'Toy' | 'Action';  // Match backend CardType enum values
+export type Zone = 'Hand' | 'InPlay' | 'Sleep';  // Match backend Zone enum values
+export type Phase = 'Start' | 'Main' | 'End';  // Match backend Phase enum values
 
 export interface Card {
   name: string;
@@ -18,6 +18,8 @@ export interface Card {
   stamina: number | null;
   current_stamina: number | null;
   is_sleeped: boolean;
+  primary_color: string;
+  accent_color: string;
 }
 
 export interface Player {

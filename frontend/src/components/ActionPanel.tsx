@@ -53,41 +53,41 @@ export function ActionPanel({
   };
 
   return (
-    <div className="p-4 bg-game-card rounded-lg border-2 border-game-accent">
-      <div className="mb-4">
-        <h3 className="text-xl font-bold mb-1">Available Actions</h3>
-        <div className="text-sm text-gray-400">Current CC: {currentCC}</div>
+    <div className="p-3 bg-game-card rounded border-2 border-game-accent">
+      <div className="mb-3">
+        <h3 className="text-lg font-bold mb-1">Available Actions</h3>
+        <div className="text-sm text-gray-400">CC: {currentCC}</div>
       </div>
 
       {validActions.length === 0 ? (
-        <div className="text-gray-500 italic text-center py-8">
+        <div className="text-gray-500 italic text-center py-4">
           No actions available
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {Object.entries(groupedActions).map(([actionType, actions]) => (
             <div key={actionType}>
-              <h4 className="text-sm font-bold text-gray-400 mb-2">
+              <h4 className="text-xs font-bold text-gray-400 mb-1.5 uppercase">
                 {getActionTypeLabel(actionType)}
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {actions.map((action, index) => (
                   <button
                     key={`${action.action_type}-${action.card_name || 'action'}-${index}`}
                     onClick={() => onAction(action)}
                     disabled={isProcessing}
                     className={`
-                      w-full px-4 py-3 rounded-lg text-left transition-all
+                      w-full px-3 py-2 rounded text-left transition-all text-sm
                       ${getActionColor(action.action_type)}
                       ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-102'}
                       disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{action.description}</span>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="font-medium leading-tight">{action.description}</span>
                       {action.cost_cc !== undefined && (
                         <span className={`
-                          px-2 py-1 rounded text-xs font-bold
+                          px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap
                           ${action.cost_cc > currentCC ? 'bg-red-800' : 'bg-black bg-opacity-30'}
                         `}>
                           {action.cost_cc} CC

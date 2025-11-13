@@ -213,6 +213,6 @@ export function getCardByName(name: string): CardData | undefined {
   return CARDS.find((card) => card.name === name);
 }
 
-export function getCardType(card: CardData): 'TOY' | 'ACTION' {
-  return card.speed !== null ? 'TOY' : 'ACTION';
+export function getCardType(card: CardData): 'Toy' | 'Action' {
+  return card.speed !== null ? 'Toy' : 'Action';
 }
