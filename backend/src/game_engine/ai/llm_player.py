@@ -81,12 +81,17 @@ class LLMPlayer:
             
             # Allow model override via environment variable or parameter
             # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
-            # Alternative: gemini-1.5-flash (15 RPM, more stable)
-            # Alternative: gemini-2.0-flash-exp (10 RPM, experimental but powerful)
+            # Alternative: gemini-2.5-flash (15 RPM, more stable, better capacity)
+            # Alternative: gemini-2.0-flash (10 RPM, stable)
             default_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
             self.model_name = model or default_model
             
+            # Fallback model for capacity issues (configurable via env var)
+            # Default: gemini-2.5-flash (newest, more stable, better availability)
+            self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash")
+            
             logger.info(f"Initializing Gemini with model: {self.model_name}")
+            logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
             
             self.client = genai.GenerativeModel(
                 model_name=self.model_name,
@@ -217,7 +222,7 @@ class LLMPlayer:
         Args:
             prompt: The prompt to send
             retry_count: Number of retries for 429 errors (default: 3)
-            allow_fallback: Whether to fallback to gemini-1.5-flash on capacity issues (default: True)
+            allow_fallback: Whether to fallback to GEMINI_FALLBACK_MODEL on capacity issues (default: True)
             
         Returns:
             The API response text
@@ -276,16 +281,16 @@ class LLMPlayer:
                         continue
                     else:
                         # All retries exhausted - try fallback model if enabled
-                        if allow_fallback and current_model != "gemini-1.5-flash":
+                        if allow_fallback and current_model != self.fallback_model:
                             logger.warning(
                                 f"Gemini {current_model} capacity exhausted after {retry_count} retries. "
-                                f"Falling back to gemini-1.5-flash (more stable, higher quota)..."
+                                f"Falling back to {self.fallback_model} (more stable, better availability)..."
                             )
                             # Switch to fallback model
                             import google.generativeai as genai
-                            self.model_name = "gemini-1.5-flash"
+                            self.model_name = self.fallback_model
                             self.client = genai.GenerativeModel(
-                                model_name="gemini-1.5-flash",
+                                model_name=self.fallback_model,
                                 system_instruction=SYSTEM_PROMPT
                             )
                             # Try one more time with fallback model
