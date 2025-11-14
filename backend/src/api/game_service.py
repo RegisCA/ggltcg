@@ -8,6 +8,8 @@ methods for game lifecycle management.
 import uuid
 import logging
 from typing import Dict, Optional
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -195,9 +197,7 @@ def get_game_service() -> GameService:
     global _game_service
     if _game_service is None:
         # Determine path to cards.csv
-        import os
-        from pathlib import Path
-        
+
         # Check for environment variable first
         cards_path_str = os.environ.get("CARDS_CSV_PATH")
         
