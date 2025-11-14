@@ -25,7 +25,6 @@ type GamePhase = 'loading' | 'deck-selection-p1' | 'deck-selection-p2' | 'playin
 
 function GameApp() {
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
-  const [availableCards, setAvailableCards] = useState<Card[]>([]);
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
   const [player1Name, setPlayer1Name] = useState('Player');
   const [player2Name, setPlayer2Name] = useState('AI Opponent');
@@ -34,8 +33,9 @@ function GameApp() {
 
   const createGameMutation = useCreateGame();
 
-  const handleLoadingComplete = (cards: Card[]) => {
-    setAvailableCards(cards);
+  const handleLoadingComplete = (_cards: Card[]) => {
+    // Cards are preloaded but DeckSelection fetches them independently
+    // TODO: Pass cards to DeckSelection to avoid duplicate fetch
     setGamePhase('deck-selection-p1');
   };
 
