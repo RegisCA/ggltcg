@@ -1,15 +1,16 @@
 /**
  * Main App Component
- * Handles game flow: deck selection → game → game over
+ * Handles game flow: loading → deck selection → game → game over
  */
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LoadingScreen } from './components/LoadingScreen';
 import { DeckSelection } from './components/DeckSelection';
 import { GameBoard } from './components/GameBoard';
 import { VictoryScreen } from './components/VictoryScreen';
 import { useCreateGame } from './hooks/useGame';
-import type { GameState } from './types/game';
+import type { GameState, Card } from './types/game';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,10 +21,11 @@ const queryClient = new QueryClient({
   },
 });
 
-type GamePhase = 'deck-selection-p1' | 'deck-selection-p2' | 'playing' | 'game-over';
+type GamePhase = 'loading' | 'deck-selection-p1' | 'deck-selection-p2' | 'playing' | 'game-over';
 
 function GameApp() {
-  const [gamePhase, setGamePhase] = useState<GamePhase>('deck-selection-p1');
+  const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
+  const [availableCards, setAvailableCards] = useState<Card[]>([]);
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
   const [player1Name, setPlayer1Name] = useState('Player');
   const [player2Name, setPlayer2Name] = useState('AI Opponent');
@@ -31,6 +33,11 @@ function GameApp() {
   const [gameState, setGameState] = useState<GameState | null>(null);
 
   const createGameMutation = useCreateGame();
+
+  const handleLoadingComplete = (cards: Card[]) => {
+    setAvailableCards(cards);
+    setGamePhase('deck-selection-p1');
+  };
 
   const handlePlayer1DeckSelected = (deck: string[], customName?: string) => {
     setPlayer1Deck(deck);
@@ -86,6 +93,10 @@ function GameApp() {
     setGameId(null);
     setGameState(null);
   };
+
+  if (gamePhase === 'loading') {
+    return <LoadingScreen onReady={handleLoadingComplete} />;
+  }
 
   if (gamePhase === 'deck-selection-p1') {
     return <DeckSelection playerName="Player" onDeckSelected={handlePlayer1DeckSelected} />;
