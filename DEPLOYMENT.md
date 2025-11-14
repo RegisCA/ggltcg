@@ -24,7 +24,7 @@ The error you're seeing is because Render is looking for the wrong module path. 
 2. **Update the Start Command:**
    - Find the "Start Command" field
    - Change from: `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
-   - Change to: **`uvicorn src.api.app:app --host 0.0.0.0 --port $PORT`**
+   - Change to: **`cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`**
 
 3. **Update the Root Directory:**
    - Set "Root Directory" to: `backend`
@@ -136,7 +136,7 @@ https://ggltcg.onrender.com/games/cards
 #### Backend Issues
 
 **"Error loading ASGI app"**
-- Verify Start Command is: `uvicorn src.api.app:app --host 0.0.0.0 --port $PORT`
+- Verify Start Command is: `cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`
 - Verify Root Directory is: `backend`
 
 **"Module not found" errors**
