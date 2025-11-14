@@ -16,6 +16,42 @@ The GGLTCG web application is **fully complete and production-ready** with polis
 
 We are building a web application for the Googooland TCG (GGLTCG), a two-player tactical card game with no randomness in draws. The game is fully codified in rules and currently supports 18 unique cards.
 
+## Screenshots
+
+### Deck Selection Screen
+
+**Empty State (0/6 cards selected):**
+
+![Deck Selection - Empty](docs/screenshots/deck-selection-empty.png)
+
+The deck selection screen displays all 18 available cards in a grid layout. Players can click cards to select them for their deck. The screen features:
+- Player name editing (click the name or pencil icon)
+- Card counter showing progress (0/6, 1/6, etc.)
+- Toys/Actions slider to control deck composition
+- Random Deck button for quick deck generation
+- Confirm Deck button (disabled until 6 cards selected)
+
+**Full Deck (6/6 cards selected):**
+
+![Deck Selection - Full](docs/screenshots/deck-selection-full.png)
+
+When 6 cards are selected, they are highlighted with a golden border. The Confirm Deck button becomes active, displaying "Confirm Deck ✓". Selected cards stand out from the rest with visual emphasis. The slider shows the current composition (e.g., 4 Toys, 2 Actions).
+
+### Game Board
+
+**Initial Game State (Turn 1):**
+
+![Game Board - Turn 1](docs/screenshots/gameboard-turn1-start.png)
+
+The game board layout includes:
+- **Top Bar:** Player info bars showing both players with hand count and CC
+- **Left Column:** In Play zones for both players (currently empty)
+- **Center Column:** Sleep zones for both players (currently empty)
+- **Right Column:** Game messages and available actions
+- **Bottom:** Human player's hand showing all 6 cards with full details
+
+The UI clearly shows whose turn it is with the "AI is thinking..." message, and displays the current turn number in the center.
+
 ## Core Game Rules Summary
 
 ### Objective
