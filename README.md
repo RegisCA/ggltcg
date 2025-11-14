@@ -133,7 +133,7 @@ npm run dev
 # App runs at http://localhost:5173
 ```
 
-Open <http://localhost:5175> in your browser to play!
+Open <http://localhost:5173> in your browser to play!
 
 ## Custom Deck CSV Format
 
