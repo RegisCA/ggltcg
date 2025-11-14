@@ -115,7 +115,7 @@ python run_server.py --deck-csv /path/to/your/custom_cards.csv
 
 The backend server supports the following command-line arguments:
 
-- `--deck-csv PATH`: Path to a custom deck CSV file (default: `backend/data/cards.csv`)
+- `--deck PATH`: Path to a custom deck CSV file (default: `backend/data/cards.csv`)
 - `--host HOST`: Host to bind the server to (default: `0.0.0.0`)
 - `--port PORT`: Port to bind the server to (default: `8000`)
 - `--no-reload`: Disable auto-reload on code changes
@@ -130,7 +130,7 @@ python run_server.py --deck-csv my_custom_deck.csv --port 8080
 ```bash
 cd frontend
 npm run dev
-# App runs at http://localhost:5175
+# App runs at http://localhost:5173
 ```
 
 Open <http://localhost:5175> in your browser to play!
