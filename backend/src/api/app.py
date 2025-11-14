@@ -26,15 +26,21 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(
     title="GGLTCG API",
-    description="REST API for Good Guy Legion Trading Card Game",
+    description="REST API for Googooland TCG game engine",
     version="0.1.0",
 )
 
-# Configure CORS - allow all origins for development
-# In production, restrict to specific frontend domains
+# Configure CORS - allow frontend origins
+import os
+
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:3000"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Restrict in production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -16,6 +16,7 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 - Game state management with JSON serialization
 - AI player powered by Google Gemini (free tier available)
 - Alternative LLM providers supported (see `backend/AI_SETUP.md`)
+- **Deployed on Render.com** (free tier)
 
 ### Frontend
 
@@ -26,6 +27,17 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 - **TailwindCSS 4.1** for styling
 - Dark theme UI with responsive design
 - 6 polished components for complete game experience
+- **Deployed on Vercel** (free tier)
+
+## Live Demo
+
+**Play now:** <https://ggltcg.vercel.app>
+
+**Backend API:** <https://ggltcg.onrender.com>
+- API docs: <https://ggltcg.onrender.com/docs>
+- Health check: <https://ggltcg.onrender.com/health>
+
+*Note: Backend on Render's free tier may take 50 seconds to wake up from inactivity.*
 
 ## Project Structure
 
@@ -167,6 +179,18 @@ See `backend/data/cards.csv` for the complete reference implementation with all 
 
 See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
 
+## Deployment
+
+The application is deployed and live:
+- **Frontend:** <https://ggltcg.vercel.app> (Vercel)
+- **Backend:** <https://ggltcg.onrender.com> (Render.com)
+
+For deployment instructions, see:
+- **`DEPLOYMENT.md`** - Complete step-by-step deployment guide
+- **`DEPLOYMENT_QUICKSTART.md`** - Quick reference for common tasks
+
+Both services run on free tiers. Note that the Render backend may take ~50 seconds to wake up from inactivity.
+
 ## Troubleshooting
 
 ### AI Player Issues
@@ -228,8 +252,18 @@ See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
 - [x] Narrative "bedtime story" mode (Issue #21)
 - [x] Backend CSV as single source of truth
 - [x] Production-ready code cleanup
+- [x] **Deployed to production** (Render + Vercel)
 
-### Phase 3: Future Enhancements
+### Phase 3: Deployment & Documentation ✅ COMPLETE
+
+- [x] Backend deployment to Render.com
+- [x] Frontend deployment to Vercel
+- [x] Environment variable configuration
+- [x] CORS security setup
+- [x] Comprehensive deployment documentation
+- [x] Live at <https://ggltcg.vercel.app>
+
+### Phase 4: Future Enhancements
 
 - [ ] Card animations and visual effects
 - [ ] Sound effects
