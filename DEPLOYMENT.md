@@ -136,7 +136,7 @@ https://ggltcg.onrender.com/games/cards
 #### Backend Issues
 
 **"Error loading ASGI app"**
-- Verify Start Command is: `uvicorn src.api.app:app --host 0.0.0.0 --port $PORT`
+- Verify Start Command is: `cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`
 - Verify Root Directory is: `backend`
 
 **"Module not found" errors**
