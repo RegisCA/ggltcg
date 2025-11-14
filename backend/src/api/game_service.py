@@ -8,6 +8,7 @@ methods for game lifecycle management.
 import uuid
 import logging
 from typing import Dict, Optional
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -187,14 +188,27 @@ def get_game_service() -> GameService:
     """
     Get the singleton game service instance.
     
+    The cards CSV path can be customized via the CARDS_CSV_PATH environment variable.
+    If not set, defaults to backend/data/cards.csv.
+    
     Returns:
         GameService instance
     """
     global _game_service
     if _game_service is None:
         # Determine path to cards.csv
-        from pathlib import Path
-        backend_dir = Path(__file__).parent.parent.parent
-        cards_path = backend_dir / "data" / "cards.csv"
+
+        # Check for environment variable first
+        cards_path_str = os.environ.get("CARDS_CSV_PATH")
+        
+        if cards_path_str:
+            cards_path = Path(cards_path_str)
+            logger.info(f"Using cards CSV from environment: {cards_path}")
+        else:
+            # Default to backend/data/cards.csv
+            backend_dir = Path(__file__).parent.parent.parent
+            cards_path = backend_dir / "data" / "cards.csv"
+            logger.info(f"Using default cards CSV: {cards_path}")
+        
         _game_service = GameService(str(cards_path))
     return _game_service
