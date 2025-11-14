@@ -14,7 +14,7 @@ interface SleepZoneDisplayProps {
 export function SleepZoneDisplay({ cards, playerName }: SleepZoneDisplayProps) {
   const cardList = cards || [];
   // Calculate height: base card height (164px for small) + offset for each additional card
-  const stackHeight = cardList.length > 0 ? 164 + (cardList.length - 1) * 35 : 160;
+  const stackHeight = cardList.length > 0 ? 164 + (cardList.length - 1) * 28 : 160;
   
   return (
     <div className="bg-gray-800 rounded p-3 border border-gray-700" style={{ minHeight: '200px' }}>
@@ -33,8 +33,8 @@ export function SleepZoneDisplay({ cards, playerName }: SleepZoneDisplayProps) {
               key={`${card.name}-${card.zone}`}
               style={{ 
                 position: 'absolute',
-                top: `${index * 35}px`,
-                left: 0,
+                top: `${index * 28}px`,
+                left: `${index * 25}px`,
                 zIndex: index,
               }}
             >
