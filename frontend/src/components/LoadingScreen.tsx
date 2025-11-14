@@ -14,7 +14,6 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ onReady }: LoadingScreenProps) {
   const [status, setStatus] = useState<'checking' | 'waking' | 'loading' | 'ready' | 'error'>('checking');
-  const [retryCount, setRetryCount] = useState(0);
   const [dots, setDots] = useState('');
 
   // Check backend health
@@ -52,7 +51,6 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
   useEffect(() => {
     if (healthCheck.isError) {
       setStatus('waking');
-      setRetryCount(prev => prev + 1);
     } else if (healthCheck.isSuccess && status === 'checking') {
       setStatus('loading');
     }
@@ -68,6 +66,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
   }, [cardsQuery.isSuccess, cardsQuery.isError, cardsQuery.data, onReady]);
 
   const getStatusMessage = () => {
+    const retryCount = healthCheck.failureCount || 0;
     switch (status) {
       case 'checking':
         return 'Connecting to game server...';
@@ -169,7 +168,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
       `}</style>
 
       {/* Note about free tier */}
-      {status === 'waking' && retryCount > 1 && (
+      {status === 'waking' && (healthCheck.failureCount || 0) > 1 && (
         <div style={{
           marginTop: '3rem',
           padding: '1rem',
