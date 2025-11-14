@@ -104,8 +104,8 @@ python run_server.py
 # Option 2: Run directly with venv Python (no activation needed)
 ./venv/bin/python3 run_server.py
 
-# Option 3: Use an alternate deck CSV file
-python run_server.py --deck-csv /path/to/your/custom_cards.csv
+# Option 3: Use an alternate deck CSV file (should have at least 6 cards)
+python run_server.py --deck /path/to/your/custom_cards.csv
 
 # Server runs at http://localhost:8000
 # API docs at http://localhost:8000/docs
