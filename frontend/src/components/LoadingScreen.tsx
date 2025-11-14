@@ -15,6 +15,7 @@ interface LoadingScreenProps {
 export function LoadingScreen({ onReady }: LoadingScreenProps) {
   const [status, setStatus] = useState<'checking' | 'waking' | 'loading' | 'ready' | 'error'>('checking');
   const [retryCount, setRetryCount] = useState(0);
+  const [dots, setDots] = useState('');
 
   // Check backend health
   const healthCheck = useQuery({
@@ -23,8 +24,8 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
       const response = await apiClient.get('/health');
       return response.data;
     },
-    retry: 5,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    retry: true, // Retry indefinitely
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Max 10s between retries
     enabled: status === 'checking' || status === 'waking',
   });
 
@@ -38,6 +39,15 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
     enabled: healthCheck.isSuccess && status === 'loading',
     retry: 3,
   });
+
+  // Animated dots for loading messages
+  useEffect(() => {
+    if (status === 'ready' || status === 'error') return;
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '' : prev + '.');
+    }, 500);
+    return () => clearInterval(interval);
+  }, [status]);
 
   useEffect(() => {
     if (healthCheck.isError) {
@@ -72,18 +82,6 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
       case 'error':
         return 'Unable to connect to game server. Please refresh the page.';
     }
-  };
-
-  const getDots = () => {
-    const [dots, setDots] = useState('');
-    useEffect(() => {
-      if (status === 'ready' || status === 'error') return;
-      const interval = setInterval(() => {
-        setDots(prev => prev.length >= 3 ? '' : prev + '.');
-      }, 500);
-      return () => clearInterval(interval);
-    }, []);
-    return dots;
   };
 
   return (
@@ -128,7 +126,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
         textAlign: 'center',
         minHeight: '2rem',
       }}>
-        {getStatusMessage()}{status !== 'ready' && status !== 'error' && getDots()}
+        {getStatusMessage()}{status !== 'ready' && status !== 'error' && dots}
       </div>
 
       {/* Loading Spinner */}
