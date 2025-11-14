@@ -1,6 +1,7 @@
 """Card loader for reading card data from CSV file."""
 import csv
 import logging
+import os
 import random
 from pathlib import Path
 from typing import List, Dict
@@ -135,12 +136,24 @@ def get_card_loader() -> CardLoader:
     """
     Get or create the default card loader instance.
     
+    Checks CARDS_CSV_PATH environment variable first, falls back to default path.
+    
     Returns:
-        CardLoader instance with default card path
+        CardLoader instance with configured card path
     """
     global _default_loader
     if _default_loader is None:
-        _default_loader = CardLoader(CardLoader.get_default_card_path())
+        # Check for environment variable first
+        cards_path_str = os.environ.get("CARDS_CSV_PATH")
+        
+        if cards_path_str:
+            cards_path = Path(cards_path_str)
+            logger.info(f"Loading cards from environment variable: {cards_path}")
+        else:
+            cards_path = CardLoader.get_default_card_path()
+            logger.info(f"Loading cards from default path: {cards_path}")
+        
+        _default_loader = CardLoader(cards_path)
     return _default_loader
 
 

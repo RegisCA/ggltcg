@@ -178,6 +178,53 @@ class GameService:
     def get_active_games_count(self) -> int:
         """Get the number of active games."""
         return len(self.games)
+    
+    def generate_random_deck(self, num_toys: int, num_actions: int) -> list[str]:
+        """
+        Generate a random deck from the available cards.
+        
+        Args:
+            num_toys: Number of Toy cards to include (0-6)
+            num_actions: Number of Action cards to include (0-6)
+            
+        Returns:
+            List of card names
+            
+        Raises:
+            ValueError: If parameters are invalid or not enough cards available
+        """
+        # Validate parameters
+        if num_toys < 0 or num_actions < 0:
+            raise ValueError("Card counts must be non-negative")
+        
+        total_cards = num_toys + num_actions
+        if total_cards != 6:
+            raise ValueError(f"Total cards must equal 6, got {total_cards}")
+        
+        # Separate cards by type
+        from game_engine.models.card import CardType
+        import random
+        
+        toys = [card.name for card in self.all_cards if card.card_type == CardType.TOY]
+        actions = [card.name for card in self.all_cards if card.card_type == CardType.ACTION]
+        
+        # Validate we have enough cards
+        if len(toys) < num_toys:
+            raise ValueError(f"Not enough Toy cards available: requested {num_toys}, have {len(toys)}")
+        if len(actions) < num_actions:
+            raise ValueError(f"Not enough Action cards available: requested {num_actions}, have {len(actions)}")
+        
+        # Randomly select cards
+        selected_toys = random.sample(toys, num_toys) if num_toys > 0 else []
+        selected_actions = random.sample(actions, num_actions) if num_actions > 0 else []
+        
+        # Combine and shuffle
+        deck = selected_toys + selected_actions
+        random.shuffle(deck)
+        
+        logger.info(f"Generated random deck: {num_toys} Toys, {num_actions} Actions - {deck}")
+        
+        return deck
 
 
 # Singleton instance

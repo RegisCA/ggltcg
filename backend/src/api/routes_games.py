@@ -36,9 +36,11 @@ async def get_all_cards() -> List[CardDataResponse]:
     
     Returns a list of all cards with their stats, effects, and metadata.
     This is the single source of truth for card data.
+    Uses the same card source as game creation.
     """
     try:
-        all_cards = load_all_cards()
+        service = get_game_service()
+        all_cards = service.all_cards
         
         return [
             CardDataResponse(
@@ -100,9 +102,11 @@ async def get_random_deck(request: RandomDeckRequest) -> RandomDeckResponse:
     - Sum must equal 6
     
     Returns a list of unique card names for the deck.
+    Uses the same card source as game creation.
     """
     try:
-        deck = random_deck(num_toys=request.num_toys, num_actions=request.num_actions)
+        service = get_game_service()
+        deck = service.generate_random_deck(num_toys=request.num_toys, num_actions=request.num_actions)
         return RandomDeckResponse(
             deck=deck,
             num_toys=request.num_toys,
