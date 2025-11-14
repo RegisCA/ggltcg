@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start the GGLTCG FastAPI server")
     parser.add_argument(
-        "--deck-csv",
+        "--deck",
         type=str,
         help="Path to the deck CSV file (default: backend/data/cards.csv)"
     )
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Set the cards CSV path via environment variable if provided
-    if args.deck_csv:
-        deck_path = Path(args.deck_csv)
+    if args.deck:
+        deck_path = Path(args.deck)
         if not deck_path.exists():
             print(f"Error: Deck CSV file not found: {deck_path}", file=sys.stderr)
             sys.exit(1)
