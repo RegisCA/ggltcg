@@ -1,0 +1,4 @@
+name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accent_color
+TestToy1,18,1,Test effect 1,2,2,4,,,#FF0000,#FF0000
+TestToy2,18,2,Test effect 2,3,3,3,,,#00FF00,#00FF00
+TestAction1,18,0,Test action effect,,,,,#0000FF,#0000FF

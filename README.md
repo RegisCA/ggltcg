@@ -104,8 +104,25 @@ python run_server.py
 # Option 2: Run directly with venv Python (no activation needed)
 ./venv/bin/python3 run_server.py
 
+# Option 3: Use an alternate deck CSV file
+python run_server.py --deck-csv /path/to/your/custom_cards.csv
+
 # Server runs at http://localhost:8000
 # API docs at http://localhost:8000/docs
+```
+
+**Command Line Options:**
+
+The backend server supports the following command-line arguments:
+
+- `--deck-csv PATH`: Path to a custom deck CSV file (default: `backend/data/cards.csv`)
+- `--host HOST`: Host to bind the server to (default: `0.0.0.0`)
+- `--port PORT`: Port to bind the server to (default: `8000`)
+- `--no-reload`: Disable auto-reload on code changes
+
+Example with custom deck and different port:
+```bash
+python run_server.py --deck-csv my_custom_deck.csv --port 8080
 ```
 
 **Frontend:**
@@ -117,6 +134,29 @@ npm run dev
 ```
 
 Open <http://localhost:5175> in your browser to play!
+
+## Custom Deck CSV Format
+
+You can create your own custom deck by providing a CSV file with the following format:
+
+```csv
+name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accent_color
+Beary,18,1,"Knight's effects don't affect this card...",3,3,5,,,#C74444,#C74444
+Rush,18,0,A Toy you choose gets +2 speed until end of turn.,,,,,#8B5FA8,#8B5FA8
+```
+
+**Required columns:**
+- `name`: Card name (must be unique)
+- `cost`: Card cost (use `?` for variable cost cards like Copy)
+- `effect`: Card effect text
+- `speed`, `strength`, `stamina`: For Toy cards (leave empty for Action cards)
+- `primary_color`, `accent_color`: Hex color codes for card appearance
+
+**Card Types:**
+- **Toy cards**: Must have speed, strength, and stamina values
+- **Action cards**: Leave speed, strength, and stamina columns empty
+
+See `backend/data/cards.csv` for the complete reference implementation with all 18 cards.
 
 ## Game Rules Quick Reference
 
