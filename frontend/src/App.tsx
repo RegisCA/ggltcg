@@ -25,7 +25,6 @@ type GamePhase = 'deck-selection-p1' | 'deck-selection-p2' | 'playing' | 'game-o
 function GameApp() {
   const [gamePhase, setGamePhase] = useState<GamePhase>('deck-selection-p1');
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
-  const [player2Deck, _setPlayer2Deck] = useState<string[]>([]);
   const [player1Name, setPlayer1Name] = useState('Player');
   const [player2Name, setPlayer2Name] = useState('AI Opponent');
   const [gameId, setGameId] = useState<string | null>(null);
@@ -42,7 +41,6 @@ function GameApp() {
   };
 
   const handlePlayer2DeckSelected = (deck: string[], customName?: string) => {
-    _setPlayer2Deck(deck);
     if (customName) {
       setPlayer2Name(customName);
     }
@@ -83,7 +81,6 @@ function GameApp() {
   const handlePlayAgain = () => {
     setGamePhase('deck-selection-p1');
     setPlayer1Deck([]);
-    _setPlayer2Deck([]);
     setPlayer1Name('Player');
     setPlayer2Name('AI Opponent');
     setGameId(null);

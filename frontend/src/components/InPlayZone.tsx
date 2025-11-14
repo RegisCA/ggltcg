@@ -14,7 +14,7 @@ interface InPlayZoneProps {
   onCardClick?: (cardName: string) => void;
 }
 
-export function InPlayZone({ cards, playerName, isHuman = false, selectedCard, onCardClick }: InPlayZoneProps) {
+export function InPlayZone({ cards, isHuman = false, selectedCard, onCardClick }: InPlayZoneProps) {
   const cardList = cards || [];
   
   return (
