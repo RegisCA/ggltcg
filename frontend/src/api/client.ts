@@ -9,7 +9,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds (AI turns with Gemini can take 10-15s with retries)
+  timeout: 90000, // 90 seconds (health checks during cold start + AI turns with Gemini retries)
 });
 
 // Add response interceptor for error handling
