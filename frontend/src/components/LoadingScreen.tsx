@@ -23,7 +23,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
       const response = await apiClient.get('/health');
       return response.data;
     },
-    retry: true, // Retry indefinitely
+    retry: Infinity, // Retry indefinitely
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Max 10s between retries
     enabled: status === 'checking' || status === 'waking',
   });
