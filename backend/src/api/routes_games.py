@@ -208,7 +208,11 @@ def _card_to_state(card, engine) -> CardState:
         current_speed = engine.get_card_stat(card, "speed")
         current_strength = engine.get_card_stat(card, "strength")
         current_stamina_max = engine.get_card_stat(card, "stamina")  # Max stamina with buffs
-        current_stamina = card.current_stamina  # Actual current stamina (can be damaged)
+        
+        # Calculate current stamina with buffs applied
+        # If max stamina is buffed, current stamina should also be buffed by the same amount
+        stamina_buff = current_stamina_max - card.stamina if card.stamina else 0
+        current_stamina = card.current_stamina + stamina_buff if card.current_stamina is not None else None
         
         # Store base stats (from card definition, before buffs)
         base_speed = card.speed
