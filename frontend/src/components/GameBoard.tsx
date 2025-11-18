@@ -21,7 +21,10 @@ interface GameBoardProps {
 
 export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: GameBoardProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [message, setMessage] = useState<string>('');
+  const [messages, setMessages] = useState<string[]>([]);
+  const [lastTurnNumber, setLastTurnNumber] = useState<number>(0);
+  const [lastActivePlayerId, setLastActivePlayerId] = useState<string>('');
+  const [shouldClearOnNextAction, setShouldClearOnNextAction] = useState(false);
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
@@ -63,6 +66,42 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     }
   }, [gameState?.winner, onGameEnd, gameState]);
 
+  // Show starting player announcement and manage message clearing
+  useEffect(() => {
+    if (!gameState) return;
+
+    // Show starting player announcement on turn 1, active player change
+    if (gameState.turn_number === 1 && lastTurnNumber === 0 && !lastActivePlayerId) {
+      const firstPlayerName = gameState.players[gameState.first_player_id]?.name || 'Unknown';
+      setMessages([`${firstPlayerName} goes first!`]);
+      setLastTurnNumber(1);
+      setLastActivePlayerId(gameState.active_player_id);
+      // If human goes first, set flag to clear on their first action
+      if (gameState.active_player_id === humanPlayerId) {
+        setShouldClearOnNextAction(true);
+      }
+      return;
+    }
+
+    // When active player changes, handle message clearing
+    if (gameState.active_player_id !== lastActivePlayerId && lastActivePlayerId !== '') {
+      if (gameState.active_player_id === humanPlayerId) {
+        // Transitioning to human: set flag to clear on their first action
+        setShouldClearOnNextAction(true);
+        setLastActivePlayerId(gameState.active_player_id);
+      } else if (gameState.active_player_id === aiPlayerId) {
+        // Transitioning to AI: clear messages immediately
+        setMessages([]);
+        setLastActivePlayerId(gameState.active_player_id);
+      }
+    }
+
+    // Track turn number changes
+    if (gameState.turn_number !== lastTurnNumber) {
+      setLastTurnNumber(gameState.turn_number);
+    }
+  }, [gameState, lastTurnNumber, lastActivePlayerId, humanPlayerId, aiPlayerId]);
+
   // Auto-trigger AI turn
   useEffect(() => {
     if (
@@ -76,11 +115,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       const timer = setTimeout(() => {
         aiTurnMutation.mutate(aiPlayerId, {
           onSuccess: (response) => {
-            setMessage(response.message);
+            // Don't add message if game just ended
+            if (!response.game_state?.is_game_over) {
+              setMessages(prev => [...prev, response.message]);
+            }
           },
           onError: (error) => {
             console.error('AI turn error:', error);
-            setMessage(`AI Error: ${error.message}`);
+            setMessages(prev => [...prev, `AI Error: ${error.message}`]);
           },
         });
       }, 1000);
@@ -89,14 +131,25 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   }, [gameState?.active_player_id, gameState?.turn_number, aiPlayerId, isProcessing, aiTurnMutation.isPending]);
 
   const handleAction = (action: ValidAction) => {
-    setMessage('');
+    // Helper to add message with optional clearing
+    const addMessage = (msg: string, response?: any) => {
+      // Don't add action messages if the response indicates game is over
+      if (response?.game_state?.is_game_over) return;
+      
+      if (shouldClearOnNextAction) {
+        setMessages([msg]);
+        setShouldClearOnNextAction(false);
+      } else {
+        setMessages(prev => [...prev, msg]);
+      }
+    };
     
     if (action.action_type === 'end_turn') {
       endTurnMutation.mutate(
         { player_id: humanPlayerId },
         {
-          onSuccess: (response) => setMessage(response.message),
-          onError: (error) => setMessage(`Error: ${error.message}`),
+          onSuccess: (response) => addMessage(response.message, response),
+          onError: (error) => addMessage(`Error: ${error.message}`),
         }
       );
     } else if (action.action_type === 'play_card' && action.card_name) {
@@ -104,10 +157,13 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         { player_id: humanPlayerId, card_name: action.card_name },
         {
           onSuccess: (response) => {
-            setMessage(response.message);
+            addMessage(response.message, response);
             setSelectedCard(null);
           },
-          onError: (error) => setMessage(`Error: ${error.message}`),
+          onError: (error) => {
+            addMessage(`Error: ${error.message}`);
+            setSelectedCard(null);
+          },
         }
       );
     } else if (action.action_type === 'tussle' && action.card_name) {
@@ -123,10 +179,13 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         },
         {
           onSuccess: (response) => {
-            setMessage(response.message);
+            addMessage(response.message, response);
             setSelectedCard(null);
           },
-          onError: (error) => setMessage(`Error: ${error.message}`),
+          onError: (error) => {
+            addMessage(`Error: ${error.message}`);
+            setSelectedCard(null);
+          },
         }
       );
     }
@@ -221,14 +280,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           {/* Right Column - Messages + Actions */}
           <div className="space-y-3">
             {/* Messages Area - Top */}
-            <div className="bg-gray-800 rounded p-3 border border-gray-700" style={{ minHeight: '200px' }}>
+            <div className="bg-gray-800 rounded p-3 border border-gray-700" style={{ minHeight: '200px', maxHeight: '400px', overflowY: 'auto' }}>
               <div className="text-sm text-gray-400 mb-2">Game Messages</div>
               <div className="space-y-2">
-                {message && (
-                  <div className="p-2 bg-blue-900 rounded text-sm">
-                    {message}
+                {messages.map((msg, idx) => (
+                  <div key={idx} className="p-2 bg-blue-900 rounded text-sm">
+                    {msg}
                   </div>
-                )}
+                ))}
                 {isProcessing && gameState.active_player_id === aiPlayerId && (
                   <div className="p-2 bg-purple-900 rounded text-sm animate-pulse">
                     AI is thinking...

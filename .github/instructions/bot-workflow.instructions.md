@@ -73,6 +73,21 @@ When creating automated pull requests (security updates, dependency upgrades, et
 - Git user configuration should already be set to regisca-bot in the repository
 - The bot account token has scopes: `project`, `read:org`, `repo`
 
+## Deployment Pipeline
+
+**⚠️ CRITICAL: Commits to `main` trigger automatic deployments**
+
+When a PR is merged to the `main` branch, automated deployments are triggered:
+
+- **Backend**: Automatically deploys to Render (https://ggltcg.onrender.com)
+- **Frontend**: Automatically deploys to Vercel (production URL)
+
+**Best Practices:**
+- Always test changes thoroughly before merging to `main`
+- Use feature branches and PRs for all changes
+- Ensure backend and frontend changes are compatible before merging
+- Monitor deployment status after merging (check Render and Vercel dashboards)
+
 ## Workflow for Security Updates
 
 For Snyk security updates or similar automated changes:
