@@ -106,7 +106,7 @@ export function CardDisplay({
       <div className="flex justify-between items-start mb-2" style={{ position: 'relative', zIndex: 1 }}>
         {/* Cost Indicator */}
         <div 
-          className="font-bold flex items-center justify-center"
+          className="font-bold"
           style={{
             width: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
             height: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
@@ -115,6 +115,10 @@ export function CardDisplay({
             borderRadius: '4px',
             fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '1rem' : '1.5rem',
             boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
           }}
         >
           {card.cost}
@@ -122,12 +126,14 @@ export function CardDisplay({
 
         {/* Card Name */}
         <h3 
-          className="flex-1 font-bold truncate mx-2"
+          className="flex-1 font-bold truncate"
           style={{
             fontFamily: 'var(--font-body)',
             fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '0.875rem' : '1.25rem',
             lineHeight: '1.2',
             fontWeight: 700,
+            marginLeft: size === 'small' ? '4px' : size === 'medium' ? '6px' : '8px',
+            marginRight: size === 'small' ? '4px' : size === 'medium' ? '6px' : '8px',
           }}
         >
           {card.name}

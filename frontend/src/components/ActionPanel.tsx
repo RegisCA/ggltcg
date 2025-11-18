@@ -85,7 +85,7 @@ export function ActionPanel({
                   >
                     <div className="flex justify-between items-center gap-2">
                       <span className="font-medium leading-tight">{action.description}</span>
-                      {action.cost_cc !== undefined && (
+                      {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
                         <span className={`
                           px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap
                           ${action.cost_cc > currentCC ? 'bg-red-800' : 'bg-black bg-opacity-30'}

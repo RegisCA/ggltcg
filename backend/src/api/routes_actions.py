@@ -114,12 +114,28 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         if card.is_action():
             description += f" ({card.effect_text})"
         
-        # Log to play-by-play
+        # Log to play-by-play BEFORE victory check (so action appears first)
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="play_card",
             description=description,
         )
+        
+        # Check for victory (some cards like action cards might cause instant victory)
+        winner = game_state.check_victory()
+        if winner:
+            # Add victory message to play-by-play AFTER the winning action
+            winner_name = game_state.players[winner].name
+            game_state.add_play_by_play(
+                player_name=winner_name,
+                action_type="victory",
+                description=f"{winner_name} wins! All opponent's cards are sleeped."
+            )
+            return ActionResponse(
+                success=True,
+                message=f"Card played! {game_state.players[winner].name} wins the game!",
+                game_state={"winner": winner, "is_game_over": True}
+            )
         
         return ActionResponse(
             success=True,
@@ -194,7 +210,7 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         # Check state-based actions
         engine.check_state_based_actions()
         
-        # Log to play-by-play with cost
+        # Log to play-by-play with cost BEFORE victory check (so action appears first)
         target_desc = request.defender_name if request.defender_name else "opponent directly"
         game_state.add_play_by_play(
             player_name=player.name,
@@ -205,6 +221,13 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         # Check for victory
         winner = game_state.check_victory()
         if winner:
+            # Add victory message to play-by-play AFTER the winning action
+            winner_name = game_state.players[winner].name
+            game_state.add_play_by_play(
+                player_name=winner_name,
+                action_type="victory",
+                description=f"{winner_name} wins! All opponent's cards are sleeped."
+            )
             return ActionResponse(
                 success=True,
                 message=f"Tussle successful! {winner} wins the game!",

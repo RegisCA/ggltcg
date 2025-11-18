@@ -110,14 +110,23 @@ class GameState:
         """
         Check if any player has won the game.
         
+        NOTE: This does NOT add to play-by-play anymore.
+        The caller should add the victory message after logging the winning action.
+        
         Returns:
             Player ID of winner if game is won, None otherwise
         """
+        # If game is already over, don't check again (prevents duplicate entries)
+        if self.winner_id is not None:
+            return self.winner_id
+            
         for player_id, player in self.players.items():
             opponent = self.get_opponent(player_id)
             if opponent.all_cards_sleeped():
                 self.winner_id = player_id
-                self.log_event(f"{player.name} wins! All opponent's cards are sleeped.")
+                victory_message = f"{player.name} wins! All opponent's cards are sleeped."
+                self.log_event(victory_message)
+                # Don't add to play-by-play here - let the caller do it after the action
                 return player_id
         return None
     
