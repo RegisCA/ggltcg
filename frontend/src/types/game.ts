@@ -13,10 +13,13 @@ export interface Card {
   zone: Zone;
   owner: string;
   controller: string;
-  speed: number | null;
-  strength: number | null;
-  stamina: number | null;
-  current_stamina: number | null;
+  speed: number | null;  // Current effective speed (with buffs)
+  strength: number | null;  // Current effective strength (with buffs)
+  stamina: number | null;  // Current effective max stamina (with buffs)
+  current_stamina: number | null;  // Actual current stamina (can be damaged)
+  base_speed: number | null;  // Original speed from card definition
+  base_strength: number | null;  // Original strength from card definition
+  base_stamina: number | null;  // Original stamina from card definition
   is_sleeped: boolean;
   primary_color: string;
   accent_color: string;

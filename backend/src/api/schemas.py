@@ -123,10 +123,13 @@ class CardState(BaseModel):
     zone: str
     owner: str
     controller: str
-    speed: Optional[int] = None
-    strength: Optional[int] = None
-    stamina: Optional[int] = None
-    current_stamina: Optional[int] = None
+    speed: Optional[int] = None  # Current effective speed (with buffs)
+    strength: Optional[int] = None  # Current effective strength (with buffs)
+    stamina: Optional[int] = None  # Current effective max stamina (with buffs)
+    current_stamina: Optional[int] = None  # Current stamina (can be damaged)
+    base_speed: Optional[int] = None  # Original speed from card definition
+    base_strength: Optional[int] = None  # Original strength from card definition
+    base_stamina: Optional[int] = None  # Original stamina from card definition
     is_sleeped: bool = False
     primary_color: str = "#C74444"
     accent_color: str = "#C74444"
