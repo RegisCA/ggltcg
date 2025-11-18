@@ -194,15 +194,26 @@ async def delete_game(game_id: str) -> Dict[str, str]:
 
 def _card_to_state(card, engine) -> CardState:
     """Convert a Card to CardState with current stats."""
-    # Get modified stats if applicable
+    # Get modified stats if applicable (with continuous effects applied)
     current_speed = None
     current_strength = None
-    current_stamina = None
+    current_stamina_max = None  # Max stamina with buffs
+    current_stamina = None  # Actual stamina (can be damaged)
+    base_speed = None
+    base_strength = None
+    base_stamina = None
     
     if card.is_toy():  # Use the is_toy() method instead of string comparison
+        # Get effective stats (with continuous effects like Demideca, Ka, etc.)
         current_speed = engine.get_card_stat(card, "speed")
         current_strength = engine.get_card_stat(card, "strength")
-        current_stamina = card.current_stamina
+        current_stamina_max = engine.get_card_stat(card, "stamina")  # Max stamina with buffs
+        current_stamina = card.current_stamina  # Actual current stamina (can be damaged)
+        
+        # Store base stats (from card definition, before buffs)
+        base_speed = card.speed
+        base_strength = card.strength
+        base_stamina = card.stamina
     
     return CardState(
         name=card.name,
@@ -213,8 +224,11 @@ def _card_to_state(card, engine) -> CardState:
         controller=card.controller,
         speed=current_speed,
         strength=current_strength,
-        stamina=card.stamina if card.is_toy() else None,  # Use is_toy() here too
+        stamina=current_stamina_max,  # Effective max stamina (with buffs)
         current_stamina=current_stamina,
+        base_speed=base_speed,
+        base_strength=base_strength,
+        base_stamina=base_stamina,
         is_sleeped=(card.zone == Zone.SLEEP),
         primary_color=card.primary_color,
         accent_color=card.accent_color,
