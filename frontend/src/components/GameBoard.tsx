@@ -33,6 +33,15 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     refetchInterval: 2000, // Poll every 2 seconds
   });
 
+  // Clear pendingAction (modal) when turn ends or active player changes
+  useEffect(() => {
+    if (!gameState) return;
+    // If human is not active player, clear modal
+    if (gameState.active_player_id !== humanPlayerId && pendingAction) {
+      setPendingAction(null);
+    }
+  }, [gameState?.active_player_id, gameState?.turn_number]);
+
   // Handle game not found (404 error)
   useEffect(() => {
     if (error) {
@@ -362,8 +371,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           onConfirm={handleTargetSelection}
           onCancel={handleCancelTargetSelection}
           alternativeCostOptions={
-            pendingAction.alternative_cost_available 
-              ? humanPlayer.in_play 
+            pendingAction.alternative_cost_available
+              ? [...humanPlayer.in_play, ...(humanPlayer.hand || [])]
               : undefined
           }
         />

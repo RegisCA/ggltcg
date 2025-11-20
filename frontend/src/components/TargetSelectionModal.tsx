@@ -29,7 +29,11 @@ export function TargetSelectionModal({
 
   const maxTargets = action.max_targets || 1;
   const minTargets = action.min_targets || 1;
-  const hasAlternativeCost = action.alternative_cost_available && alternativeCostOptions && alternativeCostOptions.length > 0;
+  // Filter alternative cost options: must be in Play or Hand zone, and not Ballaber itself
+  const filteredAlternativeCostOptions = (alternativeCostOptions || []).filter(
+    (card) => card.name !== action.card_name && (card.zone === 'Hand' || card.zone === 'InPlay')
+  );
+  const hasAlternativeCost = action.alternative_cost_available && filteredAlternativeCostOptions.length > 0;
 
   // Reset state when action changes
   useEffect(() => {
@@ -46,41 +50,32 @@ export function TargetSelectionModal({
     }
   };
 
-  const toggleAlternativeCostCard = (cardName: string) => {
-    if (alternativeCostCard === cardName) {
-      setAlternativeCostCard(null);
-    } else {
-      setAlternativeCostCard(cardName);
-    }
+  // Only allow one card to be selected for alternative cost
+  const selectAlternativeCostCard = (cardName: string) => {
+    setAlternativeCostCard(cardName);
+    setUseAlternativeCost(true);
+    setSelectedTargets([]); // Clear normal targets if switching to alt cost
   };
 
   const handleConfirm = () => {
-    // Validate selection
-    if (selectedTargets.length < minTargets && minTargets > 0) {
-      return; // Don't allow confirmation if minimum not met
-    }
-
-    // For Ballaber alternative cost, ensure a card is selected
-    if (useAlternativeCost && !alternativeCostCard) {
+    // Ballaber: if using alt cost, must have selected a card
+    if (useAlternativeCost) {
+      if (!alternativeCostCard) return;
+      onConfirm([], alternativeCostCard);
       return;
     }
-
-    onConfirm(selectedTargets, useAlternativeCost ? alternativeCostCard || undefined : undefined);
+    // Normal targeting
+    if (selectedTargets.length < minTargets && minTargets > 0) return;
+    onConfirm(selectedTargets, undefined);
   };
 
   const canConfirm = () => {
-    // If using alternative cost, must have selected a card to sleep
-    if (useAlternativeCost && !alternativeCostCard) {
-      return false;
+    // Ballaber: if using alt cost, must have selected a card
+    if (useAlternativeCost) {
+      return !!alternativeCostCard;
     }
-
-    // Check target selection requirements
-    if (minTargets === 0) {
-      // Optional targeting - can confirm with 0 or more targets (up to max)
-      return true;
-    }
-
-    // Required targeting - must meet minimum
+    // Normal targeting
+    if (minTargets === 0) return true;
     return selectedTargets.length >= minTargets && selectedTargets.length <= maxTargets;
   };
 
@@ -95,39 +90,32 @@ export function TargetSelectionModal({
           <p className="text-gray-300">
             {action.description}
           </p>
-
-          {/* Alternative Cost Option (Ballaber) */}
-          {hasAlternativeCost && (
-            <div className="mt-3 p-3 bg-gray-800 rounded">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useAlternativeCost}
-                  onChange={(e) => setUseAlternativeCost(e.target.checked)}
-                  className="w-5 h-5 cursor-pointer"
-                />
-                <span className="font-semibold">
-                  Use alternative cost (sleep a card instead of paying {action.cost_cc} CC)
-                </span>
-              </label>
-            </div>
-          )}
         </div>
 
-        {/* Alternative Cost Selection */}
-        {useAlternativeCost && alternativeCostOptions && (
+        {/* Ballaber alternative cost: one-click selection */}
+        {hasAlternativeCost && (
           <div className="p-4 bg-gray-900">
-            <h3 className="text-lg font-bold mb-2">
-              Select a card to sleep (alternative payment):
-            </h3>
+            <h3 className="text-lg font-bold mb-2">Pay cost to play Ballaber:</h3>
+            <div className="flex gap-4 mb-4">
+              <button
+                className={`px-6 py-2 rounded font-bold transition-all ${!useAlternativeCost ? 'bg-game-highlight hover:bg-red-600 cursor-pointer' : 'bg-gray-600 opacity-50'}`}
+                onClick={() => {
+                  setUseAlternativeCost(false);
+                  setAlternativeCostCard(null);
+                }}
+                disabled={useAlternativeCost}
+              >
+                Pay {action.cost_cc} CC
+              </button>
+            </div>
+            <h4 className="text-md font-semibold mb-2">Or select a card to sleep:</h4>
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
-              {alternativeCostOptions.map((card) => {
+              {filteredAlternativeCostOptions.map((card) => {
                 const isSelected = alternativeCostCard === card.name;
-                
                 return (
                   <div
                     key={card.name}
-                    onClick={() => toggleAlternativeCostCard(card.name)}
+                    onClick={() => selectAlternativeCostCard(card.name)}
                     style={{ display: 'flex', justifyContent: 'center' }}
                   >
                     <CardDisplay
@@ -143,8 +131,8 @@ export function TargetSelectionModal({
           </div>
         )}
 
-        {/* Target Selection */}
-        {availableTargets.length > 0 && (
+        {/* Target Selection (for other cards) */}
+        {!useAlternativeCost && availableTargets.length > 0 && (
           <div className="p-4">
             <h3 className="text-lg font-bold mb-2">
               {maxTargets > 1
@@ -162,7 +150,6 @@ export function TargetSelectionModal({
               {availableTargets.map((card) => {
                 const isSelected = selectedTargets.includes(card.name);
                 const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
-                
                 return (
                   <div
                     key={card.name}
@@ -183,7 +170,7 @@ export function TargetSelectionModal({
           </div>
         )}
 
-        {availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
+        {!useAlternativeCost && availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
           <div className="p-4 text-center text-gray-400">
             No targets available, but you can still play this card.
           </div>
