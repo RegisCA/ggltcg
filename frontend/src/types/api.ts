@@ -28,6 +28,7 @@ export interface PlayCardRequest {
   card_name: string;
   target_card_name?: string;
   target_card_names?: string[];
+  alternative_cost_card?: string;  // For Ballaber alternative cost
 }
 
 export interface TussleRequest {

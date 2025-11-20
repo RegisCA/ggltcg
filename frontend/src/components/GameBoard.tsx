@@ -4,13 +4,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { ValidAction, GameState } from '../types/game';
+import type { ValidAction, GameState, Card } from '../types/game';
 import { useGameState, useValidActions, usePlayCard, useTussle, useEndTurn, useAITurn } from '../hooks/useGame';
 import { PlayerInfoBar } from './PlayerInfoBar';
 import { InPlayZone } from './InPlayZone';
 import { HandZone } from './HandZone';
 import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
+import { TargetSelectionModal } from './TargetSelectionModal';
 
 interface GameBoardProps {
   gameId: string;
@@ -25,6 +26,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const [lastTurnNumber, setLastTurnNumber] = useState<number>(0);
   const [lastActivePlayerId, setLastActivePlayerId] = useState<string>('');
   const [shouldClearOnNextAction, setShouldClearOnNextAction] = useState(false);
+  const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
@@ -131,6 +133,21 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   }, [gameState?.active_player_id, gameState?.turn_number, aiPlayerId, isProcessing, aiTurnMutation.isPending]);
 
   const handleAction = (action: ValidAction) => {
+    // Check if action requires target selection or has alternative cost
+    const needsTargetSelection = action.target_options && action.target_options.length > 0;
+    const hasAlternativeCost = action.alternative_cost_available;
+    
+    if (needsTargetSelection || hasAlternativeCost) {
+      // Show target selection modal
+      setPendingAction(action);
+      return;
+    }
+    
+    // Otherwise, execute action immediately
+    executeAction(action, []);
+  };
+
+  const executeAction = (action: ValidAction, selectedTargets: string[], alternativeCostCard?: string) => {
     // Helper to add message with optional clearing
     const addMessage = (msg: string, response?: any) => {
       // Don't add action messages if the response indicates game is over
@@ -149,6 +166,64 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         { player_id: humanPlayerId },
         {
           onSuccess: (response) => addMessage(response.message, response),
+          onError: (error) => addMessage(`Error: ${error.message}`),
+        }
+      );
+    } else if (action.action_type === 'play_card' && action.card_name) {
+      playCardMutation.mutate(
+        { 
+          player_id: humanPlayerId, 
+          card_name: action.card_name,
+          target_card_name: selectedTargets.length === 1 ? selectedTargets[0] : undefined,
+          target_card_names: selectedTargets.length > 1 ? selectedTargets : undefined,
+          alternative_cost_card: alternativeCostCard,
+        },
+        {
+          onSuccess: (response) => {
+            addMessage(response.message, response);
+            setSelectedCard(null);
+          },
+          onError: (error) => {
+            addMessage(`Error: ${error.message}`);
+            setSelectedCard(null);
+          },
+        }
+      );
+    } else if (action.action_type === 'tussle' && action.card_name) {
+      const defenderName = action.target_options?.[0] === 'direct_attack' 
+        ? undefined 
+        : action.target_options?.[0];
+      
+      tussleMutation.mutate(
+        {
+          player_id: humanPlayerId,
+          attacker_name: action.card_name,
+          defender_name: defenderName,
+        },
+        {
+          onSuccess: (response) => {
+            addMessage(response.message, response);
+            setSelectedCard(null);
+          },
+          onError: (error) => {
+            addMessage(`Error: ${error.message}`);
+            setSelectedCard(null);
+          },
+        }
+      );
+    }
+  };
+
+  const handleTargetSelection = (selectedTargets: string[], alternativeCostCard?: string) => {
+    if (!pendingAction) return;
+    
+    executeAction(pendingAction, selectedTargets, alternativeCostCard);
+    setPendingAction(null);
+  };
+
+  const handleCancelTargetSelection = () => {
+    setPendingAction(null);
+  };
           onError: (error) => addMessage(`Error: ${error.message}`),
         }
       );
@@ -315,6 +390,38 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           />
         </div>
       </div>
+
+      {/* Target Selection Modal */}
+      {pendingAction && (
+        <TargetSelectionModal
+          action={pendingAction}
+          availableTargets={getAvailableTargets(pendingAction, gameState)}
+          onConfirm={handleTargetSelection}
+          onCancel={handleCancelTargetSelection}
+          alternativeCostOptions={
+            pendingAction.alternative_cost_available 
+              ? humanPlayer.in_play 
+              : undefined
+          }
+        />
+      )}
     </div>
   );
+
+  // Helper function to get available target cards based on target options
+  function getAvailableTargets(action: ValidAction, state: GameState): Card[] {
+    if (!action.target_options || action.target_options.length === 0) {
+      return [];
+    }
+
+    const allCards = [
+      ...humanPlayer.in_play,
+      ...humanPlayer.sleep_zone,
+      ...(humanPlayer.hand || []),
+      ...aiPlayer.in_play,
+      ...aiPlayer.sleep_zone,
+    ];
+
+    return allCards.filter(card => action.target_options?.includes(card.name));
+  }
 }

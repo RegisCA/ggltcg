@@ -61,7 +61,11 @@ export interface ValidAction {
   action_type: 'play_card' | 'tussle' | 'end_turn' | 'activate_ability';
   card_name?: string;
   target_options?: string[];
+  max_targets?: number;  // Maximum number of targets to select (e.g., 2 for Sun)
+  min_targets?: number;  // Minimum number of targets required (0 for optional)
   cost_cc?: number;
+  alternative_cost_available?: boolean;  // Whether alternative cost is available (e.g., Ballaber)
+  alternative_cost_options?: string[];  // Cards that can be used for alternative cost
   description: string;
 }
 
