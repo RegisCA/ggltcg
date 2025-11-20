@@ -149,12 +149,6 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         engine.check_state_based_actions()
         # Build description with card effect for Action cards
         description = f"Spent {cost} CC to play {request.card_name}"
-        
-        # For Ballaber with alt cost, show which card was sleeped (before action check)
-        if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
-            alt_card = kwargs["alternative_cost_card"]
-            description += f". Slept {alt_card} for alternative cost"
-        
         if card.is_action():
             description += f" ({card.effect_text})"
             # Try to append effect outcome for Wake, Sun, etc.
@@ -170,6 +164,10 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             if card.name == "Copy" and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Copied {target_card.name}"
+        # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
+        if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
+            alt_card = kwargs["alternative_cost_card"]
+            description += f". Slept {alt_card} for alternative cost"
         # Log to play-by-play BEFORE victory check (so action appears first)
         game_state.add_play_by_play(
             player_name=player.name,

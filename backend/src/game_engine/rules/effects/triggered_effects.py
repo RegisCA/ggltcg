@@ -21,10 +21,10 @@ class UmbruhEffect(TriggeredEffect):
     Umbruh: "When sleeped, gain 1 CC."
     
     Mandatory triggered ability that grants 1 CC to Umbruh's controller
-    when Umbruh is sleeped (from play or hand).
+    when Umbruh is sleeped from play.
     
-    Triggers whenever Umbruh is moved to the sleep zone, regardless of
-    whether it was in play or in hand.
+    Important: Only triggers if Umbruh was in play when sleeped.
+    Does NOT trigger if sleeped from hand (e.g., via direct attack).
     """
     
     def __init__(self, source_card: "Card"):
@@ -40,14 +40,16 @@ class UmbruhEffect(TriggeredEffect):
         
         Only triggers if:
         - The sleeped card is Umbruh itself
+        - Umbruh was in play when it was sleeped (not from hand)
         """
         sleeped_card: Optional["Card"] = kwargs.get("sleeped_card")
+        was_in_play: bool = kwargs.get("was_in_play", False)
         
         if sleeped_card != self.source_card:
             return False
         
-        # Triggers regardless of whether from play or hand
-        return True
+        # Must have been in play to trigger
+        return was_in_play
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Grant 1 CC to Umbruh's controller."""

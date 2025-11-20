@@ -196,7 +196,7 @@ class TwistEffect(PlayEffect):
         if not player:
             return []
         
-        opponent = game_state.get_opponent(player)
+        opponent = game_state.get_opponent(player.player_id)
         if not opponent:
             return []
         
