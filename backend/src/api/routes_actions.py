@@ -408,9 +408,6 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
             # Allow card if it can be played normally OR if alternate cost is available
             if not can_play and not alternative_cost_available:
                 continue
-                # Allow card if it can be played normally OR if alternate cost is available
-            if not can_play and not alternative_cost_available:
-                continue
             
             # Get all effects for this card
             effects = EffectRegistry.get_effects(card)
