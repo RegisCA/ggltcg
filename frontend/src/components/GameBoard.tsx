@@ -134,7 +134,11 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   const handleAction = (action: ValidAction) => {
     // Check if action requires target selection or has alternative cost
-    const needsTargetSelection = action.target_options && action.target_options.length > 0;
+    // NOTE: Tussles already have their target specified in target_options, so don't show modal
+    const needsTargetSelection = 
+      action.action_type === 'play_card' && 
+      action.target_options && 
+      action.target_options.length > 0;
     const hasAlternativeCost = action.alternative_cost_available;
     
     if (needsTargetSelection || hasAlternativeCost) {
