@@ -386,10 +386,11 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       return [];
     }
 
+    // Don't include human player's hand in target search - hand cards are rarely valid targets
+    // This prevents duplicate matches when opponent has same card name in play
     const allCards = [
       ...humanPlayer.in_play,
       ...humanPlayer.sleep_zone,
-      ...(humanPlayer.hand || []),
       ...aiPlayer.in_play,
       ...aiPlayer.sleep_zone,
     ];
