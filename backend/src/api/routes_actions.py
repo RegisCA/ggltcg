@@ -91,7 +91,24 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
     
     # Add target if specified
     if request.target_card_name:
-        target = game_state.find_card_by_name(request.target_card_name)
+        # For targeting effects, search in appropriate zones based on the card being played
+        # This prevents finding duplicate card names in wrong zones
+        target = None
+        
+        if card.name == "Twist":
+            # Twist targets opponent's cards in play
+            opponent = game_state.get_opponent(player.player_id)
+            target = next((c for c in opponent.in_play if c.name == request.target_card_name), None)
+        elif card.name == "Wake":
+            # Wake targets player's own sleep zone
+            target = next((c for c in player.sleep_zone if c.name == request.target_card_name), None)
+        elif card.name == "Copy":
+            # Copy targets player's own in_play
+            target = next((c for c in player.in_play if c.name == request.target_card_name), None)
+        else:
+            # Default: search all zones (for other effects)
+            target = game_state.find_card_by_name(request.target_card_name)
+        
         if target is None:
             raise HTTPException(
                 status_code=400,
@@ -149,6 +166,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         engine.check_state_based_actions()
         # Build description with card effect for Action cards
         description = f"Spent {cost} CC to play {request.card_name}"
+        target_info = ""  # Track target info for response message
         if card.is_action():
             description += f" ({card.effect_text})"
             # Try to append effect outcome for Wake, Sun, etc.
@@ -156,18 +174,22 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             if card.name == "Wake" and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Unslept {target_card.name}"
+                target_info = f" (unslept {target_card.name})"
             # For Sun: show targets
             if card.name == "Sun" and kwargs.get("targets"):
                 target_names = [t.name for t in kwargs["targets"]]
                 description += f". Sleeped {', '.join(target_names)}"
+                target_info = f" (sleeped {', '.join(target_names)})"
             # For Copy: show what was copied
             if card.name == "Copy" and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Copied {target_card.name}"
+                target_info = f" (copied {target_card.name})"
             # For Twist: show which card was taken control of
             if card.name == "Twist" and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Took control of {target_card.name}"
+                target_info = f" (took control of {target_card.name})"
         # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
         if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
             alt_card = kwargs["alternative_cost_card"]
@@ -195,7 +217,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             )
         return ActionResponse(
             success=True,
-            message=f"Successfully played {request.card_name}",
+            message=f"Successfully played {request.card_name}{target_info}",
             game_state={"turn": game_state.turn_number, "phase": game_state.phase.value}
         )
     except Exception as e:

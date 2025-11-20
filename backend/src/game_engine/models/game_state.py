@@ -226,7 +226,11 @@ class GameState:
         """
         # Remove from current controller
         current_controller = self.get_card_controller(card)
-        if current_controller:
+        if not current_controller:
+            return
+        
+        # Remove from old controller's in_play
+        if card in current_controller.in_play:
             current_controller.in_play.remove(card)
         
         # Update controller field
@@ -234,6 +238,8 @@ class GameState:
         
         # Add to new controller
         new_controller.in_play.append(card)
+        
+        self.log_event(f"Control of {card.name} changed from {current_controller.name} to {new_controller.name}")
     
     def play_card_from_hand(self, card: Card, player: Player) -> None:
         """

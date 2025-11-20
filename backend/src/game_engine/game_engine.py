@@ -242,6 +242,7 @@ class GameEngine:
         if card.card_type == CardType.TOY:
             # Toys go to in play
             card.zone = Zone.IN_PLAY
+            card.controller = player.player_id  # Set controller when entering play
             player.in_play.append(card)
             
             # Trigger "when played" effects

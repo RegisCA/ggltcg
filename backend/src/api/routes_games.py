@@ -239,6 +239,22 @@ def _card_to_state(card, engine) -> CardState:
     )
 
 
+@router.get("/{game_id}/logs")
+async def get_game_logs(game_id: str) -> Dict[str, List[str]]:
+    """
+    Get the game event log for debugging.
+    
+    Returns the internal game_log which contains all game events including debug messages.
+    """
+    service = get_game_service()
+    engine = service.get_game(game_id)
+    
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+    
+    return {"logs": engine.game_state.game_log}
+
+
 @router.post("/narrative", response_model=NarrativeResponse)
 async def generate_narrative(request: NarrativeRequest) -> NarrativeResponse:
     """
