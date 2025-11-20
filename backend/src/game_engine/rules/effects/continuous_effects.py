@@ -253,6 +253,27 @@ class DreamCostEffect(CostModificationEffect):
         return max(0, modified_cost)  # Cost can't go below 0
 
 
+class BallaberCostEffect(CostModificationEffect):
+    """
+    Ballaber: "You may sleep 1 of your cards to play this card for free."
+    
+    Offers an alternative cost: instead of paying 3 CC, the player can
+    sleep one of their own cards in play to play Ballaber for 0 CC.
+    """
+    
+    def modify_card_cost(self, card: "Card", base_cost: int,
+                        game_state: "GameState", player: "Player") -> int:
+        """If using alternative cost, set cost to 0."""
+        # Only applies to Ballaber itself
+        if card != self.source_card:
+            return base_cost
+        
+        # Check if player is using alternative cost
+        # This is indicated by 'use_alternative_cost' in game state context
+        # The actual sleeping of the card happens during payment
+        return base_cost  # Default cost, modified by payment method choice
+
+
 class ArcherRestrictionEffect(ContinuousEffect):
     """
     Archer: "This card can't start tussles."
@@ -280,3 +301,4 @@ EffectRegistry.register_effect("Knight", KnightWinConditionEffect)
 EffectRegistry.register_effect("Beary", BearyProtectionEffect)
 EffectRegistry.register_effect("Archer", ArcherRestrictionEffect)
 EffectRegistry.register_effect("Dream", DreamCostEffect)
+EffectRegistry.register_effect("Ballaber", BallaberCostEffect)

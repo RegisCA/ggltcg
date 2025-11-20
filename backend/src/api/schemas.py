@@ -78,6 +78,7 @@ class PlayCardRequest(BaseModel):
     card_name: str = Field(..., description="Name of card to play")
     target_card_name: Optional[str] = Field(None, description="Target card name for effects that require targets")
     target_card_names: Optional[List[str]] = Field(None, description="Multiple target card names (e.g., Sun)")
+    alternative_cost_card: Optional[str] = Field(None, description="Card name to sleep for alternative cost (e.g., Ballaber)")
 
 
 class TussleRequest(BaseModel):
@@ -171,6 +172,8 @@ class ValidAction(BaseModel):
     max_targets: Optional[int] = Field(None, description="Maximum number of targets to select (e.g., 2 for Sun)")
     min_targets: Optional[int] = Field(None, description="Minimum number of targets to select (e.g., 0 for optional targeting)")
     cost_cc: Optional[int] = None
+    alternative_cost_available: Optional[bool] = Field(None, description="Whether an alternative cost is available (e.g., Ballaber)")
+    alternative_cost_options: Optional[List[str]] = Field(None, description="Cards that can be slept for alternative cost")
     description: str
 
 
