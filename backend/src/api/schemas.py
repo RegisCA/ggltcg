@@ -168,6 +168,8 @@ class ValidAction(BaseModel):
     action_type: str  # "play_card", "tussle", "end_turn", "activate_ability"
     card_name: Optional[str] = None
     target_options: Optional[List[str]] = None
+    max_targets: Optional[int] = Field(None, description="Maximum number of targets to select (e.g., 2 for Sun)")
+    min_targets: Optional[int] = Field(None, description="Minimum number of targets to select (e.g., 0 for optional targeting)")
     cost_cc: Optional[int] = None
     description: str
 

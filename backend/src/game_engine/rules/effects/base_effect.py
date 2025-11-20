@@ -246,6 +246,24 @@ class PlayEffect(BaseEffect):
         """
         return False
     
+    def get_max_targets(self) -> int:
+        """
+        Get the maximum number of targets this effect can have.
+        
+        Returns:
+            Maximum number of targets (1 by default, 2 for Sun, etc.)
+        """
+        return 1
+    
+    def get_min_targets(self) -> int:
+        """
+        Get the minimum number of targets this effect requires.
+        
+        Returns:
+            Minimum number of targets (1 for required targeting, 0 for optional)
+        """
+        return 1 if self.requires_targets() else 0
+    
     def get_valid_targets(self, game_state: "GameState") -> list:
         """
         Get list of valid targets for this effect.

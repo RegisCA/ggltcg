@@ -333,20 +333,71 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
             if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
                 cost = engine.calculate_card_cost(card, player)
                 
-                # Special handling for Copy - show available targets
-                if card.name == "Copy" and player.in_play:
-                    # List all cards in play as potential targets
-                    target_options = [c.name for c in player.in_play]
+                # Check if card's effect requires targets
+                from game_engine.rules.effects import EffectRegistry
+                from game_engine.rules.effects.base_effect import PlayEffect
+                
+                target_options = None
+                requires_targets = False
+                max_targets = 1
+                min_targets = 1
+                
+                # Get all effects for this card
+                effects = EffectRegistry.get_effects(card)
+                for effect in effects:
+                    if isinstance(effect, PlayEffect) and effect.requires_targets():
+                        requires_targets = True
+                        max_targets = effect.get_max_targets()
+                        min_targets = effect.get_min_targets()
+                        # Get valid targets from the effect
+                        valid_targets = effect.get_valid_targets(game_state)
+                        if valid_targets:
+                            # Convert Card objects to names
+                            target_options = [t.name for t in valid_targets]
+                        break
+                
+                # Special handling for Copy - cost varies by target
+                if card.name == "Copy" and target_options:
                     valid_actions.append(
                         ValidAction(
                             action_type="play_card",
                             card_name=card.name,
                             cost_cc=cost,
                             target_options=target_options,
-                            description=f"Play {card.name} (Cost varies by target: {', '.join(f'{t}={engine.calculate_card_cost(player.get_card_by_name(t), player)}' for t in target_options)})"
+                            max_targets=max_targets,
+                            min_targets=min_targets,
+                            description=f"Play {card.name} (select target - cost varies)"
                         )
                     )
+                elif requires_targets and target_options:
+                    # Card requires target selection
+                    target_desc = f"select up to {max_targets} targets" if max_targets > 1 else "select target"
+                    valid_actions.append(
+                        ValidAction(
+                            action_type="play_card",
+                            card_name=card.name,
+                            cost_cc=cost,
+                            target_options=target_options,
+                            max_targets=max_targets,
+                            min_targets=min_targets,
+                            description=f"Play {card.name} (Cost: {cost} CC, {target_desc})"
+                        )
+                    )
+                elif requires_targets and not target_options:
+                    # Card requires targets but none available
+                    # If min_targets is 0, card can still be played
+                    if min_targets == 0:
+                        valid_actions.append(
+                            ValidAction(
+                                action_type="play_card",
+                                card_name=card.name,
+                                cost_cc=cost,
+                                description=f"Play {card.name} (Cost: {cost} CC, no targets available)"
+                            )
+                        )
+                    # Otherwise skip - can't play without required targets
                 else:
+                    # No targets required
                     valid_actions.append(
                         ValidAction(
                             action_type="play_card",

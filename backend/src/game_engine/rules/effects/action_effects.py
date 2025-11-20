@@ -91,6 +91,10 @@ class WakeEffect(PlayEffect):
         """Wake requires choosing a card to unsleep."""
         return True
     
+    def get_min_targets(self) -> int:
+        """Wake requires at least 0 targets (optional if no sleeping cards)."""
+        return 0
+    
     def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
         """Get all cards in player's Sleep Zone."""
         player = game_state.get_active_player()
@@ -125,6 +129,14 @@ class SunEffect(PlayEffect):
     def requires_targets(self) -> bool:
         """Sun requires choosing cards to unsleep."""
         return True
+    
+    def get_max_targets(self) -> int:
+        """Sun can unsleep up to 2 cards."""
+        return 2
+    
+    def get_min_targets(self) -> int:
+        """Sun requires at least 0 targets (optional if no sleeping cards)."""
+        return 0
     
     def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
         """Get all cards in player's Sleep Zone."""

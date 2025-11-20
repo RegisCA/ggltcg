@@ -222,6 +222,37 @@ class BearyProtectionEffect(ProtectionEffect):
         return effect.source_card.name == "Knight"
 
 
+class DreamCostEffect(CostModificationEffect):
+    """
+    Dream: "This card costs 1 less for each of your sleeping cards."
+    
+    Reduces Dream's cost by 1 CC for each card in the controller's Sleep Zone.
+    Cost cannot go below 0.
+    """
+    
+    def modify_card_cost(self, card: "Card", base_cost: int,
+                        game_state: "GameState", player: "Player") -> int:
+        """Reduce Dream's cost based on sleeping cards."""
+        # Only applies to Dream itself
+        if card != self.source_card:
+            return base_cost
+        
+        # Get the controller of Dream (the player trying to play it)
+        dream_controller = game_state.get_card_owner(self.source_card)
+        
+        # Only applies when the controller is playing it
+        if dream_controller != player:
+            return base_cost
+        
+        # Count sleeping cards
+        sleeping_count = len(player.sleep_zone)
+        
+        # Reduce cost by 1 per sleeping card
+        modified_cost = base_cost - sleeping_count
+        
+        return max(0, modified_cost)  # Cost can't go below 0
+
+
 class ArcherRestrictionEffect(ContinuousEffect):
     """
     Archer: "This card can't start tussles."
@@ -248,3 +279,4 @@ EffectRegistry.register_effect("Knight", KnightProtectionEffect)
 EffectRegistry.register_effect("Knight", KnightWinConditionEffect)
 EffectRegistry.register_effect("Beary", BearyProtectionEffect)
 EffectRegistry.register_effect("Archer", ArcherRestrictionEffect)
+EffectRegistry.register_effect("Dream", DreamCostEffect)

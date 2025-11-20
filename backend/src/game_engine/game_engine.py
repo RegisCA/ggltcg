@@ -196,6 +196,15 @@ class GameEngine:
                         card, final_cost, self.game_state, player
                     )
         
+        # Also check the card itself for self-cost modifications (e.g., Dream)
+        # This allows cards in hand to modify their own cost
+        card_effects = EffectRegistry.get_effects(card)
+        for effect in card_effects:
+            if isinstance(effect, CostModificationEffect):
+                final_cost = effect.modify_card_cost(
+                    card, final_cost, self.game_state, player
+                )
+        
         return max(0, final_cost)  # Cost can't go below 0
     
     def play_card(self, player: Player, card: Card, **kwargs: Any) -> bool:
