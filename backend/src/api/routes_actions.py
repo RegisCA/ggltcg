@@ -164,6 +164,10 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             if card.name == "Copy" and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Copied {target_card.name}"
+            # For Twist: show which card was taken control of
+            if card.name == "Twist" and kwargs.get("target"):
+                target_card = kwargs["target"]
+                description += f". Took control of {target_card.name}"
         # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
         if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
             alt_card = kwargs["alternative_cost_card"]

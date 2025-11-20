@@ -211,7 +211,7 @@ class TwistEffect(PlayEffect):
             return
         
         # Verify target is opponent's card
-        opponent = game_state.get_opponent(player)
+        opponent = game_state.get_opponent(player.player_id)
         if not opponent:
             return
         
