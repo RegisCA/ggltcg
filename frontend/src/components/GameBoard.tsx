@@ -386,14 +386,32 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       return [];
     }
 
-    // Don't include human player's hand in target search - hand cards are rarely valid targets
-    // This prevents duplicate matches when opponent has same card name in play
-    const allCards = [
-      ...humanPlayer.in_play,
-      ...humanPlayer.sleep_zone,
-      ...aiPlayer.in_play,
-      ...aiPlayer.sleep_zone,
-    ];
+    // Build list of searchable cards based on action type
+    // Most effects target opponent's zones, but some (Wake, Sun) target your own zones
+    // Wake: targets your sleep zone only
+    // Sun: targets opponent's in_play only
+    // Twist: targets opponent's in_play only
+    // Copy: targets your in_play only
+    const isWake = action.card_name === 'Wake';
+    const isSun = action.card_name === 'Sun';
+    const isCopy = action.card_name === 'Copy';
+    
+    let allCards: Card[] = [];
+    if (isWake) {
+      // Wake: only search human player's sleep zone
+      allCards = [...humanPlayer.sleep_zone];
+    } else if (isCopy) {
+      // Copy: only search human player's in_play
+      allCards = [...humanPlayer.in_play];
+    } else {
+      // Default: search both players' in_play and sleep zones (but not hand to avoid duplicates)
+      allCards = [
+        ...humanPlayer.in_play,
+        ...humanPlayer.sleep_zone,
+        ...aiPlayer.in_play,
+        ...aiPlayer.sleep_zone,
+      ];
+    }
 
     return allCards.filter(card => action.target_options?.includes(card.name));
   }

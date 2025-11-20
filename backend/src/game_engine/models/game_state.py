@@ -229,6 +229,9 @@ class GameState:
         if current_controller:
             current_controller.in_play.remove(card)
         
+        # Update controller field
+        card.controller = new_controller.player_id
+        
         # Add to new controller
         new_controller.in_play.append(card)
     
