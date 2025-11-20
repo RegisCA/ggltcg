@@ -182,14 +182,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           onError: (error) => addMessage(`Error: ${error.message}`),
         }
       );
-    } else if (action.action_type === 'play_card' && action.card_name) {
+    } else if (action.action_type === 'play_card' && action.card_id) {
       playCardMutation.mutate(
         { 
           player_id: humanPlayerId, 
-          card_name: action.card_name,
-          target_card_name: selectedTargets.length === 1 ? selectedTargets[0] : undefined,
-          target_card_names: selectedTargets.length > 1 ? selectedTargets : undefined,
-          alternative_cost_card: alternativeCostCard,
+          card_id: action.card_id,
+          target_card_id: selectedTargets.length === 1 ? selectedTargets[0] : undefined,
+          target_card_ids: selectedTargets.length > 1 ? selectedTargets : undefined,
+          alternative_cost_card_id: alternativeCostCard,
         },
         {
           onSuccess: (response) => {
@@ -202,16 +202,16 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           },
         }
       );
-    } else if (action.action_type === 'tussle' && action.card_name) {
-      const defenderName = action.target_options?.[0] === 'direct_attack' 
+    } else if (action.action_type === 'tussle' && action.card_id) {
+      const defenderId = action.target_options?.[0] === 'direct_attack' 
         ? undefined 
         : action.target_options?.[0];
       
       tussleMutation.mutate(
         {
           player_id: humanPlayerId,
-          attacker_name: action.card_name,
-          defender_name: defenderName,
+          attacker_id: action.card_id,
+          defender_id: defenderId,
         },
         {
           onSuccess: (response) => {
@@ -413,6 +413,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       ];
     }
 
-    return allCards.filter(card => action.target_options?.includes(card.name));
+    // Filter using card IDs (target_options now contains IDs instead of names)
+    return allCards.filter(card => action.target_options?.includes(card.id));
   }
 }

@@ -31,7 +31,7 @@ export function TargetSelectionModal({
   const minTargets = action.min_targets || 1;
   // Filter alternative cost options: must be in Play or Hand zone, and not Ballaber itself
   const filteredAlternativeCostOptions = (alternativeCostOptions || []).filter(
-    (card) => card.name !== action.card_name && (card.zone === 'Hand' || card.zone === 'InPlay')
+    (card) => card.id !== action.card_id && (card.zone === 'Hand' || card.zone === 'InPlay')
   );
   const hasAlternativeCost = action.alternative_cost_available && filteredAlternativeCostOptions.length > 0;
 
@@ -40,19 +40,19 @@ export function TargetSelectionModal({
     setSelectedTargets([]);
     setUseAlternativeCost(false);
     setAlternativeCostCard(null);
-  }, [action.card_name]);
+  }, [action.card_id]);
 
-  const toggleTarget = (cardName: string) => {
-    if (selectedTargets.includes(cardName)) {
-      setSelectedTargets(selectedTargets.filter((name) => name !== cardName));
+  const toggleTarget = (cardId: string) => {
+    if (selectedTargets.includes(cardId)) {
+      setSelectedTargets(selectedTargets.filter((id) => id !== cardId));
     } else if (selectedTargets.length < maxTargets) {
-      setSelectedTargets([...selectedTargets, cardName]);
+      setSelectedTargets([...selectedTargets, cardId]);
     }
   };
 
   // Only allow one card to be selected for alternative cost
-  const selectAlternativeCostCard = (cardName: string) => {
-    setAlternativeCostCard(cardName);
+  const selectAlternativeCostCard = (cardId: string) => {
+    setAlternativeCostCard(cardId);
     setUseAlternativeCost(true);
     setSelectedTargets([]); // Clear normal targets if switching to alt cost
   };
@@ -111,11 +111,11 @@ export function TargetSelectionModal({
             <h4 className="text-md font-semibold mb-2">Or select a card to sleep:</h4>
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
               {filteredAlternativeCostOptions.map((card) => {
-                const isSelected = alternativeCostCard === card.name;
+                const isSelected = alternativeCostCard === card.id;
                 return (
                   <div
-                    key={card.name}
-                    onClick={() => selectAlternativeCostCard(card.name)}
+                    key={card.id}
+                    onClick={() => selectAlternativeCostCard(card.id)}
                     style={{ display: 'flex', justifyContent: 'center' }}
                   >
                     <CardDisplay
@@ -148,12 +148,12 @@ export function TargetSelectionModal({
             </h3>
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
               {availableTargets.map((card) => {
-                const isSelected = selectedTargets.includes(card.name);
+                const isSelected = selectedTargets.includes(card.id);
                 const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
                 return (
                   <div
-                    key={card.name}
-                    onClick={() => !isDisabled && toggleTarget(card.name)}
+                    key={card.id}
+                    onClick={() => !isDisabled && toggleTarget(card.id)}
                     style={{ display: 'flex', justifyContent: 'center' }}
                   >
                     <CardDisplay

@@ -220,6 +220,7 @@ def _card_to_state(card, engine) -> CardState:
         base_stamina = card.stamina
     
     return CardState(
+        id=card.id,
         name=card.name,
         card_type=card.card_type.value,  # Convert enum to string
         cost=card.cost,

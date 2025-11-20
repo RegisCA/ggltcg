@@ -327,19 +327,19 @@ class LLMPlayer:
         
         if selected_action.action_type == "play_card":
             result["action_type"] = "play_card"
-            result["card_name"] = selected_action.card_name
+            result["card_id"] = selected_action.card_id
             # Note: For cards requiring targets, we'd need additional logic
             # For MVP, assuming simple cards or random target selection
         
         elif selected_action.action_type == "tussle":
             result["action_type"] = "tussle"
-            result["attacker_name"] = selected_action.card_name
+            result["attacker_id"] = selected_action.card_id
             
             # Check if this is a direct attack or targeted tussle
             if selected_action.target_options and selected_action.target_options[0] != "direct_attack":
-                result["defender_name"] = selected_action.target_options[0]
+                result["defender_id"] = selected_action.target_options[0]
             else:
-                result["defender_name"] = None  # Direct attack
+                result["defender_id"] = None  # Direct attack
         
         elif selected_action.action_type == "end_turn":
             result["action_type"] = "end_turn"

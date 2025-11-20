@@ -295,6 +295,31 @@ class GameState:
                 return card
         return None
     
+    def find_card_by_id(self, card_id: str) -> Optional[Card]:
+        """
+        Find a card by its unique ID across all zones and players.
+        
+        Args:
+            card_id: Unique card instance ID
+            
+        Returns:
+            Card if found, None otherwise
+        """
+        for player in self.players.values():
+            # Search in hand
+            for card in player.hand:
+                if card.id == card_id:
+                    return card
+            # Search in play
+            for card in player.in_play:
+                if card.id == card_id:
+                    return card
+            # Search in sleep zone
+            for card in player.sleep_zone:
+                if card.id == card_id:
+                    return card
+        return None
+    
     def to_dict(self, requesting_player_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Serialize game state to dictionary for API responses.
