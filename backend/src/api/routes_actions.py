@@ -71,16 +71,18 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
     
     # Handle alternative cost for Ballaber
     if request.alternative_cost_card and request.card_name == "Ballaber":
-        # Find the card to sleep
-        card_to_sleep = next((c for c in player.in_play if c.name == request.alternative_cost_card), None)
+        # Find the card to sleep (can be in hand or in play, but not Ballaber itself)
+        card_to_sleep = next((c for c in (player.in_play + (player.hand or [])) if c.name == request.alternative_cost_card and c.name != "Ballaber"), None)
         if card_to_sleep is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"Alternative cost card '{request.alternative_cost_card}' not found in play"
+                detail=f"Alternative cost card '{request.alternative_cost_card}' not found in hand or play"
             )
         # Sleep the card and set cost to 0
-        game_state.sleep_card(card_to_sleep, was_in_play=True)
+        was_in_play = card_to_sleep in player.in_play
+        game_state.sleep_card(card_to_sleep, was_in_play=was_in_play)
         kwargs["alternative_cost_paid"] = True
+        kwargs["alternative_cost_card"] = card_to_sleep.name
         # Override the cost calculation
         cost = 0
     else:
