@@ -230,6 +230,11 @@ class DreamCostEffect(CostModificationEffect):
     Cost cannot go below 0.
     """
     
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Dream cost effect doesn't modify card stats."""
+        return base_value
+    
     def modify_card_cost(self, card: "Card", base_cost: int,
                         game_state: "GameState", player: "Player") -> int:
         """Reduce Dream's cost based on sleeping cards."""
@@ -260,6 +265,11 @@ class BallaberCostEffect(CostModificationEffect):
     Offers an alternative cost: instead of paying 3 CC, the player can
     sleep one of their own cards in play to play Ballaber for 0 CC.
     """
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Ballaber cost effect doesn't modify card stats."""
+        return base_value
     
     def modify_card_cost(self, card: "Card", base_cost: int,
                         game_state: "GameState", player: "Player") -> int:
