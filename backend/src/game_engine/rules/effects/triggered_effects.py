@@ -58,74 +58,24 @@ class UmbruhEffect(TriggeredEffect):
             controller.gain_cc(1)
 
 
-class SnugglesOnPlayEffect(TriggeredEffect):
-    """
-    Snuggles: "When played, you may sleep one of your opponent's cards."
-    
-    Optional triggered ability when Snuggles enters play.
-    The controller chooses an opponent's card in play to sleep.
-    """
-    
-    def __init__(self, source_card: "Card"):
-        super().__init__(
-            source_card=source_card,
-            trigger=TriggerTiming.WHEN_PLAYED,
-            is_optional=True  # "may" means optional
-        )
-    
-    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
-        """Triggers when Snuggles is played."""
-        played_card: Optional["Card"] = kwargs.get("played_card")
-        return played_card == self.source_card
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """
-        Sleep an opponent's card.
-        
-        Requires 'target' in kwargs specifying which card to sleep.
-        If no target provided or target is invalid, does nothing.
-        """
-        target: Optional["Card"] = kwargs.get("target")
-        
-        if not target:
-            return  # Optional, player chose not to use it
-        
-        # Verify target is an opponent's card in play
-        snuggles_controller = game_state.get_card_controller(self.source_card)
-        target_controller = game_state.get_card_controller(target)
-        
-        if not snuggles_controller or not target_controller:
-            return
-        
-        if snuggles_controller == target_controller:
-            return  # Can't target own cards
-        
-        # Check if target is protected (e.g., Knight)
-        if game_state.is_protected_from_effect(target, self):
-            return
-        
-        # Sleep the target
-        game_state.sleep_card(target, was_in_play=True)
-
-
 class SnugglesWhenSleepedEffect(TriggeredEffect):
     """
-    Snuggles: "When sleeped, your opponent discards a card."
+    Snuggles: "When sleeped, you may sleep a card that is in play."
     
-    Mandatory trigger when Snuggles is sleeped from play.
-    Opponent must discard a random card from their hand.
+    Optional trigger when Snuggles is sleeped from play.
+    Controller may choose a card from either play zone to sleep.
     """
     
     def __init__(self, source_card: "Card"):
         super().__init__(
             source_card=source_card,
             trigger=TriggerTiming.WHEN_SLEEPED,
-            is_optional=False  # Mandatory
+            is_optional=True  # "may" means optional
         )
     
     def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
         """
-        Check if Snuggles' discard effect should trigger.
+        Check if Snuggles' sleep effect should trigger.
         
         Only triggers if Snuggles was in play when sleeped.
         """
@@ -138,21 +88,25 @@ class SnugglesWhenSleepedEffect(TriggeredEffect):
         return was_in_play
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Make opponent discard a random card from hand."""
-        snuggles_controller = game_state.get_card_owner(self.source_card)
-        if not snuggles_controller:
-            return
+        """
+        Sleep a card in play.
         
-        # Get opponent
-        opponent = game_state.get_opponent(snuggles_controller)
-        if not opponent or not opponent.hand:
-            return  # No cards to discard
+        Requires 'target' in kwargs specifying which card to sleep.
+        If no target provided, does nothing (optional effect).
+        Can target cards from either player's play zone.
+        """
+        target: Optional["Card"] = kwargs.get("target")
         
-        # Sleep a random card from opponent's hand
-        # Note: Sleeping from hand does NOT trigger "when sleeped" abilities
-        import random
-        card_to_sleep = random.choice(opponent.hand)
-        game_state.sleep_card(card_to_sleep, was_in_play=False)
+        if not target:
+            return  # Optional, player chose not to use it
+        
+        # Verify target is in play (either player's zone)
+        all_cards_in_play = game_state.get_all_cards_in_play()
+        if target not in all_cards_in_play:
+            return  # Invalid target
+        
+        # Sleep the target
+        game_state.sleep_card(target, was_in_play=True)
 
 
 class BearyTussleCancelEffect(TriggeredEffect):
@@ -224,6 +178,5 @@ class BearyTussleCancelEffect(TriggeredEffect):
 
 # Register all triggered effects
 EffectRegistry.register_effect("Umbruh", UmbruhEffect)
-EffectRegistry.register_effect("Snuggles", SnugglesOnPlayEffect)
 EffectRegistry.register_effect("Snuggles", SnugglesWhenSleepedEffect)
 EffectRegistry.register_effect("Beary", BearyTussleCancelEffect)
