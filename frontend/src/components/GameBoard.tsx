@@ -224,47 +224,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const handleCancelTargetSelection = () => {
     setPendingAction(null);
   };
-          onError: (error) => addMessage(`Error: ${error.message}`),
-        }
-      );
-    } else if (action.action_type === 'play_card' && action.card_name) {
-      playCardMutation.mutate(
-        { player_id: humanPlayerId, card_name: action.card_name },
-        {
-          onSuccess: (response) => {
-            addMessage(response.message, response);
-            setSelectedCard(null);
-          },
-          onError: (error) => {
-            addMessage(`Error: ${error.message}`);
-            setSelectedCard(null);
-          },
-        }
-      );
-    } else if (action.action_type === 'tussle' && action.card_name) {
-      const defenderName = action.target_options?.[0] === 'direct_attack' 
-        ? undefined 
-        : action.target_options?.[0];
-      
-      tussleMutation.mutate(
-        {
-          player_id: humanPlayerId,
-          attacker_name: action.card_name,
-          defender_name: defenderName,
-        },
-        {
-          onSuccess: (response) => {
-            addMessage(response.message, response);
-            setSelectedCard(null);
-          },
-          onError: (error) => {
-            addMessage(`Error: ${error.message}`);
-            setSelectedCard(null);
-          },
-        }
-      );
-    }
-  };
 
   if (isLoading || !gameState) {
     return (
