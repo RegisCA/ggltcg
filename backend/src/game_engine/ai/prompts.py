@@ -303,16 +303,18 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
                 target_details = []
                 for target_id in action.target_options:
                     display_name, actual_id = get_card_details(target_id)
-                    target_details.append(f"{display_name} [ID: {actual_id}]")
-                action_text += f"\n   Available targets (use ID in target_id field):\n   - {'\n   - '.join(target_details)}"
+                    # Put the UUID first so LLM clearly sees it's the ID to use
+                    target_details.append(f"[ID: {actual_id}] {display_name}")
+                action_text += f"\n   Available targets (use the UUID from [ID: ...]):\n   - {'\n   - '.join(target_details)}"
         
         # Add alternative cost information if available
         if action.alternative_cost_options is not None and len(action.alternative_cost_options) > 0:
             alt_cost_details = []
             for alt_id in action.alternative_cost_options:
                 display_name, actual_id = get_card_details(alt_id)
-                alt_cost_details.append(f"{display_name} [ID: {actual_id}]")
-            action_text += f"\n   Can pay alternative cost by sleeping (use ID in alternative_cost_id field):\n   - {'\n   - '.join(alt_cost_details)}"
+                # Put the UUID first so LLM clearly sees it's the ID to use
+                alt_cost_details.append(f"[ID: {actual_id}] {display_name}")
+            action_text += f"\n   Can pay alternative cost by sleeping (use the UUID from [ID: ...]):\n   - {'\n   - '.join(alt_cost_details)}"
         
         # Add strategic hint for card plays
         if action.action_type == "play_card" and action.card_id:
@@ -380,8 +382,9 @@ Example 3 (Ballaber with alternative cost):
 
 IMPORTANT:
 - Choose an action number from the list above
-- If the action has targets listed, you MUST copy the exact ID shown in [ID: ...] into the target_id field
-- If the action has alternative cost options, you MAY copy the exact ID shown in [ID: ...] into alternative_cost_id field
+- For target_id: Extract ONLY the UUID from inside [ID: ...], NEVER use the card name/stats that come after
+- For alternative_cost_id: Extract ONLY the UUID from inside [ID: ...], NEVER use the card name/stats that come after
+- Example: From "[ID: abc-123-def] Demideca (3 SPD, 2 STR, 3/3 STA)", use "abc-123-def" NOT "Demideca (3 SPD, 2 STR, 3/3 STA)"
 - Use the FULL UUID string from the [ID: ...] brackets, NOT the card name or stats
 - Think strategically - don't just play cards blindly
 - Consider opponent's threats and board state
