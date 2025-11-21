@@ -20,7 +20,7 @@ from game_engine.models.player import Player
 from game_engine.models.card import Card
 from game_engine.data.card_loader import CardLoader
 from api.database import SessionLocal
-from api.db_models import GameModel
+from api.db_models import GameModel, GameStatsModel
 from api.serialization import (
     serialize_game_state,
     deserialize_game_state,
@@ -261,6 +261,10 @@ class GameService:
         
         # Save to database
         self._save_game_to_db(game_id, engine)
+        
+        # If game just completed, save stats
+        if engine.game_state.winner_id is not None:
+            self._save_game_stats(game_id, engine)
     
     def delete_game(self, game_id: str) -> bool:
         """
@@ -295,6 +299,129 @@ class GameService:
                 db.close()
         
         return True
+    
+    def _calculate_game_stats(self, game_id: str, engine: GameEngine) -> dict:
+        """
+        Calculate game statistics from completed game.
+        
+        Args:
+            game_id: Game ID
+            engine: Completed GameEngine instance
+            
+        Returns:
+            Dict with stats data ready for database
+        """
+        game_state = engine.game_state
+        
+        # Validate game is complete
+        if game_state.winner_id is None:
+            raise ValueError("Cannot calculate stats for incomplete game")
+        
+        # Determine winner and loser
+        winner_id = game_state.winner_id
+        loser_id = next(
+            (pid for pid in game_state.players.keys() if pid != winner_id),
+            None
+        )
+        
+        if loser_id is None:
+            raise ValueError("Could not determine loser")
+        
+        # Count actions from play-by-play log
+        winner_cards_played = 0
+        winner_tussles = 0
+        winner_direct_attacks = 0
+        loser_cards_played = 0
+        loser_tussles = 0
+        loser_direct_attacks = 0
+        
+        for entry in game_state.play_by_play:
+            player = entry.get('player', '')
+            description = entry.get('description', '').lower()
+            
+            # Count cards played (look for "spent X CC to play")
+            if 'spent' in description and 'cc to play' in description:
+                if player == winner_id:
+                    winner_cards_played += 1
+                elif player == loser_id:
+                    loser_cards_played += 1
+            
+            # Count tussles (look for "initiated tussle" or "tussle")
+            if 'tussle' in description:
+                if player == winner_id:
+                    winner_tussles += 1
+                elif player == loser_id:
+                    loser_tussles += 1
+            
+            # Count direct attacks (look for "attacked directly" or "direct attack")
+            if 'direct' in description and 'attack' in description:
+                if player == winner_id:
+                    winner_direct_attacks += 1
+                elif player == loser_id:
+                    loser_direct_attacks += 1
+        
+        return {
+            'game_id': uuid.UUID(game_id),
+            'winner_id': winner_id,
+            'loser_id': loser_id,
+            'total_turns': game_state.turn_number,
+            'winner_cards_played': winner_cards_played,
+            'winner_tussles_initiated': winner_tussles,
+            'winner_direct_attacks': winner_direct_attacks,
+            'loser_cards_played': loser_cards_played,
+            'loser_tussles_initiated': loser_tussles,
+            'loser_direct_attacks': loser_direct_attacks,
+        }
+    
+    def _save_game_stats(self, game_id: str, engine: GameEngine) -> None:
+        """
+        Save game statistics to database.
+        
+        Args:
+            game_id: Game ID
+            engine: Completed GameEngine instance
+        """
+        if not self.use_database:
+            return
+        
+        db = SessionLocal()
+        try:
+            # Check if stats already exist (idempotent)
+            existing_stats = db.query(GameStatsModel).filter(
+                GameStatsModel.game_id == uuid.UUID(game_id)
+            ).first()
+            
+            if existing_stats:
+                logger.debug(f"Stats already exist for game {game_id}")
+                return
+            
+            # Calculate stats
+            stats_data = self._calculate_game_stats(game_id, engine)
+            
+            # Get game model to calculate duration
+            game_model = db.query(GameModel).filter(
+                GameModel.id == uuid.UUID(game_id)
+            ).first()
+            
+            if game_model:
+                duration = (game_model.updated_at - game_model.created_at).total_seconds()
+                stats_data['duration_seconds'] = int(duration)
+            
+            # Create stats record
+            stats_model = GameStatsModel(**stats_data)
+            db.add(stats_model)
+            db.commit()
+            
+            logger.info(
+                f"Saved stats for game {game_id}: "
+                f"Winner {stats_data['winner_id']} in {stats_data['total_turns']} turns"
+            )
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to save stats for game {game_id}: {e}")
+            # Don't raise - stats are optional, game should still save
+        finally:
+            db.close()
     
     def _create_deck(self, card_names: list[str], owner_id: str) -> list[Card]:
         """
