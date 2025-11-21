@@ -7,6 +7,7 @@ export type Zone = 'Hand' | 'InPlay' | 'Sleep';  // Match backend Zone enum valu
 export type Phase = 'Start' | 'Main' | 'End';  // Match backend Phase enum values
 
 export interface Card {
+  id: string;  // Unique card instance ID
   name: string;
   card_type: CardType;
   cost: number;
@@ -59,9 +60,14 @@ export interface GameState {
 
 export interface ValidAction {
   action_type: 'play_card' | 'tussle' | 'end_turn' | 'activate_ability';
-  card_name?: string;
-  target_options?: string[];
+  card_id?: string;  // Unique ID of the card for this action
+  card_name?: string;  // Display name (for UI convenience)
+  target_options?: string[];  // List of valid target card IDs
+  max_targets?: number;  // Maximum number of targets to select (e.g., 2 for Sun)
+  min_targets?: number;  // Minimum number of targets required (0 for optional)
   cost_cc?: number;
+  alternative_cost_available?: boolean;  // Whether alternative cost is available (e.g., Ballaber)
+  alternative_cost_options?: string[];  // Card IDs that can be used for alternative cost
   description: string;
 }
 

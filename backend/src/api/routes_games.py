@@ -220,6 +220,7 @@ def _card_to_state(card, engine) -> CardState:
         base_stamina = card.stamina
     
     return CardState(
+        id=card.id,
         name=card.name,
         card_type=card.card_type.value,  # Convert enum to string
         cost=card.cost,
@@ -237,6 +238,22 @@ def _card_to_state(card, engine) -> CardState:
         primary_color=card.primary_color,
         accent_color=card.accent_color,
     )
+
+
+@router.get("/{game_id}/logs")
+async def get_game_logs(game_id: str) -> Dict[str, List[str]]:
+    """
+    Get the game event log for debugging.
+    
+    Returns the internal game_log which contains all game events including debug messages.
+    """
+    service = get_game_service()
+    engine = service.get_game(game_id)
+    
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+    
+    return {"logs": engine.game_state.game_log}
 
 
 @router.post("/narrative", response_model=NarrativeResponse)

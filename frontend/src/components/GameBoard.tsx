@@ -4,13 +4,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { ValidAction, GameState } from '../types/game';
+import type { ValidAction, GameState, Card } from '../types/game';
 import { useGameState, useValidActions, usePlayCard, useTussle, useEndTurn, useAITurn } from '../hooks/useGame';
 import { PlayerInfoBar } from './PlayerInfoBar';
 import { InPlayZone } from './InPlayZone';
 import { HandZone } from './HandZone';
 import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
+import { TargetSelectionModal } from './TargetSelectionModal';
 
 interface GameBoardProps {
   gameId: string;
@@ -25,11 +26,21 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const [lastTurnNumber, setLastTurnNumber] = useState<number>(0);
   const [lastActivePlayerId, setLastActivePlayerId] = useState<string>('');
   const [shouldClearOnNextAction, setShouldClearOnNextAction] = useState(false);
+  const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
     refetchInterval: 2000, // Poll every 2 seconds
   });
+
+  // Clear pendingAction (modal) when turn ends or active player changes
+  useEffect(() => {
+    if (!gameState) return;
+    // If human is not active player, clear modal
+    if (gameState.active_player_id !== humanPlayerId && pendingAction) {
+      setPendingAction(null);
+    }
+  }, [gameState?.active_player_id, gameState?.turn_number]);
 
   // Handle game not found (404 error)
   useEffect(() => {
@@ -131,6 +142,25 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   }, [gameState?.active_player_id, gameState?.turn_number, aiPlayerId, isProcessing, aiTurnMutation.isPending]);
 
   const handleAction = (action: ValidAction) => {
+    // Check if action requires target selection or has alternative cost
+    // NOTE: Tussles already have their target specified in target_options, so don't show modal
+    const needsTargetSelection = 
+      action.action_type === 'play_card' && 
+      action.target_options && 
+      action.target_options.length > 0;
+    const hasAlternativeCost = action.alternative_cost_available;
+    
+    if (needsTargetSelection || hasAlternativeCost) {
+      // Show target selection modal
+      setPendingAction(action);
+      return;
+    }
+    
+    // Otherwise, execute action immediately
+    executeAction(action, []);
+  };
+
+  const executeAction = (action: ValidAction, selectedTargets: string[], alternativeCostCard?: string) => {
     // Helper to add message with optional clearing
     const addMessage = (msg: string, response?: any) => {
       // Don't add action messages if the response indicates game is over
@@ -152,9 +182,15 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           onError: (error) => addMessage(`Error: ${error.message}`),
         }
       );
-    } else if (action.action_type === 'play_card' && action.card_name) {
+    } else if (action.action_type === 'play_card' && action.card_id) {
       playCardMutation.mutate(
-        { player_id: humanPlayerId, card_name: action.card_name },
+        { 
+          player_id: humanPlayerId, 
+          card_id: action.card_id,
+          target_card_id: selectedTargets.length === 1 ? selectedTargets[0] : undefined,
+          target_card_ids: selectedTargets.length > 1 ? selectedTargets : undefined,
+          alternative_cost_card_id: alternativeCostCard,
+        },
         {
           onSuccess: (response) => {
             addMessage(response.message, response);
@@ -166,16 +202,16 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           },
         }
       );
-    } else if (action.action_type === 'tussle' && action.card_name) {
-      const defenderName = action.target_options?.[0] === 'direct_attack' 
+    } else if (action.action_type === 'tussle' && action.card_id) {
+      const defenderId = action.target_options?.[0] === 'direct_attack' 
         ? undefined 
         : action.target_options?.[0];
       
       tussleMutation.mutate(
         {
           player_id: humanPlayerId,
-          attacker_name: action.card_name,
-          defender_name: defenderName,
+          attacker_id: action.card_id,
+          defender_id: defenderId,
         },
         {
           onSuccess: (response) => {
@@ -189,6 +225,17 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         }
       );
     }
+  };
+
+  const handleTargetSelection = (selectedTargets: string[], alternativeCostCard?: string) => {
+    if (!pendingAction) return;
+    
+    executeAction(pendingAction, selectedTargets, alternativeCostCard);
+    setPendingAction(null);
+  };
+
+  const handleCancelTargetSelection = () => {
+    setPendingAction(null);
   };
 
   if (isLoading || !gameState) {
@@ -315,6 +362,57 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           />
         </div>
       </div>
+
+      {/* Target Selection Modal */}
+      {pendingAction && (
+        <TargetSelectionModal
+          action={pendingAction}
+          availableTargets={getAvailableTargets(pendingAction)}
+          onConfirm={handleTargetSelection}
+          onCancel={handleCancelTargetSelection}
+          alternativeCostOptions={
+            pendingAction.alternative_cost_available
+              ? [...humanPlayer.in_play, ...(humanPlayer.hand || [])]
+              : undefined
+          }
+        />
+      )}
     </div>
   );
+
+  // Helper function to get available target cards based on target options
+  function getAvailableTargets(action: ValidAction): Card[] {
+    if (!action.target_options || action.target_options.length === 0) {
+      return [];
+    }
+
+    // Build list of searchable cards based on action type
+    // Most effects target opponent's zones, but some (Wake, Sun) target your own zones
+    // Wake: targets your sleep zone only
+    // Sun: targets opponent's in_play only
+    // Twist: targets opponent's in_play only
+    // Copy: targets your in_play only
+    const isWake = action.card_name === 'Wake';
+    const isCopy = action.card_name === 'Copy';
+    
+    let allCards: Card[] = [];
+    if (isWake) {
+      // Wake: only search human player's sleep zone
+      allCards = [...humanPlayer.sleep_zone];
+    } else if (isCopy) {
+      // Copy: only search human player's in_play
+      allCards = [...humanPlayer.in_play];
+    } else {
+      // Default: search both players' in_play and sleep zones (but not hand to avoid duplicates)
+      allCards = [
+        ...humanPlayer.in_play,
+        ...humanPlayer.sleep_zone,
+        ...aiPlayer.in_play,
+        ...aiPlayer.sleep_zone,
+      ];
+    }
+
+    // Filter using card IDs (target_options now contains IDs instead of names)
+    return allCards.filter(card => action.target_options?.includes(card.id));
+  }
 }

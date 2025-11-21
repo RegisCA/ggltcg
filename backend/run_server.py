@@ -6,7 +6,14 @@ Start the GGLTCG FastAPI server.
 import argparse
 import sys
 import os
+import logging
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))

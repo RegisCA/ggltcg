@@ -53,6 +53,10 @@ class LLMPlayer:
         """
         self.provider = provider
         
+        # Store last target/alternative cost selections from LLM
+        self._last_target_id: Optional[str] = None
+        self._last_alternative_cost_id: Optional[str] = None
+        
         if provider == "anthropic":
             from anthropic import Anthropic
             
@@ -158,6 +162,8 @@ class LLMPlayer:
             # Extract action number (1-based from prompt, convert to 0-based index)
             action_number = response_data.get("action_number")
             reasoning = response_data.get("reasoning", "No reasoning provided")
+            target_id = response_data.get("target_id")
+            alternative_cost_id = response_data.get("alternative_cost_id")
             
             # DEBUG: Log all actions with their numbers
             logger.info("=" * 60)
@@ -185,8 +191,16 @@ class LLMPlayer:
             selected_action = valid_actions[action_index]
             logger.info(f"✅ AI Decision: {selected_action.description}")
             logger.info(f"💭 Reasoning: {reasoning}")
+            if target_id:
+                logger.info(f"🎯 Target: {target_id}")
+            if alternative_cost_id:
+                logger.info(f"💰 Alternative Cost: {alternative_cost_id}")
             logger.info(f"DEBUG - Returning action_index: {action_index}")
             logger.info("=" * 60)
+            
+            # Store target and alternative cost selections
+            self._last_target_id = target_id
+            self._last_alternative_cost_id = alternative_cost_id
             
             return (action_index, reasoning)
         
@@ -316,6 +330,7 @@ class LLMPlayer:
     ) -> Dict[str, Any]:
         """
         Convert a ValidAction into the request parameters needed for the API.
+        Uses target_id and alternative_cost_id from the last LLM response.
         
         Args:
             selected_action: The action selected by the AI
@@ -327,22 +342,50 @@ class LLMPlayer:
         
         if selected_action.action_type == "play_card":
             result["action_type"] = "play_card"
-            result["card_name"] = selected_action.card_name
-            # Note: For cards requiring targets, we'd need additional logic
-            # For MVP, assuming simple cards or random target selection
+            result["card_id"] = selected_action.card_id
+            
+            # Handle target selection (for cards like Twist, Wake, Copy, Sun)
+            if self._last_target_id:
+                result["target_id"] = self._last_target_id
+                logger.info(f"Using AI-selected target: {self._last_target_id}")
+            elif selected_action.target_options:
+                # Fallback: Use first available target if AI didn't specify
+                result["target_id"] = selected_action.target_options[0]
+                logger.warning(f"AI didn't specify target, using first option: {result['target_id']}")
+            
+            # Handle alternative cost (for Ballaber)
+            if self._last_alternative_cost_id:
+                result["alternative_cost_card_id"] = self._last_alternative_cost_id
+                logger.info(f"Using AI-selected alternative cost: {self._last_alternative_cost_id}")
+            elif selected_action.alternative_cost_options and len(selected_action.alternative_cost_options) > 0:
+                # Fallback: Use first available alternative cost card if AI didn't specify
+                result["alternative_cost_card_id"] = selected_action.alternative_cost_options[0]
+                logger.warning(f"AI didn't specify alternative cost, using first option: {result['alternative_cost_card_id']}")
         
         elif selected_action.action_type == "tussle":
             result["action_type"] = "tussle"
-            result["attacker_name"] = selected_action.card_name
+            result["attacker_id"] = selected_action.card_id
             
-            # Check if this is a direct attack or targeted tussle
-            if selected_action.target_options and selected_action.target_options[0] != "direct_attack":
-                result["defender_name"] = selected_action.target_options[0]
+            # Handle target selection for tussles
+            if self._last_target_id:
+                result["defender_id"] = self._last_target_id
+                logger.info(f"Using AI-selected tussle target: {self._last_target_id}")
+            elif selected_action.target_options:
+                # Check if this is a direct attack or targeted tussle
+                if selected_action.target_options[0] == "direct_attack":
+                    result["defender_id"] = None  # Direct attack
+                else:
+                    result["defender_id"] = selected_action.target_options[0]
+                    logger.warning(f"AI didn't specify tussle target, using first option: {result['defender_id']}")
             else:
-                result["defender_name"] = None  # Direct attack
+                result["defender_id"] = None  # Direct attack
         
         elif selected_action.action_type == "end_turn":
             result["action_type"] = "end_turn"
+        
+        # Clear stored selections after use
+        self._last_target_id = None
+        self._last_alternative_cost_id = None
         
         return result
     

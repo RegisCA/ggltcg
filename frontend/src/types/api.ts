@@ -25,15 +25,16 @@ export interface GameCreateResponse {
 // Player Actions
 export interface PlayCardRequest {
   player_id: string;
-  card_name: string;
-  target_card_name?: string;
-  target_card_names?: string[];
+  card_id: string;  // Unique card instance ID
+  target_card_id?: string;  // Target card ID for single-target effects
+  target_card_ids?: string[];  // Multiple target card IDs (e.g., Sun)
+  alternative_cost_card_id?: string;  // Card ID to sleep for alternative cost (e.g., Ballaber)
 }
 
 export interface TussleRequest {
   player_id: string;
-  attacker_name: string;
-  defender_name?: string;
+  attacker_id: string;  // ID of attacking card
+  defender_id?: string;  // ID of defending card (undefined for direct attack)
 }
 
 export interface EndTurnRequest {

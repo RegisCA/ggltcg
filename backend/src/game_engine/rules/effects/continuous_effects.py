@@ -47,6 +47,11 @@ class WizardEffect(CostModificationEffect):
     Multiple Wizards don't stack (cost stays at 1).
     """
     
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Wizard doesn't modify stats."""
+        return base_value
+    
     def modify_tussle_cost(self, base_cost: int, game_state: "GameState",
                           controller: "Player") -> int:
         """Set tussle cost to 1 for Wizard's controller."""
@@ -56,17 +61,6 @@ class WizardEffect(CostModificationEffect):
             return 1
         
         return base_cost
-    
-    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
-                   game_state: "GameState") -> int:
-        """Wizard also grants +1 to all stats."""
-        card_controller = game_state.get_card_controller(card)
-        wizard_controller = game_state.get_card_controller(self.source_card)
-        
-        if card_controller and wizard_controller and card_controller == wizard_controller:
-            return base_value + 1
-        
-        return base_value
 
 
 class DemidecaEffect(ContinuousEffect):
@@ -222,6 +216,68 @@ class BearyProtectionEffect(ProtectionEffect):
         return effect.source_card.name == "Knight"
 
 
+class DreamCostEffect(CostModificationEffect):
+    """
+    Dream: "This card costs 1 less for each of your sleeping cards."
+    
+    Reduces Dream's cost by 1 CC for each card in the controller's Sleep Zone.
+    Cost cannot go below 0.
+    """
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Dream cost effect doesn't modify card stats."""
+        return base_value
+    
+    def modify_card_cost(self, card: "Card", base_cost: int,
+                        game_state: "GameState", player: "Player") -> int:
+        """Reduce Dream's cost based on sleeping cards."""
+        # Only applies to Dream itself
+        if card != self.source_card:
+            return base_cost
+        
+        # Get the controller of Dream (the player trying to play it)
+        dream_controller = game_state.get_card_owner(self.source_card)
+        
+        # Only applies when the controller is playing it
+        if dream_controller != player:
+            return base_cost
+        
+        # Count sleeping cards
+        sleeping_count = len(player.sleep_zone)
+        
+        # Reduce cost by 1 per sleeping card
+        modified_cost = base_cost - sleeping_count
+        
+        return max(0, modified_cost)  # Cost can't go below 0
+
+
+class BallaberCostEffect(CostModificationEffect):
+    """
+    Ballaber: "You may sleep 1 of your cards to play this card for free."
+    
+    Offers an alternative cost: instead of paying 3 CC, the player can
+    sleep one of their own cards in play to play Ballaber for 0 CC.
+    """
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Ballaber cost effect doesn't modify card stats."""
+        return base_value
+    
+    def modify_card_cost(self, card: "Card", base_cost: int,
+                        game_state: "GameState", player: "Player") -> int:
+        """If using alternative cost, set cost to 0."""
+        # Only applies to Ballaber itself
+        if card != self.source_card:
+            return base_cost
+        
+        # Check if player is using alternative cost
+        # This is indicated by 'use_alternative_cost' in game state context
+        # The actual sleeping of the card happens during payment
+        return base_cost  # Default cost, modified by payment method choice
+
+
 class ArcherRestrictionEffect(ContinuousEffect):
     """
     Archer: "This card can't start tussles."
@@ -248,3 +304,5 @@ EffectRegistry.register_effect("Knight", KnightProtectionEffect)
 EffectRegistry.register_effect("Knight", KnightWinConditionEffect)
 EffectRegistry.register_effect("Beary", BearyProtectionEffect)
 EffectRegistry.register_effect("Archer", ArcherRestrictionEffect)
+EffectRegistry.register_effect("Dream", DreamCostEffect)
+EffectRegistry.register_effect("Ballaber", BallaberCostEffect)

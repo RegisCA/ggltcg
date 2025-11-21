@@ -196,6 +196,15 @@ class GameEngine:
                         card, final_cost, self.game_state, player
                     )
         
+        # Also check the card itself for self-cost modifications (e.g., Dream)
+        # This allows cards in hand to modify their own cost
+        card_effects = EffectRegistry.get_effects(card)
+        for effect in card_effects:
+            if isinstance(effect, CostModificationEffect):
+                final_cost = effect.modify_card_cost(
+                    card, final_cost, self.game_state, player
+                )
+        
         return max(0, final_cost)  # Cost can't go below 0
     
     def play_card(self, player: Player, card: Card, **kwargs: Any) -> bool:
@@ -216,15 +225,38 @@ class GameEngine:
             self.game_state.log_event(f"Cannot play {card.name}: {reason}")
             return False
         
-        # Calculate and pay cost (pass target_name for Copy if available)
-        target_name = kwargs.get("target_name")
-        cost = self.calculate_card_cost(card, player, target_name=target_name)
-        if not player.spend_cc(cost):
-            return False
+        # Handle Ballaber's alternative cost
+        alternative_cost_paid = kwargs.get("alternative_cost_paid", False)
+        alternative_cost_card_name = kwargs.get("alternative_cost_card", None)
         
-        self.game_state.log_event(
-            f"{player.name} plays {card.name} (cost: {cost} CC)"
-        )
+        if alternative_cost_paid and card.name == "Ballaber" and alternative_cost_card_name:
+            # Find and sleep the alternative cost card
+            card_to_sleep = None
+            for c in player.in_play + (player.hand or []):
+                if c.name == alternative_cost_card_name and c.name != "Ballaber":
+                    card_to_sleep = c
+                    break
+            
+            if card_to_sleep:
+                self.game_state.sleep_card(card_to_sleep, was_in_play=(card_to_sleep.zone == Zone.IN_PLAY))
+                self.game_state.log_event(
+                    f"{player.name} plays {card.name} by sleeping {alternative_cost_card_name} (alternative cost)"
+                )
+            else:
+                # Alternative cost card not found - fall back to normal cost
+                alternative_cost_paid = False
+                self.game_state.log_event(f"Alternative cost card {alternative_cost_card_name} not found, paying normal cost")
+        
+        # Calculate and pay normal cost if not using alternative cost
+        if not alternative_cost_paid:
+            target_name = kwargs.get("target_name")
+            cost = self.calculate_card_cost(card, player, target_name=target_name)
+            if not player.spend_cc(cost):
+                return False
+            
+            self.game_state.log_event(
+                f"{player.name} plays {card.name} (cost: {cost} CC)"
+            )
         
         # Remove from hand
         player.hand.remove(card)
@@ -233,6 +265,7 @@ class GameEngine:
         if card.card_type == CardType.TOY:
             # Toys go to in play
             card.zone = Zone.IN_PLAY
+            card.controller = player.player_id  # Set controller when entering play
             player.in_play.append(card)
             
             # Trigger "when played" effects

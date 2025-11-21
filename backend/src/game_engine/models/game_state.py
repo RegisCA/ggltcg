@@ -226,11 +226,20 @@ class GameState:
         """
         # Remove from current controller
         current_controller = self.get_card_controller(card)
-        if current_controller:
+        if not current_controller:
+            return
+        
+        # Remove from old controller's in_play
+        if card in current_controller.in_play:
             current_controller.in_play.remove(card)
+        
+        # Update controller field
+        card.controller = new_controller.player_id
         
         # Add to new controller
         new_controller.in_play.append(card)
+        
+        self.log_event(f"Control of {card.name} changed from {current_controller.name} to {new_controller.name}")
     
     def play_card_from_hand(self, card: Card, player: Player) -> None:
         """
@@ -284,6 +293,31 @@ class GameState:
             card = player.get_card_by_name(name)
             if card:
                 return card
+        return None
+    
+    def find_card_by_id(self, card_id: str) -> Optional[Card]:
+        """
+        Find a card by its unique ID across all zones and players.
+        
+        Args:
+            card_id: Unique card instance ID
+            
+        Returns:
+            Card if found, None otherwise
+        """
+        for player in self.players.values():
+            # Search in hand
+            for card in player.hand:
+                if card.id == card_id:
+                    return card
+            # Search in play
+            for card in player.in_play:
+                if card.id == card_id:
+                    return card
+            # Search in sleep zone
+            for card in player.sleep_zone:
+                if card.id == card_id:
+                    return card
         return None
     
     def to_dict(self, requesting_player_id: Optional[str] = None) -> Dict[str, Any]:

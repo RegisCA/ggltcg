@@ -75,16 +75,17 @@ class CardDataResponse(BaseModel):
 class PlayCardRequest(BaseModel):
     """Request to play a card from hand."""
     player_id: str = Field(..., description="ID of player playing the card")
-    card_name: str = Field(..., description="Name of card to play")
-    target_card_name: Optional[str] = Field(None, description="Target card name for effects that require targets")
-    target_card_names: Optional[List[str]] = Field(None, description="Multiple target card names (e.g., Sun)")
+    card_id: str = Field(..., description="ID of card to play")
+    target_card_id: Optional[str] = Field(None, description="Target card ID for effects that require targets")
+    target_card_ids: Optional[List[str]] = Field(None, description="Multiple target card IDs (e.g., Sun)")
+    alternative_cost_card_id: Optional[str] = Field(None, description="Card ID to sleep for alternative cost (e.g., Ballaber)")
 
 
 class TussleRequest(BaseModel):
     """Request to initiate a tussle."""
     player_id: str = Field(..., description="ID of player initiating tussle")
-    attacker_name: str = Field(..., description="Name of attacking card")
-    defender_name: Optional[str] = Field(None, description="Name of defending card (None for direct attack)")
+    attacker_id: str = Field(..., description="ID of attacking card")
+    defender_id: Optional[str] = Field(None, description="ID of defending card (None for direct attack)")
 
 
 class EndTurnRequest(BaseModel):
@@ -117,6 +118,7 @@ class ActionResponse(BaseModel):
 
 class CardState(BaseModel):
     """Current state of a card."""
+    id: str  # Unique card instance ID
     name: str
     card_type: str
     cost: int
@@ -166,9 +168,14 @@ class GameStateResponse(BaseModel):
 class ValidAction(BaseModel):
     """Description of a valid action a player can take."""
     action_type: str  # "play_card", "tussle", "end_turn", "activate_ability"
-    card_name: Optional[str] = None
-    target_options: Optional[List[str]] = None
+    card_id: Optional[str] = None  # Unique ID of the card for this action
+    card_name: Optional[str] = None  # Display name (for UI convenience)
+    target_options: Optional[List[str]] = Field(None, description="List of valid target card IDs")
+    max_targets: Optional[int] = Field(None, description="Maximum number of targets to select (e.g., 2 for Sun)")
+    min_targets: Optional[int] = Field(None, description="Minimum number of targets to select (e.g., 0 for optional targeting)")
     cost_cc: Optional[int] = None
+    alternative_cost_available: Optional[bool] = Field(None, description="Whether an alternative cost is available (e.g., Ballaber)")
+    alternative_cost_options: Optional[List[str]] = Field(None, description="Card IDs that can be slept for alternative cost")
     description: str
 
 

@@ -91,9 +91,14 @@ class WakeEffect(PlayEffect):
         """Wake requires choosing a card to unsleep."""
         return True
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_min_targets(self) -> int:
+        """Wake requires at least 0 targets (optional if no sleeping cards)."""
+        return 0
+    
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all cards in player's Sleep Zone."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
         if not player:
             return []
         return list(player.sleep_zone)
@@ -126,9 +131,18 @@ class SunEffect(PlayEffect):
         """Sun requires choosing cards to unsleep."""
         return True
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_max_targets(self) -> int:
+        """Sun can unsleep up to 2 cards."""
+        return 2
+    
+    def get_min_targets(self) -> int:
+        """Sun requires at least 0 targets (optional if no sleeping cards)."""
+        return 0
+    
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all cards in player's Sleep Zone."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
         if not player:
             return []
         return list(player.sleep_zone)
@@ -178,13 +192,15 @@ class TwistEffect(PlayEffect):
         """Twist requires choosing an opponent's card."""
         return True
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all opponent's cards in play."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
+        
         if not player:
             return []
         
-        opponent = game_state.get_opponent(player)
+        opponent = game_state.get_opponent(player.player_id)
         if not opponent:
             return []
         
@@ -199,7 +215,7 @@ class TwistEffect(PlayEffect):
             return
         
         # Verify target is opponent's card
-        opponent = game_state.get_opponent(player)
+        opponent = game_state.get_opponent(player.player_id)
         if not opponent:
             return
         
@@ -224,9 +240,10 @@ class CopyEffect(PlayEffect):
         """Copy requires choosing a Toy to copy."""
         return True
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all Toys the player controls in play."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
         if not player:
             return []
         

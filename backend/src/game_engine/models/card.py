@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from enum import Enum
+import uuid
 
 
 class CardType(Enum):
@@ -23,7 +24,8 @@ class Card:
     Represents a card in the game.
     
     Attributes:
-        name: Unique card name
+        id: Unique identifier for this card instance
+        name: Card name (e.g., "Ka", "Twist")
         card_type: Type of card (Toy or Action)
         cost: CC cost to play the card
         effect_text: Text description of card's effect
@@ -42,6 +44,7 @@ class Card:
     card_type: CardType
     cost: int  # Can be -1 for variable cost cards like Copy
     effect_text: str
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     speed: Optional[int] = None
     strength: Optional[int] = None
     stamina: Optional[int] = None

@@ -82,6 +82,7 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
 
   // Convert CardDataResponse to Card for display
   const createCardForDisplay = (cardData: CardDataResponse): Card => ({
+    id: `preview-${cardData.name}`,  // Temporary ID for preview cards
     name: cardData.name,
     card_type: cardData.card_type,
     cost: cardData.cost,

@@ -58,69 +58,133 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    # Find card in hand
-    card = next((c for c in player.hand if c.name == request.card_name), None)
+    # Find card in hand by ID
+    card = next((c for c in player.hand if c.id == request.card_id), None)
     if card is None:
         raise HTTPException(
             status_code=400,
-            detail=f"Card '{request.card_name}' not found in hand"
+            detail=f"Card with ID '{request.card_id}' not found in hand"
         )
     
     # Prepare kwargs for effect
     kwargs: Dict[str, Any] = {}
     
+    # Handle alternative cost for Ballaber
+    if request.alternative_cost_card_id and card.name == "Ballaber":
+        # Find the card to sleep by ID (can be in hand or in play, but not Ballaber itself)
+        card_to_sleep = next((c for c in (player.in_play + (player.hand or [])) if c.id == request.alternative_cost_card_id and c.name != "Ballaber"), None)
+        if card_to_sleep is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Alternative cost card with ID '{request.alternative_cost_card_id}' not found in hand or play"
+            )
+        # Sleep the card and set cost to 0
+        was_in_play = card_to_sleep in player.in_play
+        game_state.sleep_card(card_to_sleep, was_in_play=was_in_play)
+        kwargs["alternative_cost_paid"] = True
+        kwargs["alternative_cost_card"] = card_to_sleep.name
+        # Override the cost calculation
+        cost = 0
+    else:
+        # Calculate normal cost
+        cost = engine.calculate_card_cost(card, player)
+    
     # Add target if specified
-    if request.target_card_name:
-        target = game_state.find_card_by_name(request.target_card_name)
+    if request.target_card_id:
+        # Find target by ID (no need for zone-specific searching - ID is unique!)
+        target = game_state.find_card_by_id(request.target_card_id)
+        
         if target is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"Target card '{request.target_card_name}' not found"
+                detail=f"Target card with ID '{request.target_card_id}' not found"
             )
         kwargs["target"] = target
-        kwargs["target_name"] = request.target_card_name  # For Copy card
+        kwargs["target_name"] = target.name  # For Copy card
     
     # Add multiple targets if specified
-    if request.target_card_names:
+    if request.target_card_ids:
         targets = []
-        for name in request.target_card_names:
-            target = game_state.find_card_by_name(name)
+        for card_id in request.target_card_ids:
+            target = game_state.find_card_by_id(card_id)
             if target is None:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Target card '{name}' not found"
+                    detail=f"Target card with ID '{card_id}' not found"
                 )
             targets.append(target)
         kwargs["targets"] = targets
     
     # Play the card
     try:
-        # Calculate cost before playing
-        cost = engine.calculate_card_cost(card, player)
-        
-        success = engine.play_card(player, card, **kwargs)
-        
+        effect_outcome = None
+        # If alternative cost was paid, we already slept the card, so override cost to 0
+        if kwargs.get("alternative_cost_paid"):
+            # Manually pay 0 CC and play the card
+            if not player.spend_cc(0):  # This should always succeed
+                return ActionResponse(
+                    success=False,
+                    message="Failed to play card"
+                )
+            # Remove from hand
+            player.hand.remove(card)
+            # Toys go to in play
+            from game_engine.models.card import CardType, Zone
+            if card.card_type == CardType.TOY:
+                card.zone = Zone.IN_PLAY
+                player.in_play.append(card)
+            elif card.card_type == CardType.ACTION:
+                # Actions resolve and go to sleep zone
+                engine._resolve_action_card(card, player, **kwargs)
+                card.zone = Zone.SLEEP
+                player.sleep_zone.append(card)
+            success = True
+        else:
+            # Normal play_card flow
+            success = engine.play_card(player, card, **kwargs)
         if not success:
             return ActionResponse(
                 success=False,
                 message="Failed to play card (insufficient CC or invalid target)"
             )
-        
         # Check state-based actions
         engine.check_state_based_actions()
-        
         # Build description with card effect for Action cards
-        description = f"Spent {cost} CC to play {request.card_name}"
+        description = f"Spent {cost} CC to play {card.name}"
+        target_info = ""  # Track target info for response message
         if card.is_action():
             description += f" ({card.effect_text})"
-        
+            # Try to append effect outcome for Wake, Sun, etc.
+            # For Wake: check which card was unslept
+            if card.name == "Wake" and kwargs.get("target"):
+                target_card = kwargs["target"]
+                description += f". Unslept {target_card.name}"
+                target_info = f" (unslept {target_card.name})"
+            # For Sun: show targets
+            if card.name == "Sun" and kwargs.get("targets"):
+                target_names = [t.name for t in kwargs["targets"]]
+                description += f". Sleeped {', '.join(target_names)}"
+                target_info = f" (sleeped {', '.join(target_names)})"
+            # For Copy: show what was copied
+            if card.name == "Copy" and kwargs.get("target"):
+                target_card = kwargs["target"]
+                description += f". Copied {target_card.name}"
+                target_info = f" (copied {target_card.name})"
+            # For Twist: show which card was taken control of
+            if card.name == "Twist" and kwargs.get("target"):
+                target_card = kwargs["target"]
+                description += f". Took control of {target_card.name}"
+                target_info = f" (took control of {target_card.name})"
+        # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
+        if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
+            alt_card = kwargs["alternative_cost_card"]
+            description += f". Slept {alt_card} for alternative cost"
         # Log to play-by-play BEFORE victory check (so action appears first)
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="play_card",
             description=description,
         )
-        
         # Check for victory (some cards like action cards might cause instant victory)
         winner = game_state.check_victory()
         if winner:
@@ -136,13 +200,11 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
                 message=f"Card played! {game_state.players[winner].name} wins the game!",
                 game_state={"winner": winner, "is_game_over": True}
             )
-        
         return ActionResponse(
             success=True,
-            message=f"Successfully played {request.card_name}",
+            message=f"Successfully played {card.name}{target_info}",
             game_state={"turn": game_state.turn_number, "phase": game_state.phase.value}
         )
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -174,24 +236,23 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    # Find attacker
-    attacker = next((c for c in player.in_play if c.name == request.attacker_name), None)
+    # Find attacker by ID
+    attacker = next((c for c in player.in_play if c.id == request.attacker_id), None)
     if attacker is None:
         raise HTTPException(
             status_code=400,
-            detail=f"Attacker '{request.attacker_name}' not found in play"
+            detail=f"Attacker with ID '{request.attacker_id}' not found in play"
         )
     
     # Find defender (if specified)
     defender = None
-    if request.defender_name:
-        # Search for defender specifically in opponent's play area
-        opponent = game_state.get_opponent(player.player_id)
-        defender = next((c for c in opponent.in_play if c.name == request.defender_name), None)
+    if request.defender_id:
+        # Find defender by ID (no need to restrict search - ID is globally unique)
+        defender = game_state.find_card_by_id(request.defender_id)
         if defender is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"Defender '{request.defender_name}' not found in opponent's play area"
+                detail=f"Defender with ID '{request.defender_id}' not found"
             )
     
     # Initiate tussle
@@ -211,11 +272,11 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         engine.check_state_based_actions()
         
         # Log to play-by-play with cost BEFORE victory check (so action appears first)
-        target_desc = request.defender_name if request.defender_name else "opponent directly"
+        target_desc = defender.name if defender else "opponent directly"
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="tussle",
-            description=f"Spent {cost} CC for {request.attacker_name} to tussle {target_desc}",
+            description=f"Spent {cost} CC for {attacker.name} to tussle {target_desc}",
         )
         
         # Check for victory
@@ -330,31 +391,123 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
         
         # Check which cards can be played
         for card in player.hand:
-            if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
-                cost = engine.calculate_card_cost(card, player)
-                
-                # Special handling for Copy - show available targets
-                if card.name == "Copy" and player.in_play:
-                    # List all cards in play as potential targets
-                    target_options = [c.name for c in player.in_play]
+            can_play, reason = engine.can_play_card(card, player)
+            cost = engine.calculate_card_cost(card, player)
+            
+            # Check if card's effect requires targets
+            from game_engine.rules.effects import EffectRegistry
+            from game_engine.rules.effects.base_effect import PlayEffect
+            
+            target_options = None
+            requires_targets = False
+            max_targets = 1
+            min_targets = 1
+            alternative_cost_available = False
+            alternative_cost_options = None
+            
+            # Check for Ballaber's alternative cost
+            if card.name == "Ballaber":
+                # Can sleep any card in hand or in play except Ballaber itself
+                alt_cards = [c for c in (player.in_play + (player.hand or [])) if c.name != "Ballaber"]
+                if alt_cards:
+                    alternative_cost_available = True
+                    alternative_cost_options = [c.id for c in alt_cards]
+            
+            # Allow card if it can be played normally OR if alternate cost is available
+            if not can_play and not alternative_cost_available:
+                continue
+            
+            # Get all effects for this card
+            effects = EffectRegistry.get_effects(card)
+            logger.debug(f"Card {card.name}: Found {len(effects)} effects")
+            for effect in effects:
+                logger.debug(f"  Effect: {type(effect).__name__}, is PlayEffect: {isinstance(effect, PlayEffect)}")
+                if isinstance(effect, PlayEffect):
+                    logger.debug(f"  requires_targets: {effect.requires_targets()}")
+                if isinstance(effect, PlayEffect) and effect.requires_targets():
+                    max_targets = effect.get_max_targets()
+                    min_targets = effect.get_min_targets()
+                    valid_targets = effect.get_valid_targets(game_state, player)  # Pass player!
+                    logger.debug(f"Card {card.name}: requires_targets={effect.requires_targets()}, valid_targets={[t.name for t in valid_targets] if valid_targets else 'None'}")
+                    if valid_targets:
+                        target_options = [t.id for t in valid_targets]
+                        logger.debug(f"Card {card.name}: target_options set to {len(target_options)} IDs")
+                    # Mark as requiring targets only if valid targets exist or min_targets == 0
+                    requires_targets = bool(valid_targets) or min_targets == 0
+                    break
+            
+            # Build description
+            desc = f"Play {card.name} (Cost: {cost} CC"
+            if alternative_cost_available:
+                desc += " or sleep a card"
+            
+            # Special handling for Copy - cost varies by target
+            if card.name == "Copy" and target_options:
+                logger.debug(f"Creating Copy action with {len(target_options)} targets")
+                valid_actions.append(
+                    ValidAction(
+                        action_type="play_card",
+                        card_id=card.id,
+                        card_name=card.name,
+                        cost_cc=cost,
+                        target_options=target_options,
+                        max_targets=max_targets,
+                        min_targets=min_targets,
+                        description=f"Play {card.name} (select target - cost varies)"
+                    )
+                )
+            elif requires_targets and target_options:
+                # Card requires target selection
+                logger.debug(f"Creating {card.name} action with targets: requires_targets={requires_targets}, target_options={len(target_options)} IDs")
+                target_desc = f"select up to {max_targets} targets" if max_targets > 1 else "select target"
+                desc += f", {target_desc}"
+                valid_actions.append(
+                    ValidAction(
+                        action_type="play_card",
+                        card_id=card.id,
+                        card_name=card.name,
+                        cost_cc=cost,
+                        target_options=target_options,
+                        max_targets=max_targets,
+                        min_targets=min_targets,
+                        alternative_cost_available=alternative_cost_available,
+                        alternative_cost_options=alternative_cost_options,
+                        description=desc + ")"
+                    )
+                )
+            elif requires_targets and not target_options:
+                # Card requires targets but none available
+                logger.debug(f"{card.name}: requires_targets but no target_options (min_targets={min_targets})")
+                # If min_targets is 0, card can still be played
+                if min_targets == 0:
+                    desc += ", no targets available)"
                     valid_actions.append(
                         ValidAction(
                             action_type="play_card",
+                            card_id=card.id,
                             card_name=card.name,
                             cost_cc=cost,
-                            target_options=target_options,
-                            description=f"Play {card.name} (Cost varies by target: {', '.join(f'{t}={engine.calculate_card_cost(player.get_card_by_name(t), player)}' for t in target_options)})"
+                            alternative_cost_available=alternative_cost_available,
+                            alternative_cost_options=alternative_cost_options,
+                            description=desc
                         )
                     )
-                else:
-                    valid_actions.append(
-                        ValidAction(
-                            action_type="play_card",
-                            card_name=card.name,
-                            cost_cc=cost,
-                            description=f"Play {card.name} (Cost: {cost} CC)"
-                        )
+                # Otherwise skip - can't play without required targets
+            else:
+                # No targets required
+                logger.debug(f"Creating {card.name} action without targets (simple card)")
+                desc += ")"
+                valid_actions.append(
+                    ValidAction(
+                        action_type="play_card",
+                        card_id=card.id,
+                        card_name=card.name,
+                        cost_cc=cost,
+                        alternative_cost_available=alternative_cost_available,
+                        alternative_cost_options=alternative_cost_options,
+                        description=desc
                     )
+                )
         
         # Check which cards can tussle
         opponent = game_state.get_opponent(player_id)
@@ -368,6 +521,7 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
                     valid_actions.append(
                         ValidAction(
                             action_type="tussle",
+                            card_id=card.id,
                             card_name=card.name,
                             cost_cc=cost,
                             target_options=["direct_attack"],
@@ -383,9 +537,10 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
                             valid_actions.append(
                                 ValidAction(
                                     action_type="tussle",
+                                    card_id=card.id,
                                     card_name=card.name,
                                     cost_cc=cost,
-                                    target_options=[defender.name],
+                                    target_options=[defender.id],
                                     description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
                                 )
                             )
@@ -449,16 +604,109 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         )
     )
     
-    # Check which cards can be played
+    # Check which cards can be played (use same logic as get_valid_actions endpoint)
+    from game_engine.rules.effects import EffectRegistry
+    from game_engine.rules.effects.base_effect import PlayEffect
+    
     for card in player.hand:
-        if engine.can_play_card(card, player)[0]:  # can_play_card returns (bool, str)
-            cost = engine.calculate_card_cost(card, player)
+        can_play, reason = engine.can_play_card(card, player)
+        cost = engine.calculate_card_cost(card, player)
+        
+        # Check if card's effect requires targets
+        target_options = None
+        requires_targets = False
+        max_targets = 1
+        min_targets = 1
+        alternative_cost_available = False
+        alternative_cost_options = None
+        
+        # Check for Ballaber's alternative cost
+        if card.name == "Ballaber":
+            # Can sleep any card in hand or in play except Ballaber itself
+            alt_cards = [c for c in (player.in_play + (player.hand or [])) if c.name != "Ballaber"]
+            if alt_cards:
+                alternative_cost_available = True
+                alternative_cost_options = [c.id for c in alt_cards]
+        
+        # Allow card if it can be played normally OR if alternate cost is available
+        if not can_play and not alternative_cost_available:
+            continue
+        
+        # Get all effects for this card
+        effects = EffectRegistry.get_effects(card)
+        logger.debug(f"AI turn - Card {card.name}: Found {len(effects)} effects")
+        for effect in effects:
+            logger.debug(f"AI turn -   Effect: {type(effect).__name__}, is PlayEffect: {isinstance(effect, PlayEffect)}")
+            if isinstance(effect, PlayEffect):
+                logger.debug(f"AI turn -   requires_targets: {effect.requires_targets()}")
+            if isinstance(effect, PlayEffect) and effect.requires_targets():
+                max_targets = effect.get_max_targets()
+                min_targets = effect.get_min_targets()
+                valid_targets = effect.get_valid_targets(game_state, player)  # Pass player!
+                logger.debug(f"AI turn - Card {card.name}: requires_targets={effect.requires_targets()}, valid_targets={[t.name for t in valid_targets] if valid_targets else 'None'}")
+                if valid_targets:
+                    target_options = [t.id for t in valid_targets]
+                    logger.debug(f"AI turn - Card {card.name}: target_options set to {len(target_options)} IDs")
+                # Mark as requiring targets only if valid targets exist or min_targets == 0
+                requires_targets = bool(valid_targets) or min_targets == 0
+                break
+        
+        # Build description
+        desc = f"Play {card.name} (Cost: {cost} CC"
+        if alternative_cost_available:
+            desc += " or sleep a card"
+        
+        # Special handling for Copy - cost varies by target
+        if card.name == "Copy" and target_options:
+            logger.debug(f"AI turn - Creating Copy action with {len(target_options)} targets")
             valid_actions.append(
                 ValidAction(
                     action_type="play_card",
+                    card_id=card.id,
                     card_name=card.name,
                     cost_cc=cost,
-                    description=f"Play {card.name} (Cost: {cost} CC)"
+                    target_options=target_options,
+                    max_targets=max_targets,
+                    min_targets=min_targets,
+                    description=f"Play {card.name} (select target - cost varies)"
+                )
+            )
+        elif requires_targets and target_options:
+            # Card requires target selection
+            logger.debug(f"AI turn - Creating {card.name} action with targets: requires_targets={requires_targets}, target_options={len(target_options)} IDs")
+            target_desc = f"select up to {max_targets} targets" if max_targets > 1 else "select target"
+            desc += f", {target_desc}"
+            valid_actions.append(
+                ValidAction(
+                    action_type="play_card",
+                    card_id=card.id,
+                    card_name=card.name,
+                    cost_cc=cost,
+                    target_options=target_options,
+                    max_targets=max_targets,
+                    min_targets=min_targets,
+                    alternative_cost_available=alternative_cost_available,
+                    alternative_cost_options=alternative_cost_options,
+                    description=desc + ")"
+                )
+            )
+        elif requires_targets and not target_options:
+            # Card requires targets but none available - don't include as valid action
+            logger.debug(f"AI turn - {card.name}: requires_targets but no target_options (min_targets={min_targets})")
+            if min_targets > 0:
+                continue  # Skip this card
+        else:
+            # Simple card with no targets
+            logger.debug(f"AI turn - Creating {card.name} action without targets (simple card)")
+            valid_actions.append(
+                ValidAction(
+                    action_type="play_card",
+                    card_id=card.id,
+                    card_name=card.name,
+                    cost_cc=cost,
+                    alternative_cost_available=alternative_cost_available,
+                    alternative_cost_options=alternative_cost_options,
+                    description=desc + ")"
                 )
             )
     
@@ -474,6 +722,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 valid_actions.append(
                     ValidAction(
                         action_type="tussle",
+                        card_id=card.id,
                         card_name=card.name,
                         cost_cc=cost,
                         target_options=["direct_attack"],
@@ -506,9 +755,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                         valid_actions.append(
                             ValidAction(
                                 action_type="tussle",
+                                card_id=card.id,
                                 card_name=card.name,
                                 cost_cc=cost,
-                                target_options=[defender.name],
+                                target_options=[defender.id],
                                 description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
                             )
                         )
@@ -563,8 +813,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         # Build turn summary for response
         turn_summary = {
             "action": action_details["action_type"],
-            "card": action_details.get("card_name") or action_details.get("attacker_name"),
-            "target": action_details.get("defender_name"),
+            "card": action_details.get("card_id") or action_details.get("attacker_id"),
+            "target": action_details.get("defender_id"),
             "cost_cc": selected_action.cost_cc,
             "description": selected_action.description,
             "reasoning": reasoning,
@@ -595,22 +845,65 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             )
         
         elif action_details["action_type"] == "play_card":
-            card_name = action_details["card_name"]
-            card = next((c for c in player.hand if c.name == card_name), None)
+            card_id = action_details["card_id"]
+            card = next((c for c in player.hand if c.id == card_id), None)
             
             if card is None:
-                raise HTTPException(status_code=500, detail=f"AI selected invalid card: {card_name}")
+                raise HTTPException(status_code=500, detail=f"AI selected invalid card ID: {card_id}")
             
             # Calculate cost before playing
             cost = engine.calculate_card_cost(card, player)
             
-            success = engine.play_card(player, card)
+            # Handle alternative cost for Ballaber
+            kwargs = {}
+            alternative_cost_card_id = action_details.get("alternative_cost_card_id")
+            if alternative_cost_card_id and card.name == "Ballaber":
+                card_to_sleep = next((c for c in (player.in_play + (player.hand or [])) if c.id == alternative_cost_card_id and c.name != "Ballaber"), None)
+                if card_to_sleep:
+                    kwargs["alternative_cost_paid"] = True
+                    kwargs["alternative_cost_card"] = card_to_sleep.name
+                    logger.info(f"AI playing Ballaber with alternative cost (sleeping {card_to_sleep.name})")
+                else:
+                    logger.warning(f"AI selected alternative cost card {alternative_cost_card_id} but it wasn't found")
+            
+            # Handle target selection (for cards like Twist, Wake, Copy, Sun)
+            target_id = action_details.get("target_id")
+            if target_id:
+                target = game_state.find_card_by_id(target_id)
+                if target is None:
+                    logger.error(f"AI selected target card {target_id} but it wasn't found")
+                    raise HTTPException(status_code=500, detail=f"Target card with ID '{target_id}' not found")
+                kwargs["target"] = target
+                kwargs["target_name"] = target.name  # For Copy card
+                logger.info(f"AI playing {card.name} with target: {target.name} (ID: {target_id})")
+            
+            success = engine.play_card(player, card, **kwargs)
             engine.check_state_based_actions()
             
             # Build description with card effect for Action cards
-            description = f"Spent {cost} CC to play {card_name}"
+            if kwargs.get("alternative_cost_paid"):
+                description = f"Played {card.name} by sleeping {kwargs['alternative_cost_card']}"
+            else:
+                description = f"Spent {cost} CC to play {card.name}"
             if card.is_action():
                 description += f" ({card.effect_text})"
+                # Add target-specific details (same logic as human player endpoint)
+                if card.name == "Wake" and kwargs.get("target"):
+                    target_card = kwargs["target"]
+                    description += f". Unslept {target_card.name}"
+                elif card.name == "Sun" and kwargs.get("targets"):
+                    target_names = [t.name for t in kwargs["targets"]]
+                    description += f". Sleeped {', '.join(target_names)}"
+                elif card.name == "Copy" and kwargs.get("target"):
+                    target_card = kwargs["target"]
+                    description += f". Copied {target_card.name}"
+                elif card.name == "Twist" and kwargs.get("target"):
+                    target_card = kwargs["target"]
+                    description += f". Took control of {target_card.name}"
+            # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
+            if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
+                alt_card = kwargs["alternative_cost_card"]
+                description += f". Slept {alt_card} for alternative cost"
             
             # Log to play-by-play
             game_state.add_play_by_play(
@@ -623,22 +916,22 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             return ActionResponse(
                 success=success,
-                message=f"AI played {card_name}",
+                message=f"AI played {card.name}",
                 game_state={"turn": game_state.turn_number},
                 ai_turn_summary=turn_summary
             )
         
         elif action_details["action_type"] == "tussle":
-            attacker_name = action_details["attacker_name"]
-            defender_name = action_details.get("defender_name")
+            attacker_id = action_details["attacker_id"]
+            defender_id = action_details.get("defender_id")
             
-            attacker = next((c for c in player.in_play if c.name == attacker_name), None)
+            attacker = next((c for c in player.in_play if c.id == attacker_id), None)
             if attacker is None:
-                raise HTTPException(status_code=500, detail=f"AI selected invalid attacker: {attacker_name}")
+                raise HTTPException(status_code=500, detail=f"AI selected invalid attacker ID: {attacker_id}")
             
             defender = None
-            if defender_name:
-                defender = game_state.find_card_by_name(defender_name)
+            if defender_id:
+                defender = game_state.find_card_by_id(defender_id)
             
             # Calculate cost before tussle
             cost = engine.calculate_tussle_cost(attacker, player)
@@ -647,11 +940,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             engine.check_state_based_actions()
             
             # Log to play-by-play with cost
-            target_desc = defender_name if defender_name else "opponent directly"
+            target_desc = defender.name if defender else "opponent directly"
             game_state.add_play_by_play(
                 player_name=player.name,
                 action_type="tussle",
-                description=f"Spent {cost} CC for {attacker_name} to tussle {target_desc}",
+                description=f"Spent {cost} CC for {attacker.name} to tussle {target_desc}",
                 reasoning=reasoning,
                 ai_endpoint=ai_endpoint_name,
             )
@@ -668,7 +961,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             return ActionResponse(
                 success=success,
-                message=f"AI initiated tussle: {attacker_name} vs {target_desc}",
+                message=f"AI initiated tussle: {attacker.name} vs {target_desc}",
                 game_state={"turn": game_state.turn_number},
                 ai_turn_summary=turn_summary
             )
