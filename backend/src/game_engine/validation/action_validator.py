@@ -312,7 +312,7 @@ class ActionValidator:
             List of ValidAction objects for tussles
         """
         valid_actions = []
-        opponent = self.game_state.get_opponent(player.id)
+        opponent = self.game_state.get_opponent(player.player_id)
         
         for card in player.in_play:
             if card.card_type != CardType.TOY:
