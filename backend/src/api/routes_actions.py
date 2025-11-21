@@ -150,7 +150,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         # Check state-based actions
         engine.check_state_based_actions()
         # Build description with card effect for Action cards
-        description = f"Spent {cost} CC to play {request.card_name}"
+        description = f"Spent {cost} CC to play {card.name}"
         target_info = ""  # Track target info for response message
         if card.is_action():
             description += f" ({card.effect_text})"
@@ -795,11 +795,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             engine.check_state_based_actions()
             
             # Log to play-by-play with cost
-            target_desc = defender_name if defender_name else "opponent directly"
+            target_desc = defender.name if defender else "opponent directly"
             game_state.add_play_by_play(
                 player_name=player.name,
                 action_type="tussle",
-                description=f"Spent {cost} CC for {attacker_name} to tussle {target_desc}",
+                description=f"Spent {cost} CC for {attacker.name} to tussle {target_desc}",
                 reasoning=reasoning,
                 ai_endpoint=ai_endpoint_name,
             )
@@ -816,7 +816,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             return ActionResponse(
                 success=success,
-                message=f"AI initiated tussle: {attacker_name} vs {target_desc}",
+                message=f"AI initiated tussle: {attacker.name} vs {target_desc}",
                 game_state={"turn": game_state.turn_number},
                 ai_turn_summary=turn_summary
             )

@@ -47,6 +47,11 @@ class WizardEffect(CostModificationEffect):
     Multiple Wizards don't stack (cost stays at 1).
     """
     
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Wizard doesn't modify stats."""
+        return base_value
+    
     def modify_tussle_cost(self, base_cost: int, game_state: "GameState",
                           controller: "Player") -> int:
         """Set tussle cost to 1 for Wizard's controller."""
@@ -56,17 +61,6 @@ class WizardEffect(CostModificationEffect):
             return 1
         
         return base_cost
-    
-    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
-                   game_state: "GameState") -> int:
-        """Wizard also grants +1 to all stats."""
-        card_controller = game_state.get_card_controller(card)
-        wizard_controller = game_state.get_card_controller(self.source_card)
-        
-        if card_controller and wizard_controller and card_controller == wizard_controller:
-            return base_value + 1
-        
-        return base_value
 
 
 class DemidecaEffect(ContinuousEffect):

@@ -30,7 +30,7 @@ export function SleepZoneDisplay({ cards, playerName }: SleepZoneDisplayProps) {
         <div style={{ position: 'relative', height: `${stackHeight}px` }}>
           {cardList.map((card, index) => (
             <div
-              key={`${card.name}-${card.zone}`}
+              key={card.id}
               style={{ 
                 position: 'absolute',
                 top: `${index * 28}px`,

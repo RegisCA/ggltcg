@@ -34,7 +34,7 @@ export function HandZone({ cards, selectedCard, onCardClick }: HandZoneProps) {
           <div className="flex gap-2">
             {cardList.map((card) => (
               <CardDisplay
-                key={`${card.name}-${card.zone}`}
+                key={card.id}
                 card={card}
                 size="medium"
                 isSelected={selectedCard === card.name}
