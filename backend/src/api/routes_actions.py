@@ -95,9 +95,22 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         target = game_state.find_card_by_id(request.target_card_id)
         
         if target is None:
+            # Provide detailed diagnostic information
+            all_card_ids = []
+            for p in game_state.players.values():
+                all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
+            
+            logger.error(
+                f"Target card lookup failed:\n"
+                f"  Requested ID: {request.target_card_id}\n"
+                f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
+                f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
+            )
+            
             raise HTTPException(
                 status_code=400,
-                detail=f"Target card with ID '{request.target_card_id}' not found"
+                detail=f"Target card with ID '{request.target_card_id}' not found. "
+                       f"Card may have been moved or removed."
             )
         kwargs["target"] = target
         kwargs["target_name"] = target.name  # For Copy card
@@ -108,9 +121,22 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         for card_id in request.target_card_ids:
             target = game_state.find_card_by_id(card_id)
             if target is None:
+                # Provide detailed diagnostic information
+                all_card_ids = []
+                for p in game_state.players.values():
+                    all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
+                
+                logger.error(
+                    f"Multi-target card lookup failed:\n"
+                    f"  Requested ID: {card_id}\n"
+                    f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
+                    f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
+                )
+                
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Target card with ID '{card_id}' not found"
+                    detail=f"Target card with ID '{card_id}' not found. "
+                           f"Card may have been moved or removed."
                 )
             targets.append(target)
         kwargs["targets"] = targets
@@ -250,9 +276,23 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         # Find defender by ID (no need to restrict search - ID is globally unique)
         defender = game_state.find_card_by_id(request.defender_id)
         if defender is None:
+            # Provide detailed diagnostic information
+            opponent = game_state.get_opponent(player.player_id)
+            opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.sleep_zone)]
+            player_card_ids = [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
+            
+            logger.error(
+                f"Defender card lookup failed:\n"
+                f"  Requested ID: {request.defender_id}\n"
+                f"  Opponent's cards ({len(opponent_card_ids)}): {opponent_card_ids}\n"
+                f"  Player's cards ({len(player_card_ids)}): {player_card_ids}\n"
+                f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
+            )
+            
             raise HTTPException(
                 status_code=400,
-                detail=f"Defender with ID '{request.defender_id}' not found"
+                detail=f"Defender card with ID '{request.defender_id}' not found. "
+                       f"Card may have been moved or removed from play."
             )
     
     # Initiate tussle
@@ -871,8 +911,23 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             if target_id:
                 target = game_state.find_card_by_id(target_id)
                 if target is None:
-                    logger.error(f"AI selected target card {target_id} but it wasn't found")
-                    raise HTTPException(status_code=500, detail=f"Target card with ID '{target_id}' not found")
+                    # Provide detailed diagnostic information
+                    all_card_ids = []
+                    for p in game_state.players.values():
+                        all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
+                    
+                    logger.error(
+                        f"AI target card lookup failed:\n"
+                        f"  Requested ID: {target_id}\n"
+                        f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
+                        f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}\n"
+                        f"  AI was playing: {card.name}"
+                    )
+                    
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"AI target card with ID '{target_id}' not found. Card may have been moved or removed."
+                    )
                 kwargs["target"] = target
                 kwargs["target_name"] = target.name  # For Copy card
                 logger.info(f"AI playing {card.name} with target: {target.name} (ID: {target_id})")
@@ -932,6 +987,26 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             defender = None
             if defender_id:
                 defender = game_state.find_card_by_id(defender_id)
+                if defender is None:
+                    # Provide detailed diagnostic information
+                    opponent = game_state.get_opponent(player_id)
+                    opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.sleep_zone)]
+                    player_card_ids = [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
+                    
+                    logger.error(
+                        f"AI tussle defender lookup failed:\n"
+                        f"  Requested defender ID: {defender_id}\n"
+                        f"  Attacker: {attacker.name} (ID: {attacker_id})\n"
+                        f"  Opponent's cards ({len(opponent_card_ids)}): {opponent_card_ids}\n"
+                        f"  Player's cards ({len(player_card_ids)}): {player_card_ids}\n"
+                        f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
+                    )
+                    
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"AI tussle execution failed: Defender card with ID '{defender_id}' not found. "
+                               f"Card may have been moved or removed from play."
+                    )
             
             # Calculate cost before tussle
             cost = engine.calculate_tussle_cost(attacker, player)
