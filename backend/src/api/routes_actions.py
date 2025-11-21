@@ -421,7 +421,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             try:
                 result = executor.execute_play_card(
-                    player_id=request.player_id,
+                    player_id=player_id,
                     card_id=card_id,
                     target_card_id=action_details.get("target_id"),
                     alternative_cost_card_id=action_details.get("alternative_cost_card_id")
@@ -470,7 +470,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             try:
                 result = executor.execute_tussle(
-                    player_id=request.player_id,
+                    player_id=player_id,
                     attacker_id=action_details["attacker_id"],
                     defender_id=action_details.get("defender_id")
                 )
