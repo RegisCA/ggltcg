@@ -367,7 +367,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       {pendingAction && (
         <TargetSelectionModal
           action={pendingAction}
-          availableTargets={getAvailableTargets(pendingAction, gameState)}
+          availableTargets={getAvailableTargets(pendingAction)}
           onConfirm={handleTargetSelection}
           onCancel={handleCancelTargetSelection}
           alternativeCostOptions={
@@ -381,7 +381,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   );
 
   // Helper function to get available target cards based on target options
-  function getAvailableTargets(action: ValidAction, state: GameState): Card[] {
+  function getAvailableTargets(action: ValidAction): Card[] {
     if (!action.target_options || action.target_options.length === 0) {
       return [];
     }
@@ -393,7 +393,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     // Twist: targets opponent's in_play only
     // Copy: targets your in_play only
     const isWake = action.card_name === 'Wake';
-    const isSun = action.card_name === 'Sun';
     const isCopy = action.card_name === 'Copy';
     
     let allCards: Card[] = [];
