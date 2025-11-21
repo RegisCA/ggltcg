@@ -234,16 +234,40 @@ All backend development finished:
    - Improved visual distinction with blue background for hand zone
    - All zones properly handle null/empty states
 
+**New Features (November 21, 2025):**
+
+1. ✅ **Multiplayer Lobby System** - Complete multiplayer support with:
+   - LobbyHome component with 3 game modes (Create, Join, Play vs AI)
+   - LobbyCreate for game code generation and waiting room
+   - LobbyJoin with 6-character code validation
+   - LobbyWaiting with real-time polling (2s interval) and deck selection coordination
+   - Backend lobby endpoints (createLobby, joinLobby, getLobbyStatus, startLobbyGame)
+   - Auto-start when both players ready with decks
+   - Proper cleanup on navigation
+   
+2. ✅ **Target Selection Modal** - Polished UI for cards requiring targets:
+   - Centered floating modal with 80% opacity backdrop
+   - Support for Copy, Sun, Wake, Twist targeting
+   - Ballaber alternative cost selection (pay CC or sleep a card)
+   - Optional target support (Sun with no targets)
+   - Single/multi-target selection validation
+   - Clean header with action buttons (Cancel/Confirm)
+   - Proper scrolling for large target lists
+   - Inline styles for reliable centering
+
 **Outstanding Issues:**
-- Issue #5: UI/UX improvements (card names in zones, game log display, animations)
-- Issue #14: Frontend enhancements for Copy card target selection and AI turn summary display
+- Issue #5: UI/UX improvements (animations, visual effects)
+- Issue #14: ~~Frontend enhancements for Copy card target selection~~ ✅ COMPLETE
 
 **Testing Status:**
-- ✅ End-to-end gameplay working
+
+- ✅ End-to-end gameplay working (single-player and multiplayer)
 - ✅ Tussle mechanics validated
 - ✅ AI opponent playing complete games
-- ✅ All card effects functional
+- ✅ All card effects functional (including target selection)
 - ✅ Victory conditions working
+- ✅ Multiplayer lobby flow tested
+- ✅ Target selection modal tested with all cards
 
 ### 📊 Project Statistics
 
@@ -335,6 +359,7 @@ Open <http://localhost:5175> in your browser and play!
 ### 📝 Development Notes
 
 **Key Design Decisions Made:**
+
 1. **Effect System:** Plugin-based with separate classes per card effect
 2. **State Management:** Immutable-friendly with clear serialization
 3. **CC Banking:** Implemented with 7 CC maximum cap as per rules v1.1
@@ -342,11 +367,13 @@ Open <http://localhost:5175> in your browser and play!
 5. **API Design:** RESTful with JSON state transport
 
 **GitHub Copilot Usage:**
+
 - Used for code generation with clear docstrings
 - Leveraging COPILOT_CONTEXT.md for project context
 - Following Python type hints and best practices
 
 **Next Copilot Session Focus:**
+
 - Effect system architecture
 - Individual card effect implementations
 - FastAPI route handlers

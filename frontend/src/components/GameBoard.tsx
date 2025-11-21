@@ -16,7 +16,7 @@ import { TargetSelectionModal } from './TargetSelectionModal';
 interface GameBoardProps {
   gameId: string;
   humanPlayerId: string;
-  aiPlayerId: string;
+  aiPlayerId?: string; // Optional for multiplayer (human vs human)
   onGameEnd: (winner: string, gameState: GameState) => void;
 }
 
@@ -100,9 +100,12 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         // Transitioning to human: set flag to clear on their first action
         setShouldClearOnNextAction(true);
         setLastActivePlayerId(gameState.active_player_id);
-      } else if (gameState.active_player_id === aiPlayerId) {
+      } else if (aiPlayerId && gameState.active_player_id === aiPlayerId) {
         // Transitioning to AI: clear messages immediately
         setMessages([]);
+        setLastActivePlayerId(gameState.active_player_id);
+      } else {
+        // Transitioning to other human player in multiplayer
         setLastActivePlayerId(gameState.active_player_id);
       }
     }
@@ -113,9 +116,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     }
   }, [gameState, lastTurnNumber, lastActivePlayerId, humanPlayerId, aiPlayerId]);
 
-  // Auto-trigger AI turn
+  // Auto-trigger AI turn (only for single-player mode)
   useEffect(() => {
     if (
+      aiPlayerId &&
       gameState &&
       gameState.active_player_id === aiPlayerId &&
       !gameState.is_game_over &&
@@ -247,9 +251,11 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   }
 
   const humanPlayer = gameState.players[humanPlayerId];
-  const aiPlayer = gameState.players[aiPlayerId];
+  // In multiplayer, the "other" player is not AI, just the other player
+  const otherPlayerId = aiPlayerId || Object.keys(gameState.players).find(id => id !== humanPlayerId) || '';
+  const otherPlayer = gameState.players[otherPlayerId];
 
-  if (!humanPlayer || !aiPlayer) {
+  if (!humanPlayer || !otherPlayer) {
     return (
       <div className="min-h-screen bg-game-bg flex items-center justify-center">
         <div className="text-2xl text-red-500">Error: Players not found</div>
@@ -262,10 +268,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
         <div className="mb-3 p-3 bg-game-card rounded grid grid-cols-3 gap-4 items-center">
-          {/* AI Player Info - Left */}
+          {/* Other Player Info - Left */}
           <PlayerInfoBar 
-            player={aiPlayer} 
-            isActive={gameState.active_player_id === aiPlayerId} 
+            player={otherPlayer} 
+            isActive={gameState.active_player_id === otherPlayerId} 
           />
           
           {/* Turn Info - Center */}
@@ -286,10 +292,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 280px 350px' }}>
           {/* Left Column - In Play Zones */}
           <div className="space-y-3">
-            {/* AI In Play - Top */}
+            {/* Other Player In Play - Top */}
             <InPlayZone
-              cards={aiPlayer.in_play}
-              playerName={aiPlayer.name}
+              cards={otherPlayer.in_play}
+              playerName={otherPlayer.name}
               isHuman={false}
             />
             
@@ -308,10 +314,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
           {/* Center Column - Sleep Zones */}
           <div className="space-y-3">
-            {/* AI Sleep Zone - Top */}
+            {/* Other Player Sleep Zone - Top */}
             <SleepZoneDisplay
-              cards={aiPlayer.sleep_zone}
-              playerName={aiPlayer.name}
+              cards={otherPlayer.sleep_zone}
+              playerName={otherPlayer.name}
             />
             
             {/* Divider */}
@@ -335,7 +341,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     {msg}
                   </div>
                 ))}
-                {isProcessing && gameState.active_player_id === aiPlayerId && (
+                {isProcessing && aiPlayerId && gameState.active_player_id === aiPlayerId && (
                   <div className="p-2 bg-purple-900 rounded text-sm animate-pulse">
                     AI is thinking...
                   </div>
@@ -407,8 +413,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       allCards = [
         ...humanPlayer.in_play,
         ...humanPlayer.sleep_zone,
-        ...aiPlayer.in_play,
-        ...aiPlayer.sleep_zone,
+        ...otherPlayer.in_play,
+        ...otherPlayer.sleep_zone,
       ];
     }
 

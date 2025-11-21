@@ -13,6 +13,13 @@ import type {
   ActionResponse,
   ValidActionsResponse,
   CardDataResponse,
+  CreateLobbyRequest,
+  CreateLobbyResponse,
+  JoinLobbyRequest,
+  JoinLobbyResponse,
+  LobbyStatusResponse,
+  StartGameRequest,
+  StartGameResponse,
 } from '../types/api';
 import type { GameState } from '../types/game';
 
@@ -97,4 +104,28 @@ export async function generateNarrative(playByPlay: any[]): Promise<string> {
     { play_by_play: playByPlay }
   );
   return response.data.narrative;
+}
+
+// ============================================================================
+// MULTIPLAYER LOBBY
+// ============================================================================
+
+export async function createLobby(data: CreateLobbyRequest): Promise<CreateLobbyResponse> {
+  const response = await apiClient.post<CreateLobbyResponse>('/games/lobby/create', data);
+  return response.data;
+}
+
+export async function joinLobby(gameCode: string, data: JoinLobbyRequest): Promise<JoinLobbyResponse> {
+  const response = await apiClient.post<JoinLobbyResponse>(`/games/lobby/${gameCode}/join`, data);
+  return response.data;
+}
+
+export async function getLobbyStatus(gameCode: string): Promise<LobbyStatusResponse> {
+  const response = await apiClient.get<LobbyStatusResponse>(`/games/lobby/${gameCode}/status`);
+  return response.data;
+}
+
+export async function startLobbyGame(gameCode: string, data: StartGameRequest): Promise<StartGameResponse> {
+  const response = await apiClient.post<StartGameResponse>(`/games/lobby/${gameCode}/start`, data);
+  return response.data;
 }
