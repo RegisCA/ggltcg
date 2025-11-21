@@ -911,22 +911,22 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             if target_id:
                 target = game_state.find_card_by_id(target_id)
                 if target is None:
-                    # Provide detailed diagnostic information
+                    # AI hallucinated the target ID
                     all_card_ids = []
                     for p in game_state.players.values():
                         all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
                     
                     logger.error(
-                        f"AI target card lookup failed:\n"
-                        f"  Requested ID: {target_id}\n"
+                        f"🤖 LLM HALLUCINATION DETECTED - Invalid target ID:\n"
+                        f"  Hallucinated ID: {target_id}\n"
+                        f"  AI was playing: {card.name}\n"
                         f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
-                        f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}\n"
-                        f"  AI was playing: {card.name}"
+                        f"  Game: {game_id}, Turn: {game_state.turn_number}, Phase: {game_state.phase.value}"
                     )
                     
                     raise HTTPException(
                         status_code=500,
-                        detail=f"AI target card with ID '{target_id}' not found. Card may have been moved or removed."
+                        detail=f"AI selected invalid target ID (likely LLM hallucination): {target_id}"
                     )
                 kwargs["target"] = target
                 kwargs["target_name"] = target.name  # For Copy card
@@ -982,30 +982,40 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             attacker = next((c for c in player.in_play if c.id == attacker_id), None)
             if attacker is None:
-                raise HTTPException(status_code=500, detail=f"AI selected invalid attacker ID: {attacker_id}")
+                # AI hallucinated the attacker ID
+                all_attacker_ids = [c.id for c in player.in_play]
+                logger.error(
+                    f"🤖 LLM HALLUCINATION DETECTED - Invalid attacker ID:\n"
+                    f"  Hallucinated ID: {attacker_id}\n"
+                    f"  Valid attacker IDs: {all_attacker_ids}\n"
+                    f"  Game: {game_id}, Turn: {game_state.turn_number}"
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"AI selected invalid attacker ID (likely LLM hallucination): {attacker_id}"
+                )
             
             defender = None
             if defender_id:
                 defender = game_state.find_card_by_id(defender_id)
                 if defender is None:
-                    # Provide detailed diagnostic information
+                    # AI hallucinated the defender ID
                     opponent = game_state.get_opponent(player_id)
                     opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.sleep_zone)]
-                    player_card_ids = [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
+                    all_card_ids = opponent_card_ids + [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
                     
                     logger.error(
-                        f"AI tussle defender lookup failed:\n"
-                        f"  Requested defender ID: {defender_id}\n"
+                        f"🤖 LLM HALLUCINATION DETECTED - Invalid defender ID:\n"
+                        f"  Hallucinated ID: {defender_id}\n"
                         f"  Attacker: {attacker.name} (ID: {attacker_id})\n"
-                        f"  Opponent's cards ({len(opponent_card_ids)}): {opponent_card_ids}\n"
-                        f"  Player's cards ({len(player_card_ids)}): {player_card_ids}\n"
-                        f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
+                        f"  Valid opponent card IDs ({len(opponent_card_ids)}): {opponent_card_ids}\n"
+                        f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
+                        f"  Game: {game_id}, Turn: {game_state.turn_number}, Phase: {game_state.phase.value}"
                     )
                     
                     raise HTTPException(
                         status_code=500,
-                        detail=f"AI tussle execution failed: Defender card with ID '{defender_id}' not found. "
-                               f"Card may have been moved or removed from play."
+                        detail=f"AI selected invalid defender ID (likely LLM hallucination): {defender_id}"
                     )
             
             # Calculate cost before tussle
