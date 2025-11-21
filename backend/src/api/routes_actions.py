@@ -100,11 +100,16 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
                 action_type="victory",
                 description=f"{winner_name} wins! All opponent's cards are sleeped."
             )
+            # Save updated game state to database
+            service.update_game(game_id, engine)
             return ActionResponse(
                 success=True,
                 message=f"Card played! {game_state.players[result.winner].name} wins the game!",
                 game_state={"winner": result.winner, "is_game_over": True}
             )
+        
+        # Save updated game state to database
+        service.update_game(game_id, engine)
         
         return ActionResponse(
             success=True,
@@ -188,8 +193,11 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
             description=f"Spent {cost} CC for {attacker.name} to tussle {target_desc}",
         )
         
+        # Save updated game state to database
+        service.update_game(game_id, engine)
+        
         # Check for victory
-        winner = game_state.check_victory()
+        winner = game_state.winner_id
         if winner:
             # Add victory message to play-by-play AFTER the winning action
             winner_name = game_state.players[winner].name
@@ -248,6 +256,9 @@ async def end_turn(game_id: str, request: EndTurnRequest) -> ActionResponse:
             )
         
         engine.end_turn()
+        
+        # Save updated game state to database
+        service.update_game(game_id, engine)
         
         return ActionResponse(
             success=True,
@@ -360,6 +371,9 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 ai_endpoint=ai_player.get_endpoint_name(),
             )
             
+            # Save updated game state to database
+            service.update_game(game_id, engine)
+            
             return ActionResponse(
                 success=True,
                 message="AI failed to select action, ended turn",
@@ -402,6 +416,9 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             )
             
             engine.end_turn()
+            
+            # Save updated game state to database
+            service.update_game(game_id, engine)
             
             return ActionResponse(
                 success=True,
@@ -447,12 +464,17 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                         action_type="victory",
                         description=f"{winner_name} wins! All opponent's cards are sleeped."
                     )
+                    # Save updated game state to database
+                    service.update_game(game_id, engine)
                     return ActionResponse(
                         success=True,
                         message=f"AI card played! {winner_name} wins the game!",
                         game_state={"winner": result.winner, "is_game_over": True},
                         ai_turn_summary=turn_summary
                     )
+                
+                # Save updated game state to database
+                service.update_game(game_id, engine)
                 
                 return ActionResponse(
                     success=True,
@@ -509,12 +531,17 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                         action_type="victory",
                         description=f"{winner_name} wins! All opponent's cards are sleeped."
                     )
+                    # Save updated game state to database
+                    service.update_game(game_id, engine)
                     return ActionResponse(
                         success=True,
                         message=f"AI tussle successful! {winner_name} wins!",
                         game_state={"winner": result.winner, "is_game_over": True},
                         ai_turn_summary=turn_summary
                     )
+                
+                # Save updated game state to database
+                service.update_game(game_id, engine)
                 
                 return ActionResponse(
                     success=True,

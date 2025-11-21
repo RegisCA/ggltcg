@@ -108,19 +108,18 @@ npm install
 **Backend:**
 
 ```bash
+# Make sure virtual environment is activated
+source .venv/bin/activate  # Run from project root
+
+# Start the server
 cd backend
-# Option 1: Activate venv first
-source venv/bin/activate
 python run_server.py
-
-# Option 2: Run directly with venv Python (no activation needed)
-./venv/bin/python3 run_server.py
-
-# Option 3: Use an alternate deck CSV file (should have at least 6 cards)
-python run_server.py --deck /path/to/your/custom_cards.csv
 
 # Server runs at http://localhost:8000
 # API docs at http://localhost:8000/docs
+
+# Optional: Use an alternate deck CSV file (should have at least 6 cards)
+python run_server.py --deck /path/to/your/custom_cards.csv
 ```
 
 **Command Line Options:**
