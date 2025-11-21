@@ -27,6 +27,133 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/games", tags=["actions"])
 
 
+# ============================================================================
+# Helper Functions (DRY - Don't Repeat Yourself)
+# ============================================================================
+# These functions eliminate code duplication between human and AI player paths
+
+def handle_alternative_cost(
+    card: Any,
+    alternative_cost_card_id: str | None,
+    player: Any,
+    game_state: Any,
+    engine: Any
+) -> tuple[Dict[str, Any], int]:
+    """
+    Handle alternative cost for cards like Ballaber.
+    
+    Returns:
+        tuple: (kwargs dict with alternative cost info, effective cost)
+    """
+    kwargs = {}
+    
+    if alternative_cost_card_id and card.name == "Ballaber":
+        # Find card to sleep (can be in hand or play, but not Ballaber itself)
+        card_to_sleep = next(
+            (c for c in (player.in_play + (player.hand or []))
+             if c.id == alternative_cost_card_id and c.name != "Ballaber"),
+            None
+        )
+        if card_to_sleep is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Alternative cost card with ID '{alternative_cost_card_id}' not found"
+            )
+        # Sleep the card and set cost to 0
+        was_in_play = card_to_sleep in player.in_play
+        game_state.sleep_card(card_to_sleep, was_in_play=was_in_play)
+        kwargs["alternative_cost_paid"] = True
+        kwargs["alternative_cost_card"] = card_to_sleep.name
+        cost = 0
+    else:
+        # Calculate normal cost
+        cost = engine.calculate_card_cost(card, player)
+    
+    return kwargs, cost
+
+
+def handle_targets(
+    target_card_id: str | None,
+    target_card_ids: List[str] | None,
+    game_state: Any
+) -> Dict[str, Any]:
+    """
+    Find and validate target cards by their IDs.
+    
+    Returns:
+        dict: kwargs with 'target', 'target_name', and/or 'targets'
+    """
+    kwargs = {}
+    
+    # Single target
+    if target_card_id:
+        target = game_state.find_card_by_id(target_card_id)
+        if target is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Target card with ID '{target_card_id}' not found"
+            )
+        kwargs["target"] = target
+        kwargs["target_name"] = target.name  # For Copy card
+    
+    # Multiple targets
+    if target_card_ids:
+        targets = []
+        for card_id in target_card_ids:
+            target = game_state.find_card_by_id(card_id)
+            if target is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Target card with ID '{card_id}' not found"
+                )
+            targets.append(target)
+        kwargs["targets"] = targets
+    
+    return kwargs
+
+
+def build_play_card_description(
+    card: Any,
+    cost: int,
+    kwargs: Dict[str, Any]
+) -> str:
+    """
+    Build a detailed description of playing a card.
+    
+    Includes cost, effect text, and target-specific details.
+    """
+    # Base description
+    if kwargs.get("alternative_cost_paid"):
+        description = f"Played {card.name} by sleeping {kwargs['alternative_cost_card']}"
+    else:
+        description = f"Spent {cost} CC to play {card.name}"
+    
+    # Add effect text for Action cards
+    if card.is_action():
+        description += f" ({card.effect_text})"
+        
+        # Add target-specific details
+        if card.name == "Wake" and kwargs.get("target"):
+            target_card = kwargs["target"]
+            description += f". Unslept {target_card.name}"
+        elif card.name == "Sun" and kwargs.get("targets"):
+            target_names = [t.name for t in kwargs["targets"]]
+            description += f". Sleeped {', '.join(target_names)}"
+        elif card.name == "Copy" and kwargs.get("target"):
+            target_card = kwargs["target"]
+            description += f". Copied {target_card.name}"
+        elif card.name == "Twist" and kwargs.get("target"):
+            target_card = kwargs["target"]
+            description += f". Took control of {target_card.name}"
+    
+    # For Ballaber (Toy with alternative cost)
+    if card.name == "Ballaber" and kwargs.get("alternative_cost_paid"):
+        alt_card = kwargs["alternative_cost_card"]
+        description += f". Slept {alt_card} for alternative cost"
+    
+    return description
+
+
 @router.post("/{game_id}/play-card", response_model=ActionResponse)
 async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
     """
@@ -66,54 +193,18 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             detail=f"Card with ID '{request.card_id}' not found in hand"
         )
     
-    # Prepare kwargs for effect
-    kwargs: Dict[str, Any] = {}
+    # Handle alternative cost (Ballaber) and calculate cost
+    alt_cost_kwargs, cost = handle_alternative_cost(
+        card, request.alternative_cost_card_id, player, game_state, engine
+    )
     
-    # Handle alternative cost for Ballaber
-    if request.alternative_cost_card_id and card.name == "Ballaber":
-        # Find the card to sleep by ID (can be in hand or in play, but not Ballaber itself)
-        card_to_sleep = next((c for c in (player.in_play + (player.hand or [])) if c.id == request.alternative_cost_card_id and c.name != "Ballaber"), None)
-        if card_to_sleep is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Alternative cost card with ID '{request.alternative_cost_card_id}' not found in hand or play"
-            )
-        # Sleep the card and set cost to 0
-        was_in_play = card_to_sleep in player.in_play
-        game_state.sleep_card(card_to_sleep, was_in_play=was_in_play)
-        kwargs["alternative_cost_paid"] = True
-        kwargs["alternative_cost_card"] = card_to_sleep.name
-        # Override the cost calculation
-        cost = 0
-    else:
-        # Calculate normal cost
-        cost = engine.calculate_card_cost(card, player)
+    # Handle targets
+    target_kwargs = handle_targets(
+        request.target_card_id, request.target_card_ids, game_state
+    )
     
-    # Add target if specified
-    if request.target_card_id:
-        # Find target by ID (no need for zone-specific searching - ID is unique!)
-        target = game_state.find_card_by_id(request.target_card_id)
-        
-        if target is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Target card with ID '{request.target_card_id}' not found"
-            )
-        kwargs["target"] = target
-        kwargs["target_name"] = target.name  # For Copy card
-    
-    # Add multiple targets if specified
-    if request.target_card_ids:
-        targets = []
-        for card_id in request.target_card_ids:
-            target = game_state.find_card_by_id(card_id)
-            if target is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Target card with ID '{card_id}' not found"
-                )
-            targets.append(target)
-        kwargs["targets"] = targets
+    # Merge kwargs
+    kwargs = {**alt_cost_kwargs, **target_kwargs}
     
     # Play the card
     try:
@@ -149,36 +240,22 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             )
         # Check state-based actions
         engine.check_state_based_actions()
-        # Build description with card effect for Action cards
-        description = f"Spent {cost} CC to play {card.name}"
-        target_info = ""  # Track target info for response message
-        if card.is_action():
-            description += f" ({card.effect_text})"
-            # Try to append effect outcome for Wake, Sun, etc.
-            # For Wake: check which card was unslept
-            if card.name == "Wake" and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Unslept {target_card.name}"
-                target_info = f" (unslept {target_card.name})"
-            # For Sun: show targets
-            if card.name == "Sun" and kwargs.get("targets"):
-                target_names = [t.name for t in kwargs["targets"]]
-                description += f". Sleeped {', '.join(target_names)}"
-                target_info = f" (sleeped {', '.join(target_names)})"
-            # For Copy: show what was copied
-            if card.name == "Copy" and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Copied {target_card.name}"
-                target_info = f" (copied {target_card.name})"
-            # For Twist: show which card was taken control of
-            if card.name == "Twist" and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Took control of {target_card.name}"
-                target_info = f" (took control of {target_card.name})"
-        # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
-        if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
-            alt_card = kwargs["alternative_cost_card"]
-            description += f". Slept {alt_card} for alternative cost"
+        
+        # Build description
+        description = build_play_card_description(card, cost, kwargs)
+        
+        # Extract target info for response message
+        target_info = ""
+        if card.name == "Wake" and kwargs.get("target"):
+            target_info = f" (unslept {kwargs['target'].name})"
+        elif card.name == "Sun" and kwargs.get("targets"):
+            target_names = [t.name for t in kwargs["targets"]]
+            target_info = f" (sleeped {', '.join(target_names)})"
+        elif card.name == "Copy" and kwargs.get("target"):
+            target_info = f" (copied {kwargs['target'].name})"
+        elif card.name == "Twist" and kwargs.get("target"):
+            target_info = f" (took control of {kwargs['target'].name})"
+        
         # Log to play-by-play BEFORE victory check (so action appears first)
         game_state.add_play_by_play(
             player_name=player.name,
@@ -851,59 +928,28 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             if card is None:
                 raise HTTPException(status_code=500, detail=f"AI selected invalid card ID: {card_id}")
             
-            # Calculate cost before playing
-            cost = engine.calculate_card_cost(card, player)
+            # Handle alternative cost and calculate cost
+            alt_cost_kwargs, cost = handle_alternative_cost(
+                card, action_details.get("alternative_cost_card_id"), player, game_state, engine
+            )
             
-            # Handle alternative cost for Ballaber
-            kwargs = {}
-            alternative_cost_card_id = action_details.get("alternative_cost_card_id")
-            if alternative_cost_card_id and card.name == "Ballaber":
-                card_to_sleep = next((c for c in (player.in_play + (player.hand or [])) if c.id == alternative_cost_card_id and c.name != "Ballaber"), None)
-                if card_to_sleep:
-                    kwargs["alternative_cost_paid"] = True
-                    kwargs["alternative_cost_card"] = card_to_sleep.name
-                    logger.info(f"AI playing Ballaber with alternative cost (sleeping {card_to_sleep.name})")
-                else:
-                    logger.warning(f"AI selected alternative cost card {alternative_cost_card_id} but it wasn't found")
+            # Handle targets
+            target_kwargs = handle_targets(
+                action_details.get("target_id"), None, game_state
+            )
             
-            # Handle target selection (for cards like Twist, Wake, Copy, Sun)
-            target_id = action_details.get("target_id")
-            if target_id:
-                target = game_state.find_card_by_id(target_id)
-                if target is None:
-                    logger.error(f"AI selected target card {target_id} but it wasn't found")
-                    raise HTTPException(status_code=500, detail=f"Target card with ID '{target_id}' not found")
-                kwargs["target"] = target
-                kwargs["target_name"] = target.name  # For Copy card
-                logger.info(f"AI playing {card.name} with target: {target.name} (ID: {target_id})")
+            # Merge kwargs
+            kwargs = {**alt_cost_kwargs, **target_kwargs}
+            
+            # Log target selection for debugging
+            if kwargs.get("target"):
+                logger.info(f"AI playing {card.name} with target: {kwargs['target'].name} (ID: {action_details.get('target_id')})")
             
             success = engine.play_card(player, card, **kwargs)
             engine.check_state_based_actions()
             
-            # Build description with card effect for Action cards
-            if kwargs.get("alternative_cost_paid"):
-                description = f"Played {card.name} by sleeping {kwargs['alternative_cost_card']}"
-            else:
-                description = f"Spent {cost} CC to play {card.name}"
-            if card.is_action():
-                description += f" ({card.effect_text})"
-                # Add target-specific details (same logic as human player endpoint)
-                if card.name == "Wake" and kwargs.get("target"):
-                    target_card = kwargs["target"]
-                    description += f". Unslept {target_card.name}"
-                elif card.name == "Sun" and kwargs.get("targets"):
-                    target_names = [t.name for t in kwargs["targets"]]
-                    description += f". Sleeped {', '.join(target_names)}"
-                elif card.name == "Copy" and kwargs.get("target"):
-                    target_card = kwargs["target"]
-                    description += f". Copied {target_card.name}"
-                elif card.name == "Twist" and kwargs.get("target"):
-                    target_card = kwargs["target"]
-                    description += f". Took control of {target_card.name}"
-            # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
-            if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
-                alt_card = kwargs["alternative_cost_card"]
-                description += f". Slept {alt_card} for alternative cost"
+            # Build description
+            description = build_play_card_description(card, cost, kwargs)
             
             # Log to play-by-play
             game_state.add_play_by_play(
