@@ -462,7 +462,21 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 )
                 
             except ValueError as e:
-                raise HTTPException(status_code=500, detail=f"AI action execution failed: {str(e)}")
+                # AI-specific error handling - likely LLM hallucination
+                error_msg = str(e)
+                if "not found" in error_msg.lower():
+                    logger.error(
+                        f"🤖 LLM HALLUCINATION DETECTED - AI play_card failed:\n"
+                        f"  Card ID: {card_id}\n"
+                        f"  Target ID: {action_details.get('target_id')}\n"
+                        f"  Alt Cost ID: {action_details.get('alternative_cost_card_id')}\n"
+                        f"  Error: {error_msg}\n"
+                        f"  Game: {game_id}, Turn: {game_state.turn_number}"
+                    )
+                    error_detail = f"AI selected invalid card/target ID (likely LLM hallucination): {error_msg}"
+                else:
+                    error_detail = f"AI action execution failed: {error_msg}"
+                raise HTTPException(status_code=500, detail=error_detail)
         
         elif action_details["action_type"] == "tussle":
             # Use ActionExecutor to execute the tussle
@@ -510,7 +524,20 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 )
                 
             except ValueError as e:
-                raise HTTPException(status_code=500, detail=f"AI tussle execution failed: {str(e)}")
+                # AI-specific error handling - likely LLM hallucination
+                error_msg = str(e)
+                if "not found" in error_msg.lower():
+                    logger.error(
+                        f"🤖 LLM HALLUCINATION DETECTED - AI tussle failed:\n"
+                        f"  Attacker ID: {action_details['attacker_id']}\n"
+                        f"  Defender ID: {action_details.get('defender_id')}\n"
+                        f"  Error: {error_msg}\n"
+                        f"  Game: {game_id}, Turn: {game_state.turn_number}"
+                    )
+                    error_detail = f"AI selected invalid attacker/defender ID (likely LLM hallucination): {error_msg}"
+                else:
+                    error_detail = f"AI tussle execution failed: {error_msg}"
+                raise HTTPException(status_code=500, detail=error_detail)
         
         else:
             logger.error(f"Unknown action type from AI: {action_details['action_type']}")

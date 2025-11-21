@@ -172,7 +172,23 @@ class ActionExecutor:
         if defender_id:
             defender = self.game_state.find_card_by_id(defender_id)
             if defender is None:
-                raise ValueError(f"Defender card with ID '{defender_id}' not found")
+                # Provide detailed diagnostic information
+                opponent = self.game_state.get_opponent(player.player_id)
+                opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.sleep_zone)]
+                player_card_ids = [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
+                
+                logger.error(
+                    f"Defender card lookup failed:\n"
+                    f"  Requested ID: {defender_id}\n"
+                    f"  Opponent's cards ({len(opponent_card_ids)}): {opponent_card_ids}\n"
+                    f"  Player's cards ({len(player_card_ids)}): {player_card_ids}\n"
+                    f"  Game state: turn={self.game_state.turn_number}, phase={self.game_state.phase.value}"
+                )
+                
+                raise ValueError(
+                    f"Defender card with ID '{defender_id}' not found. "
+                    f"Card may have been moved or removed from play."
+                )
         
         # Calculate cost before tussle
         cost = self.engine.calculate_tussle_cost(attacker, player)
@@ -264,7 +280,22 @@ class ActionExecutor:
         if target_card_id:
             target = self.game_state.find_card_by_id(target_card_id)
             if target is None:
-                raise ValueError(f"Target card with ID '{target_card_id}' not found")
+                # Provide detailed diagnostic information for card lookup failures
+                all_card_ids = []
+                for p in self.game_state.players.values():
+                    all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
+                
+                logger.error(
+                    f"Target card lookup failed:\n"
+                    f"  Requested ID: {target_card_id}\n"
+                    f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
+                    f"  Game state: turn={self.game_state.turn_number}, phase={self.game_state.phase.value}"
+                )
+                
+                raise ValueError(
+                    f"Target card with ID '{target_card_id}' not found. "
+                    f"Card may have been moved or removed."
+                )
             kwargs["target"] = target
             kwargs["target_name"] = target.name  # For Copy card
         
@@ -274,7 +305,22 @@ class ActionExecutor:
             for card_id in target_card_ids:
                 target = self.game_state.find_card_by_id(card_id)
                 if target is None:
-                    raise ValueError(f"Target card with ID '{card_id}' not found")
+                    # Provide detailed diagnostic information
+                    all_card_ids = []
+                    for p in self.game_state.players.values():
+                        all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
+                    
+                    logger.error(
+                        f"Multi-target card lookup failed:\n"
+                        f"  Requested ID: {card_id}\n"
+                        f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
+                        f"  Game state: turn={self.game_state.turn_number}, phase={self.game_state.phase.value}"
+                    )
+                    
+                    raise ValueError(
+                        f"Target card with ID '{card_id}' not found. "
+                        f"Card may have been moved or removed."
+                    )
                 targets.append(target)
             kwargs["targets"] = targets
         
