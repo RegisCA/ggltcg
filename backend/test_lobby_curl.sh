@@ -73,8 +73,8 @@ STATUS=$(echo "$START2_RESPONSE" | python3 -c "import sys, json; print(json.load
 if [ "$STATUS" = "active" ]; then
     echo "🎉 SUCCESS! Game started!"
     echo ""
-    echo "📊 Step 7: Fetching game state..."
-    curl -s "$BASE_URL/games/$GAME_ID" | python3 -m json.tool | head -30
+    echo "📊 Step 7: Fetching game state (as Player 1 to see hand)..."
+    curl -s "$BASE_URL/games/$GAME_ID?player_id=player1" | python3 -m json.tool | head -40
     echo ""
     echo "✅ All tests passed! Game is ready to play."
 else
