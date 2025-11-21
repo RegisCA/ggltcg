@@ -327,6 +327,10 @@ class GameService:
         if loser_id is None:
             raise ValueError("Could not determine loser")
         
+        # Get player names (instead of IDs)
+        winner_name = game_state.players[winner_id].name
+        loser_name = game_state.players[loser_id].name
+        
         # Count actions from play-by-play log
         winner_cards_played = 0
         winner_tussles = 0
@@ -362,8 +366,8 @@ class GameService:
         
         return {
             'game_id': uuid.UUID(game_id),
-            'winner_id': winner_id,
-            'loser_id': loser_id,
+            'winner_id': winner_name,
+            'loser_id': loser_name,
             'total_turns': game_state.turn_number,
             'winner_cards_played': winner_cards_played,
             'winner_tussles_initiated': winner_tussles,
