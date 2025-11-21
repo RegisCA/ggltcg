@@ -427,6 +427,240 @@ class GameService:
         finally:
             db.close()
     
+    # ===== LOBBY SYSTEM METHODS =====
+    
+    def create_lobby(self, player1_name: str) -> tuple[str, str]:
+        """
+        Create a new game lobby waiting for player 2.
+        
+        Args:
+            player1_name: Display name for player 1
+            
+        Returns:
+            Tuple of (game_id, game_code)
+        """
+        from api.game_codes import generate_unique_game_code
+        
+        if not self.use_database:
+            raise ValueError("Lobby system requires database to be enabled")
+        
+        db = SessionLocal()
+        try:
+            # Generate unique game code
+            game_code = generate_unique_game_code(db)
+            
+            # Generate game ID
+            game_id = str(uuid.uuid4())
+            
+            # Create minimal game model (waiting for player 2)
+            game_model = GameModel(
+                id=uuid.UUID(game_id),
+                player1_id="player1",  # Temporary until we have auth
+                player1_name=player1_name,
+                player2_id=None,  # Will be set when player 2 joins
+                player2_name=None,
+                game_code=game_code,
+                status="waiting_for_player",
+                turn_number=0,
+                active_player_id="",
+                phase="",
+                game_state={}  # Empty until game starts
+            )
+            
+            db.add(game_model)
+            db.commit()
+            
+            logger.info(f"Created lobby {game_id} with code {game_code}")
+            
+            return game_id, game_code
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create lobby: {e}")
+            raise
+        finally:
+            db.close()
+    
+    def join_lobby(self, game_code: str, player2_name: str) -> tuple[str, str]:
+        """
+        Join an existing lobby as player 2.
+        
+        Args:
+            game_code: 6-character game code
+            player2_name: Display name for player 2
+            
+        Returns:
+            Tuple of (game_id, player1_name)
+            
+        Raises:
+            ValueError: If lobby not found or already full
+        """
+        from api.game_codes import find_game_by_code
+        
+        if not self.use_database:
+            raise ValueError("Lobby system requires database to be enabled")
+        
+        db = SessionLocal()
+        try:
+            # Find game by code
+            game_model = find_game_by_code(db, game_code)
+            
+            if not game_model:
+                raise ValueError(f"Lobby with code {game_code} not found")
+            
+            if game_model.status != "waiting_for_player":
+                raise ValueError(f"Lobby {game_code} is not accepting players")
+            
+            if game_model.player2_id is not None:
+                raise ValueError(f"Lobby {game_code} is already full")
+            
+            # Add player 2
+            game_model.player2_id = "player2"  # Temporary until we have auth
+            game_model.player2_name = player2_name
+            game_model.status = "deck_selection"
+            
+            db.commit()
+            
+            logger.info(f"Player 2 joined lobby {game_model.id}: {player2_name}")
+            
+            return str(game_model.id), game_model.player1_name
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to join lobby: {e}")
+            raise
+        finally:
+            db.close()
+    
+    def get_lobby_status(self, game_code: str) -> Optional[dict]:
+        """
+        Get the current status of a lobby.
+        
+        Args:
+            game_code: 6-character game code
+            
+        Returns:
+            Dict with lobby status or None if not found
+        """
+        from api.game_codes import find_game_by_code
+        
+        if not self.use_database:
+            return None
+        
+        db = SessionLocal()
+        try:
+            game_model = find_game_by_code(db, game_code)
+            
+            if not game_model:
+                return None
+            
+            return {
+                "game_id": str(game_model.id),
+                "game_code": game_model.game_code,
+                "player1_name": game_model.player1_name,
+                "player2_name": game_model.player2_name,
+                "status": game_model.status,
+                "ready_to_start": (
+                    game_model.status == "active" and
+                    game_model.player2_id is not None
+                )
+            }
+        finally:
+            db.close()
+    
+    def start_lobby_game(
+        self, 
+        game_code: str, 
+        player_id: str, 
+        deck: list[str]
+    ) -> dict:
+        """
+        Submit deck selection for a lobby game.
+        
+        Args:
+            game_code: 6-character game code
+            player_id: Player ID (player1 or player2)
+            deck: List of 6 card names
+            
+        Returns:
+            Dict with game_id, ready status, and game_state if both players ready
+            
+        Raises:
+            ValueError: If lobby not found or invalid state
+        """
+        from api.game_codes import find_game_by_code
+        
+        if not self.use_database:
+            raise ValueError("Lobby system requires database to be enabled")
+        
+        db = SessionLocal()
+        try:
+            game_model = find_game_by_code(db, game_code)
+            
+            if not game_model:
+                raise ValueError(f"Lobby with code {game_code} not found")
+            
+            if game_model.status not in ("deck_selection", "active"):
+                raise ValueError(f"Lobby {game_code} is not in deck selection phase")
+            
+            # Store deck in game_state temporarily
+            current_state = game_model.game_state or {}
+            decks = current_state.get("decks", {})
+            decks[player_id] = deck
+            current_state["decks"] = decks
+            
+            # Check if both players have submitted decks
+            has_both_decks = "player1" in decks and "player2" in decks
+            
+            if has_both_decks and game_model.status == "deck_selection":
+                # Start the game!
+                logger.info(f"Both players ready, starting game {game_model.id}")
+                
+                # Create actual game state
+                game_id, engine = self.create_game(
+                    player1_id="player1",
+                    player1_name=game_model.player1_name,
+                    player1_deck=decks["player1"],
+                    player2_id="player2",
+                    player2_name=game_model.player2_name,
+                    player2_deck=decks["player2"],
+                )
+                
+                # Update the existing game model with new state
+                game_state_dict = serialize_game_state(engine.game_state)
+                metadata = extract_metadata(engine.game_state)
+                
+                game_model.game_state = game_state_dict
+                game_model.status = "active"
+                game_model.turn_number = metadata["turn_number"]
+                game_model.active_player_id = metadata["active_player_id"]
+                game_model.phase = metadata["phase"]
+                
+                db.commit()
+                
+                # Cache the engine
+                self._cache[str(game_model.id)] = engine
+                
+                return {
+                    "game_id": str(game_model.id),
+                    "ready": True,
+                    "first_player_id": engine.game_state.first_player_id,
+                    "game_state": game_state_dict
+                }
+            else:
+                # Save deck selection, wait for other player
+                game_model.game_state = current_state
+                db.commit()
+                
+                return {
+                    "game_id": str(game_model.id),
+                    "ready": False
+                }
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to start lobby game: {e}")
+            raise
+        finally:
+            db.close()
+    
     def _create_deck(self, card_names: list[str], owner_id: str) -> list[Card]:
         """
         Create a deck of cards from card names.

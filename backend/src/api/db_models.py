@@ -44,8 +44,11 @@ class GameModel(Base):
     # Player information (for queries and matchmaking)
     player1_id = Column(String(255), nullable=False, index=True)
     player1_name = Column(String(255), nullable=False)
-    player2_id = Column(String(255), nullable=False, index=True)
-    player2_name = Column(String(255), nullable=False)
+    player2_id = Column(String(255), nullable=True, index=True)  # Nullable until P2 joins
+    player2_name = Column(String(255), nullable=True)  # Nullable until P2 joins
+    
+    # Game code for lobby (6-character code for joining)
+    game_code = Column(String(6), nullable=True, unique=True, index=True)
     
     # Game status
     status = Column(
@@ -68,7 +71,7 @@ class GameModel(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint(
-            "status IN ('active', 'completed', 'abandoned')",
+            "status IN ('waiting_for_player', 'deck_selection', 'active', 'completed', 'abandoned')",
             name="games_status_check"
         ),
         # Combined index for finding player's active games
