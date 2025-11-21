@@ -43,10 +43,12 @@ Win immediately by putting all your opponent's cards into their Sleep Zone.
 
 ### Backend (Game Engine)
 
-- **Language:** Python 3.13
+- **Language:** Python 3.14 (NOT 3.13!)
+- **Virtual Environment:** `.venv` in project root (NOT `backend/venv`)
 - **Framework:** FastAPI 0.115.6 (async, lightweight, excellent Copilot support)
 - **Data Storage:** CSV for cards (single source of truth), JSON for game states
 - **AI Integration:** Google Gemini (gemini-2.0-flash or gemini-2.5-flash)
+- **Environment Variables:** Loaded via `python-dotenv==1.0.1` (CRITICAL - must be installed!)
 
 ### Frontend (Player Interface)
 
@@ -60,6 +62,62 @@ Win immediately by putting all your opponent's cards into their Sleep Zone.
 - **Version Control:** Git/GitHub
 - **IDE:** VS Code with GitHub Copilot
 - **Testing:** pytest (backend), Vitest (frontend - future)
+
+## Critical Environment Setup
+
+### Python Environment Configuration
+
+**⚠️ IMPORTANT**: The virtual environment is `.venv` in the **project root**, NOT `backend/venv`!
+
+```bash
+# From project root:
+cd backend
+source ../.venv/bin/activate  # Activate from project root!
+python run_server.py
+```
+
+### Required Package: python-dotenv
+
+The backend **requires** `python-dotenv==1.0.1` to load the `.env` file. This package **must** be installed in the venv:
+
+```bash
+pip install python-dotenv==1.0.1
+```
+
+**Common Error**: If you see "Google API key required" errors even though `.env` exists, `python-dotenv` is not installed.
+
+### Environment Variables (.env file)
+
+Create `backend/.env` with:
+
+```env
+# Google Gemini API Key (FREE)
+GOOGLE_API_KEY=your-api-key-here
+
+# Primary model (30 RPM, can have capacity issues)
+GEMINI_MODEL=gemini-2.0-flash
+
+# Fallback for 429 capacity errors (15 RPM, better availability)
+GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
+```
+
+**DO NOT** commit `.env` to git! It's in `.gitignore`.
+
+### Troubleshooting Environment Issues
+
+1. **Server can't find run_server.py**
+   - Check you're in `backend/` directory
+   - Use absolute path to Python: `/path/to/.venv/bin/python run_server.py`
+
+2. **Google API key not loading**
+   - Verify `python-dotenv==1.0.1` is installed: `pip list | grep dotenv`
+   - Check `.env` exists in `backend/` directory
+   - Ensure `.env` has `GOOGLE_API_KEY=...` line
+
+3. **Wrong venv activated**
+   - Deactivate: `deactivate`
+   - Activate correct one: `source .venv/bin/activate` (from project root)
+   - Verify Python version: `python --version` (should be 3.14)
 
 ## Architecture Principles
 

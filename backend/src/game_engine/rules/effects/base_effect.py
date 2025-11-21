@@ -264,12 +264,13 @@ class PlayEffect(BaseEffect):
         """
         return 1 if self.requires_targets() else 0
     
-    def get_valid_targets(self, game_state: "GameState") -> list:
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> list:
         """
         Get list of valid targets for this effect.
         
         Args:
             game_state: The current game state
+            player: Optional player who would be playing this card (if not provided, uses active player)
             
         Returns:
             List of valid target objects (cards, players, etc.)

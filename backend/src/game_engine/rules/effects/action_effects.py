@@ -95,9 +95,10 @@ class WakeEffect(PlayEffect):
         """Wake requires at least 0 targets (optional if no sleeping cards)."""
         return 0
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all cards in player's Sleep Zone."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
         if not player:
             return []
         return list(player.sleep_zone)
@@ -138,9 +139,10 @@ class SunEffect(PlayEffect):
         """Sun requires at least 0 targets (optional if no sleeping cards)."""
         return 0
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all cards in player's Sleep Zone."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
         if not player:
             return []
         return list(player.sleep_zone)
@@ -190,9 +192,11 @@ class TwistEffect(PlayEffect):
         """Twist requires choosing an opponent's card."""
         return True
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all opponent's cards in play."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
+        
         if not player:
             return []
         
@@ -236,9 +240,10 @@ class CopyEffect(PlayEffect):
         """Copy requires choosing a Toy to copy."""
         return True
     
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all Toys the player controls in play."""
-        player = game_state.get_active_player()
+        if player is None:
+            player = game_state.get_active_player()
         if not player:
             return []
         
