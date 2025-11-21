@@ -135,9 +135,45 @@ backend/src/game_engine/
 ├── models/              # Data classes (Card, Player, GameState, Zone)
 ├── rules/               # Game logic (turn_manager, tussle_resolver, cost_calculator)
 │   └── effects/         # Individual card effect handlers
+├── validation/          # Action validation and execution (NEW Nov 21, 2025)
+│   ├── action_validator.py  # Validates action legality
+│   └── action_executor.py   # Executes validated actions
 ├── ai/                  # LLM player (prompt_builder, action_parser, llm_player)
 └── data/                # Card loader, CSV parser
 ```
+
+### Validation Architecture (NEW - Nov 21, 2025)
+
+**Pattern**: Single source of truth for action validation and execution.
+
+**Key Classes:**
+- `ActionValidator`: Validates action legality (cost, targets, timing)
+- `ActionExecutor`: Executes validated actions with proper state updates
+
+**Usage in API Endpoints:**
+```python
+from game_engine.validation.action_validator import ActionValidator
+from game_engine.validation.action_executor import ActionExecutor
+
+# In endpoint handler:
+validator = ActionValidator(game_state)
+validation_result = validator.validate_play_card(card, player_id, target_ids, use_alternative_cost)
+
+if not validation_result.is_valid:
+    raise HTTPException(status_code=400, detail=validation_result.error_message)
+
+executor = ActionExecutor(game_state)
+execution_result = executor.execute_play_card(card, player_id, target_ids, use_alternative_cost)
+
+# execution_result contains: success, message, description, cost, winner, target_info
+```
+
+**Benefits:**
+- Eliminated ~457 lines of duplicate code across 3 refactoring phases
+- Single source of truth for validation and execution logic
+- Consistent error messages and behavior
+- Easier to test and maintain
+- Clear separation of concerns
 
 ### Effect System Pattern
 Each card with special mechanics has a corresponding effect class:

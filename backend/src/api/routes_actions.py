@@ -21,10 +21,18 @@ from api.game_service import get_game_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
 from game_engine.rules.tussle_resolver import TussleResolver
+from game_engine.validation import ActionValidator, ActionExecutor
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["actions"])
+
+
+# ============================================================================
+# Game Action Endpoints
+# ============================================================================
+# All action execution logic has been moved to ActionExecutor for consistency
+# between human and AI player paths.
 
 
 @router.post("/{game_id}/play-card", response_model=ActionResponse)
@@ -58,164 +66,35 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    # Find card in hand by ID
-    card = next((c for c in player.hand if c.id == request.card_id), None)
-    if card is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Card with ID '{request.card_id}' not found in hand"
-        )
+    # Use ActionExecutor to execute the play
+    executor = ActionExecutor(engine)
     
-    # Prepare kwargs for effect
-    kwargs: Dict[str, Any] = {}
-    
-    # Handle alternative cost for Ballaber
-    if request.alternative_cost_card_id and card.name == "Ballaber":
-        # Find the card to sleep by ID (can be in hand or in play, but not Ballaber itself)
-        card_to_sleep = next((c for c in (player.in_play + (player.hand or [])) if c.id == request.alternative_cost_card_id and c.name != "Ballaber"), None)
-        if card_to_sleep is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Alternative cost card with ID '{request.alternative_cost_card_id}' not found in hand or play"
-            )
-        # Sleep the card and set cost to 0
-        was_in_play = card_to_sleep in player.in_play
-        game_state.sleep_card(card_to_sleep, was_in_play=was_in_play)
-        kwargs["alternative_cost_paid"] = True
-        kwargs["alternative_cost_card"] = card_to_sleep.name
-        # Override the cost calculation
-        cost = 0
-    else:
-        # Calculate normal cost
-        cost = engine.calculate_card_cost(card, player)
-    
-    # Add target if specified
-    if request.target_card_id:
-        # Find target by ID (no need for zone-specific searching - ID is unique!)
-        target = game_state.find_card_by_id(request.target_card_id)
-        
-        if target is None:
-            # Provide detailed diagnostic information
-            all_card_ids = []
-            for p in game_state.players.values():
-                all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
-            
-            logger.error(
-                f"Target card lookup failed:\n"
-                f"  Requested ID: {request.target_card_id}\n"
-                f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
-                f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
-            )
-            
-            raise HTTPException(
-                status_code=400,
-                detail=f"Target card with ID '{request.target_card_id}' not found. "
-                       f"Card may have been moved or removed."
-            )
-        kwargs["target"] = target
-        kwargs["target_name"] = target.name  # For Copy card
-    
-    # Add multiple targets if specified
-    if request.target_card_ids:
-        targets = []
-        for card_id in request.target_card_ids:
-            target = game_state.find_card_by_id(card_id)
-            if target is None:
-                # Provide detailed diagnostic information
-                all_card_ids = []
-                for p in game_state.players.values():
-                    all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
-                
-                logger.error(
-                    f"Multi-target card lookup failed:\n"
-                    f"  Requested ID: {card_id}\n"
-                    f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
-                    f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
-                )
-                
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Target card with ID '{card_id}' not found. "
-                           f"Card may have been moved or removed."
-                )
-            targets.append(target)
-        kwargs["targets"] = targets
-    
-    # Play the card
     try:
-        effect_outcome = None
-        # If alternative cost was paid, we already slept the card, so override cost to 0
-        if kwargs.get("alternative_cost_paid"):
-            # Manually pay 0 CC and play the card
-            if not player.spend_cc(0):  # This should always succeed
-                return ActionResponse(
-                    success=False,
-                    message="Failed to play card"
-                )
-            # Remove from hand
-            player.hand.remove(card)
-            # Toys go to in play
-            from game_engine.models.card import CardType, Zone
-            if card.card_type == CardType.TOY:
-                card.zone = Zone.IN_PLAY
-                player.in_play.append(card)
-            elif card.card_type == CardType.ACTION:
-                # Actions resolve and go to sleep zone
-                engine._resolve_action_card(card, player, **kwargs)
-                card.zone = Zone.SLEEP
-                player.sleep_zone.append(card)
-            success = True
-        else:
-            # Normal play_card flow
-            success = engine.play_card(player, card, **kwargs)
-        if not success:
+        result = executor.execute_play_card(
+            player_id=request.player_id,
+            card_id=request.card_id,
+            target_card_id=request.target_card_id,
+            target_card_ids=request.target_card_ids,
+            alternative_cost_card_id=request.alternative_cost_card_id
+        )
+        
+        if not result.success:
             return ActionResponse(
                 success=False,
-                message="Failed to play card (insufficient CC or invalid target)"
+                message=result.message
             )
-        # Check state-based actions
-        engine.check_state_based_actions()
-        # Build description with card effect for Action cards
-        description = f"Spent {cost} CC to play {card.name}"
-        target_info = ""  # Track target info for response message
-        if card.is_action():
-            description += f" ({card.effect_text})"
-            # Try to append effect outcome for Wake, Sun, etc.
-            # For Wake: check which card was unslept
-            if card.name == "Wake" and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Unslept {target_card.name}"
-                target_info = f" (unslept {target_card.name})"
-            # For Sun: show targets
-            if card.name == "Sun" and kwargs.get("targets"):
-                target_names = [t.name for t in kwargs["targets"]]
-                description += f". Sleeped {', '.join(target_names)}"
-                target_info = f" (sleeped {', '.join(target_names)})"
-            # For Copy: show what was copied
-            if card.name == "Copy" and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Copied {target_card.name}"
-                target_info = f" (copied {target_card.name})"
-            # For Twist: show which card was taken control of
-            if card.name == "Twist" and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Took control of {target_card.name}"
-                target_info = f" (took control of {target_card.name})"
-        # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
-        if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
-            alt_card = kwargs["alternative_cost_card"]
-            description += f". Slept {alt_card} for alternative cost"
+        
         # Log to play-by-play BEFORE victory check (so action appears first)
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="play_card",
-            description=description,
+            description=result.description,
         )
-        # Check for victory (some cards like action cards might cause instant victory)
-        winner = game_state.check_victory()
-        if winner:
+        
+        # Check for victory
+        if result.winner:
             # Add victory message to play-by-play AFTER the winning action
-            winner_name = game_state.players[winner].name
+            winner_name = game_state.players[result.winner].name
             game_state.add_play_by_play(
                 player_name=winner_name,
                 action_type="victory",
@@ -223,14 +102,18 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             )
             return ActionResponse(
                 success=True,
-                message=f"Card played! {game_state.players[winner].name} wins the game!",
-                game_state={"winner": winner, "is_game_over": True}
+                message=f"Card played! {game_state.players[result.winner].name} wins the game!",
+                game_state={"winner": result.winner, "is_game_over": True}
             )
+        
         return ActionResponse(
             success=True,
-            message=f"Successfully played {card.name}{target_info}",
+            message=result.message,
             game_state={"turn": game_state.turn_number, "phase": game_state.phase.value}
         )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -276,23 +159,9 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         # Find defender by ID (no need to restrict search - ID is globally unique)
         defender = game_state.find_card_by_id(request.defender_id)
         if defender is None:
-            # Provide detailed diagnostic information
-            opponent = game_state.get_opponent(player.player_id)
-            opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.sleep_zone)]
-            player_card_ids = [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
-            
-            logger.error(
-                f"Defender card lookup failed:\n"
-                f"  Requested ID: {request.defender_id}\n"
-                f"  Opponent's cards ({len(opponent_card_ids)}): {opponent_card_ids}\n"
-                f"  Player's cards ({len(player_card_ids)}): {player_card_ids}\n"
-                f"  Game state: turn={game_state.turn_number}, phase={game_state.phase.value}"
-            )
-            
             raise HTTPException(
                 status_code=400,
-                detail=f"Defender card with ID '{request.defender_id}' not found. "
-                       f"Card may have been moved or removed from play."
+                detail=f"Defender with ID '{request.defender_id}' not found"
             )
     
     # Initiate tussle
@@ -410,180 +279,9 @@ async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsRespons
     if engine is None:
         raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
     
-    game_state = engine.game_state
-    
-    # Get player
-    player = game_state.players.get(player_id)
-    if player is None:
-        raise HTTPException(status_code=404, detail="Player not found")
-    
-    valid_actions = []
-    
-    # Only generate actions if it's the player's turn
-    if game_state.active_player_id == player_id:
-        # Can always end turn
-        valid_actions.append(
-            ValidAction(
-                action_type="end_turn",
-                description="End your turn"
-            )
-        )
-        
-        # Check which cards can be played
-        for card in player.hand:
-            can_play, reason = engine.can_play_card(card, player)
-            cost = engine.calculate_card_cost(card, player)
-            
-            # Check if card's effect requires targets
-            from game_engine.rules.effects import EffectRegistry
-            from game_engine.rules.effects.base_effect import PlayEffect
-            
-            target_options = None
-            requires_targets = False
-            max_targets = 1
-            min_targets = 1
-            alternative_cost_available = False
-            alternative_cost_options = None
-            
-            # Check for Ballaber's alternative cost
-            if card.name == "Ballaber":
-                # Can sleep any card in hand or in play except Ballaber itself
-                alt_cards = [c for c in (player.in_play + (player.hand or [])) if c.name != "Ballaber"]
-                if alt_cards:
-                    alternative_cost_available = True
-                    alternative_cost_options = [c.id for c in alt_cards]
-            
-            # Allow card if it can be played normally OR if alternate cost is available
-            if not can_play and not alternative_cost_available:
-                continue
-            
-            # Get all effects for this card
-            effects = EffectRegistry.get_effects(card)
-            logger.debug(f"Card {card.name}: Found {len(effects)} effects")
-            for effect in effects:
-                logger.debug(f"  Effect: {type(effect).__name__}, is PlayEffect: {isinstance(effect, PlayEffect)}")
-                if isinstance(effect, PlayEffect):
-                    logger.debug(f"  requires_targets: {effect.requires_targets()}")
-                if isinstance(effect, PlayEffect) and effect.requires_targets():
-                    max_targets = effect.get_max_targets()
-                    min_targets = effect.get_min_targets()
-                    valid_targets = effect.get_valid_targets(game_state, player)  # Pass player!
-                    logger.debug(f"Card {card.name}: requires_targets={effect.requires_targets()}, valid_targets={[t.name for t in valid_targets] if valid_targets else 'None'}")
-                    if valid_targets:
-                        target_options = [t.id for t in valid_targets]
-                        logger.debug(f"Card {card.name}: target_options set to {len(target_options)} IDs")
-                    # Mark as requiring targets only if valid targets exist or min_targets == 0
-                    requires_targets = bool(valid_targets) or min_targets == 0
-                    break
-            
-            # Build description
-            desc = f"Play {card.name} (Cost: {cost} CC"
-            if alternative_cost_available:
-                desc += " or sleep a card"
-            
-            # Special handling for Copy - cost varies by target
-            if card.name == "Copy" and target_options:
-                logger.debug(f"Creating Copy action with {len(target_options)} targets")
-                valid_actions.append(
-                    ValidAction(
-                        action_type="play_card",
-                        card_id=card.id,
-                        card_name=card.name,
-                        cost_cc=cost,
-                        target_options=target_options,
-                        max_targets=max_targets,
-                        min_targets=min_targets,
-                        description=f"Play {card.name} (select target - cost varies)"
-                    )
-                )
-            elif requires_targets and target_options:
-                # Card requires target selection
-                logger.debug(f"Creating {card.name} action with targets: requires_targets={requires_targets}, target_options={len(target_options)} IDs")
-                target_desc = f"select up to {max_targets} targets" if max_targets > 1 else "select target"
-                desc += f", {target_desc}"
-                valid_actions.append(
-                    ValidAction(
-                        action_type="play_card",
-                        card_id=card.id,
-                        card_name=card.name,
-                        cost_cc=cost,
-                        target_options=target_options,
-                        max_targets=max_targets,
-                        min_targets=min_targets,
-                        alternative_cost_available=alternative_cost_available,
-                        alternative_cost_options=alternative_cost_options,
-                        description=desc + ")"
-                    )
-                )
-            elif requires_targets and not target_options:
-                # Card requires targets but none available
-                logger.debug(f"{card.name}: requires_targets but no target_options (min_targets={min_targets})")
-                # If min_targets is 0, card can still be played
-                if min_targets == 0:
-                    desc += ", no targets available)"
-                    valid_actions.append(
-                        ValidAction(
-                            action_type="play_card",
-                            card_id=card.id,
-                            card_name=card.name,
-                            cost_cc=cost,
-                            alternative_cost_available=alternative_cost_available,
-                            alternative_cost_options=alternative_cost_options,
-                            description=desc
-                        )
-                    )
-                # Otherwise skip - can't play without required targets
-            else:
-                # No targets required
-                logger.debug(f"Creating {card.name} action without targets (simple card)")
-                desc += ")"
-                valid_actions.append(
-                    ValidAction(
-                        action_type="play_card",
-                        card_id=card.id,
-                        card_name=card.name,
-                        cost_cc=cost,
-                        alternative_cost_available=alternative_cost_available,
-                        alternative_cost_options=alternative_cost_options,
-                        description=desc
-                    )
-                )
-        
-        # Check which cards can tussle
-        opponent = game_state.get_opponent(player_id)
-        for card in player.in_play:
-            if card.card_type == CardType.TOY:
-                # Check direct attack eligibility:
-                # Direct attacks are only allowed when opponent has NO cards in play
-                if not opponent.has_cards_in_play() and engine.can_tussle(card, None, player)[0]:
-                    # Can do direct attack
-                    cost = engine.calculate_tussle_cost(card, player)
-                    valid_actions.append(
-                        ValidAction(
-                            action_type="tussle",
-                            card_id=card.id,
-                            card_name=card.name,
-                            cost_cc=cost,
-                            target_options=["direct_attack"],
-                            description=f"{card.name} direct attack (Cost: {cost} CC)"
-                        )
-                    )
-                
-                # Check each potential defender
-                if opponent:
-                    for defender in opponent.in_play:
-                        if engine.can_tussle(card, defender, player):
-                            cost = engine.calculate_tussle_cost(card, player)
-                            valid_actions.append(
-                                ValidAction(
-                                    action_type="tussle",
-                                    card_id=card.id,
-                                    card_name=card.name,
-                                    cost_cc=cost,
-                                    target_options=[defender.id],
-                                    description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
-                                )
-                            )
+    # Use ActionValidator for single source of truth
+    validator = ActionValidator(engine)
+    valid_actions = validator.get_valid_actions(player_id, filter_for_ai=False)
     
     return ValidActionsResponse(
         game_id=game_id,
@@ -633,179 +331,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    # Get valid actions
-    valid_actions = []
-    
-    # Can always end turn
-    valid_actions.append(
-        ValidAction(
-            action_type="end_turn",
-            description="End your turn"
-        )
-    )
-    
-    # Check which cards can be played (use same logic as get_valid_actions endpoint)
-    from game_engine.rules.effects import EffectRegistry
-    from game_engine.rules.effects.base_effect import PlayEffect
-    
-    for card in player.hand:
-        can_play, reason = engine.can_play_card(card, player)
-        cost = engine.calculate_card_cost(card, player)
-        
-        # Check if card's effect requires targets
-        target_options = None
-        requires_targets = False
-        max_targets = 1
-        min_targets = 1
-        alternative_cost_available = False
-        alternative_cost_options = None
-        
-        # Check for Ballaber's alternative cost
-        if card.name == "Ballaber":
-            # Can sleep any card in hand or in play except Ballaber itself
-            alt_cards = [c for c in (player.in_play + (player.hand or [])) if c.name != "Ballaber"]
-            if alt_cards:
-                alternative_cost_available = True
-                alternative_cost_options = [c.id for c in alt_cards]
-        
-        # Allow card if it can be played normally OR if alternate cost is available
-        if not can_play and not alternative_cost_available:
-            continue
-        
-        # Get all effects for this card
-        effects = EffectRegistry.get_effects(card)
-        logger.debug(f"AI turn - Card {card.name}: Found {len(effects)} effects")
-        for effect in effects:
-            logger.debug(f"AI turn -   Effect: {type(effect).__name__}, is PlayEffect: {isinstance(effect, PlayEffect)}")
-            if isinstance(effect, PlayEffect):
-                logger.debug(f"AI turn -   requires_targets: {effect.requires_targets()}")
-            if isinstance(effect, PlayEffect) and effect.requires_targets():
-                max_targets = effect.get_max_targets()
-                min_targets = effect.get_min_targets()
-                valid_targets = effect.get_valid_targets(game_state, player)  # Pass player!
-                logger.debug(f"AI turn - Card {card.name}: requires_targets={effect.requires_targets()}, valid_targets={[t.name for t in valid_targets] if valid_targets else 'None'}")
-                if valid_targets:
-                    target_options = [t.id for t in valid_targets]
-                    logger.debug(f"AI turn - Card {card.name}: target_options set to {len(target_options)} IDs")
-                # Mark as requiring targets only if valid targets exist or min_targets == 0
-                requires_targets = bool(valid_targets) or min_targets == 0
-                break
-        
-        # Build description
-        desc = f"Play {card.name} (Cost: {cost} CC"
-        if alternative_cost_available:
-            desc += " or sleep a card"
-        
-        # Special handling for Copy - cost varies by target
-        if card.name == "Copy" and target_options:
-            logger.debug(f"AI turn - Creating Copy action with {len(target_options)} targets")
-            valid_actions.append(
-                ValidAction(
-                    action_type="play_card",
-                    card_id=card.id,
-                    card_name=card.name,
-                    cost_cc=cost,
-                    target_options=target_options,
-                    max_targets=max_targets,
-                    min_targets=min_targets,
-                    description=f"Play {card.name} (select target - cost varies)"
-                )
-            )
-        elif requires_targets and target_options:
-            # Card requires target selection
-            logger.debug(f"AI turn - Creating {card.name} action with targets: requires_targets={requires_targets}, target_options={len(target_options)} IDs")
-            target_desc = f"select up to {max_targets} targets" if max_targets > 1 else "select target"
-            desc += f", {target_desc}"
-            valid_actions.append(
-                ValidAction(
-                    action_type="play_card",
-                    card_id=card.id,
-                    card_name=card.name,
-                    cost_cc=cost,
-                    target_options=target_options,
-                    max_targets=max_targets,
-                    min_targets=min_targets,
-                    alternative_cost_available=alternative_cost_available,
-                    alternative_cost_options=alternative_cost_options,
-                    description=desc + ")"
-                )
-            )
-        elif requires_targets and not target_options:
-            # Card requires targets but none available - don't include as valid action
-            logger.debug(f"AI turn - {card.name}: requires_targets but no target_options (min_targets={min_targets})")
-            if min_targets > 0:
-                continue  # Skip this card
-        else:
-            # Simple card with no targets
-            logger.debug(f"AI turn - Creating {card.name} action without targets (simple card)")
-            valid_actions.append(
-                ValidAction(
-                    action_type="play_card",
-                    card_id=card.id,
-                    card_name=card.name,
-                    cost_cc=cost,
-                    alternative_cost_available=alternative_cost_available,
-                    alternative_cost_options=alternative_cost_options,
-                    description=desc + ")"
-                )
-            )
-    
-    # Check which cards can tussle
-    opponent = game_state.get_opponent(player_id)
-    for card in player.in_play:
-        if card.card_type == CardType.TOY:
-            # Check direct attack eligibility:
-            # Direct attacks are only allowed when opponent has NO cards in play
-            if not opponent.has_cards_in_play() and engine.can_tussle(card, None, player)[0]:
-                # Can do direct attack
-                cost = engine.calculate_tussle_cost(card, player)
-                valid_actions.append(
-                    ValidAction(
-                        action_type="tussle",
-                        card_id=card.id,
-                        card_name=card.name,
-                        cost_cc=cost,
-                        target_options=["direct_attack"],
-                        description=f"{card.name} direct attack (Cost: {cost} CC)"
-                    )
-                )
-            
-            # Check each potential defender
-            if opponent:
-                for defender in opponent.in_play:
-                    if engine.can_tussle(card, defender, player)[0]:
-                        # Predict outcome to filter out guaranteed losses for AI
-                        predicted = TussleResolver.predict_winner(game_state, card, defender)
-                        
-                        # Log prediction for debugging
-                        logger.debug(
-                            f"Tussle prediction: {card.name} vs {defender.name} = {predicted} "
-                            f"(attacker {card.speed}/{card.strength}/{card.stamina} vs "
-                            f"defender {defender.speed}/{defender.strength}/{defender.stamina})"
-                        )
-                        
-                        # Skip guaranteed-loss tussles for AI consideration
-                        # (still valid in UI, but AI shouldn't choose them)
-                        if predicted == "defender":
-                            # Skip this tussle - AI would lose
-                            logger.debug(f"  → Skipping losing tussle for AI")
-                            continue
-                        
-                        cost = engine.calculate_tussle_cost(card, player)
-                        valid_actions.append(
-                            ValidAction(
-                                action_type="tussle",
-                                card_id=card.id,
-                                card_name=card.name,
-                                cost_cc=cost,
-                                target_options=[defender.id],
-                                description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
-                            )
-                        )
-    
-    # Prefer tussles when ranking options (so AI prioritizes combat)
-    # Sort by: tussles first, then by cost (lowest first)
-    valid_actions.sort(key=lambda a: (a.action_type != "tussle", a.cost_cc if a.cost_cc is not None else 999))
+    # Use ActionValidator for single source of truth
+    # Enable AI filtering to remove strategically bad moves
+    validator = ActionValidator(engine)
+    valid_actions = validator.get_valid_actions(player_id, filter_for_ai=True)
     
     # Log available actions for debugging
     logger.debug(f"Available actions after filtering/prioritizing: {[a.description for a in valid_actions]}")
@@ -886,170 +415,129 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         
         elif action_details["action_type"] == "play_card":
             card_id = action_details["card_id"]
-            card = next((c for c in player.hand if c.id == card_id), None)
             
-            if card is None:
-                raise HTTPException(status_code=500, detail=f"AI selected invalid card ID: {card_id}")
+            # Use ActionExecutor to execute the play
+            executor = ActionExecutor(engine)
             
-            # Calculate cost before playing
-            cost = engine.calculate_card_cost(card, player)
-            
-            # Handle alternative cost for Ballaber
-            kwargs = {}
-            alternative_cost_card_id = action_details.get("alternative_cost_card_id")
-            if alternative_cost_card_id and card.name == "Ballaber":
-                card_to_sleep = next((c for c in (player.in_play + (player.hand or [])) if c.id == alternative_cost_card_id and c.name != "Ballaber"), None)
-                if card_to_sleep:
-                    kwargs["alternative_cost_paid"] = True
-                    kwargs["alternative_cost_card"] = card_to_sleep.name
-                    logger.info(f"AI playing Ballaber with alternative cost (sleeping {card_to_sleep.name})")
-                else:
-                    logger.warning(f"AI selected alternative cost card {alternative_cost_card_id} but it wasn't found")
-            
-            # Handle target selection (for cards like Twist, Wake, Copy, Sun)
-            target_id = action_details.get("target_id")
-            if target_id:
-                target = game_state.find_card_by_id(target_id)
-                if target is None:
-                    # AI hallucinated the target ID
-                    all_card_ids = []
-                    for p in game_state.players.values():
-                        all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
-                    
-                    logger.error(
-                        f"🤖 LLM HALLUCINATION DETECTED - Invalid target ID:\n"
-                        f"  Hallucinated ID: {target_id}\n"
-                        f"  AI was playing: {card.name}\n"
-                        f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
-                        f"  Game: {game_id}, Turn: {game_state.turn_number}, Phase: {game_state.phase.value}"
-                    )
-                    
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"AI selected invalid target ID (likely LLM hallucination): {target_id}"
-                    )
-                kwargs["target"] = target
-                kwargs["target_name"] = target.name  # For Copy card
-                logger.info(f"AI playing {card.name} with target: {target.name} (ID: {target_id})")
-            
-            success = engine.play_card(player, card, **kwargs)
-            engine.check_state_based_actions()
-            
-            # Build description with card effect for Action cards
-            if kwargs.get("alternative_cost_paid"):
-                description = f"Played {card.name} by sleeping {kwargs['alternative_cost_card']}"
-            else:
-                description = f"Spent {cost} CC to play {card.name}"
-            if card.is_action():
-                description += f" ({card.effect_text})"
-                # Add target-specific details (same logic as human player endpoint)
-                if card.name == "Wake" and kwargs.get("target"):
-                    target_card = kwargs["target"]
-                    description += f". Unslept {target_card.name}"
-                elif card.name == "Sun" and kwargs.get("targets"):
-                    target_names = [t.name for t in kwargs["targets"]]
-                    description += f". Sleeped {', '.join(target_names)}"
-                elif card.name == "Copy" and kwargs.get("target"):
-                    target_card = kwargs["target"]
-                    description += f". Copied {target_card.name}"
-                elif card.name == "Twist" and kwargs.get("target"):
-                    target_card = kwargs["target"]
-                    description += f". Took control of {target_card.name}"
-            # For Ballaber: show alt cost (Ballaber is a Toy, not Action)
-            if card.name == "Ballaber" and kwargs.get("alternative_cost_paid") and kwargs.get("alternative_cost_card"):
-                alt_card = kwargs["alternative_cost_card"]
-                description += f". Slept {alt_card} for alternative cost"
-            
-            # Log to play-by-play
-            game_state.add_play_by_play(
-                player_name=player.name,
-                action_type="play_card",
-                description=description,
-                reasoning=reasoning,
-                ai_endpoint=ai_endpoint_name,
-            )
-            
-            return ActionResponse(
-                success=success,
-                message=f"AI played {card.name}",
-                game_state={"turn": game_state.turn_number},
-                ai_turn_summary=turn_summary
-            )
-        
-        elif action_details["action_type"] == "tussle":
-            attacker_id = action_details["attacker_id"]
-            defender_id = action_details.get("defender_id")
-            
-            attacker = next((c for c in player.in_play if c.id == attacker_id), None)
-            if attacker is None:
-                # AI hallucinated the attacker ID
-                all_attacker_ids = [c.id for c in player.in_play]
-                logger.error(
-                    f"🤖 LLM HALLUCINATION DETECTED - Invalid attacker ID:\n"
-                    f"  Hallucinated ID: {attacker_id}\n"
-                    f"  Valid attacker IDs: {all_attacker_ids}\n"
-                    f"  Game: {game_id}, Turn: {game_state.turn_number}"
+            try:
+                result = executor.execute_play_card(
+                    player_id=player_id,
+                    card_id=card_id,
+                    target_card_id=action_details.get("target_id"),
+                    alternative_cost_card_id=action_details.get("alternative_cost_card_id")
                 )
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"AI selected invalid attacker ID (likely LLM hallucination): {attacker_id}"
+                
+                if not result.success:
+                    raise HTTPException(status_code=500, detail=result.message)
+                
+                # Log to play-by-play
+                game_state.add_play_by_play(
+                    player_name=player.name,
+                    action_type="play_card",
+                    description=result.description,
+                    reasoning=reasoning,
+                    ai_endpoint=ai_endpoint_name,
                 )
-            
-            defender = None
-            if defender_id:
-                defender = game_state.find_card_by_id(defender_id)
-                if defender is None:
-                    # AI hallucinated the defender ID
-                    opponent = game_state.get_opponent(player_id)
-                    opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.sleep_zone)]
-                    all_card_ids = opponent_card_ids + [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
-                    
-                    logger.error(
-                        f"🤖 LLM HALLUCINATION DETECTED - Invalid defender ID:\n"
-                        f"  Hallucinated ID: {defender_id}\n"
-                        f"  Attacker: {attacker.name} (ID: {attacker_id})\n"
-                        f"  Valid opponent card IDs ({len(opponent_card_ids)}): {opponent_card_ids}\n"
-                        f"  All card IDs in game ({len(all_card_ids)}): {all_card_ids}\n"
-                        f"  Game: {game_id}, Turn: {game_state.turn_number}, Phase: {game_state.phase.value}"
+                
+                # Check for victory
+                if result.winner:
+                    winner_name = game_state.players[result.winner].name
+                    game_state.add_play_by_play(
+                        player_name=winner_name,
+                        action_type="victory",
+                        description=f"{winner_name} wins! All opponent's cards are sleeped."
                     )
-                    
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"AI selected invalid defender ID (likely LLM hallucination): {defender_id}"
+                    return ActionResponse(
+                        success=True,
+                        message=f"AI card played! {winner_name} wins the game!",
+                        game_state={"winner": result.winner, "is_game_over": True},
+                        ai_turn_summary=turn_summary
                     )
-            
-            # Calculate cost before tussle
-            cost = engine.calculate_tussle_cost(attacker, player)
-            
-            success = engine.initiate_tussle(attacker, defender, player)
-            engine.check_state_based_actions()
-            
-            # Log to play-by-play with cost
-            target_desc = defender.name if defender else "opponent directly"
-            game_state.add_play_by_play(
-                player_name=player.name,
-                action_type="tussle",
-                description=f"Spent {cost} CC for {attacker.name} to tussle {target_desc}",
-                reasoning=reasoning,
-                ai_endpoint=ai_endpoint_name,
-            )
-            
-            # Check for victory
-            winner = game_state.check_victory()
-            if winner:
+                
                 return ActionResponse(
                     success=True,
-                    message=f"AI tussle successful! {winner} wins!",
-                    game_state={"winner": winner},
+                    message=result.message,
+                    game_state={"turn": game_state.turn_number},
                     ai_turn_summary=turn_summary
                 )
+                
+            except ValueError as e:
+                # AI-specific error handling - likely LLM hallucination
+                error_msg = str(e)
+                if "not found" in error_msg.lower():
+                    logger.error(
+                        f"🤖 LLM HALLUCINATION DETECTED - AI play_card failed:\n"
+                        f"  Card ID: {card_id}\n"
+                        f"  Target ID: {action_details.get('target_id')}\n"
+                        f"  Alt Cost ID: {action_details.get('alternative_cost_card_id')}\n"
+                        f"  Error: {error_msg}\n"
+                        f"  Game: {game_id}, Turn: {game_state.turn_number}"
+                    )
+                    error_detail = f"AI selected invalid card/target ID (likely LLM hallucination): {error_msg}"
+                else:
+                    error_detail = f"AI action execution failed: {error_msg}"
+                raise HTTPException(status_code=500, detail=error_detail)
+        
+        elif action_details["action_type"] == "tussle":
+            # Use ActionExecutor to execute the tussle
+            executor = ActionExecutor(engine)
             
-            return ActionResponse(
-                success=success,
-                message=f"AI initiated tussle: {attacker.name} vs {target_desc}",
-                game_state={"turn": game_state.turn_number},
-                ai_turn_summary=turn_summary
-            )
+            try:
+                result = executor.execute_tussle(
+                    player_id=player_id,
+                    attacker_id=action_details["attacker_id"],
+                    defender_id=action_details.get("defender_id")
+                )
+                
+                if not result.success:
+                    raise HTTPException(status_code=500, detail=result.message)
+                
+                # Log to play-by-play
+                game_state.add_play_by_play(
+                    player_name=player.name,
+                    action_type="tussle",
+                    description=result.description,
+                    reasoning=reasoning,
+                    ai_endpoint=ai_endpoint_name,
+                )
+                
+                # Check for victory
+                if result.winner:
+                    winner_name = game_state.players[result.winner].name
+                    game_state.add_play_by_play(
+                        player_name=winner_name,
+                        action_type="victory",
+                        description=f"{winner_name} wins! All opponent's cards are sleeped."
+                    )
+                    return ActionResponse(
+                        success=True,
+                        message=f"AI tussle successful! {winner_name} wins!",
+                        game_state={"winner": result.winner, "is_game_over": True},
+                        ai_turn_summary=turn_summary
+                    )
+                
+                return ActionResponse(
+                    success=True,
+                    message=result.message,
+                    game_state={"turn": game_state.turn_number},
+                    ai_turn_summary=turn_summary
+                )
+                
+            except ValueError as e:
+                # AI-specific error handling - likely LLM hallucination
+                error_msg = str(e)
+                if "not found" in error_msg.lower():
+                    logger.error(
+                        f"🤖 LLM HALLUCINATION DETECTED - AI tussle failed:\n"
+                        f"  Attacker ID: {action_details['attacker_id']}\n"
+                        f"  Defender ID: {action_details.get('defender_id')}\n"
+                        f"  Error: {error_msg}\n"
+                        f"  Game: {game_id}, Turn: {game_state.turn_number}"
+                    )
+                    error_detail = f"AI selected invalid attacker/defender ID (likely LLM hallucination): {error_msg}"
+                else:
+                    error_detail = f"AI tussle execution failed: {error_msg}"
+                raise HTTPException(status_code=500, detail=error_detail)
         
         else:
             logger.error(f"Unknown action type from AI: {action_details['action_type']}")
