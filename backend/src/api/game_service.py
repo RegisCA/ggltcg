@@ -1,8 +1,8 @@
 """
 Game service for managing active games.
 
-This service maintains a dictionary of active games and provides
-methods for game lifecycle management.
+This service manages game persistence using PostgreSQL database.
+Games are stored in the database and loaded on demand.
 """
 
 import uuid
@@ -10,6 +10,7 @@ import logging
 from typing import Dict, Optional
 import os
 from pathlib import Path
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -18,26 +19,131 @@ from game_engine.models.game_state import GameState, Phase
 from game_engine.models.player import Player
 from game_engine.models.card import Card
 from game_engine.data.card_loader import CardLoader
+from api.database import SessionLocal
+from api.db_models import GameModel
+from api.serialization import (
+    serialize_game_state,
+    deserialize_game_state,
+    extract_metadata,
+)
 
 
 class GameService:
     """
-    Manages active game sessions.
+    Manages active game sessions with PostgreSQL persistence.
     
-    In a production environment, this would be replaced with a database
-    and proper session management. For the MVP, we keep games in memory.
+    Games are stored in the database and loaded on demand.
+    An in-memory cache is maintained for active games to improve performance.
     """
     
-    def __init__(self, cards_csv_path: str):
+    def __init__(self, cards_csv_path: str, use_database: bool = True):
         """
         Initialize the game service.
         
         Args:
             cards_csv_path: Path to cards.csv file
+            use_database: If True, use database persistence. If False, use in-memory only (for testing)
         """
-        self.games: Dict[str, GameEngine] = {}
         self.card_loader = CardLoader(cards_csv_path)
         self.all_cards = self.card_loader.load_cards()
+        self.use_database = use_database
+        
+        # In-memory cache for active games (improves performance)
+        self._cache: Dict[str, GameEngine] = {}
+        
+        if use_database:
+            logger.info("GameService initialized with database persistence")
+        else:
+            logger.warning("GameService running in memory-only mode (database disabled)")
+    
+    def _save_game_to_db(self, game_id: str, engine: GameEngine) -> None:
+        """
+        Save game to database.
+        
+        Args:
+            game_id: Game ID
+            engine: GameEngine instance to save
+        """
+        if not self.use_database:
+            return
+        
+        db = SessionLocal()
+        try:
+            # Serialize game state
+            game_state_dict = serialize_game_state(engine.game_state)
+            metadata = extract_metadata(engine.game_state)
+            
+            # Check if game exists
+            game_model = db.query(GameModel).filter(GameModel.id == uuid.UUID(game_id)).first()
+            
+            if game_model:
+                # Update existing game
+                game_model.game_state = game_state_dict
+                game_model.turn_number = metadata["turn_number"]
+                game_model.active_player_id = metadata["active_player_id"]
+                game_model.phase = metadata["phase"]
+                game_model.status = metadata["status"]
+                game_model.winner_id = metadata["winner_id"]
+                logger.debug(f"Updated game {game_id} in database")
+            else:
+                # Create new game
+                game_model = GameModel(
+                    id=uuid.UUID(game_id),
+                    player1_id=metadata["player1_id"],
+                    player1_name=metadata["player1_name"],
+                    player2_id=metadata["player2_id"],
+                    player2_name=metadata["player2_name"],
+                    status=metadata["status"],
+                    winner_id=metadata["winner_id"],
+                    turn_number=metadata["turn_number"],
+                    active_player_id=metadata["active_player_id"],
+                    phase=metadata["phase"],
+                    game_state=game_state_dict,
+                )
+                db.add(game_model)
+                logger.info(f"Created new game {game_id} in database")
+            
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to save game {game_id} to database: {e}")
+            raise
+        finally:
+            db.close()
+    
+    def _load_game_from_db(self, game_id: str) -> Optional[GameEngine]:
+        """
+        Load game from database.
+        
+        Args:
+            game_id: Game ID to load
+            
+        Returns:
+            GameEngine instance or None if not found
+        """
+        if not self.use_database:
+            return None
+        
+        db = SessionLocal()
+        try:
+            game_model = db.query(GameModel).filter(GameModel.id == uuid.UUID(game_id)).first()
+            
+            if not game_model:
+                return None
+            
+            # Deserialize game state
+            game_state = deserialize_game_state(game_model.game_state)
+            
+            # Create GameEngine instance
+            engine = GameEngine(game_state)
+            
+            logger.debug(f"Loaded game {game_id} from database")
+            return engine
+        except Exception as e:
+            logger.error(f"Failed to load game {game_id} from database: {e}")
+            raise
+        finally:
+            db.close()
     
     def create_game(
         self,
@@ -107,8 +213,11 @@ class GameService:
         # Start the first turn
         engine.start_turn()
         
-        # Store game
-        self.games[game_id] = engine
+        # Save to database
+        self._save_game_to_db(game_id, engine)
+        
+        # Cache in memory
+        self._cache[game_id] = engine
         
         return game_id, engine
     
@@ -116,13 +225,42 @@ class GameService:
         """
         Get a game by ID.
         
+        First checks in-memory cache, then loads from database if not found.
+        
         Args:
             game_id: The game ID
             
         Returns:
             GameEngine instance or None if not found
         """
-        return self.games.get(game_id)
+        # Check cache first
+        if game_id in self._cache:
+            return self._cache[game_id]
+        
+        # Load from database
+        engine = self._load_game_from_db(game_id)
+        
+        # Cache if found
+        if engine:
+            self._cache[game_id] = engine
+        
+        return engine
+    
+    def update_game(self, game_id: str, engine: GameEngine) -> None:
+        """
+        Update a game in the database.
+        
+        This should be called after any game state changes to persist them.
+        
+        Args:
+            game_id: Game ID
+            engine: Updated GameEngine instance
+        """
+        # Update cache
+        self._cache[game_id] = engine
+        
+        # Save to database
+        self._save_game_to_db(game_id, engine)
     
     def delete_game(self, game_id: str) -> bool:
         """
@@ -134,10 +272,29 @@ class GameService:
         Returns:
             True if deleted, False if not found
         """
-        if game_id in self.games:
-            del self.games[game_id]
-            return True
-        return False
+        # Remove from cache
+        if game_id in self._cache:
+            del self._cache[game_id]
+        
+        # Remove from database
+        if self.use_database:
+            db = SessionLocal()
+            try:
+                game_model = db.query(GameModel).filter(GameModel.id == uuid.UUID(game_id)).first()
+                if game_model:
+                    db.delete(game_model)
+                    db.commit()
+                    logger.info(f"Deleted game {game_id} from database")
+                    return True
+                return False
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to delete game {game_id}: {e}")
+                return False
+            finally:
+                db.close()
+        
+        return True
     
     def _create_deck(self, card_names: list[str], owner_id: str) -> list[Card]:
         """
@@ -176,8 +333,16 @@ class GameService:
         return deck
     
     def get_active_games_count(self) -> int:
-        """Get the number of active games."""
-        return len(self.games)
+        """Get the number of active games in the database."""
+        if not self.use_database:
+            return len(self._cache)
+        
+        db = SessionLocal()
+        try:
+            count = db.query(GameModel).filter(GameModel.status == "active").count()
+            return count
+        finally:
+            db.close()
     
     def generate_random_deck(self, num_toys: int, num_actions: int) -> list[str]:
         """

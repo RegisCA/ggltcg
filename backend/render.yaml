@@ -7,10 +7,14 @@ services:
     branch: main
     rootDir: backend
     buildCommand: pip install -r requirements.txt
+    # Run database migrations before starting the server
+    preDeployCommand: alembic upgrade head
     startCommand: cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.0
+      - key: DATABASE_URL
+        sync: false
       - key: GOOGLE_API_KEY
         sync: false
       - key: GEMINI_MODEL
