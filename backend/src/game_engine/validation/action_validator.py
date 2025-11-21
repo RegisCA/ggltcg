@@ -19,7 +19,6 @@ Key responsibilities:
 
 import logging
 from typing import List, Optional, Tuple
-from dataclasses import dataclass
 
 from game_engine.models.card import CardType
 from game_engine.models.game_state import GameState
@@ -27,28 +26,9 @@ from game_engine.models.player import Player
 from game_engine.rules.effects import EffectRegistry
 from game_engine.rules.effects.base_effect import PlayEffect
 from game_engine.rules.tussle_resolver import TussleResolver
+from api.schemas import ValidAction
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ValidAction:
-    """
-    Represents a valid action a player can take.
-    
-    This is returned by ActionValidator and used by both the API
-    (for human players to choose from) and the AI (to select the best action).
-    """
-    action_type: str  # "play_card", "tussle", "end_turn"
-    description: str  # Human-readable description
-    card_id: Optional[str] = None  # Card being played/tussled with
-    card_name: Optional[str] = None  # For display
-    cost_cc: Optional[int] = None  # CC cost
-    target_options: Optional[List[str]] = None  # Valid target card IDs
-    max_targets: int = 1  # Maximum targets to select
-    min_targets: int = 1  # Minimum targets required
-    alternative_cost_available: bool = False  # Can use alternative cost?
-    alternative_cost_options: Optional[List[str]] = None  # Cards that can be used for alt cost
 
 
 class ActionValidator:
