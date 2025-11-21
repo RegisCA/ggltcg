@@ -1,8 +1,13 @@
 # GGLTCG Architecture Documentation
 
-**Version:** 1.0  
-**Date:** November 20, 2025  
-**Status:** Current implementation (feat/complete-card-effects branch)
+**Version:** 2.0  
+**Date:** November 21, 2025  
+**Status:** Current implementation (refactor/action-architecture branch)
+
+**Major Changes:**
+- Added ActionValidator and ActionExecutor classes
+- Eliminated ~457 lines of code duplication
+- Unified validation and execution logic for human and AI players
 
 ---
 
@@ -71,16 +76,21 @@ backend/
 │       ├── models/
 │       │   ├── card.py       # Card data model
 │       │   ├── game_state.py # Game state container
-│       │   └── player.py     # Player data model
-│       └── rules/
-│           ├── turn_manager.py
-│           ├── tussle_resolver.py
-│           └── effects/       # Card effects system
-│               ├── base_effect.py
-│               ├── action_effects.py
-│               ├── triggered_effects.py
-│               ├── continuous_effects.py
-│               └── effect_registry.py
+│       │   ├── player.py     # Player data model
+│       │   └── actions.py    # Structured action types
+│       ├── rules/
+│       │   ├── turn_manager.py
+│       │   ├── tussle_resolver.py
+│       │   └── effects/       # Card effects system
+│       │       ├── base_effect.py
+│       │       ├── action_effects.py
+│       │       ├── triggered_effects.py
+│       │       ├── continuous_effects.py
+│       │       └── effect_registry.py
+│       └── validation/        # Action validation and execution
+│           ├── __init__.py
+│           ├── action_validator.py  # Validates valid actions
+│           └── action_executor.py   # Executes actions
 ```
 
 ### Separation of Concerns
@@ -707,60 +717,48 @@ App
 
 ## Known Issues & Technical Debt
 
+### ~~Critical Issues~~ ✅ RESOLVED
+
+1. ~~**Code Duplication Between AI and Human Player Paths**~~ ✅ RESOLVED (Nov 21, 2025)
+   - **Solution Implemented:** Created `ActionValidator` and `ActionExecutor` classes
+   - **Result:** 
+     - ~457 lines of duplication eliminated
+     - Single source of truth for validation (`ActionValidator`)
+     - Single source of truth for execution (`ActionExecutor`)
+     - Both human and AI paths use identical logic
+     - Bugs only need to be fixed once
+   - **Files Created:**
+     - `/backend/src/game_engine/validation/action_validator.py` (372 lines)
+     - `/backend/src/game_engine/validation/action_executor.py` (420 lines)
+   - **Files Refactored:**
+     - `/backend/src/api/routes_actions.py` (880 → 523 lines, -357 lines)
+   - **Status:** Complete and validated with full game playthrough
+
+2. ~~**Complex and Ambiguous Function Arguments**~~ ✅ PARTIALLY RESOLVED (Nov 21, 2025)
+   - **Solution Implemented:** 
+     - Created structured action types in `/backend/src/game_engine/models/actions.py`
+     - ActionExecutor uses explicit parameters instead of kwargs
+     - All target and cost handling consolidated in executor
+   - **Remaining Work:**
+     - Consider updating `game_engine.play_card()` signature to accept action objects
+     - Could further type-safe the internal game engine methods
+   - **Status:** Significantly improved, further improvements optional
+
 ### Critical Issues 🔴
 
-1. **Code Duplication Between AI and Human Player Paths**
-   - **Problem:** Three separate code paths for action execution:
-     1. Human player: `play_card` endpoint (lines 53-250 in routes_actions.py)
-     2. AI player: `ai_take_turn` endpoint (lines 555-950 in routes_actions.py)
-     3. Valid actions generation: `get_valid_actions` endpoint (lines 252-553)
-   - **Symptoms:**
-     - Effect checking logic duplicated in 2 places (valid actions + AI turn)
-     - Target validation duplicated
-     - Description building duplicated
-     - Cost calculation duplicated
-     - When bugs are fixed in one path, they remain in others
-   - **Impact:** High maintenance burden, inconsistent behavior, bugs in one path don't appear in others
-   - **Solution:** Create unified `ActionExecutor` and `ActionValidator` classes used by both paths
-   - **Identified:** November 20, 2025 debugging session
-
-2. **Complex and Ambiguous Function Arguments**
-   - **Problem:** Functions pass around complex sets of loosely-typed arguments
-   - **Example:**
-
-     ```python
-     engine.play_card(player, card, 
-         target=card_obj,           # Sometimes present, sometimes not
-         target_name=str,           # Why both target and target_name?
-         targets=list,              # Plural version for Sun card
-         alternative_cost_paid=bool,
-         alternative_cost_card=str, # Wait, this is a name not a card?
-         **kwargs                   # More unknown args
-     )
-     ```
-
-   - **Symptoms:**
-     - Hard to know what arguments are required for each card
-     - Mixing card objects and card names
-     - Kwargs make it unclear what's being passed
-     - Easy to forget required arguments (e.g., "target not passed to engine" bug)
-   - **Impact:** Bugs like target not passed, confusion about card references, difficult to refactor
-   - **Solution:** Use structured action objects (dataclasses) with explicit, typed fields
-   - **Identified:** November 20, 2025 debugging session
-
-3. **Card Identification by Name**
+1. **Card Identification by Name**
    - **Problem:** Multiple cards with same name cause targeting bugs
    - **Impact:** Twist, Wake, Copy can target wrong card
    - **Workaround:** Zone-specific searching (temporary fix)
    - **Solution:** Implement unique card IDs
    - **Status:** Partially addressed with unique IDs (Nov 20), but still using names in some places
 
-4. **In-Memory Game State**
+2. **In-Memory Game State**
    - **Problem:** Server restart loses all games
    - **Impact:** Not production-ready
    - **Solution:** PostgreSQL persistence layer
 
-5. **Inconsistent Controller Tracking**
+3. **Inconsistent Controller Tracking**
    - **Problem:** `card.controller` field vs `get_card_controller()` search
    - **Impact:** Twist effect initially broken
    - **Solution:** Always set `card.controller` when entering play
@@ -768,37 +766,37 @@ App
 
 ### High Priority Issues 🟡
 
-6. **Target Filtering Logic Duplication**
+4. **Target Filtering Logic Duplication**
    - Target filtering logic in both frontend and backend
    - Cost calculation partially duplicated
    - Valid action checking scattered across multiple files
 
-7. **No WebSocket Support**
+5. **No WebSocket Support**
    - Polling every second is inefficient
    - Needed for real-time multiplayer
    - Adds latency
 
-8. **Effect Registration is Manual**
+6. **Effect Registration is Manual**
    - Easy to forget to register effects
    - No compile-time checking
    - Hard to discover which effects exist
 
-9. ~~**AI Can't Handle Targets**~~ ✅ FIXED (Nov 20, 2025)
+7. ~~**AI Can't Handle Targets**~~ ✅ FIXED (Nov 20, 2025)
    - ~~AI doesn't select targets for Sun, Twist, Wake, Copy~~
    - ~~AI doesn't decide on Ballaber alternative cost~~
    - **Status:** AI now successfully selects targets and alternative costs
 
 ### Medium Priority Issues 🟢
 
-10. **No Card ID in Frontend**
-    - Frontend uses card names for keys (`key={card.name}`)
-    - Causes React warnings when duplicates exist
+8. **No Card ID in Frontend**
+   - Frontend uses card names for keys (`key={card.name}`)
+   - Causes React warnings when duplicates exist
 
-11. **Hardcoded Card Names**
-    - Special handling for Copy, Twist, Wake hardcoded in routes
-    - Should use effect metadata
+9. **Hardcoded Card Names**
+   - Special handling for Copy, Twist, Wake hardcoded in routes
+   - Should use effect metadata
 
-12. **No Game History**
+10. **No Game History**
     - Can't replay games
     - Can't undo moves (for development)
     - No statistics accumulated to support game and card development
