@@ -72,3 +72,48 @@ export interface CardDataResponse {
   primary_color: string;
   accent_color: string;
 }
+
+// Lobby / Multiplayer
+export interface CreateLobbyRequest {
+  player1_name: string;
+}
+
+export interface CreateLobbyResponse {
+  game_id: string;
+  game_code: string;
+  player1_name: string;
+  status: string;
+}
+
+export interface JoinLobbyRequest {
+  player2_name: string;
+}
+
+export interface JoinLobbyResponse {
+  game_id: string;
+  game_code: string;
+  player1_name: string;
+  player2_name: string;
+  status: string;
+}
+
+export interface LobbyStatusResponse {
+  game_id: string;
+  game_code: string;
+  player1_name: string;
+  player2_name: string | null;
+  status: string;
+  ready_to_start: boolean;
+}
+
+export interface StartGameRequest {
+  player_id: string;
+  deck: string[];
+}
+
+export interface StartGameResponse {
+  game_id: string;
+  status: string;
+  first_player_id: string;
+  game_state: any;
+}

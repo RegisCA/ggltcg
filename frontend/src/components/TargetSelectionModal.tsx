@@ -80,21 +80,73 @@ export function TargetSelectionModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-game-card rounded-lg border-2 border-game-highlight max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      style={{ 
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.80)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem'
+      }}
+    >
+      <div 
+        className="bg-gray-900 rounded-xl border-4 border-game-highlight shadow-2xl flex flex-col" 
+        style={{ 
+          width: '700px',
+          maxHeight: '80vh',
+        }}
+      >
         {/* Header */}
-        <div className="p-4 border-b-2 border-game-accent sticky top-0 bg-game-card">
-          <h2 className="text-2xl font-bold mb-2">
+        <div className="p-4 border-b-4 border-game-accent bg-gray-800 flex-shrink-0">
+          <h2 className="text-2xl font-bold mb-1 text-game-highlight">
             Playing {action.card_name}
           </h2>
-          <p className="text-gray-300">
+          <p className="text-base text-gray-300 mb-3">
+            Cost: {action.cost_cc} CC
+          </p>
+          <p className="text-base text-gray-100 mb-3">
             {action.description}
           </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="px-8 py-3 rounded-lg bg-gray-600 hover:bg-gray-700 font-bold transition-all text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!canConfirm()}
+              className={`
+                px-8 py-3 rounded-lg font-bold transition-all text-white
+                ${canConfirm()
+                  ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
+                  : 'bg-gray-600 cursor-not-allowed opacity-50'
+                }
+              `}
+            >
+              Confirm
+              {useAlternativeCost && alternativeCostCard
+                ? ' (Sleep card)'
+                : selectedTargets.length > 0
+                ? ` (${selectedTargets.length})`
+                : ''
+              }
+            </button>
+          </div>
         </div>
 
-        {/* Ballaber alternative cost: one-click selection */}
-        {hasAlternativeCost && (
-          <div className="p-4 bg-gray-900">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Ballaber alternative cost: one-click selection */}
+          {hasAlternativeCost && (
+            <div className="p-4 bg-gray-900">
             <h3 className="text-lg font-bold mb-2">Pay cost to play Ballaber:</h3>
             <div className="flex gap-4 mb-4">
               <button
@@ -129,11 +181,11 @@ export function TargetSelectionModal({
               })}
             </div>
           </div>
-        )}
+          )}
 
-        {/* Target Selection (for other cards) */}
-        {!useAlternativeCost && availableTargets.length > 0 && (
-          <div className="p-4">
+          {/* Target Selection (for other cards) */}
+          {!useAlternativeCost && availableTargets.length > 0 && (
+            <div className="p-4">
             <h3 className="text-lg font-bold mb-2">
               {maxTargets > 1
                 ? `Select up to ${maxTargets} target${maxTargets !== 1 ? 's' : ''}`
@@ -167,42 +219,14 @@ export function TargetSelectionModal({
                 );
               })}
             </div>
-          </div>
-        )}
+            </div>
+          )}
 
-        {!useAlternativeCost && availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
-          <div className="p-4 text-center text-gray-400">
-            No targets available, but you can still play this card.
-          </div>
-        )}
-
-        {/* Footer with action buttons */}
-        <div className="p-4 border-t-2 border-game-accent flex justify-end gap-3 sticky bottom-0 bg-game-card">
-          <button
-            onClick={onCancel}
-            className="px-6 py-2 rounded bg-gray-600 hover:bg-gray-700 font-bold transition-all"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!canConfirm()}
-            className={`
-              px-6 py-2 rounded font-bold transition-all
-              ${canConfirm()
-                ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
-                : 'bg-gray-600 cursor-not-allowed opacity-50'
-              }
-            `}
-          >
-            Confirm
-            {useAlternativeCost && alternativeCostCard
-              ? ' (Sleep card & play)'
-              : selectedTargets.length > 0
-              ? ` (${selectedTargets.length} target${selectedTargets.length !== 1 ? 's' : ''})`
-              : ''
-            }
-          </button>
+          {!useAlternativeCost && availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
+            <div className="p-4 text-center text-gray-400">
+              No targets available, but you can still play this card.
+            </div>
+          )}
         </div>
       </div>
     </div>
