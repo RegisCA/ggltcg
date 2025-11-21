@@ -19,7 +19,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add game_code column for lobby system."""
+    """Add game_code column for lobby system and make player2 fields nullable."""
+    
+    # Make player2 fields nullable to support waiting_for_player state
+    op.alter_column('games', 'player2_id', nullable=True)
+    op.alter_column('games', 'player2_name', nullable=True)
     
     # Add game_code column (nullable initially for existing games)
     op.add_column('games', sa.Column('game_code', sa.String(6), nullable=True))
@@ -43,7 +47,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove game_code column."""
+    """Remove game_code column and restore player2 constraints."""
     
     # Restore original status constraint
     op.drop_constraint('games_status_check', 'games', type_='check')
@@ -58,3 +62,7 @@ def downgrade() -> None:
     
     # Drop column
     op.drop_column('games', 'game_code')
+    
+    # Restore player2 fields to non-nullable (if needed)
+    op.alter_column('games', 'player2_id', nullable=False)
+    op.alter_column('games', 'player2_name', nullable=False)
