@@ -206,7 +206,7 @@ export function TargetSelectionModal({
             <h3 className="text-lg font-bold mb-3">
               {maxTargets > 1
                 ? `Select up to ${maxTargets} target${maxTargets !== 1 ? 's' : ''}`
-                : 'Select a target'
+                : 'Select a target '
               }
               {minTargets === 0 && ' (optional)'}
               {selectedTargets.length > 0 && (

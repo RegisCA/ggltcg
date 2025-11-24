@@ -78,52 +78,57 @@ export function ActionPanel({
     }
   };
 
-  return (
-    <div className="p-3 bg-game-card rounded border-2 border-game-accent">
-      <div className="mb-3">
-        <h3 className="text-lg font-bold mb-1">Available Actions for {currentCC} CC</h3>
-      </div>
-
-      {validActions.length === 0 ? (
-        <div className="text-gray-500 italic text-center py-4">
-          No actions available
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {Object.entries(groupedActions).map(([actionType, actions]) => (
-            <div key={actionType}>
-              <div className="space-y-3">
-                {actions.map((action, index) => (
-                  <button
-                    key={`${action.action_type}-${action.card_name || 'action'}-${index}`}
-                    onClick={() => onAction(action)}
-                    disabled={isProcessing}
-                    className={`
-                      w-full px-4 py-3.5 rounded transition-all text-sm
-                      ${getActionColor(action.action_type)}
-                      ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-102'}
-                      ${action.action_type === 'end_turn' && shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : ''}
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
-                  >
-                    <div className="flex justify-between items-center gap-3">
-                      <span className="font-medium leading-tight text-left flex-1">{action.description}</span>
-                      {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
-                        <span className={`
-                          px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap flex-shrink-0
-                          ${action.cost_cc > currentCC ? 'bg-red-800' : 'bg-black bg-opacity-30'}
-                        `}>
-                          {action.cost_cc} CC
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+return (
+  <div className="p-3 bg-game-card rounded border-2 border-game-accent w-full">
+    <div className="mb-3">
+      <h3 className="text-lg font-bold mb-1">Available Actions for {currentCC} CC</h3>
     </div>
-  );
+
+    {validActions.length === 0 ? (
+      <div className="text-gray-500 italic text-center py-4">
+        No actions available
+      </div>
+    ) : (
+      // CHANGE: Use 'grid grid-cols-1' instead of flex. 
+      // This forces a single column layout regardless of flex defaults.
+      <div className="grid grid-cols-1 gap-3 w-full">
+        {Object.entries(groupedActions).map(([actionType, actions]) => (
+          <div key={actionType} className="w-full">
+            {/* Inner container also uses grid to ensure buttons within a group stack vertically */}
+            <div className="grid grid-cols-1 gap-3 w-full">
+              {actions.map((action, index) => (
+                <button
+                  key={`${action.action_type}-${action.card_name || 'action'}-${index}`}
+                  onClick={() => onAction(action)}
+                  disabled={isProcessing}
+                  className={`
+                    w-full block px-4 py-3 rounded transition-all text-sm border-2
+                    ${getActionColor(action.action_type)}
+                    ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
+                    ${action.action_type === 'end_turn' && shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  {/* Button internals use Flex for Left/Right alignment, which works fine */}
+                  <div className="flex justify-between items-center w-full gap-2">
+                    <span className="font-bold text-left">{action.description}</span>
+                    
+                    {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
+                      <span className={`
+                        px-2 py-1 rounded text-xs font-bold whitespace-nowrap ml-auto
+                        ${action.cost_cc > currentCC ? 'bg-red-800 text-white' : 'bg-black/40 text-white'}
+                      `}>
+                        {action.cost_cc} CC
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
 }

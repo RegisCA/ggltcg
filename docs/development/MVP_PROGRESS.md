@@ -5,24 +5,29 @@
 ### ✅ Completed Tasks
 
 #### 1. Project Structure
+
 - Created complete directory structure for backend and frontend
 - Set up documentation folders with game rules and design docs
 - Configured .gitignore for Python and Node.js
 - Created README.md with project overview and roadmap
 
 #### 2. Backend Foundation (100% Complete)
+
 **Core Models:**
+
 - `Card` model with full stat tracking, zone management, and modifications
 - `Player` model with CC management, three zones (Hand, In Play, Sleep)
 - `GameState` model with turn tracking, phase management, and game log
 - Proper serialization/deserialization for API transport
 
 **Data Loading:**
+
 - `CardLoader` to parse cards.csv file
 - Support for 18 unique cards including Toys and Actions
 - Handles special cases (Copy's variable cost, Dream's reduction)
 
 **Game Rules:**
+
 - `TurnManager` for phase progression and CC system
   - Gain 4 CC per turn (2 on Turn 1 for first player)
   - CC banking with 7 CC maximum cap
@@ -38,7 +43,9 @@
   - Continuous effects (Ka +2 Strength, Demideca +1 all stats)
 
 #### 3. Effect System (100% Complete)
+
 **All 18 Card Effects Implemented:**
+
 - `ContinuousEffect` - Ka (+2 STR), Wizard (tussle cost 1), Demideca (+1 all stats), Raggy (cost +1 CC), Knight (auto-sleep 0-stamina), Beary (protection), Archer (no tussle)
 - `TriggeredEffect` - Umbruh (on-play shuffle), Snuggles (on-sleep draw), Beary (tussle cancel)
 - `ActionEffect` - All 10 action cards (Clean, Rush, Wake, Sun, Toynado, Twist, Copy, Ballaber, Dream, Shenanigans)
@@ -46,6 +53,7 @@
 - Full integration with game engine for automatic effect application
 
 **Effect System Files:** 7 files, 1,433 lines of code
+
 - `base_effect.py` - Abstract base classes
 - `continuous_effects.py` - Passive ongoing effects
 - `triggered_effects.py` - Event-based effects
@@ -54,7 +62,9 @@
 - All tests passing ✅
 
 #### 4. Game Engine (100% Complete)
+
 **Complete Game Logic Implementation:**
+
 - `GameEngine` class (680 lines) - Main game controller
 - Card playing with cost calculation and validation
 - Tussle system with all mechanics (direct attacks, targeted, special abilities)
@@ -64,6 +74,7 @@
 - Victory condition checking
 
 **Tested Scenarios:**
+
 - Card playing with various costs
 - Tussles with different speed/strength combinations
 - Direct attacks
@@ -71,7 +82,9 @@
 - Turn transitions and CC management
 
 #### 5. FastAPI REST API (100% Complete)
+
 **Complete REST API with 5 route files:**
+
 - `app.py` - FastAPI application with CORS and auto-docs
 - `schemas.py` - Pydantic request/response models
 - `game_service.py` - In-memory game session management
@@ -79,6 +92,7 @@
 - `routes_actions.py` - Player action endpoints
 
 **Available Endpoints:**
+
 - `POST /games` - Create new game
 - `GET /games/{game_id}` - Get game state
 - `DELETE /games/{game_id}` - Delete game
@@ -93,7 +107,9 @@
 **Tested with curl:** All endpoints functional ✅
 
 #### 6. AI Player Integration (100% Complete) 🎉
+
 **LLM-Powered Opponent with Dual Provider Support:**
+
 - `LLMPlayer` class (250 lines) - Strategic AI decision-making
 - **Gemini Integration** - Google Gemini API with gemini-2.0-flash-lite (30 RPM free tier)
 - **Claude Integration** - Anthropic Claude API (optional, paid)
@@ -103,6 +119,7 @@
 - Action selection from valid options
 
 **AI Capabilities:**
+
 - Analyzes full game state (CC, cards in play, opponent status)
 - Considers multiple actions per turn
 - Prioritizes winning strategy (tussles over hoarding CC)
@@ -110,6 +127,7 @@
 - Handles edge cases (empty responses, rate limits)
 
 **Test Results:**
+
 - ✅ Successfully plays complete 3-turn game
 - ✅ Makes strategic decisions (plays Ka for +2 STR buff)
 - ✅ Executes direct attacks intelligently
@@ -117,6 +135,7 @@
 - ✅ Stays within free tier API limits (30 RPM)
 
 **Files:**
+
 - `backend/src/game_engine/ai/llm_player.py` - Main AI player class
 - `backend/src/game_engine/ai/prompts.py` - Strategic prompt templates (180 lines)
 - `backend/tests/test_ai_player.py` - Comprehensive integration test (310 lines)
@@ -124,7 +143,9 @@
 - `backend/.env.example` - Environment variable template
 
 #### 7. React Frontend (100% Complete) 🎉
+
 **Complete React Application with TypeScript:**
+
 - `frontend/` - Vite + React 18 + TypeScript project
 - Vite 7.2.2 for fast development server
 - React Query (@tanstack/react-query) for server state management
@@ -132,21 +153,25 @@
 - Plain CSS utilities (Tailwind CSS v4 abandoned due to PostCSS compatibility issues)
 
 **Type Definitions:**
+
 - `types/game.ts` - Card, Player, GameState, ValidAction interfaces
 - `types/api.ts` - API request/response types
 - Full TypeScript coverage for type safety
 
 **API Client Layer:**
-- `api/client.ts` - Axios instance with http://localhost:8000 base URL
+
+- `api/client.ts` - Axios instance with <http://localhost:8000> base URL
 - `api/gameService.ts` - All game API calls (createGame, getGameState, playCard, initiateTussle, endTurn, aiTakeTurn, getValidActions)
 
 **React Query Hooks:**
+
 - `hooks/useGame.ts` - Custom hooks for all game operations
 - `useGameState` - Polls game state every 2 seconds
 - `useValidActions` - Fetches available player actions
 - `usePlayCard`, `useTussle`, `useEndTurn`, `useAITurn` - Mutation hooks
 
 **UI Components:**
+
 - `DeckSelection.tsx` - Deck builder with all 18 cards displayed
 - `CardDisplay.tsx` - Individual card component showing stats, type, effect text
 - `PlayerZone.tsx` - Displays player zones (Hand, In Play, Sleep)
@@ -155,6 +180,7 @@
 - `App.tsx` - Game flow state machine (deck selection → playing → game over)
 
 **Features:**
+
 - ✅ Deck selection UI (pick 6 cards for both players)
 - ✅ Game board with both player zones
 - ✅ Real-time game state updates via polling
@@ -165,26 +191,32 @@
 - ✅ Full game flow from deck selection to victory
 
 **Card Data:**
+
 - `data/cards.ts` - All 18 card definitions with stats and effect text
 
 **Styling:**
+
 - `index.css` - 200+ utility classes (manually written workaround for Tailwind v4 issues)
 - Dark theme with blue/pink color scheme
 - Responsive layout
 
 **Known Issues (Tracked on GitHub):**
+
 - ~~Issue #4: Players able to tussle their own cards~~ ✅ FIXED
 - Issue #5: Additional UI/UX improvements (card names in zones, game log, animations)
 
 #### 8. Documentation
+
 - `COPILOT_CONTEXT.md` - Comprehensive development guide for GitHub Copilot
 - Copied all game rules and design documents to `docs/` folder
 - Created test file to verify card loading works
 
 ### 🚧 Next Steps (In Priority Order)
 
-#### Phase 1: Backend ✅ COMPLETE!
+#### Phase 1: Backend ✅ COMPLETE
+
 All backend development finished:
+
 - ✅ Effect System - All 18 card effects implemented
 - ✅ Game Engine - Complete game logic with 680 lines
 - ✅ FastAPI REST API - 8 endpoints, auto-docs, CORS configured
@@ -192,8 +224,7 @@ All backend development finished:
 
 **Backend is production-ready for MVP!**
 
-
-#### Phase 2: Frontend ✅ COMPLETE!
+#### Phase 2: Frontend ✅ COMPLETE
 
 **All frontend development finished:**
 
@@ -209,6 +240,7 @@ All backend development finished:
 #### Phase 3: Testing & Polish (Current Focus)
 
 **Recent Bug Fixes (November 10, 2025):**
+
 1. ✅ **Card Stats Null in API Response** - Fixed CardType enum comparison in `_card_to_state()`. Was comparing enum to string "TOY" which always failed, causing all card stats to be null.
 2. ✅ **Defender Lookup Bug** - Fixed `find_card_by_name()` returning cards from any zone. Now searches specifically in opponent's play area to avoid finding cards with duplicate names in hand.
 3. ✅ **AI Player Improvements** - Added comprehensive logging, retry logic with exponential backoff for Gemini API, model fallback configuration
@@ -216,6 +248,7 @@ All backend development finished:
 5. ✅ **Duplicate AI Turn Calls** - Fixed React useEffect dependencies to prevent multiple AI turn triggers
 
 **Critical Bug Fixes (November 12, 2025) - PR #15:**
+
 1. ✅ **Issue #11 - Direct Attack Bug** - Direct attacks were incorrectly allowed when opponent had cards in play. Fixed with explicit `opponent.has_cards_in_play()` check in both `get_valid_actions` and `ai_take_turn` endpoints.
 2. ✅ **Issue #12 - AI Never Tussles** - AI was filtering out all tussles due to incorrect CardType enum comparison (`card.card_type.value == "TOY"` vs `CardType.TOY`). Also fixed turn bonus logic in `predict_winner()` - attackers always get +1 speed, defenders don't. Added `TussleResolver.predict_winner()` method to filter guaranteed-loss tussles.
 3. ✅ **Issue #7 - Copy Card Implementation** - Implemented complete Copy card functionality with `copy.deepcopy()` for cloning, dynamic cost calculation based on target card, and target selection support in UI.
@@ -223,6 +256,7 @@ All backend development finished:
 5. ✅ **CardType Enum Audit** - Fixed all incorrect CardType comparisons throughout codebase (prompts.py, action_effects.py, routes_actions.py).
 
 **UI/UX Improvements (November 13, 2025) - Issue #21:**
+
 1. ✅ **GameBoard Redesign** - Complete layout overhaul to horizontal 3-column design:
    - Created new zone components: `PlayerInfoBar`, `InPlayZone`, `HandZone`, `SleepZoneDisplay`
    - Restructured to 3-column grid: in-play zones (left) | sleep zones (center) | messages+actions (right)
@@ -244,7 +278,7 @@ All backend development finished:
    - Backend lobby endpoints (createLobby, joinLobby, getLobbyStatus, startLobbyGame)
    - Auto-start when both players ready with decks
    - Proper cleanup on navigation
-   
+
 2. ✅ **Target Selection Modal** - Polished UI for cards requiring targets:
    - Centered floating modal with 80% opacity backdrop
    - Support for Copy, Sun, Wake, Twist targeting
@@ -256,6 +290,7 @@ All backend development finished:
    - Inline styles for reliable centering
 
 **Outstanding Issues:**
+
 - Issue #5: UI/UX improvements (animations, visual effects)
 - Issue #14: ~~Frontend enhancements for Copy card target selection~~ ✅ COMPLETE
 
@@ -303,7 +338,6 @@ All backend development finished:
 - ✅ AI opponent with strategic decision-making
 
 ### 🎯 MVP Goals
-
 
 **Target:** Playable single-player game vs AI in 4-6 weeks
 
