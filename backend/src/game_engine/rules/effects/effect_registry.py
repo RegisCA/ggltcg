@@ -57,6 +57,12 @@ class EffectFactory:
             if effect_type == "stat_boost":
                 effect = cls._parse_stat_boost(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "set_tussle_cost":
+                effect = cls._parse_set_tussle_cost(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "reduce_cost_by_sleeping":
+                effect = cls._parse_reduce_cost_by_sleeping(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -108,6 +114,75 @@ class EffectFactory:
         # Import here to avoid circular dependency
         from .continuous_effects import StatBoostEffect
         return StatBoostEffect(source_card, stat_name, amount)
+    
+    @classmethod
+    def _parse_set_tussle_cost(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a set_tussle_cost effect definition.
+        
+        Format: "set_tussle_cost:cost"
+        - cost: integer tussle cost (e.g., 1 for Wizard)
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            SetTussleCostEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"set_tussle_cost effect requires 1 parameter: cost. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Parse cost
+        try:
+            cost = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid cost '{parts[1]}' for set_tussle_cost. Must be an integer."
+            )
+        
+        if cost < 0:
+            raise ValueError(
+                f"Invalid cost {cost} for set_tussle_cost. Must be non-negative."
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import SetTussleCostEffect
+        return SetTussleCostEffect(source_card, cost)
+    
+    @classmethod
+    def _parse_reduce_cost_by_sleeping(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a reduce_cost_by_sleeping effect definition.
+        
+        Format: "reduce_cost_by_sleeping"
+        No parameters - reduces cost by 1 per sleeping card.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            ReduceCostBySleepingEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"reduce_cost_by_sleeping effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import ReduceCostBySleepingEffect
+        return ReduceCostBySleepingEffect(source_card)
 
 
 class EffectRegistry:
