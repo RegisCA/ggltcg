@@ -171,10 +171,14 @@ class ToynadoEffect(PlayEffect):
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Return all cards in play to their owners' hands."""
-        all_cards_in_play = game_state.get_all_cards_in_play()
+        # Collect all cards from in-play zones first
+        all_cards_in_play = []
+        for player in game_state.players.values():
+            all_cards_in_play.extend(player.in_play)
+            player.in_play.clear()  # Clear the in_play list
         
+        # Now process each card and add to owner's hand
         for card in all_cards_in_play:
-            # Return to owner's hand (not controller's)
             owner = game_state.get_card_owner(card)
             if owner:
                 game_state.return_card_to_hand(card, owner)

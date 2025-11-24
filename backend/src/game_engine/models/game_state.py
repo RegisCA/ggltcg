@@ -166,6 +166,11 @@ class GameState:
         Returns:
             Player who owns the card, or None if not found
         """
+        # Check the card's owner field directly
+        if card.owner:
+            return self.players.get(card.owner)
+        
+        # Fallback: search through all zones (for cards without owner set)
         for player in self.players.values():
             if card in player.hand or card in player.in_play or card in player.sleep_zone:
                 return player
@@ -203,15 +208,12 @@ class GameState:
             card: Card to return
             owner: Owner to return card to
         """
-        # Remove from wherever it is
-        for player in self.players.values():
-            if card in player.in_play:
-                player.in_play.remove(card)
-                break
+        # Update card state
+        card.zone = Zone.HAND
+        card.controller = owner.player_id  # Reset controller to owner
+        card.reset_modifications()
         
         # Add to owner's hand
-        card.zone = Zone.HAND
-        card.reset_modifications()
         owner.hand.append(card)
     
     def change_control(self, card: Card, new_controller: Player) -> None:
