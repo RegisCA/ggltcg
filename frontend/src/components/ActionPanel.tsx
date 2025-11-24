@@ -26,19 +26,6 @@ export function ActionPanel({
     return acc;
   }, {} as Record<string, ValidAction[]>);
 
-  const getActionTypeLabel = (type: string) => {
-    switch (type) {
-      case 'play_card':
-        return 'Play Cards';
-      case 'tussle':
-        return 'Tussle';
-      case 'end_turn':
-        return 'End Turn';
-      default:
-        return type;
-    }
-  };
-
   const getActionColor = (type: string) => {
     switch (type) {
       case 'play_card':
