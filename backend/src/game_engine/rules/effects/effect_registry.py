@@ -57,6 +57,15 @@ class EffectFactory:
             if effect_type == "stat_boost":
                 effect = cls._parse_stat_boost(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "gain_cc":
+                effect = cls._parse_gain_cc(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "unsleep":
+                effect = cls._parse_unsleep(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "sleep_all":
+                effect = cls._parse_sleep_all(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -108,6 +117,123 @@ class EffectFactory:
         # Import here to avoid circular dependency
         from .continuous_effects import StatBoostEffect
         return StatBoostEffect(source_card, stat_name, amount)
+    
+    @classmethod
+    def _parse_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a gain_cc effect definition.
+        
+        Format: "gain_cc:amount" or "gain_cc:amount:not_first_turn"
+        - amount: integer CC to gain
+        - not_first_turn: optional restriction
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            GainCCEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) < 2 or len(parts) > 3:
+            raise ValueError(
+                f"gain_cc effect requires 1-2 parameters: amount and optional restriction. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Parse amount
+        try:
+            amount = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[1]}' for gain_cc. Must be an integer."
+            )
+        
+        # Parse optional restriction
+        not_first_turn = False
+        if len(parts) == 3:
+            restriction = parts[2].strip().lower()
+            if restriction == "not_first_turn":
+                not_first_turn = True
+            else:
+                raise ValueError(
+                    f"Invalid restriction '{restriction}' for gain_cc. "
+                    f"Only 'not_first_turn' is supported."
+                )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import GainCCEffect
+        return GainCCEffect(source_card, amount, not_first_turn)
+    
+    @classmethod
+    def _parse_unsleep(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an unsleep effect definition.
+        
+        Format: "unsleep:count"
+        - count: integer number of cards to unsleep
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            UnsleepEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"unsleep effect requires 1 parameter: count. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Parse count
+        try:
+            count = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid count '{parts[1]}' for unsleep. Must be an integer."
+            )
+        
+        if count < 1:
+            raise ValueError(
+                f"Invalid count '{count}' for unsleep. Must be at least 1."
+            )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import UnsleepEffect
+        return UnsleepEffect(source_card, count)
+    
+    @classmethod
+    def _parse_sleep_all(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a sleep_all effect definition.
+        
+        Format: "sleep_all" (no parameters)
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            SleepAllEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"sleep_all effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import SleepAllEffect
+        return SleepAllEffect(source_card)
 
 
 class EffectRegistry:
