@@ -29,6 +29,7 @@ class Card:
         card_type: Type of card (Toy or Action)
         cost: CC cost to play the card
         effect_text: Text description of card's effect
+        effect_definitions: Data-driven effect definitions from CSV (e.g., "stat_boost:strength:2")
         speed: Speed stat (Toys only)
         strength: Strength stat (Toys only)
         stamina: Stamina stat (Toys only)
@@ -45,6 +46,7 @@ class Card:
     cost: int  # Can be -1 for variable cost cards like Copy
     effect_text: str
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    effect_definitions: str = ""  # Data-driven effects from CSV
     speed: Optional[int] = None
     strength: Optional[int] = None
     stamina: Optional[int] = None

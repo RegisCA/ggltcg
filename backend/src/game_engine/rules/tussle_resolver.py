@@ -4,6 +4,8 @@ from typing import Optional, List
 from ..models.game_state import GameState
 from ..models.card import Card
 from ..models.player import Player
+from .effects.effect_registry import EffectRegistry
+from .effects.base_effect import ContinuousEffect
 import random
 import copy
 
@@ -160,9 +162,9 @@ class TussleResolver:
         """
         active_player = game_state.get_active_player()
         
-        # Calculate effective speeds
-        attacker_speed = attacker.get_effective_speed()
-        defender_speed = defender.get_effective_speed()
+        # Calculate effective speeds (including continuous effects like Ka, Demideca)
+        attacker_speed = TussleResolver._get_stat_with_effects(game_state, attacker, "speed")
+        defender_speed = TussleResolver._get_stat_with_effects(game_state, defender, "speed")
         
         # Apply turn bonus (+1 speed for active player's cards)
         if attacker.controller == active_player.player_id:
@@ -170,17 +172,9 @@ class TussleResolver:
         if defender.controller == active_player.player_id:
             defender_speed += 1
         
-        # Apply continuous effects (Ka, Demideca, etc.)
-        attacker_speed += TussleResolver._get_speed_modifiers(game_state, attacker)
-        defender_speed += TussleResolver._get_speed_modifiers(game_state, defender)
-        
-        # Get effective strengths
-        attacker_strength = attacker.get_effective_strength()
-        defender_strength = defender.get_effective_strength()
-        
-        # Apply strength modifiers (Ka, Demideca, etc.)
-        attacker_strength += TussleResolver._get_strength_modifiers(game_state, attacker)
-        defender_strength += TussleResolver._get_strength_modifiers(game_state, defender)
+        # Get effective strengths (including continuous effects like Ka, Demideca)
+        attacker_strength = TussleResolver._get_stat_with_effects(game_state, attacker, "strength")
+        defender_strength = TussleResolver._get_stat_with_effects(game_state, defender, "strength")
         
         result = TussleResult(
             attacker_name=attacker.name,
@@ -350,72 +344,34 @@ class TussleResolver:
         return True
     
     @staticmethod
-    def _get_speed_modifiers(game_state: GameState, card: Card) -> int:
+    def _get_stat_with_effects(game_state: GameState, card: Card, stat_name: str) -> int:
         """
-        Calculate total speed modifiers from continuous effects.
+        Get a card's stat value after applying all continuous effects.
+        
+        This replaces the hardcoded Ka/Demideca checks with a generic effect system.
         
         Args:
             game_state: Current game state
-            card: Card to calculate modifiers for
+            card: Card to get stat for
+            stat_name: Name of stat ("speed", "strength", "stamina")
             
         Returns:
-            Total speed modifier
+            Modified stat value after applying all continuous effects
         """
-        controller = game_state.players[card.controller]
-        modifier = 0
+        # Get base value from card
+        base_value = getattr(card, stat_name, 0)
+        if base_value is None:
+            base_value = 0
         
-        # Demideca: +1 to all stats
-        for in_play_card in controller.in_play:
-            if in_play_card.name == "Demideca":
-                modifier += 1
+        modified_value = base_value
         
-        return modifier
-    
-    @staticmethod
-    def _get_strength_modifiers(game_state: GameState, card: Card) -> int:
-        """
-        Calculate total strength modifiers from continuous effects.
+        # Apply all continuous effects from cards in play
+        for card_in_play in game_state.get_all_cards_in_play():
+            effects = EffectRegistry.get_effects(card_in_play)
+            for effect in effects:
+                if isinstance(effect, ContinuousEffect):
+                    modified_value = effect.modify_stat(
+                        card, stat_name, modified_value, game_state
+                    )
         
-        Args:
-            game_state: Current game state
-            card: Card to calculate modifiers for
-            
-        Returns:
-            Total strength modifier
-        """
-        controller = game_state.players[card.controller]
-        modifier = 0
-        
-        # Ka: +2 Strength
-        for in_play_card in controller.in_play:
-            if in_play_card.name == "Ka":
-                modifier += 2
-        
-        # Demideca: +1 to all stats
-        for in_play_card in controller.in_play:
-            if in_play_card.name == "Demideca":
-                modifier += 1
-        
-        return modifier
-    
-    @staticmethod
-    def _get_stamina_modifiers(game_state: GameState, card: Card) -> int:
-        """
-        Calculate total stamina modifiers from continuous effects.
-        
-        Args:
-            game_state: Current game state
-            card: Card to calculate modifiers for
-            
-        Returns:
-            Total stamina modifier
-        """
-        controller = game_state.players[card.controller]
-        modifier = 0
-        
-        # Demideca: +1 to all stats
-        for in_play_card in controller.in_play:
-            if in_play_card.name == "Demideca":
-                modifier += 1
-        
-        return modifier
+        return modified_value

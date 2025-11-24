@@ -64,6 +64,11 @@ class CardLoader:
         name = row['name'].strip()
         effect = row['effect'].strip()
         
+        # Parse effect definitions if present (data-driven effects)
+        effect_definitions = ""
+        if 'effects' in row and row['effects'] and row['effects'].strip():
+            effect_definitions = row['effects'].strip()
+        
         # Determine card type based on presence of stats
         has_stats = row['speed'].strip() and row['strength'].strip() and row['stamina'].strip()
         card_type = CardType.TOY if has_stats else CardType.ACTION
@@ -114,6 +119,7 @@ class CardLoader:
             card_type=card_type,
             cost=cost,
             effect_text=effect,
+            effect_definitions=effect_definitions,
             speed=speed,
             strength=strength,
             stamina=stamina,
