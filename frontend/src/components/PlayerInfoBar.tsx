@@ -15,11 +15,25 @@ export function PlayerInfoBar({ player, isActive }: PlayerInfoBarProps) {
   const handCount = player.hand_count ?? player.hand?.length ?? 0;
   
   return (
-    <div className={`flex items-center gap-2 ${isActive ? 'font-bold' : ''}`}>
+    // We keep the parent flex container and items-center for vertical alignment
+    <div className={`flex items-center gap-4 ${isActive ? 'font-extrabold' : ''}`}>
+      
+      {/* 1. Player Name (Standard Size) */}
       <span className="text-lg">{player.name}</span>
-      <span className="text-sm text-gray-400">Hand ({handCount})</span>
+
+      {/* 2. Hand Count (Bigger Number, Smaller Label) */}
+      <div className="flex items-end leading-none gap-1">
+        <span className="text-2xl font-bold">({handCount})</span>
+        <span className="text-sm text-gray-400">Hand</span>
+      </div>
+
       <span className="text-sm text-gray-400">|</span>
-      <span className="text-lg">{player.cc} CC</span>
+      
+      {/* 3. CC Count (Bigger Number, Smaller Label) */}
+      <div className="flex items-end leading-none gap-1">
+        <span className="text-2xl font-bold">{player.cc}</span>
+        <span className="text-sm text-gray-400">CC</span>
+      </div>
     </div>
   );
 }
