@@ -43,7 +43,7 @@ function GameApp() {
   const [gameMode, setGameMode] = useState<GameMode>('single-player');
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
   const [player1Name, setPlayer1Name] = useState('Player');
-  const [player2Name, setPlayer2Name] = useState('AI Opponent');
+  const [player2Name, setPlayer2Name] = useState('Opponent');
   const [gameId, setGameId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState<string>('');
   const [currentPlayerId, setCurrentPlayerId] = useState<'player1' | 'player2'>('player1');
@@ -158,7 +158,7 @@ function GameApp() {
     setGameMode('single-player');
     setPlayer1Deck([]);
     setPlayer1Name('Player');
-    setPlayer2Name('AI Opponent');
+    setPlayer2Name('Opponent');
     setGameId(null);
     setGameCode('');
     setCurrentPlayerId('player1');
@@ -206,7 +206,7 @@ function GameApp() {
   }
 
   if (gamePhase === 'deck-selection-p2') {
-    return <DeckSelection playerName="AI Opponent" onDeckSelected={handlePlayer2DeckSelected} />;
+    return <DeckSelection playerName="Opponent" onDeckSelected={handlePlayer2DeckSelected} />;
   }
 
   if (gamePhase === 'playing' && gameId) {

@@ -268,10 +268,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
         <div className="mb-3 p-3 bg-game-card rounded grid grid-cols-3 gap-4 items-center">
-          {/* Other Player Info - Left */}
+          {/* Human Player Info - Left */}
           <PlayerInfoBar 
-            player={otherPlayer} 
-            isActive={gameState.active_player_id === otherPlayerId} 
+            player={humanPlayer} 
+            isActive={gameState.active_player_id === humanPlayerId} 
           />
           
           {/* Turn Info - Center */}
@@ -279,11 +279,11 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             <div className="text-lg font-bold">Turn {gameState.turn_number}</div>
           </div>
           
-          {/* Human Player Info - Right */}
+          {/* Other Player Info - Right */}
           <div className="flex justify-end">
             <PlayerInfoBar 
-              player={humanPlayer} 
-              isActive={gameState.active_player_id === humanPlayerId} 
+              player={otherPlayer} 
+              isActive={gameState.active_player_id === otherPlayerId} 
             />
           </div>
         </div>

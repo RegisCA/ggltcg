@@ -55,8 +55,7 @@ export function ActionPanel({
   return (
     <div className="p-3 bg-game-card rounded border-2 border-game-accent">
       <div className="mb-3">
-        <h3 className="text-lg font-bold mb-1">Available Actions</h3>
-        <div className="text-sm text-gray-400">CC: {currentCC}</div>
+        <h3 className="text-lg font-bold mb-1">Available Actions for {currentCC} CC</h3>
       </div>
 
       {validActions.length === 0 ? (
@@ -67,9 +66,6 @@ export function ActionPanel({
         <div className="space-y-3">
           {Object.entries(groupedActions).map(([actionType, actions]) => (
             <div key={actionType}>
-              <h4 className="text-xs font-bold text-gray-400 mb-1.5 uppercase">
-                {getActionTypeLabel(actionType)}
-              </h4>
               <div className="space-y-1.5">
                 {actions.map((action, index) => (
                   <button
