@@ -3,6 +3,7 @@
  * Displays available actions and handles player inputs
  */
 
+import { useState, useEffect } from 'react';
 import type { ValidAction } from '../types/game';
 
 interface ActionPanelProps {
@@ -18,6 +19,44 @@ export function ActionPanel({
   isProcessing,
   currentCC,
 }: ActionPanelProps) {
+  const [shouldBlink, setShouldBlink] = useState(false);
+  const [lastActionTime, setLastActionTime] = useState(Date.now());
+
+  // Reset the inactivity timer whenever validActions changes (indicates an action was taken)
+  useEffect(() => {
+    setLastActionTime(Date.now());
+    setShouldBlink(false);
+  }, [validActions]);
+
+  // Set up inactivity reminders for "End Turn" button
+  useEffect(() => {
+    const intervals = [
+      { delay: 10000, duration: 2000 },   // 10s: blink for 2s
+      { delay: 20000, duration: 2000 },   // 20s: blink for 2s
+      { delay: 60000, duration: 2000 },   // 1min: blink for 2s
+      { delay: 300000, duration: 0 },     // 5min: stop
+    ];
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    intervals.forEach(({ delay, duration }) => {
+      const timer = setTimeout(() => {
+        if (duration > 0) {
+          setShouldBlink(true);
+          setTimeout(() => setShouldBlink(false), duration);
+        } else {
+          // Stop all blinking after 5 minutes
+          setShouldBlink(false);
+        }
+      }, delay);
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+    };
+  }, [lastActionTime]);
+
   const groupedActions = validActions.reduce((acc, action) => {
     if (!acc[action.action_type]) {
       acc[action.action_type] = [];
@@ -53,24 +92,25 @@ export function ActionPanel({
         <div className="space-y-3">
           {Object.entries(groupedActions).map(([actionType, actions]) => (
             <div key={actionType}>
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 {actions.map((action, index) => (
                   <button
                     key={`${action.action_type}-${action.card_name || 'action'}-${index}`}
                     onClick={() => onAction(action)}
                     disabled={isProcessing}
                     className={`
-                      w-full px-3 py-2 rounded text-left transition-all text-sm
+                      w-full px-4 py-3.5 rounded transition-all text-sm
                       ${getActionColor(action.action_type)}
                       ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-102'}
+                      ${action.action_type === 'end_turn' && shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : ''}
                       disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                   >
-                    <div className="flex justify-between items-center gap-2">
-                      <span className="font-medium leading-tight">{action.description}</span>
+                    <div className="flex justify-between items-center gap-3">
+                      <span className="font-medium leading-tight text-left flex-1">{action.description}</span>
                       {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
                         <span className={`
-                          px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap
+                          px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap flex-shrink-0
                           ${action.cost_cc > currentCC ? 'bg-red-800' : 'bg-black bg-opacity-30'}
                         `}>
                           {action.cost_cc} CC

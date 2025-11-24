@@ -57,11 +57,22 @@ export function TargetSelectionModal({
     setSelectedTargets([]); // Clear normal targets if switching to alt cost
   };
 
+  // Select to pay CC instead of sleeping a card
+  const selectPayCC = () => {
+    setUseAlternativeCost(true);
+    setAlternativeCostCard(null);
+    setSelectedTargets([]);
+  };
+
   const handleConfirm = () => {
-    // Ballaber: if using alt cost, must have selected a card
-    if (useAlternativeCost) {
-      if (!alternativeCostCard) return;
+    // Ballaber: if using alt cost with card, must have selected a card
+    if (useAlternativeCost && alternativeCostCard) {
       onConfirm([], alternativeCostCard);
+      return;
+    }
+    // Ballaber: paying CC (useAlternativeCost=true but no card selected)
+    if (useAlternativeCost && !alternativeCostCard) {
+      onConfirm([], undefined);
       return;
     }
     // Normal targeting
@@ -70,9 +81,9 @@ export function TargetSelectionModal({
   };
 
   const canConfirm = () => {
-    // Ballaber: if using alt cost, must have selected a card
+    // Ballaber: if using alt cost, either have CC selected or a card selected
     if (useAlternativeCost) {
-      return !!alternativeCostCard;
+      return true; // Can confirm with just CC payment or with a card
     }
     // Normal targeting
     if (minTargets === 0) return true;
@@ -132,12 +143,6 @@ export function TargetSelectionModal({
               `}
             >
               Confirm
-              {useAlternativeCost && alternativeCostCard
-                ? ' (Sleep card)'
-                : selectedTargets.length > 0
-                ? ` (${selectedTargets.length})`
-                : ''
-              }
             </button>
           </div>
         </div>
@@ -147,58 +152,70 @@ export function TargetSelectionModal({
           {/* Ballaber alternative cost: one-click selection */}
           {hasAlternativeCost && (
             <div className="p-4 bg-gray-900">
-            <h3 className="text-lg font-bold mb-2">Pay cost to play Ballaber:</h3>
-            <div className="flex gap-4 mb-4">
+              <h3 className="text-lg font-bold mb-3">Pay cost to play Ballaber:</h3>
               <button
-                className={`px-6 py-2 rounded font-bold transition-all ${!useAlternativeCost ? 'bg-game-highlight hover:bg-red-600 cursor-pointer' : 'bg-gray-600 opacity-50'}`}
-                onClick={() => {
-                  setUseAlternativeCost(false);
-                  setAlternativeCostCard(null);
-                }}
-                disabled={useAlternativeCost}
+                style={
+                  useAlternativeCost && !alternativeCostCard
+                    ? { boxShadow: '0 0 0 4px rgb(250 204 21), 0 10px 15px -3px rgba(250, 204, 21, 0.5)' }
+                    : undefined
+                }
+                className={`
+                  w-full px-4 py-3.5 rounded transition-all text-sm mb-4
+                  ${useAlternativeCost && !alternativeCostCard
+                    ? 'bg-red-700'
+                    : 'bg-red-600 hover:bg-red-700 cursor-pointer'
+                  }
+                `}
+                onClick={selectPayCC}
               >
-                Pay {action.cost_cc} CC
+                <div className="flex justify-between items-center gap-3">
+                  <span className="font-medium leading-tight text-left flex-1">
+                    Pay {action.cost_cc} CC
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap flex-shrink-0 bg-black bg-opacity-30">
+                    {action.cost_cc} CC
+                  </span>
+                </div>
               </button>
+              <h4 className="text-md font-semibold mb-3">Or select a card to sleep:</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {filteredAlternativeCostOptions.map((card) => {
+                  const isSelected = alternativeCostCard === card.id;
+                  return (
+                    <div
+                      key={card.id}
+                      onClick={() => selectAlternativeCostCard(card.id)}
+                      className="flex justify-center"
+                    >
+                      <CardDisplay
+                        card={card}
+                        size="medium"
+                        isSelected={isSelected}
+                        isClickable={true}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <h4 className="text-md font-semibold mb-2">Or select a card to sleep:</h4>
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
-              {filteredAlternativeCostOptions.map((card) => {
-                const isSelected = alternativeCostCard === card.id;
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => selectAlternativeCostCard(card.id)}
-                    style={{ display: 'flex', justifyContent: 'center' }}
-                  >
-                    <CardDisplay
-                      card={card}
-                      size="medium"
-                      isSelected={isSelected}
-                      isClickable={true}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
           )}
 
           {/* Target Selection (for other cards) */}
           {!useAlternativeCost && availableTargets.length > 0 && (
             <div className="p-4">
-            <h3 className="text-lg font-bold mb-2">
+            <h3 className="text-lg font-bold mb-3">
               {maxTargets > 1
                 ? `Select up to ${maxTargets} target${maxTargets !== 1 ? 's' : ''}`
                 : 'Select a target'
               }
               {minTargets === 0 && ' (optional)'}
               {selectedTargets.length > 0 && (
-                <span className="ml-2 text-game-highlight">
+                <span className="ml-2 text-yellow-400">
                   ({selectedTargets.length}/{maxTargets} selected)
                 </span>
               )}
             </h3>
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
+            <div className="grid grid-cols-2 gap-3">
               {availableTargets.map((card) => {
                 const isSelected = selectedTargets.includes(card.id);
                 const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
@@ -206,7 +223,7 @@ export function TargetSelectionModal({
                   <div
                     key={card.id}
                     onClick={() => !isDisabled && toggleTarget(card.id)}
-                    style={{ display: 'flex', justifyContent: 'center' }}
+                    className="flex justify-center"
                   >
                     <CardDisplay
                       card={card}
