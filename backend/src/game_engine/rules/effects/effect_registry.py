@@ -5,11 +5,109 @@ This module provides a central registry for looking up which effects
 belong to each card in the game.
 """
 
-from typing import Dict, List, Type, TYPE_CHECKING
+from typing import Dict, List, Type, TYPE_CHECKING, Optional
 from .base_effect import BaseEffect
 
 if TYPE_CHECKING:
     from ...models.card import Card
+
+
+class EffectFactory:
+    """
+    Factory for parsing effect definitions from CSV data.
+    
+    Effect strings use the format: "effect_type:param1:param2"
+    Multiple effects are separated by semicolons: "effect1:p1;effect2:p1:p2"
+    
+    Examples:
+    - "stat_boost:strength:2" -> StatBoostEffect(card, "strength", 2)
+    - "stat_boost:all:1" -> StatBoostEffect(card, "all", 1)
+    - "stat_boost:strength:2;unsleep" -> [StatBoostEffect(...), UnsleepEffect(...)]
+    """
+    
+    @classmethod
+    def parse_effects(cls, effect_string: str, source_card: "Card") -> List[BaseEffect]:
+        """
+        Parse an effect definition string and return instantiated effects.
+        
+        Args:
+            effect_string: Semicolon-separated effect definitions
+            source_card: The card providing these effects
+            
+        Returns:
+            List of instantiated effect objects
+            
+        Raises:
+            ValueError: If effect_string format is invalid
+        """
+        if not effect_string or not effect_string.strip():
+            return []
+        
+        effects = []
+        
+        # Split multiple effects
+        effect_definitions = [e.strip() for e in effect_string.split(";") if e.strip()]
+        
+        for definition in effect_definitions:
+            # Parse individual effect
+            parts = definition.split(":")
+            effect_type = parts[0].strip().lower()
+            
+            # Dispatch to appropriate parser
+            if effect_type == "stat_boost":
+                effect = cls._parse_stat_boost(parts, source_card)
+                effects.append(effect)
+            else:
+                raise ValueError(f"Unknown effect type: {effect_type}")
+        
+        return effects
+    
+    @classmethod
+    def _parse_stat_boost(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a stat_boost effect definition.
+        
+        Format: "stat_boost:stat_name:amount"
+        - stat_name: "speed", "strength", "stamina", or "all"
+        - amount: integer boost amount
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            StatBoostEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 3:
+            raise ValueError(
+                f"stat_boost effect requires 2 parameters: stat_name and amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        stat_name = parts[1].strip().lower()
+        
+        # Validate stat_name
+        valid_stats = {"speed", "strength", "stamina", "all"}
+        if stat_name not in valid_stats:
+            raise ValueError(
+                f"Invalid stat_name '{stat_name}' for stat_boost. "
+                f"Must be one of: {', '.join(sorted(valid_stats))}"
+            )
+        
+        # Parse amount
+        try:
+            amount = int(parts[2].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[2]}' for stat_boost. Must be an integer."
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import StatBoostEffect
+        return StatBoostEffect(source_card, stat_name, amount)
 
 
 class EffectRegistry:
@@ -41,12 +139,24 @@ class EffectRegistry:
         """
         Get all effects for a card.
         
+        First checks if the card has data-driven effect_definitions.
+        If not, falls back to name-based registry for legacy cards.
+        
         Args:
             card: The card to get effects for
             
         Returns:
             List of instantiated effect objects for this card
         """
+        # Priority 1: Check for data-driven effect definitions
+        if hasattr(card, 'effect_definitions') and card.effect_definitions:
+            try:
+                return EffectFactory.parse_effects(card.effect_definitions, card)
+            except ValueError as e:
+                # Log error but don't crash - fallback to name-based registry
+                print(f"Warning: Failed to parse effects for {card.name}: {e}")
+        
+        # Priority 2: Fallback to name-based registry for legacy cards
         card_name = card.name
         if card_name not in cls._effect_map:
             return []

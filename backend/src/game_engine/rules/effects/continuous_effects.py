@@ -15,6 +15,60 @@ if TYPE_CHECKING:
     from ...models.player import Player
 
 
+# ============================================================================
+# GENERIC EFFECTS (Data-Driven)
+# ============================================================================
+
+class StatBoostEffect(ContinuousEffect):
+    """
+    Generic stat boost effect for data-driven cards.
+    
+    Can boost a specific stat or all stats for cards controlled by the source card's controller.
+    Stacks with multiple copies in play.
+    
+    Examples:
+    - Ka: StatBoostEffect(source_card, "strength", 2)
+    - Demideca: StatBoostEffect(source_card, "all", 1)
+    """
+    
+    def __init__(self, source_card: "Card", stat_name: str, amount: int):
+        """
+        Initialize stat boost effect.
+        
+        Args:
+            source_card: The card providing this effect
+            stat_name: Which stat to boost ("speed", "strength", "stamina", or "all")
+            amount: How much to boost the stat(s)
+        """
+        super().__init__(source_card)
+        self.stat_name = stat_name
+        self.amount = amount
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Apply stat boost to controller's cards."""
+        # Check if this effect applies to the requested stat
+        if self.stat_name != "all" and self.stat_name != stat_name:
+            return base_value
+        
+        # Only modify toy stats (speed, strength, stamina)
+        if stat_name not in ("speed", "strength", "stamina"):
+            return base_value
+        
+        # Check if the card being modified is controlled by this effect's source card's controller
+        card_controller = game_state.get_card_controller(card)
+        effect_controller = game_state.get_card_controller(self.source_card)
+        
+        if card_controller and effect_controller and card_controller == effect_controller:
+            return base_value + self.amount
+        
+        return base_value
+
+
+# ============================================================================
+# LEGACY CARD-SPECIFIC EFFECTS (To be deprecated)
+# ============================================================================
+
 class KaEffect(ContinuousEffect):
     """
     Ka: "Your cards have +2 Strength."
