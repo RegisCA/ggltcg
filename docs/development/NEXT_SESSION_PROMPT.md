@@ -5,8 +5,9 @@ Complete the core game mechanics implementation, finish effect system migration,
 
 ## Critical Context
 
-### What Just Happened (Previous Session)
-We fixed issue #77 (Copy effect not working) which revealed **three interconnected bugs**:
+### What Just Happened (Previous Session - November 25, 2025)
+
+#### 1. Fixed Copy Effect (Issue #77) - Three Interconnected Bugs
 
 1. **Deck Creation Bug**: `_create_deck()` wasn't copying `effect_definitions` from card templates
    - Location: `backend/src/api/game_service.py` line 683
@@ -24,6 +25,22 @@ We fixed issue #77 (Copy effect not working) which revealed **three interconnect
    - Fix: Create copy of modifications dict before mutating
 
 **Result**: Copy effects now work correctly. Example: Umbruh 6/6/6 (4 base + 1 Demideca + 1 Copy) ✓
+
+#### 2. Fixed Wake/Unsleep Regression
+
+**Problem**: Wake card wasn't unsleeeping selected cards - they stayed in Sleep Zone instead of returning to Hand.
+
+**Root Cause**: Frontend sends `target_card_id` (singular) when exactly 1 target selected, but `UnsleepEffect.apply()` expects `targets` (plural list). The `ActionExecutor._handle_targets()` was only setting `kwargs['target']` for singular targets.
+
+**Fix**: Modified `ActionExecutor._handle_targets()` to ALSO set `kwargs['targets'] = [target]` when `target_card_id` provided. Ensures backward compatibility with effects expecting a list.
+
+**Impact**: Wake and Sun now work correctly. Any multi-target effect that can select 1 target now works.
+
+#### 3. Removed Legacy WakeEffect and SunEffect Classes
+
+**Cleanup**: Deleted 84 lines of dead code - `WakeEffect` and `SunEffect` classes were no longer used since Wake and Sun now use the generic `UnsleepEffect` via `effect_definitions`.
+
+**Progress**: 10 cards migrated to data-driven effects, 6 legacy effect classes remaining (Knight, Beary, Archer, Copy, Twist, Toynado).
 
 ### Architecture Overview
 
@@ -60,22 +77,26 @@ Card in memory
 - ✅ Deserialization rebuilds effects correctly from `effect_definitions`
 - ✅ Stats calculated correctly with all continuous effects
 - ✅ **PR #88 MERGED & DEPLOYED TO PRODUCTION** (November 25, 2025)
+- ✅ **Wake/unsleep regression fixed** - ActionExecutor handles single targets correctly
+- ✅ **Legacy WakeEffect and SunEffect removed** - 84 lines of dead code deleted
 
 **What Needs Work** (see issue #89):
 - ❌ No easy way to inspect game state in database
-- ❌ Effect system still has legacy name-based registry (Phase 4 incomplete)
+- ⚠️ Effect system still has legacy name-based registry - 6 cards remaining (Knight, Beary, Archer, Copy, Twist, Toynado)
 - ❌ Serialization not fully tested (only Copy case tested)
 - ❌ No architecture documentation for effect system
 - ❌ Error messages don't help when `effect_definitions` is missing
 
 ## Your Mission
 
-### Priority 1: Verify Production Deployment ✅ DONE
+### Priority 1: Production Fixes ✅ ALL DONE (November 25, 2025)
 
-- ✅ PR #88 merged to main (November 25, 2025)
-- ✅ Production deployment complete (Render backend + Vercel frontend)
-- ✅ Issue #77 can be closed
-- **Next**: Monitor production for any Copy effect issues in live games
+- ✅ PR #88 merged to main - Copy effect fix deployed
+- ✅ Wake/unsleep regression fixed and deployed
+- ✅ Legacy WakeEffect and SunEffect classes removed
+- ✅ Issue #77 closed
+- ✅ All fixes verified working in production
+- **Status**: Production stable, no known gameplay bugs
 
 ### Priority 2: Testing Infrastructure (Issue #89)
 **Short-term wins**:
