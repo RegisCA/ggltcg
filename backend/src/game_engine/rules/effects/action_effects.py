@@ -477,6 +477,17 @@ class CopyEffect(PlayEffect):
         if hasattr(target, 'accent_color'):
             copy_card.accent_color = target.accent_color
         
+        # CRITICAL: Re-parse and attach the target's effects to the Copy card
+        # This makes Copy's effects actually work (e.g., Ka's +2 strength)
+        from .effect_registry import EffectFactory
+        if (copy_card.effect_definitions and 
+            isinstance(copy_card.effect_definitions, str) and 
+            copy_card.effect_definitions.strip()):
+            copy_card._copied_effects = EffectFactory.parse_effects(
+                copy_card.effect_definitions, 
+                copy_card
+            )
+        
         game_state.log_event(f"Copy transformed into {copy_card.name}")
 
 

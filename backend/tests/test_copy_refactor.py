@@ -165,7 +165,7 @@ class TestCopyRefactor(unittest.TestCase):
         # Create target with specific properties
         target = self._create_toy_card("Demideca", speed=3, strength=4, stamina=5)
         target.effect_text = "Test effect"
-        target.effect_definitions = [{"type": "test"}]
+        target.effect_definitions = "stat_boost:strength:1"
         player.in_play.append(target)
         
         # Create and apply Copy
@@ -188,7 +188,7 @@ class TestCopyRefactor(unittest.TestCase):
         self.assertEqual(copy_card.stamina, 5, "Stamina should be copied")
         self.assertEqual(copy_card.current_stamina, 5, "Current stamina should be copied")
         self.assertEqual(copy_card.effect_text, "Test effect", "Effect text should be copied")
-        self.assertEqual(copy_card.effect_definitions, [{"type": "test"}], 
+        self.assertEqual(copy_card.effect_definitions, "stat_boost:strength:1", 
                         "Effect definitions should be copied")
 
     def test_copy_preserves_owner_and_zone(self):
@@ -363,6 +363,67 @@ class TestCopyRefactor(unittest.TestCase):
                        "Copy should have _is_transformed attribute")
         self.assertTrue(copy_card._is_transformed, 
                        "Copy should be marked as transformed")
+
+    def test_copy_of_ka_gets_ka_effects(self):
+        """Test that Copy of Ka gets Ka's continuous effect (+2 strength for each other card)."""
+        from game_engine.rules.effects import EffectRegistry
+        from game_engine.data.card_loader import CardLoader
+        from pathlib import Path
+        
+        player = self.player1
+        
+        # Load real Ka card from CSV
+        csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
+        loader = CardLoader(str(csv_path))
+        all_cards = loader.load_cards()
+        ka = next(c for c in all_cards if c.name == "Ka")
+        
+        # Set Ka's owner and put in play
+        ka.owner = player.player_id
+        ka.controller = player.player_id
+        ka.zone = Zone.IN_PLAY
+        player.in_play.append(ka)
+        
+        # Create Copy card
+        copy_card = self._create_copy_card()
+        copy_card.zone = Zone.HAND
+        player.hand.append(copy_card)
+        player.cc = 10
+        
+        # Play Copy targeting Ka through GameEngine
+        success = self.game_engine.play_card(player, copy_card, target=ka)
+        self.assertTrue(success, "Copy should be successfully played")
+        
+        # Verify Copy transformed into Ka
+        self.assertEqual(copy_card.name, "Copy of Ka")
+        self.assertEqual(copy_card.effect_text, ka.effect_text)
+        self.assertEqual(copy_card.effect_definitions, "stat_boost:strength:2")
+        
+        # Verify Copy has the effect instances
+        self.assertTrue(hasattr(copy_card, '_copied_effects'), 
+                       "Copy should have _copied_effects attribute")
+        self.assertEqual(len(copy_card._copied_effects), 1, 
+                        "Copy should have 1 effect")
+        
+        # Verify EffectRegistry returns the copied effects
+        copy_effects = EffectRegistry.get_effects(copy_card)
+        self.assertEqual(len(copy_effects), 1, 
+                        "EffectRegistry should return 1 effect for Copy of Ka")
+        
+        # Verify Ka's effect applies to Copy
+        ka_effects = EffectRegistry.get_effects(ka)
+        self.assertEqual(len(ka_effects), 1, "Ka should have 1 effect")
+        
+        # Both Ka and Copy of Ka should boost each other's strength by +2
+        # Get modified strength through game engine
+        ka_strength = self.game_engine.get_card_stat(ka, "strength")
+        copy_strength = self.game_engine.get_card_stat(copy_card, "strength")
+        
+        # Base strength is 11, with one other card in play (+2)
+        self.assertEqual(ka_strength, 13, 
+                        "Ka should have 11 (base) + 2 (Copy of Ka's effect) = 13 strength")
+        self.assertEqual(copy_strength, 13, 
+                        "Copy of Ka should have 11 (base) + 2 (Ka's effect) = 13 strength")
 
 
 if __name__ == '__main__':
