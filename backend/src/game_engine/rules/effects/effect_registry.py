@@ -72,6 +72,12 @@ class EffectFactory:
             elif effect_type == "reduce_cost_by_sleeping":
                 effect = cls._parse_reduce_cost_by_sleeping(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "gain_cc_when_sleeped":
+                effect = cls._parse_gain_cc_when_sleeped(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "set_self_tussle_cost":
+                effect = cls._parse_set_self_tussle_cost(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -309,6 +315,101 @@ class EffectFactory:
         # Import here to avoid circular dependency
         from .continuous_effects import ReduceCostBySleepingEffect
         return ReduceCostBySleepingEffect(source_card)
+    
+    @classmethod
+    def _parse_gain_cc_when_sleeped(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a gain_cc_when_sleeped effect definition.
+        
+        Format: "gain_cc_when_sleeped:amount"
+        - amount: integer CC to gain when sleeped
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            GainCCWhenSleepedEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"gain_cc_when_sleeped effect requires 1 parameter: amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Parse amount
+        try:
+            amount = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[1]}' for gain_cc_when_sleeped. Must be an integer."
+            )
+        
+        if amount < 1:
+            raise ValueError(
+                f"Invalid amount {amount} for gain_cc_when_sleeped. Must be at least 1."
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import GainCCWhenSleepedEffect
+        return GainCCWhenSleepedEffect(source_card, amount)
+    
+    @classmethod
+    def _parse_set_self_tussle_cost(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a set_self_tussle_cost effect definition.
+        
+        Format: "set_self_tussle_cost:cost" or "set_self_tussle_cost:cost:not_turn_1"
+        - cost: integer tussle cost (e.g., 0 for Raggy)
+        - not_turn_1: optional restriction preventing tussles on turn 1
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            SetSelfTussleCostEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) < 2 or len(parts) > 3:
+            raise ValueError(
+                f"set_self_tussle_cost effect requires 1-2 parameters: cost and optional restriction. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Parse cost
+        try:
+            cost = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid cost '{parts[1]}' for set_self_tussle_cost. Must be an integer."
+            )
+        
+        if cost < 0:
+            raise ValueError(
+                f"Invalid cost {cost} for set_self_tussle_cost. Must be non-negative."
+            )
+        
+        # Parse optional restriction
+        not_turn_1 = False
+        if len(parts) == 3:
+            restriction = parts[2].strip().lower()
+            if restriction == "not_turn_1":
+                not_turn_1 = True
+            else:
+                raise ValueError(
+                    f"Invalid restriction '{restriction}' for set_self_tussle_cost. "
+                    f"Only 'not_turn_1' is supported."
+                )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import SetSelfTussleCostEffect
+        return SetSelfTussleCostEffect(source_card, cost, not_turn_1)
 
 
 class EffectRegistry:

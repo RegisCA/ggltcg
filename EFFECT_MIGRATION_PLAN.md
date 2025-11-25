@@ -3,11 +3,29 @@
 ## Overview
 This document outlines the strategy for migrating all GGLTCG cards from hardcoded Python effect classes to the data-driven CSV effect system.
 
-## Current Status (Post-PR #78)
+## Current Status (Post-Phase 3)
 
-### ✅ Migrated to Data-Driven (2 cards)
+### ✅ Migrated to Data-Driven (10 cards - 56%)
 - **Ka**: `stat_boost:strength:2`
 - **Demideca**: `stat_boost:all:1`
+- **Rush**: `gain_cc:2:not_first_turn`
+- **Wake**: `unsleep:1`
+- **Sun**: `unsleep:2`
+- **Clean**: `sleep_all`
+- **Wizard**: `set_tussle_cost:1`
+- **Dream**: `reduce_cost_by_sleeping`
+- **Umbruh**: `gain_cc_when_sleeped:1`
+- **Raggy**: `set_self_tussle_cost:0:not_turn_1`
+
+### 📋 Remaining Cards (8 cards - 44%)
+- Knight (2 custom effects - works well)
+- Beary (2 custom effects - works well)
+- Archer (2 custom effects - marked NOT WORKING)
+- Copy (1 custom effect - too complex for generic system)
+- Twist (1 custom effect - state manipulation)
+- Toynado (1 custom effect - simple but one-off)
+- Snuggles (1 custom effect - marked NOT WORKING)
+- Ballaber (1 custom effect - alternative cost mechanic)
 
 ### 📋 Cards Analyzed (18 total cards)
 
@@ -127,47 +145,53 @@ These cards trigger on specific game events.
 
 ## Recommended Migration Phases
 
-### Phase 1: Simple Action Effects (Next PR)
+### ✅ Phase 1: Simple Action Effects (COMPLETED)
 **Goal**: Prove action effect pattern works
 
-**New Generic Effect Types Needed**:
-1. `GainCCEffect(amount, restrictions)` - for Rush
+**Implemented Generic Effect Types**:
+1. `GainCCEffect(amount, not_first_turn)` - for Rush
 2. `UnsleepEffect(count)` - for Wake, Sun
 3. `SleepAllEffect()` - for Clean
 
-**Cards to Migrate**:
+**Migrated Cards**:
 - Rush: `gain_cc:2:not_first_turn`
 - Wake: `unsleep:1`
 - Sun: `unsleep:2`
 - Clean: `sleep_all`
 
-**Estimated Effort**: 1-2 days
-**Risk**: LOW - Simple, well-understood patterns
+**Status**: ✅ COMPLETED (PR #79)
+**Tests**: 7 tests passing
 
-### Phase 2: Cost Modification (Future)
+### ✅ Phase 2: Cost Modification (COMPLETED)
 **Goal**: Demonstrate cost modification patterns
 
-**New Generic Effect Types Needed**:
-1. `TussleCostEffect(amount, scope)` - for Wizard
-2. `CardCostReductionEffect(per_condition)` - for Dream
+**Implemented Generic Effect Types**:
+1. `SetTussleCostEffect(cost)` - for Wizard
+2. `ReduceCostBySleepingEffect()` - for Dream
 
-**Cards to Migrate**:
-- Wizard: `tussle_cost:1:scope:controller`
+**Migrated Cards**:
+- Wizard: `set_tussle_cost:1`
+- Dream: `reduce_cost_by_sleeping`
 
-**Estimated Effort**: 2-3 days
-**Risk**: MEDIUM - Requires cost system integration
+**Status**: ✅ COMPLETED (PR #80)
+**Tests**: 6 tests passing
 
-### Phase 3: Triggered Effects (Future)
-**Goal**: Support event-based effects
+### ✅ Phase 3: Triggered Effects (COMPLETED)
+**Goal**: Support event-based effects and self-cost modifications
 
-**New Generic Effect Types Needed**:
-1. `OnSleepEffect(action)` - for Umbruh, Snuggles
+**Implemented Generic Effect Types**:
+1. `GainCCWhenSleepedEffect(amount)` - triggered effect for Umbruh
+2. `SetSelfTussleCostEffect(cost, not_turn_1)` - self tussle cost with restriction for Raggy
 
-**Cards to Migrate**:
-- Umbruh: `on_sleep:gain_cc:1`
+**Migrated Cards**:
+- Umbruh: `gain_cc_when_sleeped:1`
+- Raggy: `set_self_tussle_cost:0:not_turn_1`
 
-**Estimated Effort**: 3-4 days
-**Risk**: MEDIUM - Requires event system
+**Status**: ✅ COMPLETED (Current PR)
+**Tests**: 5 tests passing
+**Architectural Fix**: Updated SleepAllEffect to use game_engine reference to properly trigger when-sleeped effects
+
+**Key Learning**: Effects that trigger other effects (like Clean sleeping Umbruh) need access to GameEngine, not just GameState, to maintain proper architectural boundaries.
 
 ### Phase 4+: Complex/Custom Effects (Optional)
 **Decision**: Keep as custom Python classes
@@ -217,10 +241,12 @@ class OnSleepEffect(TriggeredEffect):
 
 ## Success Metrics
 
-- **Phase 1 Complete**: 4 more cards migrated (6 total / 18 = 33%)
-- **Phase 2 Complete**: 1 more card migrated (7 total / 18 = 39%)
-- **Phase 3 Complete**: 1 more card migrated (8 total / 18 = 44%)
-- **Final State**: 8 data-driven, 10 custom (reasonable split)
+- ✅ **Phase 1 Complete**: 4 cards migrated (6 total / 18 = 33%)
+- ✅ **Phase 2 Complete**: 2 cards migrated (8 total / 18 = 44%)
+- ✅ **Phase 3 Complete**: 2 cards migrated (10 total / 18 = 56%)
+- **Final State**: 10 data-driven, 8 custom (excellent split!)
+
+**Achievement**: More than half of all cards (56%) now use the data-driven system!
 
 ## Benefits vs. Complexity
 
