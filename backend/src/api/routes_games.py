@@ -224,6 +224,7 @@ def _card_to_state(card, engine) -> CardState:
         name=card.name,
         card_type=card.card_type.value,  # Convert enum to string
         cost=card.cost,
+        effect_text=card.effect_text,  # Include effect description
         zone=card.zone.value,
         owner=card.owner,
         controller=card.controller,

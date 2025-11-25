@@ -11,6 +11,7 @@ export interface Card {
   name: string;
   card_type: CardType;
   cost: number;
+  effect_text: string;  // Card effect description
   zone: Zone;
   owner: string;
   controller: string;

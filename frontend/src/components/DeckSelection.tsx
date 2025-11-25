@@ -86,6 +86,7 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
     name: cardData.name,
     card_type: cardData.card_type,
     cost: cardData.cost,
+    effect_text: cardData.effect,  // Map 'effect' from API to 'effect_text' for Card type
     zone: 'Hand',
     owner: '',
     controller: '',
