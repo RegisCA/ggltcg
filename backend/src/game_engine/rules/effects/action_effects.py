@@ -460,10 +460,6 @@ class CopyEffect(PlayEffect):
         copy_card.card_type = target.card_type
         copy_card.cost = target.cost
         copy_card.effect_text = target.effect_text
-        
-        # DEBUG: Check target's effect_definitions before copying
-        print(f"DEBUG CopyEffect: Target {target.name} has effect_definitions = '{getattr(target, 'effect_definitions', 'MISSING')}'", flush=True)
-        
         copy_card.effect_definitions = target.effect_definitions
         
         # Copy stats if target has them (Toys)
@@ -491,11 +487,6 @@ class CopyEffect(PlayEffect):
                 copy_card.effect_definitions, 
                 copy_card
             )
-            print(f"DEBUG CopyEffect: Created {len(copy_card._copied_effects)} _copied_effects for {copy_card.name}", flush=True)
-            print(f"DEBUG CopyEffect: effect_definitions = {copy_card.effect_definitions}", flush=True)
-        else:
-            print(f"DEBUG CopyEffect: No effect_definitions to parse for {copy_card.name}", flush=True)
-            print(f"DEBUG CopyEffect: effect_definitions = {copy_card.effect_definitions}", flush=True)
         
         game_state.log_event(f"Copy transformed into {copy_card.name}")
 
