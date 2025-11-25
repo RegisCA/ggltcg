@@ -61,8 +61,26 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "DAMAGE DEALER - Cannot tussle, but can spend CC to directly damage cards. 5 stamina makes it durable. Use to finish off damaged cards.",
         "threat_level": "MEDIUM - Can directly damage your cards with CC"
     },
+    "Umbruh": {
+        "type": "Toy",
+        "effect": "Triggered: When this card is sleeped (from play), gain 1 CC",
+        "strategic_use": "CC GAIN - Generates 1 CC when sleeped. Good value even if it gets removed.",
+        "threat_level": "MEDIUM - Opponent gains CC when you sleep it"
+    },
+    "Raggy": {
+        "type": "Toy",
+        "effect": "Passive: This card's tussles cost 0 CC. Restriction: Cannot tussle on turn 1",
+        "strategic_use": "FREE TUSSLES - Can tussle for free after turn 1. Great for multiple attacks.",
+        "threat_level": "MEDIUM - Can tussle repeatedly for free after turn 1"
+    },
     
     # ACTION CARDS
+    "Rush": {
+        "type": "Action",
+        "effect": "Gain 2 CC. Cannot be played on your first turn",
+        "strategic_use": "CC BOOST - Free 2 CC after turn 1. Good for setting up big plays.",
+        "threat_level": "LOW - Small CC advantage for opponent"
+    },
     "Clean": {
         "type": "Action",
         "effect": "Sleep all Toys (yours and opponent's)",
@@ -92,6 +110,12 @@ CARD_EFFECTS_LIBRARY = {
         "effect": "Target: Return up to 2 Toys from your Sleep Zone to your hand",
         "strategic_use": "MASS RECURSION - Get back multiple slept Toys. Great for recovery.",
         "threat_level": "HIGH - Opponent can recover multiple cards"
+    },
+    "Toynado": {
+        "type": "Action",
+        "effect": "Return all cards in play to their owner's hands",
+        "strategic_use": "RESET - Bounces everything back to hand. Use when opponent has stronger board.",
+        "threat_level": "HIGH - Can reset your board advantage"
     },
 }
 
