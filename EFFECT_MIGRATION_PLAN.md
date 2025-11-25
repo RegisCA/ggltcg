@@ -318,9 +318,10 @@ These methods only read or query state without triggering game logic:
 - `get_cards_in_play()` - Data access
 - `get_card_controller()` - Data access
 - `get_card_owner()` - Data access
-- `find_card_by_name()` - Data access
 - `find_card_by_id()` - Data access
 - `to_dict()` / `from_dict()` - Serialization
+
+**Note**: `find_card_by_name()` is deprecated - we switched to `find_card_by_id()`. Should be removed.
 
 ### ⚠️ SHOULD MOVE to GameEngine (Triggers Effects or Contains Logic)
 
@@ -349,11 +350,12 @@ These methods only read or query state without triggering game logic:
 **Current Behavior**: Directly calls `player.unsleep_card(card)`
 
 **Analysis**: 
-- Currently no "when unsleeped" effects exist in the game
-- If we add such effects in future, this would need to move to GameEngine
+- Wake and Sun currently unsleep cards, but they don't have triggered effects on the cards being unsleeped
+- No "when I get unsleeped" effects exist currently (only "I unsleep other cards" actions)
+- If we add "when unsleeped" triggers in future, this would need to move to GameEngine
 - For now, this is just a data operation (move card from sleep zone to hand)
 
-**Decision**: Keep in GameState for now, but monitor if unsleep effects are added
+**Decision**: Keep in GameState for now, but will need to move to GameEngine if we add "when unsleeped" card triggers
 
 #### 3. `return_card_to_hand(card, owner)` - **MEDIUM PRIORITY**
 **Current Users**: Toynado effect
