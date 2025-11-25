@@ -406,25 +406,24 @@ class CopyEffect(PlayEffect):
     """
     Copy: "This card acts as an exact copy of a card you have in play."
     
-    Copy's cost equals the printed cost of the chosen Toy.
-    Copy becomes an exact duplicate of the chosen Toy while in play.
+    Copy's cost equals the printed cost of the chosen card.
+    Copy transforms into a copy of the chosen card while in play.
     If Copy leaves play, it reverts to being "Copy" with cost "?".
     """
     
     def requires_targets(self) -> bool:
-        """Copy requires choosing a Toy to copy."""
+        """Copy requires choosing a card to copy."""
         return True
     
     def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get all Toys the player controls in play."""
+        """Get all cards the player controls in play (any type)."""
         if player is None:
             player = game_state.get_active_player()
         if not player:
             return []
         
-        cards_in_play = game_state.get_cards_in_play(player)
-        # Only Toys can be copied (not Actions)
-        return [card for card in cards_in_play if card.is_toy()]
+        # Can copy any card in play, not just Toys
+        return game_state.get_cards_in_play(player)
     
     def get_copy_cost(self, target: "Card") -> int:
         """
@@ -436,23 +435,49 @@ class CopyEffect(PlayEffect):
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """
-        Transform Copy into an exact duplicate of the target.
+        Transform the Copy card into a copy of the target.
         
-        Copy gains:
-        - Same name as target
-        - Same stats (speed, strength, stamina)
-        - Same abilities/effects
-        - Everything about the target
+        The Copy card itself is transformed (not a new card created):
+        - name becomes "Copy of [Target]"
+        - card_type, stats, effects copied from target
+        - owner and controller remain unchanged
+        - zone remains IN_PLAY
+        - Original Copy card is preserved (no new cards created)
         """
         target: Optional["Card"] = kwargs.get("target")
+        copy_card = self.source_card
         
-        if not target:
+        if not target or not copy_card:
             return
         
-        # Transform Copy into the target
-        # This will be handled by the game engine
-        # For now, we mark what Copy is copying
-        self.source_card.copying = target
+        # Store original Copy card properties for reverting later
+        copy_card._original_name = "Copy"
+        copy_card._original_cost = -1
+        copy_card._is_transformed = True
+        
+        # Transform Copy card properties to match target
+        copy_card.name = f"Copy of {target.name}"
+        copy_card.card_type = target.card_type
+        copy_card.cost = target.cost
+        copy_card.effect_text = target.effect_text
+        copy_card.effect_definitions = target.effect_definitions
+        
+        # Copy stats if target has them (Toys)
+        if hasattr(target, 'speed'):
+            copy_card.speed = target.speed
+        if hasattr(target, 'strength'):
+            copy_card.strength = target.strength
+        if hasattr(target, 'stamina'):
+            copy_card.stamina = target.stamina
+            copy_card.current_stamina = target.stamina  # Full health
+        
+        # Copy visual properties
+        if hasattr(target, 'primary_color'):
+            copy_card.primary_color = target.primary_color
+        if hasattr(target, 'accent_color'):
+            copy_card.accent_color = target.accent_color
+        
+        game_state.log_event(f"Copy transformed into {copy_card.name}")
 
 
 # ============================================================================
