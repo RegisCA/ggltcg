@@ -50,7 +50,7 @@ def check_copy_effects(game_id: str):
 
 
 if __name__ == '__main__':
-    game_id = '8592a7ee-d0a7-47e6-9f7f-8324bda06514'
+    game_id = 'e94ac606-62ad-4bf0-867e-c848013e52bd'
     if len(sys.argv) > 1:
         game_id = sys.argv[1]
     

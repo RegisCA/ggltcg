@@ -487,6 +487,11 @@ class CopyEffect(PlayEffect):
                 copy_card.effect_definitions, 
                 copy_card
             )
+            print(f"DEBUG CopyEffect: Created {len(copy_card._copied_effects)} _copied_effects for {copy_card.name}", flush=True)
+            print(f"DEBUG CopyEffect: effect_definitions = {copy_card.effect_definitions}", flush=True)
+        else:
+            print(f"DEBUG CopyEffect: No effect_definitions to parse for {copy_card.name}", flush=True)
+            print(f"DEBUG CopyEffect: effect_definitions = {copy_card.effect_definitions}", flush=True)
         
         game_state.log_event(f"Copy transformed into {copy_card.name}")
 

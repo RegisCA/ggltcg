@@ -40,6 +40,7 @@ def serialize_card(card: Card) -> Dict[str, Any]:
         "card_type": card.card_type.value,
         "cost": card.cost,
         "effect_text": card.effect_text,
+        "effect_definitions": getattr(card, 'effect_definitions', ''),
         "speed": card.speed,
         "strength": card.strength,
         "stamina": card.stamina,
@@ -50,10 +51,6 @@ def serialize_card(card: Card) -> Dict[str, Any]:
         "zone": card.zone.value,
         "modifications": modifications,
     }
-    
-    # Store effect_definitions if card has them (needed to recreate _copied_effects)
-    if hasattr(card, 'effect_definitions') and card.effect_definitions:
-        serialized['effect_definitions'] = card.effect_definitions
     
     return serialized
 
@@ -78,6 +75,7 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
         card_type=CardType(data["card_type"]),
         cost=data["cost"],
         effect_text=data["effect_text"],
+        effect_definitions=data.get("effect_definitions", ""),
         speed=data.get("speed"),
         strength=data.get("strength"),
         stamina=data.get("stamina"),
@@ -88,10 +86,6 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
         zone=Zone(data["zone"]),
         modifications=modifications,
     )
-    
-    # Restore effect_definitions if present
-    if 'effect_definitions' in data:
-        card.effect_definitions = data['effect_definitions']
     
     # Restore transformation state for Copy cards
     # This will cause EffectRegistry to recreate _copied_effects
