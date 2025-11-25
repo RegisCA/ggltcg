@@ -258,10 +258,19 @@ class GameEngine:
             self._trigger_when_played_effects(card, player, **kwargs)
             
         elif card.card_type == CardType.ACTION:
-            # Actions resolve and go to sleep zone
+            # Resolve the Action card's effect
             self._resolve_action_card(card, player, **kwargs)
-            card.zone = Zone.SLEEP
-            player.sleep_zone.append(card)
+            
+            # Special handling for Copy - it transforms and stays in play
+            if hasattr(card, '_is_transformed') and card._is_transformed:
+                # Copy transformed into another card - stays IN_PLAY
+                card.zone = Zone.IN_PLAY
+                card.controller = player.player_id
+                player.in_play.append(card)
+            else:
+                # Normal Actions go to sleep zone
+                card.zone = Zone.SLEEP
+                player.sleep_zone.append(card)
         
         # Check state-based actions
         self.check_state_based_actions()

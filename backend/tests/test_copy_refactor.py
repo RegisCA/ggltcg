@@ -319,6 +319,51 @@ class TestCopyRefactor(unittest.TestCase):
         self.assertEqual(copy1.name, "Copy of Demideca")
         self.assertEqual(copy2.name, "Copy of Raggy")
 
+    def test_copy_stays_in_play_after_transformation(self):
+        """Test that Copy stays in play after being played (integration test with GameEngine)."""
+        player = self.player1
+        
+        # Create and play a Toy target
+        target = self._create_toy_card("Ka", speed=5, strength=11, stamina=1)
+        target.zone = Zone.IN_PLAY
+        player.in_play.append(target)
+        
+        # Create Copy card in hand
+        copy_card = self._create_copy_card()
+        copy_card.zone = Zone.HAND
+        player.hand.append(copy_card)
+        
+        # Give player enough CC
+        player.cc = 10
+        
+        # Play Copy through GameEngine
+        success = self.game_engine.play_card(player, copy_card, target=target)
+        
+        # Verify Copy was successfully played
+        self.assertTrue(success, "Copy should be successfully played")
+        
+        # Verify Copy is in IN_PLAY zone, not SLEEP
+        self.assertIn(copy_card, player.in_play, 
+                     "Copy should be IN_PLAY after transformation")
+        self.assertNotIn(copy_card, player.sleep_zone, 
+                        "Copy should NOT be in sleep zone")
+        self.assertNotIn(copy_card, player.hand, 
+                        "Copy should no longer be in hand")
+        
+        # Verify transformation occurred
+        self.assertEqual(copy_card.name, "Copy of Ka", 
+                        "Copy should have transformed name")
+        self.assertEqual(copy_card.card_type, CardType.TOY, 
+                        "Copy should have Toy card type")
+        self.assertEqual(copy_card.speed, 5, "Copy should have Ka's speed")
+        self.assertEqual(copy_card.strength, 11, "Copy should have Ka's strength")
+        
+        # Verify _is_transformed flag is set
+        self.assertTrue(hasattr(copy_card, '_is_transformed'), 
+                       "Copy should have _is_transformed attribute")
+        self.assertTrue(copy_card._is_transformed, 
+                       "Copy should be marked as transformed")
+
 
 if __name__ == '__main__':
     unittest.main()
