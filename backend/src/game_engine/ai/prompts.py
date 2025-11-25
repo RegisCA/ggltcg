@@ -21,8 +21,8 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Wizard": {
         "type": "Toy",
-        "effect": "Continuous: Your tussles cost only 1 CC (instead of stat-based)",
-        "strategic_use": "ENABLES AGGRESSION - Makes tussling much cheaper. Play before tussling multiple times.",
+        "effect": "Continuous: All tussles you initiate cost exactly 1 CC (overrides normal tussle cost calculation)",
+        "strategic_use": "ENABLES AGGRESSION - Makes tussling extremely cheap (normally costs 2-4 CC per tussle). Play before multiple tussles.",
         "threat_level": "MEDIUM - Opponent can tussle repeatedly with low CC cost"
     },
     "Demideca": {
@@ -39,9 +39,9 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Snuggles": {
         "type": "Toy",
-        "effect": "On Play: You may sleep one of your own Toys to gain +3 CC",
-        "strategic_use": "CC GENERATOR - Sacrifice a weak toy for big CC boost. Use when desperate for CC.",
-        "threat_level": "LOW - Unlikely to help opponent much"
+        "effect": "Triggered: When this card is sleeped (from play), you may sleep one other card in play",
+        "strategic_use": "CASCADING SLEEP - When sleeped (by Clean, tussle, etc.), can force another card to sleep too. Defensive value.",
+        "threat_level": "MEDIUM - Can cascade sleep effects when opponent sleeps it"
     },
     "Ballaber": {
         "type": "Toy",
@@ -51,15 +51,15 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Dream": {
         "type": "Toy",
-        "effect": "On Play: Gain +2 CC",
-        "strategic_use": "CC GENERATOR - Free CC boost when played. Always good value.",
-        "threat_level": "LOW - Small CC boost for opponent"
+        "effect": "Passive: Costs 1 CC less for each card in your Sleep Zone (base cost 4, minimum 0)",
+        "strategic_use": "LATE GAME VALUE - Gets cheaper as game progresses. Can be FREE if you have 4+ sleeping cards. Strong 4/5/4 stats.",
+        "threat_level": "MEDIUM - Strong stats, gets cheaper in late game"
     },
     "Archer": {
         "type": "Toy",
-        "effect": "None (vanilla)",
-        "strategic_use": "HIGH SPEED - Fast attacker, wins speed ties. Good early tussler.",
-        "threat_level": "LOW - Just stats, no special abilities"
+        "effect": "Restriction: Cannot initiate tussles. Activated Ability: Spend X CC to deal X damage to target card (if stamina reaches 0, card is sleeped)",
+        "strategic_use": "DAMAGE DEALER - Cannot tussle, but can spend CC to directly damage cards. 5 stamina makes it durable. Use to finish off damaged cards.",
+        "threat_level": "MEDIUM - Can directly damage your cards with CC"
     },
     
     # ACTION CARDS
@@ -83,8 +83,8 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Copy": {
         "type": "Action",
-        "effect": "Target: Create a copy of target Toy and put it in play under your control",
-        "strategic_use": "CLONE - Duplicate your best Toy (Ka, Knight, Wizard) for massive value.",
+        "effect": "Target: Create a copy of one of YOUR Toys in play (you must control the target)",
+        "strategic_use": "CLONE - Duplicate your best Toy (Ka, Knight, Wizard). Can ONLY copy your own Toys, not opponent's.",
         "threat_level": "HIGH - Can copy your best cards"
     },
     "Sun": {
