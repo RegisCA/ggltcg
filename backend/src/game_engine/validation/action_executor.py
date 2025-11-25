@@ -251,9 +251,10 @@ class ActionExecutor:
                 raise ValueError(
                     f"Alternative cost card with ID '{alternative_cost_card_id}' not found"
                 )
-            # Sleep the card and set cost to 0
+            # Sleep the card via game engine to trigger effects
             was_in_play = card_to_sleep in player.in_play
-            self.game_state.sleep_card(card_to_sleep, was_in_play=was_in_play)
+            owner = self.game_state.get_card_owner(card_to_sleep)
+            self.engine._sleep_card(card_to_sleep, owner, was_in_play=was_in_play)
             kwargs["alternative_cost_paid"] = True
             kwargs["alternative_cost_card"] = card_to_sleep.name
             cost = 0
