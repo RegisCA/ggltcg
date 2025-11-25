@@ -460,6 +460,10 @@ class CopyEffect(PlayEffect):
         copy_card.card_type = target.card_type
         copy_card.cost = target.cost
         copy_card.effect_text = target.effect_text
+        
+        # DEBUG: Check target's effect_definitions before copying
+        print(f"DEBUG CopyEffect: Target {target.name} has effect_definitions = '{getattr(target, 'effect_definitions', 'MISSING')}'", flush=True)
+        
         copy_card.effect_definitions = target.effect_definitions
         
         # Copy stats if target has them (Toys)

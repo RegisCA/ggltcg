@@ -685,6 +685,7 @@ class GameService:
                 card_type=template.card_type,
                 cost=template.cost,
                 effect_text=template.effect_text,
+                effect_definitions=template.effect_definitions,
                 speed=template.speed,
                 strength=template.strength,
                 stamina=template.stamina,
