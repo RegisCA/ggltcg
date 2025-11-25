@@ -6,7 +6,10 @@ They stop applying immediately when the source card leaves play.
 """
 
 from typing import TYPE_CHECKING, Any
-from .base_effect import ContinuousEffect, CostModificationEffect, ProtectionEffect, BaseEffect
+from .base_effect import (
+    ContinuousEffect, CostModificationEffect, ProtectionEffect, BaseEffect,
+    TriggeredEffect, TriggerTiming
+)
 from .effect_registry import EffectRegistry
 
 if TYPE_CHECKING:
@@ -18,6 +21,45 @@ if TYPE_CHECKING:
 # ============================================================================
 # GENERIC EFFECTS (Data-Driven)
 # ============================================================================
+
+class GainCCWhenSleepedEffect(TriggeredEffect):
+    """
+    Generic triggered effect for gaining CC when the card is sleeped.
+    
+    Triggers when the source card is sleeped from play.
+    Does NOT trigger when sleeped from hand.
+    
+    Examples:
+    - Umbruh: GainCCWhenSleepedEffect(source_card, amount=1)
+    """
+    
+    def __init__(self, source_card: "Card", amount: int):
+        """
+        Initialize gain CC when sleeped effect.
+        
+        Args:
+            source_card: The card providing this effect
+            amount: How much CC to gain when sleeped
+        """
+        super().__init__(source_card, TriggerTiming.WHEN_SLEEPED, is_optional=False)
+        self.amount = amount
+    
+    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """Check if this is the card being sleeped."""
+        sleeped_card = kwargs.get("sleeped_card")
+        return sleeped_card == self.source_card
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Grant CC to the card's owner when it's sleeped."""
+        owner = game_state.get_card_owner(self.source_card)
+        if owner:
+            owner.gain_cc(self.amount)
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Triggered effects don't modify stats."""
+        return base_value
+
 
 class StatBoostEffect(ContinuousEffect):
     """
@@ -149,6 +191,55 @@ class ReduceCostBySleepingEffect(CostModificationEffect):
         modified_cost = base_cost - sleeping_count
         
         return max(0, modified_cost)  # Cost can't go below 0
+
+
+class SetSelfTussleCostEffect(CostModificationEffect):
+    """
+    Generic effect that sets the source card's tussle cost with optional turn restriction.
+    
+    Sets the source card's tussle cost to a specific value.
+    Can optionally prevent tussling on turn 1.
+    
+    Examples:
+    - Raggy: SetSelfTussleCostEffect(source_card, cost=0, not_turn_1=True)
+    """
+    
+    def __init__(self, source_card: "Card", cost: int, not_turn_1: bool = False):
+        """
+        Initialize self tussle cost effect.
+        
+        Args:
+            source_card: The card whose tussle cost is modified
+            cost: The fixed tussle cost (e.g., 0 for Raggy)
+            not_turn_1: If True, card cannot tussle on turn 1 of the game
+        """
+        super().__init__(source_card)
+        self.cost = cost
+        self.not_turn_1 = not_turn_1
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Self tussle cost doesn't modify card stats."""
+        return base_value
+    
+    def modify_tussle_cost(self, base_cost: int, game_state: "GameState",
+                          controller: "Player") -> int:
+        """Set source card's tussle cost."""
+        # This effect only applies to the source card itself
+        # The game engine should pass context to know which card is tussling
+        return self.cost
+    
+    def can_tussle(self, game_state: "GameState") -> bool:
+        """
+        Check if source card can tussle.
+        
+        If not_turn_1 is True, cannot tussle on turn 1 of the game.
+        """
+        if not self.not_turn_1:
+            return True
+        
+        # Cannot tussle on turn 1 of the game
+        return game_state.turn_number > 1
 
 
 # ============================================================================

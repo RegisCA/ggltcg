@@ -155,12 +155,24 @@ class SleepAllEffect(PlayEffect):
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Sleep all cards currently in play."""
+        # Get game_engine reference to properly trigger effects
+        game_engine = kwargs.get("game_engine")
+        if not game_engine:
+            # Fallback: just move cards without triggering effects
+            # This shouldn't happen in normal play but allows for testing
+            all_cards_in_play = game_state.get_all_cards_in_play()
+            for card in all_cards_in_play:
+                game_state.sleep_card(card, was_in_play=True)
+            return
+        
         # Get all cards in play from both players
         all_cards_in_play = game_state.get_all_cards_in_play()
         
-        # Sleep each card
+        # Sleep each card through game engine (triggers effects)
         for card in all_cards_in_play:
-            game_state.sleep_card(card, was_in_play=True)
+            owner = game_state.get_card_owner(card)
+            if owner:
+                game_engine._sleep_card(card, owner, was_in_play=True)
 
 
 # ============================================================================
@@ -177,12 +189,23 @@ class CleanEffect(PlayEffect):
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Sleep all cards currently in play."""
+        # Get game_engine reference to properly trigger effects
+        game_engine = kwargs.get("game_engine")
+        if not game_engine:
+            # Fallback: just move cards without triggering effects
+            all_cards_in_play = game_state.get_all_cards_in_play()
+            for card in all_cards_in_play:
+                game_state.sleep_card(card, was_in_play=True)
+            return
+        
         # Get all cards in play from both players
         all_cards_in_play = game_state.get_all_cards_in_play()
         
-        # Sleep each card
+        # Sleep each card through game engine (triggers effects)
         for card in all_cards_in_play:
-            game_state.sleep_card(card, was_in_play=True)
+            owner = game_state.get_card_owner(card)
+            if owner:
+                game_engine._sleep_card(card, owner, was_in_play=True)
 
 
 class RushEffect(PlayEffect):

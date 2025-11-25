@@ -339,7 +339,8 @@ class GameEngine:
         effects = EffectRegistry.get_effects(card)
         for effect in effects:
             if isinstance(effect, PlayEffect):
-                effect.apply(self.game_state, player=player, **kwargs)
+                # Pass game_engine reference so effects can trigger other effects properly
+                effect.apply(self.game_state, player=player, game_engine=self, **kwargs)
         
         self.game_state.log_event(f"{card.name} effect resolved")
     
