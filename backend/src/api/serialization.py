@@ -26,7 +26,7 @@ def serialize_card(card: Card) -> Dict[str, Any]:
     Returns:
         Dictionary representation of the card
     """
-    return {
+    serialized = {
         "id": card.id,
         "name": card.name,
         "card_type": card.card_type.value,
@@ -42,6 +42,17 @@ def serialize_card(card: Card) -> Dict[str, Any]:
         "zone": card.zone.value,
         "modifications": card.modifications,
     }
+    
+    # Store transformation state for Copy cards
+    # Using modifications dict to avoid changing Card model
+    if hasattr(card, '_is_transformed') and card._is_transformed:
+        serialized['modifications']['_is_transformed'] = True
+    
+    # Store effect_definitions if card has them (needed to recreate _copied_effects)
+    if hasattr(card, 'effect_definitions') and card.effect_definitions:
+        serialized['effect_definitions'] = card.effect_definitions
+    
+    return serialized
 
 
 def deserialize_card(data: Dict[str, Any]) -> Card:
@@ -54,7 +65,11 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
     Returns:
         Card object
     """
-    return Card(
+    # Get modifications and check for transformed Copy cards
+    modifications = data.get("modifications", {})
+    is_transformed = modifications.pop('_is_transformed', False)
+    
+    card = Card(
         id=data["id"],
         name=data["name"],
         card_type=CardType(data["card_type"]),
@@ -68,8 +83,26 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
         owner=data["owner"],
         controller=data["controller"],
         zone=Zone(data["zone"]),
-        modifications=data.get("modifications", {}),
+        modifications=modifications,
     )
+    
+    # Restore effect_definitions if present
+    if 'effect_definitions' in data:
+        card.effect_definitions = data['effect_definitions']
+    
+    # Restore transformation state for Copy cards
+    # This will cause EffectRegistry to recreate _copied_effects
+    if is_transformed:
+        card._is_transformed = True
+        # Recreate _copied_effects from effect_definitions
+        from game_engine.rules.effects.effect_registry import EffectFactory
+        if hasattr(card, 'effect_definitions') and card.effect_definitions:
+            card._copied_effects = EffectFactory.parse_effects(
+                card.effect_definitions,
+                card
+            )
+    
+    return card
 
 
 def serialize_player(player: Player) -> Dict[str, Any]:
