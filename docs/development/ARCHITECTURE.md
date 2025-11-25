@@ -109,13 +109,213 @@ backend/
 
 ## Effects System
 
-The effects system is the core of card behavior. It uses inheritance and polymorphism to handle different effect types.
+The effects system is the core of card behavior. It uses inheritance and polymorphism to handle different effect types, with support for both **legacy card-specific effects** and **modern data-driven generic effects**.
 
-### Effect Type Hierarchy
+### Data-Driven Effects (New Approach)
+
+**Goal:** Enable adding new cards via CSV without writing Python code.
+
+**Architecture:**
+1. **Generic Effect Classes** - Parameterized effects that work for multiple cards
+2. **CSV Effect Definitions** - Card data includes `effects` column with effect strings
+3. **EffectFactory Parser** - Parses effect strings into effect instances
+4. **Priority System** - Check CSV effects first, fallback to legacy name-based registry
+
+**CSV Format:**
+```csv
+name,type,cost,effects,...
+Ka,Toy,1,stat_boost:strength:2,...
+Rush,Action,0,gain_cc:2:not_first_turn,...
+Wake,Action,1,unsleep:1,...
+```
+
+**Effect String Syntax:**
+- Format: `effect_type:param1:param2:...`
+- Multiple effects: `effect1:param1;effect2:param1:param2`
+- Examples:
+  - `stat_boost:strength:2` - Ka gains +2 strength
+  - `stat_boost:all:1` - Demideca gains +1 to all stats
+  - `gain_cc:2:not_first_turn` - Rush gains 2 CC (not on first turn)
+  - `unsleep:2` - Sun unsleeps 2 cards
+  - `sleep_all` - Clean sleeps all cards in play
+
+**Implementation Status:**
+- ✅ **PR #78 (Merged)**: StatBoostEffect (Ka, Demideca)
+- 🔄 **Phase 1 (In Progress)**: GainCCEffect, UnsleepEffect, SleepAllEffect (Rush, Wake, Sun, Clean)
+- 📋 **Phase 2 (Planned)**: Cost modifications (Wizard, Dream)
+- 📋 **Phase 3 (Planned)**: Triggered effects (Umbruh)
+- ⚠️ **Keep Custom**: Complex cards (Knight, Beary, Copy, Twist, etc.)
+
+**Migration Progress:** 6/18 cards (33%) migrated to data-driven system
+
+### Generic Effect Classes
+
+#### StatBoostEffect (Continuous)
+**Purpose:** Add stat bonuses to toys in play.
+
+```python
+class StatBoostEffect(ContinuousEffect):
+    def __init__(self, source_card: "Card", stat_name: str, amount: int):
+        self.stat_name = stat_name  # "speed", "strength", "all"
+        self.amount = amount
+```
+
+**CSV Examples:**
+- `stat_boost:strength:2` - +2 strength (Ka)
+- `stat_boost:all:1` - +1 to all stats (Demideca)
+
+**Cards Using:** Ka, Demideca
+
+#### GainCCEffect (Action)
+**Purpose:** Gain command counters when played.
+
+```python
+class GainCCEffect(PlayEffect):
+    def __init__(self, source_card: "Card", amount: int, not_first_turn: bool = False):
+        self.amount = amount
+        self.not_first_turn = not_first_turn
+    
+    def can_apply(self, game_state: "GameState", **kwargs) -> bool:
+        if not self.not_first_turn:
+            return True
+        player = kwargs.get("player")
+        first_player_id = game_state.first_player_id
+        turn_number = game_state.turn_number
+        is_first_turn = (player.player_id == first_player_id and turn_number == 1) or \
+                       (player.player_id != first_player_id and turn_number == 2)
+        return not is_first_turn
+```
+
+**CSV Examples:**
+- `gain_cc:2:not_first_turn` - Gain 2 CC (not on first turn) (Rush)
+- `gain_cc:3` - Gain 3 CC (unrestricted)
+
+**Cards Using:** Rush
+
+#### UnsleepEffect (Action)
+**Purpose:** Move cards from sleep zone to hand.
+
+```python
+class UnsleepEffect(PlayEffect):
+    def __init__(self, source_card: "Card", count: int):
+        self.count = count
+    
+    def requires_targets(self) -> bool:
+        return True
+    
+    def get_max_targets(self) -> int:
+        return self.count
+    
+    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
+        player = game_state.get_active_player()
+        return player.sleep_zone if player else []
+```
+
+**CSV Examples:**
+- `unsleep:1` - Unsleep 1 card (Wake)
+- `unsleep:2` - Unsleep 2 cards (Sun)
+
+**Cards Using:** Wake, Sun
+
+#### SleepAllEffect (Action)
+**Purpose:** Sleep all cards currently in play.
+
+```python
+class SleepAllEffect(PlayEffect):
+    def __init__(self, source_card: "Card"):
+        super().__init__(source_card)
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        all_in_play = []
+        for player in game_state.players.values():
+            all_in_play.extend(player.in_play[:])
+        
+        for card in all_in_play:
+            card_controller = game_state.get_card_controller(card)
+            game_state.sleep_card(card, card_controller)
+```
+
+**CSV Example:**
+- `sleep_all` - Sleep all cards in play (Clean)
+
+**Cards Using:** Clean
+
+### EffectFactory Parser
+
+The `EffectFactory` class in `effect_registry.py` parses effect strings from CSV:
+
+```python
+class EffectFactory:
+    @staticmethod
+    def parse_effects(effect_string: str, source_card: "Card") -> List[BaseEffect]:
+        """Parse semicolon-separated effect definitions."""
+        if not effect_string or not effect_string.strip():
+            return []
+        
+        effects = []
+        effect_defs = effect_string.split(';')
+        
+        for effect_def in effect_defs:
+            parts = effect_def.strip().split(':')
+            if not parts:
+                continue
+            
+            effect_type = parts[0].lower()
+            
+            if effect_type == "stat_boost":
+                effects.append(EffectFactory._parse_stat_boost(parts, source_card))
+            elif effect_type == "gain_cc":
+                effects.append(EffectFactory._parse_gain_cc(parts, source_card))
+            elif effect_type == "unsleep":
+                effects.append(EffectFactory._parse_unsleep(parts, source_card))
+            elif effect_type == "sleep_all":
+                effects.append(EffectFactory._parse_sleep_all(parts, source_card))
+        
+        return effects
+```
+
+**Parser Methods:**
+- `_parse_stat_boost(parts, source_card)` - Validates stat_name, parses amount
+- `_parse_gain_cc(parts, source_card)` - Parses amount, optional not_first_turn flag
+- `_parse_unsleep(parts, source_card)` - Validates count >= 1
+- `_parse_sleep_all(parts, source_card)` - No parameters
+
+### Priority System
+
+The `EffectRegistry.get_effects()` method checks CSV effects first:
+
+```python
+@staticmethod
+def get_effects(card: "Card") -> List[BaseEffect]:
+    """Get effects for a card - CSV definitions take priority."""
+    effects = []
+    
+    # PRIORITY 1: Check for CSV-defined effects
+    if card.effect_definitions and card.effect_definitions.strip():
+        effects.extend(EffectFactory.parse_effects(card.effect_definitions, card))
+    
+    # PRIORITY 2: Fall back to legacy name-based registry
+    if not effects:
+        if card.name in EffectRegistry._effects:
+            effect_class = EffectRegistry._effects[card.name]
+            effects.append(effect_class(card))
+    
+    return effects
+```
+
+**Benefits:**
+- Backward compatible with legacy effects
+- Gradual migration path
+- Can mix data-driven and legacy cards
+
+### Legacy Effect Type Hierarchy
 
 ```
 BaseEffect (abstract)
 ├── ContinuousEffect
+│   ├── StatBoostEffect (GENERIC - data-driven)
+│   ├── KaEffect (LEGACY - to be deprecated)
+│   ├── DemidecaEffect (LEGACY - to be deprecated)
 │   └── CostModificationEffect
 │       ├── DreamCostEffect
 │       └── WizardCostEffect
@@ -124,11 +324,15 @@ BaseEffect (abstract)
 │   ├── SnugglesWhenSleepedEffect
 │   └── UmbruhEffect
 ├── PlayEffect
-│   ├── WakeEffect
-│   ├── SunEffect
+│   ├── GainCCEffect (GENERIC - data-driven)
+│   ├── UnsleepEffect (GENERIC - data-driven)
+│   ├── SleepAllEffect (GENERIC - data-driven)
+│   ├── WakeEffect (LEGACY - to be deprecated)
+│   ├── SunEffect (LEGACY - to be deprecated)
+│   ├── RushEffect (LEGACY - to be deprecated)
+│   ├── CleanEffect (LEGACY - to be deprecated)
 │   ├── TwistEffect
-│   ├── CopyEffect
-│   └── RushEffect
+│   └── CopyEffect
 └── ActivatedEffect
     └── ArcherEffect
 ```

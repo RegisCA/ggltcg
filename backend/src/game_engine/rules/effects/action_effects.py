@@ -16,7 +16,155 @@ if TYPE_CHECKING:
 
 
 # ============================================================================
-# ACTION CARDS
+# GENERIC ACTION EFFECTS (Data-Driven)
+# ============================================================================
+
+class GainCCEffect(PlayEffect):
+    """
+    Generic CC gain effect for data-driven cards.
+    
+    Can optionally restrict when the effect can be played (e.g., not on first turn).
+    
+    Examples:
+    - Rush: GainCCEffect(source_card, amount=2, not_first_turn=True)
+    """
+    
+    def __init__(self, source_card: "Card", amount: int, not_first_turn: bool = False):
+        """
+        Initialize CC gain effect.
+        
+        Args:
+            source_card: The card providing this effect
+            amount: How much CC to gain
+            not_first_turn: If True, cannot be played on player's first turn
+        """
+        super().__init__(source_card)
+        self.amount = amount
+        self.not_first_turn = not_first_turn
+    
+    def can_apply(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """Check if effect can be applied (e.g., not on first turn restriction)."""
+        if not self.not_first_turn:
+            return True
+        
+        player: Optional["Player"] = kwargs.get("player")
+        if not player:
+            return False
+        
+        # Determine if this is the player's first turn
+        player_id = None
+        for pid, p in game_state.players.items():
+            if p == player:
+                player_id = pid
+                break
+        
+        if not player_id:
+            return False
+        
+        # First player's first turn is Turn 1
+        # Second player's first turn is Turn 2
+        is_first_player = (player_id == game_state.first_player_id)
+        is_first_turn = (is_first_player and game_state.turn_number == 1) or \
+                       (not is_first_player and game_state.turn_number == 2)
+        
+        return not is_first_turn
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Grant CC to the player who played this card."""
+        player: Optional["Player"] = kwargs.get("player")
+        if player:
+            player.gain_cc(self.amount)
+
+
+class UnsleepEffect(PlayEffect):
+    """
+    Generic unsleep effect for data-driven cards.
+    
+    Returns N cards from player's Sleep Zone to their hand.
+    Player chooses which cards to unsleep.
+    
+    Examples:
+    - Wake: UnsleepEffect(source_card, count=1)
+    - Sun: UnsleepEffect(source_card, count=2)
+    """
+    
+    def __init__(self, source_card: "Card", count: int):
+        """
+        Initialize unsleep effect.
+        
+        Args:
+            source_card: The card providing this effect
+            count: How many cards to unsleep
+        """
+        super().__init__(source_card)
+        self.count = count
+    
+    def requires_targets(self) -> bool:
+        """Unsleep effect requires choosing cards to unsleep."""
+        return True
+    
+    def get_max_targets(self) -> int:
+        """Return the maximum number of cards that can be unsleeped."""
+        return self.count
+    
+    def get_min_targets(self) -> int:
+        """Unsleep requires at least 0 targets (optional if no sleeping cards)."""
+        return 0
+    
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
+        """Get all cards in player's Sleep Zone."""
+        if player is None:
+            player = game_state.get_active_player()
+        if not player:
+            return []
+        return list(player.sleep_zone)
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Return target cards from Sleep Zone to hand."""
+        targets: Optional[List["Card"]] = kwargs.get("targets")
+        player: Optional["Player"] = kwargs.get("player")
+        
+        if not targets or not player:
+            return
+        
+        # Unsleep each target (up to count)
+        for target in targets[:self.count]:
+            if target in player.sleep_zone:
+                game_state.unsleep_card(target, player)
+
+
+class SleepAllEffect(PlayEffect):
+    """
+    Generic sleep all cards effect for data-driven cards.
+    
+    Sleeps ALL toys in play from both players.
+    All sleeped cards trigger their "when sleeped" abilities if they have them.
+    
+    Examples:
+    - Clean: SleepAllEffect(source_card)
+    """
+    
+    def __init__(self, source_card: "Card"):
+        """
+        Initialize sleep all effect.
+        
+        Args:
+            source_card: The card providing this effect
+        """
+        super().__init__(source_card)
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Sleep all cards currently in play."""
+        # Get all cards in play from both players
+        all_cards_in_play = game_state.get_all_cards_in_play()
+        
+        # Sleep each card
+        for card in all_cards_in_play:
+            game_state.sleep_card(card, was_in_play=True)
+
+
+# ============================================================================
+# LEGACY CARD-SPECIFIC ACTION EFFECTS (To be deprecated)
 # ============================================================================
 
 class CleanEffect(PlayEffect):
