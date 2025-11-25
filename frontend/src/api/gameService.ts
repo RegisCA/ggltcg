@@ -10,6 +10,7 @@ import type {
   PlayCardRequest,
   TussleRequest,
   EndTurnRequest,
+  ActivateAbilityRequest,
   ActionResponse,
   ValidActionsResponse,
   CardDataResponse,
@@ -75,6 +76,17 @@ export async function initiateTussle(gameId: string, data: TussleRequest): Promi
 
 export async function endTurn(gameId: string, data: EndTurnRequest): Promise<ActionResponse> {
   const response = await apiClient.post<ActionResponse>(`/games/${gameId}/end-turn`, data);
+  return response.data;
+}
+
+export async function activateAbility(
+  gameId: string, 
+  data: ActivateAbilityRequest
+): Promise<ActionResponse> {
+  const response = await apiClient.post<ActionResponse>(
+    `/games/${gameId}/activate-ability`,
+    data
+  );
   return response.data;
 }
 

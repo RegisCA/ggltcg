@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import type { ValidAction, GameState, Card } from '../types/game';
-import { useGameState, useValidActions, usePlayCard, useTussle, useEndTurn, useAITurn } from '../hooks/useGame';
+import { useGameState, useValidActions, usePlayCard, useTussle, useEndTurn, useActivateAbility, useAITurn } from '../hooks/useGame';
 import { PlayerInfoBar } from './PlayerInfoBar';
 import { InPlayZone } from './InPlayZone';
 import { HandZone } from './HandZone';
@@ -62,12 +62,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const playCardMutation = usePlayCard(gameId);
   const tussleMutation = useTussle(gameId);
   const endTurnMutation = useEndTurn(gameId);
+  const activateAbilityMutation = useActivateAbility(gameId);
   const aiTurnMutation = useAITurn(gameId);
 
   const isProcessing =
     playCardMutation.isPending ||
     tussleMutation.isPending ||
     endTurnMutation.isPending ||
+    activateAbilityMutation.isPending ||
     aiTurnMutation.isPending;
 
   // Check for game over
@@ -149,7 +151,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     // Check if action requires target selection or has alternative cost
     // NOTE: Tussles already have their target specified in target_options, so don't show modal
     const needsTargetSelection = 
-      action.action_type === 'play_card' && 
+      (action.action_type === 'play_card' || action.action_type === 'activate_ability') && 
       action.target_options && 
       action.target_options.length > 0;
     const hasAlternativeCost = action.alternative_cost_available;
@@ -216,6 +218,25 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           player_id: humanPlayerId,
           attacker_id: action.card_id,
           defender_id: defenderId,
+        },
+        {
+          onSuccess: (response) => {
+            addMessage(response.message, response);
+            setSelectedCard(null);
+          },
+          onError: (error) => {
+            addMessage(`Error: ${error.message}`);
+            setSelectedCard(null);
+          },
+        }
+      );
+    } else if (action.action_type === 'activate_ability' && action.card_id) {
+      activateAbilityMutation.mutate(
+        {
+          player_id: humanPlayerId,
+          card_id: action.card_id,
+          target_id: selectedTargets.length === 1 ? selectedTargets[0] : undefined,
+          amount: 1,
         },
         {
           onSuccess: (response) => {

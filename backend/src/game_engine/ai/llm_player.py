@@ -380,6 +380,20 @@ class LLMPlayer:
             else:
                 result["defender_id"] = None  # Direct attack
         
+        elif selected_action.action_type == "activate_ability":
+            result["action_type"] = "activate_ability"
+            result["card_id"] = selected_action.card_id
+            result["amount"] = 1  # Always use 1 for now (can be repeated)
+            
+            # Handle target selection for activated abilities
+            if self._last_target_id:
+                result["target_id"] = self._last_target_id
+                logger.info(f"Using AI-selected ability target: {self._last_target_id}")
+            elif selected_action.target_options:
+                # Fallback: Use first available target if AI didn't specify
+                result["target_id"] = selected_action.target_options[0]
+                logger.warning(f"AI didn't specify ability target, using first option: {result['target_id']}")
+        
         elif selected_action.action_type == "end_turn":
             result["action_type"] = "end_turn"
         

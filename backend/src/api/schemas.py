@@ -96,8 +96,8 @@ class EndTurnRequest(BaseModel):
 class ActivateAbilityRequest(BaseModel):
     """Request to activate a card's ability."""
     player_id: str = Field(..., description="ID of player activating ability")
-    card_name: str = Field(..., description="Name of card with ability")
-    target_card_name: Optional[str] = Field(None, description="Target for the ability")
+    card_id: str = Field(..., description="ID of card with ability")
+    target_id: Optional[str] = Field(None, description="ID of target card for the ability")
     amount: Optional[int] = Field(1, description="Amount parameter (e.g., for Archer)")
 
 
@@ -171,6 +171,7 @@ class ValidAction(BaseModel):
     action_type: str  # "play_card", "tussle", "end_turn", "activate_ability"
     card_id: Optional[str] = None  # Unique ID of the card for this action
     card_name: Optional[str] = None  # Display name (for UI convenience)
+    ability_name: Optional[str] = Field(None, description="Name/type of activated ability")
     target_options: Optional[List[str]] = Field(None, description="List of valid target card IDs")
     max_targets: Optional[int] = Field(None, description="Maximum number of targets to select (e.g., 2 for Sun)")
     min_targets: Optional[int] = Field(None, description="Minimum number of targets to select (e.g., 0 for optional targeting)")

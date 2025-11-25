@@ -57,9 +57,9 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Archer": {
         "type": "Toy",
-        "effect": "Restriction: Cannot initiate tussles. Activated Ability: Spend X CC to deal X damage to target card (if stamina reaches 0, card is sleeped)",
-        "strategic_use": "DAMAGE DEALER - Cannot tussle, but can spend CC to directly damage cards. 5 stamina makes it durable. Use to finish off damaged cards.",
-        "threat_level": "MEDIUM - Can directly damage your cards with CC"
+        "effect": "Restriction: Cannot initiate tussles. Activated Ability: Spend 1 CC to remove 1 stamina from target opponent card (can repeat multiple times)",
+        "strategic_use": "PRECISION FINISHER - Cannot tussle, but can spend CC to directly damage opponent's cards. Use to finish off damaged cards or weaken targets before tussling. Costs 1 CC per 1 stamina removed - can use multiple times per turn if you have CC.",
+        "threat_level": "MEDIUM - Can directly damage your cards with CC, potentially finishing off weakened cards"
     },
     "Umbruh": {
         "type": "Toy",

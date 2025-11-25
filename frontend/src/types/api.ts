@@ -41,6 +41,13 @@ export interface EndTurnRequest {
   player_id: string;
 }
 
+export interface ActivateAbilityRequest {
+  player_id: string;
+  card_id: string;  // ID of card with the ability
+  target_id?: string;  // Optional target card ID (e.g., for Archer)
+  amount?: number;  // Optional amount parameter (default: 1)
+}
+
 export interface ActionResponse {
   success: boolean;
   message: string;

@@ -347,12 +347,14 @@ class RaggyEffect(CostModificationEffect):
         return game_state.turn_number > 1
 
 
-class KnightProtectionEffect(ProtectionEffect):
+class OpponentImmunityEffect(ProtectionEffect):
     """
-    Knight: "Your opponent's cards' effects don't affect this card."
+    Beary: "Your opponent's cards' effects don't affect this card."
     
-    Prevents effects from opponent-controlled cards from affecting Knight.
-    Exception: Tussle damage is not an "effect" and can still harm Knight.
+    Prevents effects from opponent-controlled cards from affecting this card.
+    Exception: Tussle damage is not an "effect" and can still harm this card.
+    
+    Note: This was originally Knight's effect, now swapped to Beary.
     """
     
     def __init__(self, source_card: "Card"):
@@ -360,29 +362,24 @@ class KnightProtectionEffect(ProtectionEffect):
     
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
                    game_state: "GameState") -> int:
-        """Knight protection doesn't modify stats."""
+        """Opponent immunity doesn't modify stats."""
         return base_value
     
     def is_protected_from(self, effect: "BaseEffect", game_state: "GameState") -> bool:
         """
-        Check if Knight is protected from the given effect.
+        Check if this card is protected from the given effect.
         
         Protected from effects of cards controlled by opponent.
-        NOT protected from Beary's effects.
         """
         # Get the controllers
-        knight_controller = game_state.get_card_controller(self.source_card)
+        card_controller = game_state.get_card_controller(self.source_card)
         effect_controller = game_state.get_card_controller(effect.source_card)
         
-        if not knight_controller or not effect_controller:
-            return False
-        
-        # Special case: Beary's effects work on Knight
-        if effect.source_card.name == "Beary":
+        if not card_controller or not effect_controller:
             return False
         
         # Protected from opponent's effects
-        return knight_controller != effect_controller
+        return card_controller != effect_controller
 
 
 class KnightWinConditionEffect(ContinuousEffect):
@@ -392,8 +389,6 @@ class KnightWinConditionEffect(ContinuousEffect):
     When Knight tussles on its controller's turn, it automatically wins:
     - The opposing Toy is sleeped immediately
     - The opposing Toy does not strike back
-    
-    Exception: Doesn't work against Beary.
     """
     
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
@@ -419,32 +414,7 @@ class KnightWinConditionEffect(ContinuousEffect):
         if not knight_controller or knight_controller != active_player:
             return False
         
-        # Doesn't work against Beary
-        if opponent_card.name == "Beary":
-            return False
-        
         return True
-
-
-class BearyProtectionEffect(ProtectionEffect):
-    """
-    Beary: "Knight's effects don't affect this card."
-    
-    Prevents effects from cards named "Knight" from affecting Beary.
-    This means Knight's auto-win ability doesn't work against Beary.
-    """
-    
-    def __init__(self, source_card: "Card"):
-        super().__init__(source_card, protects_from="Knight")
-    
-    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
-                   game_state: "GameState") -> int:
-        """Beary protection doesn't modify stats."""
-        return base_value
-    
-    def is_protected_from(self, effect: "BaseEffect", game_state: "GameState") -> bool:
-        """Check if Beary is protected from Knight's effects."""
-        return effect.source_card.name == "Knight"
 
 
 class DreamCostEffect(CostModificationEffect):
@@ -526,14 +496,6 @@ class ArcherRestrictionEffect(ContinuousEffect):
         return False
 
 
-# Register all continuous effects
-EffectRegistry.register_effect("Ka", KaEffect)
-EffectRegistry.register_effect("Wizard", WizardEffect)
-EffectRegistry.register_effect("Demideca", DemidecaEffect)
-EffectRegistry.register_effect("Raggy", RaggyEffect)
-EffectRegistry.register_effect("Knight", KnightProtectionEffect)
-EffectRegistry.register_effect("Knight", KnightWinConditionEffect)
-EffectRegistry.register_effect("Beary", BearyProtectionEffect)
-EffectRegistry.register_effect("Archer", ArcherRestrictionEffect)
-EffectRegistry.register_effect("Dream", DreamCostEffect)
-EffectRegistry.register_effect("Ballaber", BallaberCostEffect)
+# Register legacy effects (cards not yet migrated to data-driven system)
+# Note: All cards now use data-driven effect_definitions from CSV!
+# (Snuggles is registered in triggered_effects.py)
