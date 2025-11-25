@@ -9,7 +9,6 @@ import logging
 from typing import Optional, List, Dict, Any, Tuple
 from enum import Enum
 import random
-import copy
 
 from .models.game_state import GameState, Phase
 from .models.player import Player
@@ -259,10 +258,19 @@ class GameEngine:
             self._trigger_when_played_effects(card, player, **kwargs)
             
         elif card.card_type == CardType.ACTION:
-            # Actions resolve and go to sleep zone
+            # Resolve the Action card's effect
             self._resolve_action_card(card, player, **kwargs)
-            card.zone = Zone.SLEEP
-            player.sleep_zone.append(card)
+            
+            # Special handling for Copy - it transforms and stays in play
+            if hasattr(card, '_is_transformed') and card._is_transformed:
+                # Copy transformed into another card - stays IN_PLAY
+                card.zone = Zone.IN_PLAY
+                card.controller = player.player_id
+                player.in_play.append(card)
+            else:
+                # Normal Actions go to sleep zone
+                card.zone = Zone.SLEEP
+                player.sleep_zone.append(card)
         
         # Check state-based actions
         self.check_state_based_actions()
@@ -280,49 +288,7 @@ class GameEngine:
     
     def _resolve_action_card(self, card: Card, player: Player, **kwargs: Any) -> None:
         """Resolve an Action card's effect."""
-        # Special handling for Copy card
-        if card.name.lower() == "copy" or card.effect_text.startswith("This card acts as an exact copy"):
-            # Determine target to copy (kwargs may supply target_name)
-            target_name = kwargs.get("target_name")
-            target_card = None
-            
-            if target_name:
-                # Try to find the target card in the player's in-play zone
-                for c in player.in_play:
-                    if c.name == target_name:
-                        target_card = c
-                        break
-            
-            # If no target_name supplied or not found, pick the first eligible card
-            if target_card is None:
-                if not player.in_play:
-                    self.game_state.log_event("Copy played but no cards to copy; effect fizzles.")
-                    return
-                target_card = player.in_play[0]
-            
-            # Create a clone of the target card
-            cloned = copy.deepcopy(target_card)
-            
-            # Reset stateful fields for the new copy
-            if hasattr(cloned, 'current_stamina') and hasattr(cloned, 'stamina'):
-                cloned.current_stamina = cloned.stamina
-            if hasattr(cloned, 'modifications'):
-                cloned.modifications = {}
-            
-            # Set zone and controller
-            cloned.zone = Zone.IN_PLAY
-            cloned.controller = player.player_id
-            cloned.owner = player.player_id
-            
-            # Add to player's in-play zone
-            player.in_play.append(cloned)
-            
-            self.game_state.log_event(
-                f"{player.name} played Copy and cloned {target_card.name} into play"
-            )
-            return
-        
-        # Fallback to existing generic action resolution for other action cards
+        # Get and apply effects for all action cards (including Copy)
         effects = EffectRegistry.get_effects(card)
         for effect in effects:
             if isinstance(effect, PlayEffect):

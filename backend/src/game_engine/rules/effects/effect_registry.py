@@ -441,7 +441,8 @@ class EffectRegistry:
         """
         Get all effects for a card.
         
-        First checks if the card has data-driven effect_definitions.
+        First checks if the card has pre-parsed copied effects (for Copy card).
+        Then checks if the card has data-driven effect_definitions.
         If not, falls back to name-based registry for legacy cards.
         
         Args:
@@ -450,6 +451,10 @@ class EffectRegistry:
         Returns:
             List of instantiated effect objects for this card
         """
+        # Priority 0: Check for pre-parsed copied effects (Copy card transformation)
+        if hasattr(card, '_copied_effects') and card._copied_effects:
+            return card._copied_effects
+        
         # Priority 1: Check for data-driven effect definitions
         if hasattr(card, 'effect_definitions') and card.effect_definitions:
             try:

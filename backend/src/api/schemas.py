@@ -122,6 +122,7 @@ class CardState(BaseModel):
     name: str
     card_type: str
     cost: int
+    effect_text: str = ""  # Card effect description
     zone: str
     owner: str
     controller: str

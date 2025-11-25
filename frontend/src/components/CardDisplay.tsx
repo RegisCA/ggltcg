@@ -4,10 +4,7 @@
  * Supports multiple sizes and states according to UX spec
  */
 
-import { useState, useEffect } from 'react';
 import type { Card } from '../types/game';
-import type { CardDataResponse } from '../types/api';
-import { getAllCards } from '../api/gameService';
 
 interface CardDisplayProps {
   card: Card;
@@ -20,9 +17,6 @@ interface CardDisplayProps {
   size?: 'small' | 'medium' | 'large';
 }
 
-// Cache for card data to avoid repeated API calls
-let cardDataCache: CardDataResponse[] | null = null;
-
 export function CardDisplay({
   card,
   onClick,
@@ -33,21 +27,6 @@ export function CardDisplay({
   isTussling = false,
   size = 'medium',
 }: CardDisplayProps) {
-  const [cardData, setCardData] = useState<CardDataResponse | null>(null);
-
-  // Load card data from API (with caching)
-  useEffect(() => {
-    const loadCardData = async () => {
-      if (cardDataCache === null) {
-        cardDataCache = await getAllCards();
-      }
-      const data = cardDataCache.find((c) => c.name === card.name);
-      setCardData(data || null);
-    };
-    
-    loadCardData();
-  }, [card.name]);
-
   const isToy = card.card_type === 'Toy';  // Match backend enum value
 
   // Size configurations (px values from UX spec)
@@ -225,7 +204,7 @@ export function CardDisplay({
       )}
 
       {/* Effect Text - Only show on medium and large cards */}
-      {cardData && size !== 'small' && (
+      {size !== 'small' && card.effect_text && (
         <div 
           className="text-gray-300 italic mt-2"
           style={{
@@ -239,7 +218,7 @@ export function CardDisplay({
             zIndex: 1,
           }}
         >
-          {cardData.effect}
+          {card.effect_text}
         </div>
       )}
 

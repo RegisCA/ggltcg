@@ -26,12 +26,21 @@ def serialize_card(card: Card) -> Dict[str, Any]:
     Returns:
         Dictionary representation of the card
     """
-    return {
+    # Create a copy of modifications to avoid mutating the original
+    modifications = card.modifications.copy()
+    
+    # Store transformation state for Copy cards
+    # Using modifications dict to avoid changing Card model
+    if hasattr(card, '_is_transformed') and card._is_transformed:
+        modifications['_is_transformed'] = True
+    
+    serialized = {
         "id": card.id,
         "name": card.name,
         "card_type": card.card_type.value,
         "cost": card.cost,
         "effect_text": card.effect_text,
+        "effect_definitions": getattr(card, 'effect_definitions', ''),
         "speed": card.speed,
         "strength": card.strength,
         "stamina": card.stamina,
@@ -40,8 +49,10 @@ def serialize_card(card: Card) -> Dict[str, Any]:
         "owner": card.owner,
         "controller": card.controller,
         "zone": card.zone.value,
-        "modifications": card.modifications,
+        "modifications": modifications,
     }
+    
+    return serialized
 
 
 def deserialize_card(data: Dict[str, Any]) -> Card:
@@ -54,12 +65,17 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
     Returns:
         Card object
     """
-    return Card(
+    # Get modifications and check for transformed Copy cards
+    modifications = data.get("modifications", {})
+    is_transformed = modifications.pop('_is_transformed', False)
+    
+    card = Card(
         id=data["id"],
         name=data["name"],
         card_type=CardType(data["card_type"]),
         cost=data["cost"],
         effect_text=data["effect_text"],
+        effect_definitions=data.get("effect_definitions", ""),
         speed=data.get("speed"),
         strength=data.get("strength"),
         stamina=data.get("stamina"),
@@ -68,8 +84,22 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
         owner=data["owner"],
         controller=data["controller"],
         zone=Zone(data["zone"]),
-        modifications=data.get("modifications", {}),
+        modifications=modifications,
     )
+    
+    # Restore transformation state for Copy cards
+    # This will cause EffectRegistry to recreate _copied_effects
+    if is_transformed:
+        card._is_transformed = True
+        # Recreate _copied_effects from effect_definitions
+        from game_engine.rules.effects.effect_registry import EffectFactory
+        if hasattr(card, 'effect_definitions') and card.effect_definitions:
+            card._copied_effects = EffectFactory.parse_effects(
+                card.effect_definitions,
+                card
+            )
+    
+    return card
 
 
 def serialize_player(player: Player) -> Dict[str, Any]:
