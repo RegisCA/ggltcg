@@ -9,11 +9,11 @@ Snuggles,18,2,"NOT WORKING - When sleeped, you may sleep a card that is in play.
 Raggy,18,3,This card's tussles cost 0. This card may not tussle on the first turn of the game.,2,3,2,,,#C74444,#C74444,
 Copy,18,-1,This card acts as an exact copy of a card you have in play.,,,,,,#8B5FA8,#8B5FA8,
 Twist,18,3,"Put a card your opponent has in play in play, but under your control.",,,,,,#8B5FA8,#8B5FA8,
-Rush,18,0,Gain 2 CC. This card may not be played on your first turn.,,,,,,#ffeb99,#ffa51f,
+Rush,18,0,Gain 2 CC. This card may not be played on your first turn.,,,,,,#ffeb99,#ffa51f,gain_cc:2:not_first_turn
 Toynado,18,2,Put all cards that are in play into their owner's hands.,,,,,,#8B5FA8,#8B5FA8,
-Clean,18,3,Sleep all cards that are in play.,,,,,,#8B5FA8,#8B5FA8,
+Clean,18,3,Sleep all cards that are in play.,,,,,,#8B5FA8,#8B5FA8,sleep_all
 Ballaber,18,3,You may sleep 1 of your cards to play this card for free.,4,6,4,,,#C74444,#C74444,
-Wake,18,1,Unsleep 1 of your cards.,,,,,,#8B5FA8,#8B5FA8,
 Dream,18,4,This card costs 1 less for each of your sleeping cards.,4,5,4,,,#d8c7fa,#C74444,reduce_cost_by_sleeping
-Sun,18,3,Unsleep 2 of your cards.,,,,,,#8B5FA8,#8B5FA8,
+Wake,18,1,Unsleep 1 of your cards.,,,,,,#8B5FA8,#8B5FA8,unsleep:1
+Sun,18,3,Unsleep 2 of your cards.,,,,,,#8B5FA8,#8B5FA8,unsleep:2
 Demideca,18,1,Your cards have + 1 of all stats.,3,2,3,,,#C74444,#C74444,stat_boost:all:1
