@@ -299,6 +299,8 @@ class ActionExecutor:
                 )
             kwargs["target"] = target
             kwargs["target_name"] = target.name  # For Copy card
+            # Also provide as single-element list for effects that expect 'targets'
+            kwargs["targets"] = [target]
         
         # Multiple targets
         if target_card_ids:
