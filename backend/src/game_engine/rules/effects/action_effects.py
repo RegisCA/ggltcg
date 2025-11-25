@@ -250,88 +250,6 @@ class RushEffect(PlayEffect):
             player.gain_cc(2)
 
 
-class WakeEffect(PlayEffect):
-    """
-    Wake: "Unsleep 1 of your cards."
-    
-    Returns one card from your Sleep Zone to your hand.
-    Player chooses which card to unsleep.
-    """
-    
-    def requires_targets(self) -> bool:
-        """Wake requires choosing a card to unsleep."""
-        return True
-    
-    def get_min_targets(self) -> int:
-        """Wake requires at least 0 targets (optional if no sleeping cards)."""
-        return 0
-    
-    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get all cards in player's Sleep Zone."""
-        if player is None:
-            player = game_state.get_active_player()
-        if not player:
-            return []
-        return list(player.sleep_zone)
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Return target card from Sleep Zone to hand."""
-        target: Optional["Card"] = kwargs.get("target")
-        player: Optional["Player"] = kwargs.get("player")
-        
-        if not target or not player:
-            return
-        
-        # Verify target is in player's Sleep Zone
-        if target not in player.sleep_zone:
-            return
-        
-        # Unsleep the card (move to hand)
-        game_state.unsleep_card(target, player)
-
-
-class SunEffect(PlayEffect):
-    """
-    Sun: "Unsleep 2 of your cards."
-    
-    Returns up to 2 cards from your Sleep Zone to your hand.
-    Player chooses which cards to unsleep.
-    """
-    
-    def requires_targets(self) -> bool:
-        """Sun requires choosing cards to unsleep."""
-        return True
-    
-    def get_max_targets(self) -> int:
-        """Sun can unsleep up to 2 cards."""
-        return 2
-    
-    def get_min_targets(self) -> int:
-        """Sun requires at least 0 targets (optional if no sleeping cards)."""
-        return 0
-    
-    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get all cards in player's Sleep Zone."""
-        if player is None:
-            player = game_state.get_active_player()
-        if not player:
-            return []
-        return list(player.sleep_zone)
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Return up to 2 target cards from Sleep Zone to hand."""
-        targets: List["Card"] = kwargs.get("targets", [])
-        player: Optional["Player"] = kwargs.get("player")
-        
-        if not player:
-            return
-        
-        # Unsleep up to 2 cards
-        for target in targets[:2]:  # Max 2
-            if target in player.sleep_zone:
-                game_state.unsleep_card(target, player)
-
-
 class ToynadoEffect(PlayEffect):
     """
     Toynado: "Put all cards that are in play into their owner's hands."
@@ -551,8 +469,7 @@ class ArcherActivatedAbility(ActivatedEffect):
 # Register all action effects
 EffectRegistry.register_effect("Clean", CleanEffect)
 EffectRegistry.register_effect("Rush", RushEffect)
-EffectRegistry.register_effect("Wake", WakeEffect)
-EffectRegistry.register_effect("Sun", SunEffect)
+# Note: Wake and Sun now use generic UnsleepEffect via effect_definitions (unsleep:1, unsleep:2)
 EffectRegistry.register_effect("Toynado", ToynadoEffect)
 EffectRegistry.register_effect("Twist", TwistEffect)
 EffectRegistry.register_effect("Copy", CopyEffect)
