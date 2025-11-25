@@ -225,7 +225,7 @@ export function CardDisplay({
       )}
 
       {/* Effect Text - Only show on medium and large cards */}
-      {cardData && size !== 'small' && (
+      {size !== 'small' && card.effect_text && (
         <div 
           className="text-gray-300 italic mt-2"
           style={{
@@ -239,7 +239,7 @@ export function CardDisplay({
             zIndex: 1,
           }}
         >
-          {cardData.effect}
+          {card.effect_text}
         </div>
       )}
 
