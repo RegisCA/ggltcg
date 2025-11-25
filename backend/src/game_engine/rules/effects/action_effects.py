@@ -502,7 +502,14 @@ class ArcherActivatedAbility(ActivatedEffect):
         
         # Check if card should be sleeped
         if target.stamina <= 0:
-            game_state.sleep_card(target, was_in_play=True)
+            # Sleep via game engine to trigger when-sleeped effects
+            game_engine = kwargs.get("game_engine")
+            if game_engine:
+                owner = game_state.get_card_owner(target)
+                game_engine._sleep_card(target, owner, was_in_play=True)
+            else:
+                # Fallback for tests without game_engine
+                game_state.sleep_card(target, was_in_play=True)
 
 
 # Register all action effects

@@ -225,30 +225,17 @@ class GameEngine:
             self.game_state.log_event(f"Cannot play {card.name}: {reason}")
             return False
         
-        # Handle Ballaber's alternative cost
+        # Check if alternative cost was paid (handled by action_executor)
         alternative_cost_paid = kwargs.get("alternative_cost_paid", False)
         alternative_cost_card_name = kwargs.get("alternative_cost_card", None)
         
-        if alternative_cost_paid and card.name == "Ballaber" and alternative_cost_card_name:
-            # Find and sleep the alternative cost card
-            card_to_sleep = None
-            for c in player.in_play + (player.hand or []):
-                if c.name == alternative_cost_card_name and c.name != "Ballaber":
-                    card_to_sleep = c
-                    break
-            
-            if card_to_sleep:
-                self.game_state.sleep_card(card_to_sleep, was_in_play=(card_to_sleep.zone == Zone.IN_PLAY))
-                self.game_state.log_event(
-                    f"{player.name} plays {card.name} by sleeping {alternative_cost_card_name} (alternative cost)"
-                )
-            else:
-                # Alternative cost card not found - fall back to normal cost
-                alternative_cost_paid = False
-                self.game_state.log_event(f"Alternative cost card {alternative_cost_card_name} not found, paying normal cost")
-        
-        # Calculate and pay normal cost if not using alternative cost
-        if not alternative_cost_paid:
+        if alternative_cost_paid and alternative_cost_card_name:
+            # Alternative cost already paid by action_executor
+            self.game_state.log_event(
+                f"{player.name} plays {card.name} by sleeping {alternative_cost_card_name} (alternative cost)"
+            )
+        else:
+            # Calculate and pay normal cost
             target_name = kwargs.get("target_name")
             cost = self.calculate_card_cost(card, player, target_name=target_name)
             if not player.spend_cc(cost):
@@ -693,7 +680,7 @@ class GameEngine:
                             sleeped_card=card,
                             was_in_play=was_in_play
                         ):
-                            effect.apply(self.game_state, sleeped_card=card)
+                            effect.apply(self.game_state, sleeped_card=card, game_engine=self)
     
     # ========================================================================
     # STATE-BASED ACTIONS

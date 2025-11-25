@@ -281,22 +281,6 @@ class GameState:
         
         return False
     
-    def find_card_by_name(self, name: str) -> Optional[Card]:
-        """
-        Find a card by name across all zones and players.
-        
-        Args:
-            name: Card name to search for
-            
-        Returns:
-            Card if found, None otherwise
-        """
-        for player in self.players.values():
-            card = player.get_card_by_name(name)
-            if card:
-                return card
-        return None
-    
     def find_card_by_id(self, card_id: str) -> Optional[Card]:
         """
         Find a card by its unique ID across all zones and players.
