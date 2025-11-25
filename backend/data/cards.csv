@@ -1,6 +1,6 @@
 name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accent_color,effects
-Beary,18,1,"Knight's effects don't affect this card. When your opponent tussles, you may play this card, the tussle is cancelled.",3,3,5,,,#C74444,#C74444,
-Knight,18,1,"Your opponent's cards' effects don't affect this card. On your turn, this card wins all tussles it enters.",4,4,3,,,#C74444,#C74444,
+Beary,18,1,"Your opponent's cards' effects don't affect this card.",5,3,3,,,#C74444,#C74444,
+Knight,18,1,"On your turn, this card wins all tussles it enters.",4,4,3,,,#C74444,#C74444,
 Wizard,18,2,Your cards' tussles cost 1.,1,3,3,,,#C74444,#C74444,set_tussle_cost:1
 Archer,18,0,NOT WORKING - This card can't start tussles. You may spend CC to remove stamina from cards.,0,0,5,,,#C74444,#C74444,
 Umbruh,18,1,"When sleeped, gain 1 CC.",4,4,4,,,#C74444,#C74444,
