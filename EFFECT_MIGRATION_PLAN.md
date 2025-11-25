@@ -3,21 +3,22 @@
 ## Overview
 This document outlines the strategy for migrating all GGLTCG cards from hardcoded Python effect classes to the data-driven CSV effect system.
 
-## Current Status (Post-Phase 3)
+## Current Status (Post-Phase 3 + Wake/Sun Cleanup - November 25, 2025)
 
 ### ✅ Migrated to Data-Driven (10 cards - 56%)
+
 - **Ka**: `stat_boost:strength:2`
 - **Demideca**: `stat_boost:all:1`
 - **Rush**: `gain_cc:2:not_first_turn`
-- **Wake**: `unsleep:1`
-- **Sun**: `unsleep:2`
+- **Wake**: `unsleep:1` ✅ Legacy WakeEffect removed
+- **Sun**: `unsleep:2` ✅ Legacy SunEffect removed
 - **Clean**: `sleep_all`
 - **Wizard**: `set_tussle_cost:1`
 - **Dream**: `reduce_cost_by_sleeping`
 - **Umbruh**: `gain_cc_when_sleeped:1`
 - **Raggy**: `set_self_tussle_cost:0:not_turn_1`
 
-### 📋 Remaining Cards (8 cards - 44%)
+### 📋 Remaining Legacy Effect Classes (6 cards)
 - Knight (2 custom effects - works well)
 - Beary (2 custom effects - works well)
 - Archer (2 custom effects - marked NOT WORKING)
@@ -111,18 +112,21 @@ These are straightforward action cards that could use generic patterns.
 - **Priority**: HIGH - Simple batch operation
 
 **Wake** - "Unsleep 1 card"
-- **Current**: WakeEffect (requires target selection)
-- **Effect Type**: `unsleep:count:1`
-- **Complexity**: LOW
-- **Priority**: HIGH - Common pattern
+
+- **Status**: ✅ MIGRATED (November 25, 2025)
+- **Effect Type**: `unsleep:1`
+- **Implementation**: Generic UnsleepEffect
+- **Legacy Class Removed**: WakeEffect deleted
 
 **Sun** - "Unsleep 2 cards"
-- **Current**: SunEffect (requires target selection)
-- **Effect Type**: `unsleep:count:2`
-- **Complexity**: LOW
-- **Priority**: HIGH - Same as Wake
+
+- **Status**: ✅ MIGRATED (November 25, 2025)
+- **Effect Type**: `unsleep:2`
+- **Implementation**: Generic UnsleepEffect
+- **Legacy Class Removed**: SunEffect deleted
 
 **Rush** - "Gain 2 CC. Not on first turn"
+
 - **Current**: RushEffect
 - **Effect Type**: `gain_cc:2:not_first_turn`
 - **Complexity**: LOW
