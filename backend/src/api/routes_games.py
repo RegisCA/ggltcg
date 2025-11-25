@@ -143,11 +143,6 @@ async def get_game_state(game_id: str, player_id: str = None) -> GameStateRespon
         in_play_cards = [_card_to_state(c, engine) for c in player.in_play]
         sleep_cards = [_card_to_state(c, engine) for c in player.sleep_zone]
         
-        # DEBUG: Log a sample card's stats
-        if in_play_cards:
-            sample = in_play_cards[0]
-            print(f"DEBUG API Response - {sample.name}: STR={sample.strength} (base={sample.base_strength})", flush=True)
-        
         # Only include hand if player_id matches
         hand_cards = None
         if player_id == pid:
