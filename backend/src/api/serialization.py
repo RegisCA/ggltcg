@@ -26,6 +26,14 @@ def serialize_card(card: Card) -> Dict[str, Any]:
     Returns:
         Dictionary representation of the card
     """
+    # Create a copy of modifications to avoid mutating the original
+    modifications = card.modifications.copy()
+    
+    # Store transformation state for Copy cards
+    # Using modifications dict to avoid changing Card model
+    if hasattr(card, '_is_transformed') and card._is_transformed:
+        modifications['_is_transformed'] = True
+    
     serialized = {
         "id": card.id,
         "name": card.name,
@@ -40,13 +48,8 @@ def serialize_card(card: Card) -> Dict[str, Any]:
         "owner": card.owner,
         "controller": card.controller,
         "zone": card.zone.value,
-        "modifications": card.modifications,
+        "modifications": modifications,
     }
-    
-    # Store transformation state for Copy cards
-    # Using modifications dict to avoid changing Card model
-    if hasattr(card, '_is_transformed') and card._is_transformed:
-        serialized['modifications']['_is_transformed'] = True
     
     # Store effect_definitions if card has them (needed to recreate _copied_effects)
     if hasattr(card, 'effect_definitions') and card.effect_definitions:
