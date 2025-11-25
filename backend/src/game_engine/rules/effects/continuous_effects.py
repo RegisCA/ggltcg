@@ -65,6 +65,92 @@ class StatBoostEffect(ContinuousEffect):
         return base_value
 
 
+class SetTussleCostEffect(CostModificationEffect):
+    """
+    Generic effect that sets tussle cost to a fixed value.
+    
+    Sets the tussle cost for all cards controlled by the source card's controller.
+    Multiple instances don't stack - the lowest cost is used.
+    
+    Examples:
+    - Wizard: SetTussleCostEffect(source_card, 1)
+    """
+    
+    def __init__(self, source_card: "Card", cost: int):
+        """
+        Initialize tussle cost effect.
+        
+        Args:
+            source_card: The card providing this effect
+            cost: The fixed tussle cost (e.g., 1 for Wizard)
+        """
+        super().__init__(source_card)
+        self.cost = cost
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Tussle cost effect doesn't modify card stats."""
+        return base_value
+    
+    def modify_tussle_cost(self, base_cost: int, game_state: "GameState",
+                          controller: "Player") -> int:
+        """Set tussle cost for controller's cards."""
+        effect_controller = game_state.get_card_controller(self.source_card)
+        
+        if effect_controller and effect_controller == controller:
+            return self.cost
+        
+        return base_cost
+
+
+class ReduceCostBySleepingEffect(CostModificationEffect):
+    """
+    Generic effect that reduces a card's cost based on sleeping cards.
+    
+    Reduces the source card's play cost by 1 for each card in the controller's
+    sleep zone. Cost cannot go below 0.
+    
+    Examples:
+    - Dream: ReduceCostBySleepingEffect(source_card)
+    """
+    
+    def __init__(self, source_card: "Card"):
+        """
+        Initialize sleeping card cost reduction.
+        
+        Args:
+            source_card: The card whose cost is reduced (e.g., Dream)
+        """
+        super().__init__(source_card)
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Cost reduction doesn't modify card stats."""
+        return base_value
+    
+    def modify_card_cost(self, card: "Card", base_cost: int,
+                        game_state: "GameState", player: "Player") -> int:
+        """Reduce source card's cost based on sleeping cards."""
+        # Only applies to the source card itself
+        if card != self.source_card:
+            return base_cost
+        
+        # Get the card owner (the player trying to play it)
+        card_owner = game_state.get_card_owner(self.source_card)
+        
+        # Only applies when the owner is playing it
+        if card_owner != player:
+            return base_cost
+        
+        # Count sleeping cards
+        sleeping_count = len(player.sleep_zone)
+        
+        # Reduce cost by 1 per sleeping card
+        modified_cost = base_cost - sleeping_count
+        
+        return max(0, modified_cost)  # Cost can't go below 0
+
+
 # ============================================================================
 # LEGACY CARD-SPECIFIC EFFECTS (To be deprecated)
 # ============================================================================
