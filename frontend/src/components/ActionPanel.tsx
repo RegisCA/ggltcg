@@ -107,7 +107,7 @@ return (
 
                 return (
                   <button
-                    key={`${action.action_type}-${action.card_name || 'action'}-${index}`}
+                    key={`${action.action_type}-${action.card_id || 'action'}-${index}`}
                     onClick={() => onAction(action)}
                     disabled={isProcessing}
                     className={`

@@ -7,7 +7,6 @@ from ..models.player import Player
 from .effects.effect_registry import EffectRegistry
 from .effects.base_effect import ContinuousEffect
 import random
-import copy
 
 
 @dataclass
@@ -62,24 +61,24 @@ class TussleResolver:
             'defender' if defender wins (attacker gets sleeped)
             'simultaneous' if both are sleeped or both survive
         """
-        # Create copies of just the cards to avoid game_state deepcopy issues
-        attacker_copy = copy.deepcopy(attacker)
-        defender_copy = copy.deepcopy(defender)
-        
-        # Calculate effective speeds
-        attacker_speed = attacker_copy.get_effective_speed()
-        defender_speed = defender_copy.get_effective_speed()
+        # Calculate effective speeds using continuous effects
+        attacker_speed = TussleResolver._get_stat_with_effects(game_state, attacker, "speed")
+        defender_speed = TussleResolver._get_stat_with_effects(game_state, defender, "speed")
         
         # Apply turn bonus: attacker ALWAYS gets +1 speed (attacking on their turn)
         # Defender does NOT get turn bonus (defending on opponent's turn)
         attacker_speed += 1
         
-        # Get effective strengths
-        attacker_strength = attacker_copy.get_effective_strength()
-        defender_strength = defender_copy.get_effective_strength()
+        # Get effective strengths using continuous effects
+        attacker_strength = TussleResolver._get_stat_with_effects(game_state, attacker, "strength")
+        defender_strength = TussleResolver._get_stat_with_effects(game_state, defender, "strength")
+        
+        # Get effective staminas using continuous effects
+        attacker_stamina = TussleResolver.get_effective_stamina(game_state, attacker)
+        defender_stamina = TussleResolver.get_effective_stamina(game_state, defender)
         
         # Check for Knight's auto-win ability
-        if TussleResolver._check_knight_auto_win(game_state, attacker_copy, defender_copy):
+        if TussleResolver._check_knight_auto_win(game_state, attacker, defender):
             return "attacker"
         
         # Simulate the tussle outcome based on speed and strength
@@ -88,25 +87,25 @@ class TussleResolver:
         
         if attacker_speed > defender_speed:
             # Attacker strikes first
-            if defender_copy.current_stamina <= attacker_strength:
+            if defender_stamina <= attacker_strength:
                 defender_survives = False
             else:
                 # Defender survives and strikes back
-                if attacker_copy.current_stamina <= defender_strength:
+                if attacker_stamina <= defender_strength:
                     attacker_survives = False
         elif defender_speed > attacker_speed:
             # Defender strikes first
-            if attacker_copy.current_stamina <= defender_strength:
+            if attacker_stamina <= defender_strength:
                 attacker_survives = False
             else:
                 # Attacker survives and strikes back
-                if defender_copy.current_stamina <= attacker_strength:
+                if defender_stamina <= attacker_strength:
                     defender_survives = False
         else:
             # Simultaneous strikes
-            if attacker_copy.current_stamina <= defender_strength:
+            if attacker_stamina <= defender_strength:
                 attacker_survives = False
-            if defender_copy.current_stamina <= attacker_strength:
+            if defender_stamina <= attacker_strength:
                 defender_survives = False
         
         # Determine winner
@@ -200,11 +199,11 @@ class TussleResolver:
             defender.apply_damage(attacker_strength)
             
             # Check if defender is sleeped before counter-attack
-            if defender.is_defeated():
+            if TussleResolver.is_card_defeated(game_state, defender):
                 result.defender_sleeped = True
                 # Defender doesn't strike back
                 result.defender_damage = 0
-            elif attacker.is_defeated():
+            elif TussleResolver.is_card_defeated(game_state, attacker):
                 result.attacker_sleeped = True
         
         elif defender_speed > attacker_speed:
@@ -214,11 +213,11 @@ class TussleResolver:
             attacker.apply_damage(defender_strength)
             
             # Check if attacker is sleeped before counter-attack
-            if attacker.is_defeated():
+            if TussleResolver.is_card_defeated(game_state, attacker):
                 result.attacker_sleeped = True
                 # Attacker doesn't deal damage
                 result.attacker_damage = 0
-            elif defender.is_defeated():
+            elif TussleResolver.is_card_defeated(game_state, defender):
                 result.defender_sleeped = True
         
         else:
@@ -227,9 +226,9 @@ class TussleResolver:
             attacker.apply_damage(defender_strength)
             defender.apply_damage(attacker_strength)
             
-            if attacker.is_defeated():
+            if TussleResolver.is_card_defeated(game_state, attacker):
                 result.attacker_sleeped = True
-            if defender.is_defeated():
+            if TussleResolver.is_card_defeated(game_state, defender):
                 result.defender_sleeped = True
         
         # Log the tussle
@@ -375,3 +374,53 @@ class TussleResolver:
                     )
         
         return modified_value
+    
+    @staticmethod
+    def get_effective_stamina(game_state: GameState, card: Card) -> int:
+        """
+        Get a card's effective stamina considering current_stamina and continuous effects.
+        
+        This is the correct way to check stamina - it combines:
+        1. current_stamina (base stamina minus damage taken)
+        2. stamina modifications from continuous effects (like Demideca's +1)
+        
+        Args:
+            game_state: Current game state  
+            card: Card to get effective stamina for
+            
+        Returns:
+            Effective stamina value (can be negative if heavily damaged)
+        """
+        if card.current_stamina is None:
+            return 0
+        
+        # Start with current stamina (base minus damage)
+        effective = card.current_stamina
+        
+        # Add continuous effect modifications
+        for card_in_play in game_state.get_all_cards_in_play():
+            effects = EffectRegistry.get_effects(card_in_play)
+            for effect in effects:
+                if isinstance(effect, ContinuousEffect):
+                    # Get modification amount by asking effect to modify from 0
+                    # This gives us just the bonus/penalty
+                    modification = effect.modify_stat(card, "stamina", 0, game_state)
+                    effective += modification
+        
+        return effective
+    
+    @staticmethod
+    def is_card_defeated(game_state: GameState, card: Card) -> bool:
+        """
+        Check if a card is defeated (effective stamina <= 0).
+        
+        This correctly accounts for continuous effects like Demideca's +1 stamina.
+        
+        Args:
+            game_state: Current game state
+            card: Card to check
+            
+        Returns:
+            True if card's effective stamina is 0 or less
+        """
+        return TussleResolver.get_effective_stamina(game_state, card) <= 0

@@ -196,7 +196,7 @@ class ActionExecutor:
         cost = self.engine.calculate_tussle_cost(attacker, player)
         
         # Execute tussle
-        success = self.engine.initiate_tussle(attacker, defender, player)
+        success, sleeped_from_hand = self.engine.initiate_tussle(attacker, defender, player)
         
         if not success:
             return ExecutionResult(
@@ -210,7 +210,12 @@ class ActionExecutor:
         self.engine.check_state_based_actions()
         
         # Build description
-        target_desc = defender.name if defender else "opponent directly"
+        if defender:
+            target_desc = defender.name
+        elif sleeped_from_hand:
+            target_desc = f"{sleeped_from_hand} (from hand)"
+        else:
+            target_desc = "opponent directly"
         description = f"Spent {cost} CC for {attacker.name} to tussle {target_desc}"
         
         # Check for victory

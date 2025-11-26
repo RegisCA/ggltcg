@@ -215,7 +215,7 @@ def test_tussle_basic():
     print(f"  Wizard: {wizard_str} STR, {wizard.current_stamina} STA")
     
     # Ka tussles Wizard
-    success = engine.initiate_tussle(ka, wizard, player1)
+    success, _ = engine.initiate_tussle(ka, wizard, player1)
     assert success, "Tussle failed to initiate"
     print("✓ Tussle initiated successfully")
     

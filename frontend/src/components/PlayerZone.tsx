@@ -10,8 +10,8 @@ interface PlayerZoneProps {
   player: Player;
   isActive: boolean;
   isHuman: boolean;
-  onCardClick?: (cardName: string, zone: 'hand' | 'in_play') => void;
-  selectedCard?: string;
+  onCardClick?: (cardId: string, zone: 'hand' | 'in_play') => void;
+  selectedCard?: string;  // Now expects card ID instead of card name
 }
 
 export function PlayerZone({
@@ -60,12 +60,12 @@ export function PlayerZone({
                   ) : (
                     player.in_play.map((card) => (
                       <CardDisplay
-                        key={`${card.name}-${card.owner}`}
+                        key={card.id}
                         card={card}
                         size="medium"
                         isClickable={isHuman && isActive}
-                        isSelected={selectedCard === card.name}
-                        onClick={() => onCardClick?.(card.name, 'in_play')}
+                        isSelected={selectedCard === card.id}
+                        onClick={() => onCardClick?.(card.id, 'in_play')}
                       />
                     ))
                   )}
@@ -84,12 +84,12 @@ export function PlayerZone({
                     ) : (
                       player.hand.map((card) => (
                         <CardDisplay
-                          key={`${card.name}-${card.owner}`}
+                          key={card.id}
                           card={card}
                           size="medium"
                           isClickable={isHuman && isActive}
-                          isSelected={selectedCard === card.name}
-                          onClick={() => onCardClick?.(card.name, 'hand')}
+                          isSelected={selectedCard === card.id}
+                          onClick={() => onCardClick?.(card.id, 'hand')}
                         />
                       ))
                     )
@@ -126,7 +126,7 @@ export function PlayerZone({
                     ) : (
                       player.hand.map((card) => (
                         <CardDisplay
-                          key={`${card.name}-${card.owner}`}
+                          key={card.id}
                           card={card}
                           size="small"
                         />
@@ -162,7 +162,7 @@ export function PlayerZone({
                   ) : (
                     player.in_play.map((card) => (
                       <CardDisplay
-                        key={`${card.name}-${card.owner}`}
+                        key={card.id}
                         card={card}
                         size="medium"
                       />
@@ -185,7 +185,7 @@ export function PlayerZone({
             ) : (
               player.sleep_zone.map((card) => (
                 <CardDisplay
-                  key={`${card.name}-${card.owner}-sleep`}
+                  key={card.id}
                   card={card}
                   size="small"
                 />
