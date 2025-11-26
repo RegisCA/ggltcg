@@ -13,6 +13,7 @@ interface CardDisplayProps {
   isClickable?: boolean;
   isHighlighted?: boolean;
   isDisabled?: boolean;
+  isUnplayable?: boolean;  // Card cannot be played this turn (not enough CC, restricted, etc.)
   isTussling?: boolean;
   size?: 'small' | 'medium' | 'large';
 }
@@ -24,9 +25,12 @@ export function CardDisplay({
   isClickable = false,
   isHighlighted = false,
   isDisabled = false,
+  isUnplayable = false,
   isTussling = false,
   size = 'medium',
 }: CardDisplayProps) {
+  // Combine disabled states - isUnplayable is a specific kind of disabled
+  const effectivelyDisabled = isDisabled || isUnplayable;
   const isToy = card.card_type === 'Toy';  // Match backend enum value
 
   // Size configurations (px values from UX spec)
@@ -63,11 +67,11 @@ export function CardDisplay({
 
   return (
     <div
-      onClick={isClickable && !isDisabled ? onClick : undefined}
+      onClick={isClickable && !effectivelyDisabled ? onClick : undefined}
       className={`
         transition-all duration-200 rounded
-        ${isClickable && !isDisabled ? 'cursor-pointer hover:scale-105 hover:shadow-xl' : ''}
-        ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}
+        ${isClickable && !effectivelyDisabled ? 'cursor-pointer hover:scale-105 hover:shadow-xl' : ''}
+        ${effectivelyDisabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${isSelected ? 'scale-105 shadow-xl' : ''}
         ${card.is_sleeped ? 'opacity-50 grayscale' : ''}
       `}
