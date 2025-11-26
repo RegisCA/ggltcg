@@ -158,18 +158,27 @@ class ActionValidator:
             # Special handling for cards with variable cost based on target (e.g., Copy)
             from ..rules.effects.action_effects import CopyEffect
             if card.has_effect_type(CopyEffect) and target_info["target_options"]:
-                valid_actions.append(
-                    ValidAction(
-                        action_type="play_card",
-                        card_id=card.id,
-                        card_name=card.name,
-                        cost_cc=cost,
-                        target_options=target_info["target_options"],
-                        max_targets=target_info["max_targets"],
-                        min_targets=target_info["min_targets"],
-                        description=f"Play {card.name} (select target - cost varies)"
+                # Filter Copy targets to only include cards the player can afford
+                affordable_targets = []
+                for target_id in target_info["target_options"]:
+                    target_card = self.game_state.find_card_by_id(target_id)
+                    if target_card and target_card.cost <= player.cc:
+                        affordable_targets.append(target_id)
+                
+                # Only show Copy action if there are affordable targets
+                if affordable_targets:
+                    valid_actions.append(
+                        ValidAction(
+                            action_type="play_card",
+                            card_id=card.id,
+                            card_name=card.name,
+                            cost_cc=cost,
+                            target_options=affordable_targets,
+                            max_targets=target_info["max_targets"],
+                            min_targets=target_info["min_targets"],
+                            description=f"Play {card.name} (select target - cost varies)"
+                        )
                     )
-                )
             elif target_info["requires_targets"] and target_info["target_options"]:
                 # Card requires target selection and targets are available
                 target_desc = (
