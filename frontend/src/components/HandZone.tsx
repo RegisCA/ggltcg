@@ -12,6 +12,7 @@ interface HandZoneProps {
   onCardClick?: (cardId: string) => void;
   playableCardIds?: string[];  // IDs of cards that can be played this turn
   isPlayerTurn?: boolean;  // Whether it's the player's turn
+  cardSize?: 'small' | 'medium';  // Responsive card size
 }
 
 export function HandZone({ 
@@ -20,8 +21,10 @@ export function HandZone({
   onCardClick, 
   playableCardIds = [],
   isPlayerTurn = false,
+  cardSize = 'medium',
 }: HandZoneProps) {
   const cardList = cards || [];
+  const minHeight = cardSize === 'small' ? '170px' : '240px';
   
   return (
     <div className="bg-blue-950 rounded border-2 border-blue-700 flex">
@@ -35,7 +38,7 @@ export function HandZone({
       {/* Cards Area */}
       <div className="flex-1 p-3">
         {cardList.length === 0 ? (
-          <div className="text-center text-gray-600 italic text-sm" style={{ minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             No cards in hand
           </div>
         ) : (
@@ -47,7 +50,7 @@ export function HandZone({
                 <CardDisplay
                   key={card.id}
                   card={card}
-                  size="medium"
+                  size={cardSize}
                   isSelected={selectedCard === card.id}
                   isClickable={!!onCardClick}
                   isUnplayable={isPlayerTurn && !isPlayable}

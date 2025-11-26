@@ -11,6 +11,7 @@ import { useGameState, useValidActions } from '../hooks/useGame';
 import { useGameMessages } from '../hooks/useGameMessages';
 import { useGameFlow } from '../hooks/useGameFlow';
 import { useGameActions } from '../hooks/useGameActions';
+import { useResponsive } from '../hooks/useResponsive';
 import { PlayerInfoBar } from './PlayerInfoBar';
 import { InPlayZone } from './InPlayZone';
 import { HandZone } from './HandZone';
@@ -28,6 +29,12 @@ interface GameBoardProps {
 export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: GameBoardProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
+  
+  // Responsive layout detection
+  const { isDesktop, isMobile } = useResponsive();
+  // Use medium cards for both desktop and tablet (need to read descriptions)
+  // Only use small for mobile where space is very limited
+  const cardSize = isMobile ? 'small' : 'medium';
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
@@ -169,88 +176,184 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           </div>
         </div>
 
-        {/* Main Game Area - 3 Columns */}
-        <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 280px 350px' }}>
-          {/* Left Column - In Play Zones */}
-          <div className="space-y-3">
-            <InPlayZone
-              cards={otherPlayer.in_play}
-              playerName={otherPlayer.name}
-              isHuman={false}
-            />
-            <div className="border-t-2 border-game-highlight"></div>
-            <InPlayZone
-              cards={humanPlayer.in_play}
-              playerName={humanPlayer.name}
-              isHuman={true}
-              selectedCard={selectedCard || undefined}
-              onCardClick={(cardId) => setSelectedCard(cardId)}
-            />
-          </div>
+        {/* Main Game Area - Responsive Layout */}
+        {isDesktop ? (
+          /* Desktop: 3-column layout */
+          <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 280px 350px' }}>
+            {/* Left Column - In Play Zones */}
+            <div className="space-y-3">
+              <InPlayZone
+                cards={otherPlayer.in_play}
+                playerName={otherPlayer.name}
+                isHuman={false}
+                cardSize={cardSize}
+              />
+              <div className="border-t-2 border-game-highlight"></div>
+              <InPlayZone
+                cards={humanPlayer.in_play}
+                playerName={humanPlayer.name}
+                isHuman={true}
+                selectedCard={selectedCard || undefined}
+                onCardClick={(cardId) => setSelectedCard(cardId)}
+                cardSize={cardSize}
+              />
+            </div>
 
-          {/* Center Column - Sleep Zones */}
-          <div className="space-y-3">
-            <SleepZoneDisplay
-              cards={otherPlayer.sleep_zone}
-              playerName={otherPlayer.name}
-            />
-            <div className="border-t-2 border-game-highlight"></div>
-            <SleepZoneDisplay
-              cards={humanPlayer.sleep_zone}
-              playerName={humanPlayer.name}
-            />
-          </div>
+            {/* Center Column - Sleep Zones */}
+            <div className="space-y-3">
+              <SleepZoneDisplay
+                cards={otherPlayer.sleep_zone}
+                playerName={otherPlayer.name}
+              />
+              <div className="border-t-2 border-game-highlight"></div>
+              <SleepZoneDisplay
+                cards={humanPlayer.sleep_zone}
+                playerName={humanPlayer.name}
+              />
+            </div>
 
-          {/* Right Column - Messages + Actions */}
-          <div className="space-y-3">
-            {/* Messages Area */}
-            <div
-              className="bg-gray-800 rounded p-3 border border-gray-700"
-              style={{ minHeight: '200px', maxHeight: '400px', overflowY: 'auto' }}
-            >
-              <div className="text-sm text-gray-400 mb-2">Game Messages</div>
-              <div className="space-y-2">
-                {messages.map((msg, idx) => (
-                  <div key={idx} className="p-2 bg-blue-900 rounded text-sm">
-                    {msg}
-                  </div>
-                ))}
-                {isAIThinking && (
-                  <div className="p-2 bg-purple-900 rounded text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <svg 
-                      style={{ width: '14px', height: '14px', flexShrink: 0 }}
-                      className="animate-spin text-purple-300" 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      fill="none" 
-                      viewBox="0 0 24 24"
-                    >
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Opponent is thinking...</span>
-                  </div>
-                )}
+            {/* Right Column - Messages + Actions */}
+            <div className="space-y-3">
+              {/* Messages Area */}
+              <div
+                className="bg-gray-800 rounded p-3 border border-gray-700"
+                style={{ minHeight: '200px', maxHeight: '400px', overflowY: 'auto' }}
+              >
+                <div className="text-sm text-gray-400 mb-2">Game Messages</div>
+                <div className="space-y-2">
+                  {messages.map((msg, idx) => (
+                    <div key={idx} className="p-2 bg-blue-900 rounded text-sm">
+                      {msg}
+                    </div>
+                  ))}
+                  {isAIThinking && (
+                    <div className="p-2 bg-purple-900 rounded text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <svg 
+                        style={{ width: '14px', height: '14px', flexShrink: 0 }}
+                        className="animate-spin text-purple-300" 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        fill="none" 
+                        viewBox="0 0 24 24"
+                      >
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Opponent is thinking...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions Panel */}
+              <ActionPanel
+                validActions={validActionsData?.valid_actions || []}
+                onAction={handleAction}
+                isProcessing={isProcessing}
+                currentCC={humanPlayer.cc}
+              />
+            </div>
+          </div>
+        ) : (
+          /* Tablet/Mobile: 2-column layout */
+          <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 280px' }}>
+            {/* Left Column - Game Zones (In Play + Sleep stacked) */}
+            <div className="space-y-2">
+              {/* Opponent's zones */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <InPlayZone
+                    cards={otherPlayer.in_play}
+                    playerName={otherPlayer.name}
+                    isHuman={false}
+                    cardSize={cardSize}
+                  />
+                </div>
+                <div style={{ width: '200px' }}>
+                  <SleepZoneDisplay
+                    cards={otherPlayer.sleep_zone}
+                    playerName={otherPlayer.name}
+                    compact={true}
+                  />
+                </div>
+              </div>
+              
+              <div className="border-t-2 border-game-highlight"></div>
+              
+              {/* Human's zones */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <InPlayZone
+                    cards={humanPlayer.in_play}
+                    playerName={humanPlayer.name}
+                    isHuman={true}
+                    selectedCard={selectedCard || undefined}
+                    onCardClick={(cardId) => setSelectedCard(cardId)}
+                    cardSize={cardSize}
+                  />
+                </div>
+                <div style={{ width: '200px' }}>
+                  <SleepZoneDisplay
+                    cards={humanPlayer.sleep_zone}
+                    playerName={humanPlayer.name}
+                    compact={true}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Actions Panel */}
-            <ActionPanel
-              validActions={validActionsData?.valid_actions || []}
-              onAction={handleAction}
-              isProcessing={isProcessing}
-              currentCC={humanPlayer.cc}
-            />
+            {/* Right Column - Messages + Actions */}
+            <div className="space-y-2">
+              {/* Messages Area - Compact */}
+              <div
+                className="bg-gray-800 rounded p-2 border border-gray-700"
+                style={{ maxHeight: '180px', overflowY: 'auto' }}
+              >
+                <div className="text-xs text-gray-400 mb-1">Game Messages</div>
+                <div className="space-y-1">
+                  {messages.slice(-5).map((msg, idx) => (
+                    <div key={idx} className="p-1 bg-blue-900 rounded text-xs">
+                      {msg}
+                    </div>
+                  ))}
+                  {isAIThinking && (
+                    <div className="p-1 bg-purple-900 rounded text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <svg 
+                        style={{ width: '12px', height: '12px', flexShrink: 0 }}
+                        className="animate-spin text-purple-300" 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        fill="none" 
+                        viewBox="0 0 24 24"
+                      >
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Opponent thinking...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions Panel */}
+              <ActionPanel
+                validActions={validActionsData?.valid_actions || []}
+                onAction={handleAction}
+                isProcessing={isProcessing}
+                currentCC={humanPlayer.cc}
+                compact={true}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Human Hand - Full Width at Bottom */}
-        <div className="mt-3">
+        <div className={isDesktop ? "mt-3" : "mt-2"}>
           <HandZone
             cards={humanPlayer.hand || []}
             selectedCard={selectedCard || undefined}
             onCardClick={(cardId) => setSelectedCard(cardId)}
             playableCardIds={playableCardIds}
             isPlayerTurn={isHumanTurn}
+            cardSize={cardSize}
           />
         </div>
       </div>
