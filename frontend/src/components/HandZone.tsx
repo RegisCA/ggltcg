@@ -1,6 +1,6 @@
 /**
  * HandZone Component
- * Displays a player's hand of cards
+ * Displays a player's hand of cards with playability indicators
  */
 
 import { CardDisplay } from './CardDisplay';
@@ -10,9 +10,17 @@ interface HandZoneProps {
   cards: Card[];
   selectedCard?: string;  // Now expects card ID instead of card name
   onCardClick?: (cardId: string) => void;
+  playableCardIds?: string[];  // IDs of cards that can be played this turn
+  isPlayerTurn?: boolean;  // Whether it's the player's turn
 }
 
-export function HandZone({ cards, selectedCard, onCardClick }: HandZoneProps) {
+export function HandZone({ 
+  cards, 
+  selectedCard, 
+  onCardClick, 
+  playableCardIds = [],
+  isPlayerTurn = false,
+}: HandZoneProps) {
   const cardList = cards || [];
   
   return (
@@ -32,16 +40,21 @@ export function HandZone({ cards, selectedCard, onCardClick }: HandZoneProps) {
           </div>
         ) : (
           <div className="flex gap-2">
-            {cardList.map((card) => (
-              <CardDisplay
-                key={card.id}
-                card={card}
-                size="medium"
-                isSelected={selectedCard === card.id}
-                isClickable={!!onCardClick}
-                onClick={onCardClick ? () => onCardClick(card.id) : undefined}
-              />
-            ))}
+            {cardList.map((card) => {
+              // Card is playable if it's in the playable list OR it's not the player's turn (don't dim during opponent's turn)
+              const isPlayable = !isPlayerTurn || playableCardIds.includes(card.id);
+              return (
+                <CardDisplay
+                  key={card.id}
+                  card={card}
+                  size="medium"
+                  isSelected={selectedCard === card.id}
+                  isClickable={!!onCardClick}
+                  isUnplayable={isPlayerTurn && !isPlayable}
+                  onClick={onCardClick ? () => onCardClick(card.id) : undefined}
+                />
+              );
+            })}
           </div>
         )}
       </div>

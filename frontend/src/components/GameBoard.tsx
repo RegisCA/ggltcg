@@ -66,6 +66,13 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     enabled: gameState?.active_player_id === humanPlayerId,
   });
 
+  // Compute playable card IDs from valid actions
+  const playableCardIds = (validActionsData?.valid_actions || [])
+    .filter(a => a.action_type === 'play_card' && a.card_id)
+    .map(a => a.card_id!);
+
+  const isHumanTurn = gameState?.active_player_id === humanPlayerId;
+
   // Clear pendingAction (modal) when turn ends or active player changes
   useEffect(() => {
     if (!gameState) return;
@@ -232,6 +239,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             cards={humanPlayer.hand || []}
             selectedCard={selectedCard || undefined}
             onCardClick={(cardId) => setSelectedCard(cardId)}
+            playableCardIds={playableCardIds}
+            isPlayerTurn={isHumanTurn}
           />
         </div>
       </div>
