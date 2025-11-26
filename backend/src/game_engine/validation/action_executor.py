@@ -15,6 +15,7 @@ from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.models.card import Card
 from game_engine.rules.effects.continuous_effects import BallaberCostEffect
+from game_engine.rules.effects.action_effects import UnsleepEffect, CopyEffect, TwistEffect
 
 logger = logging.getLogger(__name__)
 
@@ -386,18 +387,15 @@ class ActionExecutor:
             description += f" ({card.effect_text})"
             
             # Add target-specific details
-            from ..rules.effects.action_effects import UnsleepEffect
-            if card.has_effect_type(UnsleepEffect) and kwargs.get("target") and card.has_effect_type(UnsleepEffect):
+            if card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Unslept {target_card.name}"
             elif card.has_effect_type(UnsleepEffect) and kwargs.get("targets"):
                 target_names = [t.name for t in kwargs["targets"]]
                 description += f". Unslept {', '.join(target_names)}"
-            from ..rules.effects.action_effects import CopyEffect
             elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Copied {target_card.name}"
-            from ..rules.effects.action_effects import TwistEffect
             elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Took control of {target_card.name}"
@@ -420,16 +418,13 @@ class ActionExecutor:
         Returns:
             str: Target info like " (unslept Knight)" or ""
         """
-        from ..rules.effects.action_effects import UnsleepEffect
         if card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
             return f" (unslept {kwargs['target'].name})"
         elif card.has_effect_type(UnsleepEffect) and kwargs.get("targets"):
             target_names = [t.name for t in kwargs["targets"]]
             return f" (unslept {', '.join(target_names)})"
-        from ..rules.effects.action_effects import CopyEffect
         elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
             return f" (copied {kwargs['target'].name})"
-        from ..rules.effects.action_effects import TwistEffect
         elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
             return f" (took control of {kwargs['target'].name})"
         return ""
