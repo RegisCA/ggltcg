@@ -3,11 +3,14 @@
  * 
  * Shows an animated overlay when the turn changes.
  * Displays "Your Turn" or "Opponent's Turn" with a swoosh animation.
+ * 
+ * Respects user's reduced motion preferences for accessibility (WCAG 2.1).
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { usePreviousValue } from '../hooks/usePreviousValue';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface TurnTransitionProps {
   isPlayerTurn: boolean;
@@ -18,31 +21,69 @@ export function TurnTransition({ isPlayerTurn, turnNumber }: TurnTransitionProps
   const [showTransition, setShowTransition] = useState(false);
   const previousTurn = usePreviousValue(turnNumber);
   const previousIsPlayerTurn = usePreviousValue(isPlayerTurn);
+  const prefersReducedMotion = useReducedMotion();
   
-  // Detect turn changes
+  // Detect turn changes - consolidated timer logic to prevent memory leaks (#115)
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     // Only show transition if turn actually changed (not on initial load)
-    if (previousTurn !== undefined && previousTurn !== turnNumber) {
+    const turnChanged = previousTurn !== undefined && previousTurn !== turnNumber;
+    const playerChanged =
+      previousIsPlayerTurn !== undefined &&
+      previousIsPlayerTurn !== isPlayerTurn &&
+      previousTurn === turnNumber;
+
+    if (turnChanged || playerChanged) {
       setShowTransition(true);
-      const timer = setTimeout(() => setShowTransition(false), 1500);
-      return () => clearTimeout(timer);
+      // Shorter duration for reduced motion preference
+      const duration = prefersReducedMotion ? 800 : 1500;
+      timer = setTimeout(() => setShowTransition(false), duration);
     }
-    // Also trigger if active player changed mid-turn (shouldn't happen but just in case)
-    if (previousIsPlayerTurn !== undefined && previousIsPlayerTurn !== isPlayerTurn && previousTurn === turnNumber) {
-      setShowTransition(true);
-      const timer = setTimeout(() => setShowTransition(false), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [turnNumber, isPlayerTurn, previousTurn, previousIsPlayerTurn]);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [turnNumber, isPlayerTurn, previousTurn, previousIsPlayerTurn, prefersReducedMotion]);
+  
+  // Animation variants - reduced or full based on preference (#111)
+  const containerVariants = prefersReducedMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+      }
+    : {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+      };
+
+  const contentVariants = prefersReducedMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+      }
+    : {
+        initial: { scale: 0.5, y: 50, opacity: 0 },
+        animate: { scale: 1, y: 0, opacity: 1 },
+        exit: { scale: 1.2, y: -50, opacity: 0 },
+      };
+
+  const lineVariants = prefersReducedMotion
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 } }
+    : { initial: { scaleX: 0 }, animate: { scaleX: 1 } };
   
   return (
     <AnimatePresence>
       {showTransition && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          variants={containerVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
           transition={{ duration: 0.2 }}
         >
           {/* Backdrop */}
@@ -57,13 +98,14 @@ export function TurnTransition({ isPlayerTurn, turnNumber }: TurnTransitionProps
           {/* Turn indicator */}
           <motion.div
             className="relative"
-            initial={{ scale: 0.5, y: 50, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 1.2, y: -50, opacity: 0 }}
-            transition={{ 
-              duration: 0.4,
-              ease: [0.34, 1.56, 0.64, 1], // Spring-like ease
-            }}
+            variants={contentVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={prefersReducedMotion 
+              ? { duration: 0.2 }
+              : { duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }
+            }
           >
             <div
               className="px-12 py-6 rounded-lg"
@@ -94,9 +136,10 @@ export function TurnTransition({ isPlayerTurn, turnNumber }: TurnTransitionProps
                   ? 'linear-gradient(90deg, transparent, #22c55e, transparent)'
                   : 'linear-gradient(90deg, transparent, #ef4444, transparent)',
               }}
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
+              variants={lineVariants}
+              initial="initial"
+              animate="animate"
+              transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.2 }}
             />
             <motion.div
               className="absolute left-0 right-0 h-1 -bottom-4"
@@ -105,9 +148,10 @@ export function TurnTransition({ isPlayerTurn, turnNumber }: TurnTransitionProps
                   ? 'linear-gradient(90deg, transparent, #22c55e, transparent)'
                   : 'linear-gradient(90deg, transparent, #ef4444, transparent)',
               }}
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
+              variants={lineVariants}
+              initial="initial"
+              animate="animate"
+              transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.2 }}
             />
           </motion.div>
         </motion.div>
