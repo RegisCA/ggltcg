@@ -232,7 +232,7 @@ class TwistEffect(PlayEffect):
         return True
     
     def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get all opponent's cards in play."""
+        """Get all opponent's cards in play that aren't protected from this effect."""
         if player is None:
             player = game_state.get_active_player()
         
@@ -243,7 +243,9 @@ class TwistEffect(PlayEffect):
         if not opponent:
             return []
         
-        return game_state.get_cards_in_play(opponent)
+        # Filter out cards protected from this effect (e.g., Beary with opponent_immunity)
+        all_cards = game_state.get_cards_in_play(opponent)
+        return [card for card in all_cards if not game_state.is_protected_from_effect(card, self)]
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Take control of target opponent's card (unless protected)."""

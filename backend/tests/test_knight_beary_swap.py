@@ -702,3 +702,64 @@ class TestBearyImmunityToAllActionEffects:
         assert copy_card in player1.in_play, "Copy of Beary should still be in player1's play"
         assert copy_card not in player2.in_play, "Copy of Beary should not be in player2's play"
         assert copy_card.controller == "player1", "Copy of Beary's controller should still be player1"
+
+    def test_beary_not_in_twist_valid_targets(self):
+        """Beary should NOT appear in Twist's valid targets (immune cards filtered out)."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Beary and Knight
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            effect_definitions="auto_win_tussle_on_own_turn",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.extend([beary, knight])
+        
+        # Player 2's Twist
+        twist = Card(
+            name="Twist",
+            card_type=CardType.ACTION,
+            cost=1,
+            effect_text="Put a card your opponent has in play in play, but under your control.",
+            owner="player2",
+            controller="player2"
+        )
+        twist_effect = TwistEffect(twist)
+        
+        # Get valid targets for Twist
+        valid_targets = twist_effect.get_valid_targets(game_state, player2)
+        
+        # Beary should NOT be a valid target (immune)
+        assert beary not in valid_targets, "Beary should NOT be a valid Twist target"
+        
+        # Knight SHOULD be a valid target (no immunity)
+        assert knight in valid_targets, "Knight should be a valid Twist target"

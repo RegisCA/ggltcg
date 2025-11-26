@@ -293,12 +293,8 @@ def main():
                         elif sleeped_from_hand:
                             # Direct attack - show what card was sleeped
                             print(f"   → Direct attack succeeded! Sleeped {sleeped_from_hand} from opponent's hand")
-                                else:
-                                    print(f"   → Direct attack succeeded!")
-                            else:
-                                print(f"   → Direct attack succeeded!")
-                            
                             print(f"      Spent {cc_before - cc_after} CC, now has {cc_after} CC")
+                            opponent = game_state.get_opponent(ai.player_id)
                             print(f"      Opponent now: {len(opponent.hand)} in hand, {len(opponent.sleep_zone)} sleeped")
                             
                             # Check for win condition
@@ -306,6 +302,8 @@ def main():
                             if len(opponent.sleep_zone) == total_opponent_cards:
                                 print(f"\n🎉 GAME WON! All {total_opponent_cards} opponent cards are sleeped!")
                                 return  # Exit early - game is over
+                        else:
+                            print(f"   → Direct attack succeeded!")
                     else:
                         print(f"   ⚠ Attacker {selected_action.card_name} not found in play!")
                         

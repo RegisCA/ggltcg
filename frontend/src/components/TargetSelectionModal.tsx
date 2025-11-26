@@ -33,14 +33,22 @@ export function TargetSelectionModal({
   const filteredAlternativeCostOptions = (alternativeCostOptions || []).filter(
     (card) => card.id !== action.card_id && (card.zone === 'Hand' || card.zone === 'InPlay')
   );
-  const hasAlternativeCost = action.alternative_cost_available && filteredAlternativeCostOptions.length > 0;
+  // Show alternative cost UI if the card has alternative cost available (like Ballaber)
+  // Even if there are no cards to sleep, we need to show "Pay CC" option
+  const hasAlternativeCost = action.alternative_cost_available === true;
+  const hasCardsToSleep = filteredAlternativeCostOptions.length > 0;
 
   // Reset state when action changes
   useEffect(() => {
     setSelectedTargets([]);
-    setUseAlternativeCost(false);
     setAlternativeCostCard(null);
-  }, [action.card_id]);
+    // If alternative cost is available but no cards to sleep, auto-select "Pay CC"
+    if (hasAlternativeCost && !hasCardsToSleep) {
+      setUseAlternativeCost(true);
+    } else {
+      setUseAlternativeCost(false);
+    }
+  }, [action.card_id, hasAlternativeCost, hasCardsToSleep]);
 
   const toggleTarget = (cardId: string) => {
     if (selectedTargets.includes(cardId)) {
@@ -177,26 +185,34 @@ export function TargetSelectionModal({
                   </span>
                 </div>
               </button>
-              <h4 className="text-md font-semibold mb-3">Or select a card to sleep:</h4>
-              <div className="grid grid-cols-2 gap-3">
-                {filteredAlternativeCostOptions.map((card) => {
-                  const isSelected = alternativeCostCard === card.id;
-                  return (
-                    <div
-                      key={card.id}
-                      onClick={() => selectAlternativeCostCard(card.id)}
-                      className="flex justify-center"
-                    >
-                      <CardDisplay
-                        card={card}
-                        size="medium"
-                        isSelected={isSelected}
-                        isClickable={true}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+              {hasCardsToSleep ? (
+                <>
+                  <h4 className="text-md font-semibold mb-3">Or select a card to sleep:</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {filteredAlternativeCostOptions.map((card) => {
+                      const isSelected = alternativeCostCard === card.id;
+                      return (
+                        <div
+                          key={card.id}
+                          onClick={() => selectAlternativeCostCard(card.id)}
+                          className="flex justify-center"
+                        >
+                          <CardDisplay
+                            card={card}
+                            size="medium"
+                            isSelected={isSelected}
+                            isClickable={true}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-400 text-sm">
+                  No cards available to sleep. You must pay {action.cost_cc} CC.
+                </p>
+              )}
             </div>
           )}
 
