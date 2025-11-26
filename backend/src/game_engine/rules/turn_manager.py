@@ -106,10 +106,14 @@ class TurnManager:
         if attacker_name == "Raggy":
             return 0
         
-        # Check for Wizard (all tussles cost 1)
+        # Check for tussle cost modification effects (e.g., Wizard)
+        from ..rules.effects.continuous_effects import SetTussleCostEffect
+        from ..rules.effects.effect_registry import EffectRegistry
         for card in active_player.in_play:
-            if card.name == "Wizard":
-                return 1
+            effects = EffectRegistry.get_effects(card)
+            for effect in effects:
+                if isinstance(effect, SetTussleCostEffect):
+                    return effect.cost
         
         # Default tussle cost
         return 2

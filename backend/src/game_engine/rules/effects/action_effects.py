@@ -182,85 +182,10 @@ class SleepAllEffect(PlayEffect):
 
 
 # ============================================================================
-# LEGACY CARD-SPECIFIC ACTION EFFECTS (To be deprecated)
+# CUSTOM CARD-SPECIFIC ACTION EFFECTS
+# These cards have complex mechanics that cannot be easily parameterized
+# in the data-driven system, so they remain as custom effect classes.
 # ============================================================================
-
-class CleanEffect(PlayEffect):
-    """
-    Clean: "Sleep all cards that are in play."
-    
-    Sleeps ALL Toys in play from both players.
-    All sleeped cards trigger their "when sleeped" abilities if they have them.
-    """
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Sleep all cards currently in play (except protected ones)."""
-        # Get game_engine reference to properly trigger effects
-        game_engine = kwargs.get("game_engine")
-        if not game_engine:
-            # Fallback: just move cards without triggering effects
-            all_cards_in_play = game_state.get_all_cards_in_play()
-            for card in all_cards_in_play:
-                # FIX (Issue #70): Check if card is protected from this effect
-                if not game_state.is_protected_from_effect(card, self):
-                    game_state.sleep_card(card, was_in_play=True)
-            return
-        
-        # Get all cards in play from both players
-        all_cards_in_play = game_state.get_all_cards_in_play()
-        
-        # Sleep each card through game engine (triggers effects)
-        for card in all_cards_in_play:
-            # FIX (Issue #70): Check if card is protected from this effect
-            if game_state.is_protected_from_effect(card, self):
-                continue  # Skip protected cards
-            
-            owner = game_state.get_card_owner(card)
-            if owner:
-                game_engine._sleep_card(card, owner, was_in_play=True)
-
-
-class RushEffect(PlayEffect):
-    """
-    Rush: "Gain 2 CC. This card may not be played on your first turn."
-    
-    Grants 2 CC to the player who played Rush.
-    Restriction: Cannot be played on each player's first turn.
-    - Player 1 (first player) cannot play on Turn 1
-    - Player 2 (second player) cannot play on Turn 2
-    """
-    
-    def can_apply(self, game_state: "GameState", **kwargs: Any) -> bool:
-        """Rush cannot be played on a player's first turn."""
-        player: Optional["Player"] = kwargs.get("player")
-        if not player:
-            return False
-        
-        # Determine player ID from the player's name ("human" or "ai")
-        player_id = None
-        for pid, p in game_state.players.items():
-            if p == player:
-                player_id = pid
-                break
-        
-        if not player_id:
-            return False
-        
-        # Check if this is the player's first turn
-        # First player's first turn is Turn 1
-        # Second player's first turn is Turn 2
-        is_first_player = (player_id == game_state.first_player_id)
-        is_first_turn = (is_first_player and game_state.turn_number == 1) or \
-                       (not is_first_player and game_state.turn_number == 2)
-        
-        return not is_first_turn
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Grant 2 CC to the player who played Rush."""
-        player: Optional["Player"] = kwargs.get("player")
-        if player:
-            player.gain_cc(2)
-
 
 class ToynadoEffect(PlayEffect):
     """

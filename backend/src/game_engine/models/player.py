@@ -114,21 +114,6 @@ class Player:
         total_cards = len(self.hand) + len(self.in_play) + len(self.sleep_zone)
         return total_cards == len(self.sleep_zone) and total_cards > 0
     
-    def get_card_by_name(self, name: str) -> Card | None:
-        """
-        Find a card by name across all zones.
-        
-        Args:
-            name: Card name to search for
-            
-        Returns:
-            Card if found, None otherwise
-        """
-        for card in self.hand + self.in_play + self.sleep_zone:
-            if card.name == name:
-                return card
-        return None
-    
     def reset_turn_counters(self):
         """Reset turn-specific counters at end of turn."""
         self.direct_attacks_this_turn = 0

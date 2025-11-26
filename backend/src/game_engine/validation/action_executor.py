@@ -238,13 +238,15 @@ class ActionExecutor:
         Returns:
             tuple: (kwargs dict with alternative cost info, effective cost)
         """
+        from ..rules.effects.continuous_effects import BallaberCostEffect
+        
         kwargs = {}
         
-        if alternative_cost_card_id and card.name == "Ballaber":
-            # Find card to sleep (can be in hand or play, but not Ballaber itself)
+        if alternative_cost_card_id and card.has_effect_type(BallaberCostEffect):
+            # Find card to sleep (can be in hand or play)
             card_to_sleep = next(
                 (c for c in (player.in_play + (player.hand or []))
-                 if c.id == alternative_cost_card_id and c.name != "Ballaber"),
+                 if c.id == alternative_cost_card_id),
                 None
             )
             if card_to_sleep is None:
@@ -385,21 +387,24 @@ class ActionExecutor:
             description += f" ({card.effect_text})"
             
             # Add target-specific details
-            if card.name == "Wake" and kwargs.get("target"):
+            from ..rules.effects.action_effects import UnsleepEffect
+            if card.has_effect_type(UnsleepEffect) and kwargs.get("target") and card.has_effect_type(UnsleepEffect):
                 target_card = kwargs["target"]
                 description += f". Unslept {target_card.name}"
-            elif card.name == "Sun" and kwargs.get("targets"):
+            elif card.has_effect_type(UnsleepEffect) and kwargs.get("targets"):
                 target_names = [t.name for t in kwargs["targets"]]
-                description += f". Sleeped {', '.join(target_names)}"
-            elif card.name == "Copy" and kwargs.get("target"):
+                description += f". Unslept {', '.join(target_names)}"
+            from ..rules.effects.action_effects import CopyEffect
+            elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Copied {target_card.name}"
-            elif card.name == "Twist" and kwargs.get("target"):
+            from ..rules.effects.action_effects import TwistEffect
+            elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Took control of {target_card.name}"
         
-        # For Ballaber (Toy with alternative cost)
-        if card.name == "Ballaber" and kwargs.get("alternative_cost_paid"):
+        # For cards with alternative cost (e.g., Ballaber)
+        if card.has_effect_type(BallaberCostEffect) and kwargs.get("alternative_cost_paid"):
             alt_card = kwargs["alternative_cost_card"]
             description += f". Slept {alt_card} for alternative cost"
         
@@ -416,13 +421,16 @@ class ActionExecutor:
         Returns:
             str: Target info like " (unslept Knight)" or ""
         """
-        if card.name == "Wake" and kwargs.get("target"):
+        from ..rules.effects.action_effects import UnsleepEffect
+        if card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
             return f" (unslept {kwargs['target'].name})"
-        elif card.name == "Sun" and kwargs.get("targets"):
+        elif card.has_effect_type(UnsleepEffect) and kwargs.get("targets"):
             target_names = [t.name for t in kwargs["targets"]]
-            return f" (sleeped {', '.join(target_names)})"
-        elif card.name == "Copy" and kwargs.get("target"):
+            return f" (unslept {', '.join(target_names)})"
+        from ..rules.effects.action_effects import CopyEffect
+        elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
             return f" (copied {kwargs['target'].name})"
-        elif card.name == "Twist" and kwargs.get("target"):
+        from ..rules.effects.action_effects import TwistEffect
+        elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
             return f" (took control of {kwargs['target'].name})"
         return ""

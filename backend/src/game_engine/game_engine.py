@@ -163,10 +163,11 @@ class GameEngine:
         Returns:
             Final cost in CC
         """
+        from .rules.effects.action_effects import CopyEffect
         base_cost = card.cost
         
-        # Special handling for Copy - cost is determined by target card
-        if card.name == "Copy":
+        # Special handling for cards with variable cost based on target (e.g., Copy)
+        if card.has_effect_type(CopyEffect):
             # For Copy, the cost equals the cost of the card being copied
             target_card = None
             

@@ -530,37 +530,59 @@ class GameState:
 
 ### State Persistence
 
-**Current:** In-memory only
+**Current:** PostgreSQL with in-memory caching
+
 ```python
 # game_service.py
 class GameService:
     def __init__(self):
-        self.games: Dict[str, GameEngine] = {}  # game_id -> GameEngine
+        self.games: Dict[str, GameEngine] = {}  # In-memory cache
+    
+    def get_game(self, game_id: str) -> Optional[GameEngine]:
+        # Check cache first
+        if game_id in self.games:
+            return self.games[game_id]
+        
+        # Load from database if not cached
+        game_state = self._load_game_from_db(game_id)
+        if game_state:
+            self.games[game_id] = GameEngine(game_state)
+            return self.games[game_id]
 ```
 
-**Issues:**
-- ❌ Server restart loses all games
-- ❌ Not scalable (single process only)
-- ❌ No game history or replay capability
+**Benefits:**
+- ✅ Games persist across server restarts
+- ✅ Production-ready persistence layer
+- ✅ Two-tier caching (memory + database)
+- ✅ JSONB storage for flexible schema
 
-**Future (PostgreSQL):**
+**Database Schema (PostgreSQL):**
 ```sql
--- Proposed schema
+-- Implemented schema
 CREATE TABLE games (
     id UUID PRIMARY KEY,
-    state JSONB NOT NULL,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    player1_id VARCHAR NOT NULL,
+    player1_name VARCHAR NOT NULL,
+    player2_id VARCHAR NOT NULL,
+    player2_name VARCHAR NOT NULL,
+    status VARCHAR NOT NULL,  -- 'active', 'completed', 'abandoned'
+    winner_id VARCHAR,
+    turn_number INTEGER DEFAULT 1,
+    active_player_id VARCHAR NOT NULL,
+    phase VARCHAR NOT NULL,
+    game_state JSONB NOT NULL  -- Complete serialized GameState
 );
 
-CREATE TABLE game_events (
-    id SERIAL PRIMARY KEY,
-    game_id UUID REFERENCES games(id),
-    event_type VARCHAR(50),
-    event_data JSONB,
-    timestamp TIMESTAMP
-);
+-- Indexes for common queries
+CREATE INDEX idx_games_player1 ON games(player1_id);
+CREATE INDEX idx_games_player2 ON games(player2_id);
+CREATE INDEX idx_games_status ON games(status);
+CREATE INDEX idx_games_updated_at ON games(updated_at DESC);
 ```
+
+**See Also:** `docs/development/archive/POSTGRES_IMPLEMENTATION.md` for implementation details.
 
 ### Turn Flow
 
@@ -975,17 +997,12 @@ App
    - Cost calculation partially duplicated
    - Valid action checking scattered across multiple files
 
-5. **No WebSocket Support**
-   - Polling every second is inefficient
-   - Needed for real-time multiplayer
-   - Adds latency
-
-6. **Effect Registration is Manual**
+5. **Effect Registration is Manual**
    - Easy to forget to register effects
    - No compile-time checking
    - Hard to discover which effects exist
 
-7. ~~**AI Can't Handle Targets**~~ ✅ FIXED (Nov 20, 2025)
+6. ~~**AI Can't Handle Targets**~~ ✅ FIXED (Nov 20, 2025)
    - ~~AI doesn't select targets for Sun, Twist, Wake, Copy~~
    - ~~AI doesn't decide on Ballaber alternative cost~~
    - **Status:** AI now successfully selects targets and alternative costs
@@ -1009,23 +1026,21 @@ App
 
 ## Migration Considerations
 
-### Database Migration Strategy
+### Database Schema Evolution
 
-**Phase 1: Add Persistence (Minimal Changes)**
-- Keep current in-memory structure
-- Serialize GameEngine to JSON
-- Store in PostgreSQL JSONB column
-- Load on server restart
+**Current Implementation (Phase 1):** ✅ Complete
+- Two-tier caching (in-memory + PostgreSQL)
+- Serialized GameState in JSONB column
+- Denormalized metadata for efficient queries
+- Survives server restarts
 
-**Phase 2: Normalize Schema**
-- Separate tables for games, players, cards, events
-- Use proper foreign keys
-- Enable queries (leaderboards, statistics)
+**Potential Future Enhancements (Phase 2):**
+- Normalize schema into separate tables
+- Add action logging to `game_actions` table
+- Populate `game_stats` table for leaderboards
+- Enable event sourcing for replay capability
 
-**Phase 3: Event Sourcing (Optional)**
-- Store game events instead of state snapshots
-- Rebuild state by replaying events
-- Enables time-travel debugging
+**See:** `docs/development/archive/POSTGRES_IMPLEMENTATION.md` for implementation details.
 
 ### Card ID Migration Strategy
 
@@ -1078,26 +1093,29 @@ Future:   Client → WebSocket → Game Room → Game Service
    - Single source of truth for valid targets
    - Use effect metadata instead of hardcoded names
 
-### Short Term (Before Database)
+### Short Term
 
-4. **Add integration tests**
+1. **Add integration tests**
    - Test full game flows
    - Test all card effects
    - Regression protection
 
-5. **Refactor game service**
-   - Abstract storage interface
-   - Makes DB migration easier
+2. **Complete data-driven effect migration**
+   - Migrate remaining cards from legacy effects
+   - Improve effect factory with better error handling
+   - Document effect string syntax
 
-### Medium Term (Before Multiplayer)
+### Medium Term (Future Enhancements)
 
-6. **Add WebSocket support**
+1. **Normalize database schema**
+   - Separate tables for structured queries
+   - Enable advanced analytics
+   - Optimize for leaderboards
+
+2. **Add WebSocket support** (for online multiplayer)
    - Real-time state updates
-   - Foundation for multiplayer
-
-7. **Implement AI target selection**
-   - AI can use all cards
-   - Better testing coverage
+   - Reduce polling overhead
+   - Foundation for 1v1 online play
 
 ---
 

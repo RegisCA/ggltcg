@@ -104,6 +104,27 @@ class Card:
         """Check if card has 0 or less stamina."""
         return self.get_effective_stamina() <= 0
     
+    def has_effect_type(self, effect_class) -> bool:
+        """
+        Check if this card has an effect of the specified type.
+        
+        This is the correct way to check for card-specific behavior instead of
+        comparing card names.
+        
+        Args:
+            effect_class: The effect class to check for (e.g., BallaberCostEffect)
+            
+        Returns:
+            True if the card has an effect of this type
+            
+        Example:
+            if card.has_effect_type(BallaberCostEffect):
+                # Handle Ballaber's alternative cost
+        """
+        from ..rules.effects.effect_registry import EffectRegistry
+        effects = EffectRegistry.get_effects(self)
+        return any(isinstance(e, effect_class) for e in effects)
+    
     def to_dict(self) -> Dict[str, Any]:
         """Serialize card to dictionary for API responses."""
         return {
