@@ -154,7 +154,7 @@ class SleepAllEffect(PlayEffect):
         super().__init__(source_card)
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Sleep all cards currently in play."""
+        """Sleep all cards currently in play (except protected ones)."""
         # Get game_engine reference to properly trigger effects
         game_engine = kwargs.get("game_engine")
         if not game_engine:
@@ -162,7 +162,9 @@ class SleepAllEffect(PlayEffect):
             # This shouldn't happen in normal play but allows for testing
             all_cards_in_play = game_state.get_all_cards_in_play()
             for card in all_cards_in_play:
-                game_state.sleep_card(card, was_in_play=True)
+                # FIX (Issue #70): Check if card is protected from this effect
+                if not game_state.is_protected_from_effect(card, self):
+                    game_state.sleep_card(card, was_in_play=True)
             return
         
         # Get all cards in play from both players
@@ -170,6 +172,10 @@ class SleepAllEffect(PlayEffect):
         
         # Sleep each card through game engine (triggers effects)
         for card in all_cards_in_play:
+            # FIX (Issue #70): Check if card is protected from this effect
+            if game_state.is_protected_from_effect(card, self):
+                continue  # Skip protected cards
+            
             owner = game_state.get_card_owner(card)
             if owner:
                 game_engine._sleep_card(card, owner, was_in_play=True)
@@ -188,14 +194,16 @@ class CleanEffect(PlayEffect):
     """
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Sleep all cards currently in play."""
+        """Sleep all cards currently in play (except protected ones)."""
         # Get game_engine reference to properly trigger effects
         game_engine = kwargs.get("game_engine")
         if not game_engine:
             # Fallback: just move cards without triggering effects
             all_cards_in_play = game_state.get_all_cards_in_play()
             for card in all_cards_in_play:
-                game_state.sleep_card(card, was_in_play=True)
+                # FIX (Issue #70): Check if card is protected from this effect
+                if not game_state.is_protected_from_effect(card, self):
+                    game_state.sleep_card(card, was_in_play=True)
             return
         
         # Get all cards in play from both players
@@ -203,6 +211,10 @@ class CleanEffect(PlayEffect):
         
         # Sleep each card through game engine (triggers effects)
         for card in all_cards_in_play:
+            # FIX (Issue #70): Check if card is protected from this effect
+            if game_state.is_protected_from_effect(card, self):
+                continue  # Skip protected cards
+            
             owner = game_state.get_card_owner(card)
             if owner:
                 game_engine._sleep_card(card, owner, was_in_play=True)
@@ -259,17 +271,26 @@ class ToynadoEffect(PlayEffect):
     """
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Return all cards in play to their owners' hands."""
+        """Return all cards in play to their owners' hands (except protected ones)."""
         # Collect all cards from in-play zones first
         all_cards_in_play = []
         for player in game_state.players.values():
-            all_cards_in_play.extend(player.in_play)
-            player.in_play.clear()  # Clear the in_play list
+            all_cards_in_play.extend(player.in_play[:])  # Create a copy to avoid modification during iteration
         
         # Now process each card and add to owner's hand
         for card in all_cards_in_play:
+            # Check if card is protected from this effect
+            if game_state.is_protected_from_effect(card, self):
+                continue  # Skip protected cards - they stay in play
+            
             owner = game_state.get_card_owner(card)
             if owner:
+                # Remove from current player's in_play
+                for player in game_state.players.values():
+                    if card in player.in_play:
+                        player.in_play.remove(card)
+                        break
+                # Add to owner's hand
                 game_state.return_card_to_hand(card, owner)
 
 
@@ -300,12 +321,16 @@ class TwistEffect(PlayEffect):
         return game_state.get_cards_in_play(opponent)
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Take control of target opponent's card."""
+        """Take control of target opponent's card (unless protected)."""
         target: Optional["Card"] = kwargs.get("target")
         player: Optional["Player"] = kwargs.get("player")
         
         if not target or not player:
             return
+        
+        # Check if target is protected from this effect
+        if game_state.is_protected_from_effect(target, self):
+            return  # Cannot twist protected cards
         
         # Verify target is opponent's card
         opponent = game_state.get_opponent(player.player_id)
@@ -431,8 +456,10 @@ class ArcherActivatedAbility(ActivatedEffect):
         return True
     
     def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
-        """Get all Toys in play (from both players)."""
-        return game_state.get_all_cards_in_play()
+        """Get all opponent's Toys in play."""
+        active_player = game_state.get_active_player()
+        opponent = game_state.get_opponent(active_player.player_id)
+        return opponent.in_play
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """
@@ -448,14 +475,14 @@ class ArcherActivatedAbility(ActivatedEffect):
             return
         
         # Verify target is a Toy with stamina
-        if not hasattr(target, "stamina"):
+        if not hasattr(target, "current_stamina"):
             return
         
-        # Remove stamina
-        target.stamina -= amount
+        # Apply damage (updates current_stamina, not base stamina)
+        target.apply_damage(amount)
         
         # Check if card should be sleeped
-        if target.stamina <= 0:
+        if target.is_defeated():
             # Sleep via game engine to trigger when-sleeped effects
             game_engine = kwargs.get("game_engine")
             if game_engine:
@@ -466,13 +493,5 @@ class ArcherActivatedAbility(ActivatedEffect):
                 game_state.sleep_card(target, was_in_play=True)
 
 
-# Register all action effects
-EffectRegistry.register_effect("Clean", CleanEffect)
-EffectRegistry.register_effect("Rush", RushEffect)
-# Note: Wake and Sun now use generic UnsleepEffect via effect_definitions (unsleep:1, unsleep:2)
-EffectRegistry.register_effect("Toynado", ToynadoEffect)
-EffectRegistry.register_effect("Twist", TwistEffect)
-EffectRegistry.register_effect("Copy", CopyEffect)
-
-# Register activated abilities
-EffectRegistry.register_effect("Archer", ArcherActivatedAbility)
+# Register legacy effects (cards not yet migrated to data-driven system)
+# Note: All action cards now use data-driven effect_definitions from CSV!

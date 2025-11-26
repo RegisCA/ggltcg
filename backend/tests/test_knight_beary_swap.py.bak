@@ -1,0 +1,693 @@
+"""
+Tests for Knight/Beary effect swap (Issue #72).
+
+After the swap:
+- Knight: Auto-wins tussles on own turn  
+- Beary: Immune to opponent's card effects (including Clean)
+- Beary: NO longer has tussle cancel ability
+"""
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+import pytest
+from game_engine.models.card import Card, CardType, Zone
+from game_engine.models.game_state import GameState
+from game_engine.models.player import Player
+from game_engine.game_engine import GameEngine
+from game_engine.rules.effects.effect_registry import EffectRegistry
+from game_engine.rules.effects.continuous_effects import OpponentImmunityEffect, KnightWinConditionEffect
+from game_engine.rules.effects.action_effects import SleepAllEffect, ToynadoEffect, TwistEffect, CopyEffect
+
+
+class TestBearyOpponentImmunity:
+    """Test that Beary is immune to opponent's card effects."""
+    
+    def test_beary_has_opponent_immunity_effect(self):
+        """Beary should have OpponentImmunityEffect registered."""
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",
+            strength=5,
+            speed=3,
+            stamina=3
+        )
+        effects = EffectRegistry.get_effects(beary)
+        
+        assert len(effects) > 0, "Beary should have effects"
+        assert any(isinstance(e, OpponentImmunityEffect) for e in effects), \
+            "Beary should have OpponentImmunityEffect"
+    
+    def test_beary_immune_to_opponent_clean(self):
+        """Beary should NOT be sleeped when opponent plays Clean."""
+        # Setup game state
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player1",
+            turn_number=1
+        )
+        
+        # Player 1 has Beary in play
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(beary)
+        
+        # Player 2 (opponent) has Clean
+        clean = Card(
+            name="Clean",
+            card_type=CardType.ACTION,
+            cost=0,
+            effect_text="Sleep all cards in play.",
+            effect_definitions="sleep_all",
+            owner="player2",
+            controller="player2"
+        )
+        
+        # Simulate Clean effect from opponent
+        clean_effect = SleepAllEffect(clean)
+        clean_effect.apply(game_state, player=player2)
+        
+        # Beary should still be in play (not sleeped)
+        assert beary in player1.in_play, "Beary should still be in play"
+        assert beary not in player1.sleep_zone, "Beary should not be in sleep zone"
+
+
+class TestKnightAutoWin:
+    """Test that Knight auto-wins tussles on own turn."""
+    
+    def test_knight_has_win_condition_effect(self):
+        """Knight should have KnightWinConditionEffect registered."""
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3
+        )
+        effects = EffectRegistry.get_effects(knight)
+        
+        assert len(effects) > 0, "Knight should have effects"
+        assert any(isinstance(e, KnightWinConditionEffect) for e in effects), \
+            "Knight should have KnightWinConditionEffect"
+    
+    def test_knight_auto_wins_on_own_turn(self):
+        """Knight should auto-win tussles when it's the controller's turn."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player1",  # Player 1's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Knight
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(knight)
+        
+        # Player 2 has opponent card
+        opponent_card = Card(
+            name="Ka",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="Buff adjacent cards",
+            strength=9,
+            speed=5,
+            stamina=9,
+            owner="player2",
+            controller="player2",
+            zone=Zone.IN_PLAY
+        )
+        player2.in_play.append(opponent_card)
+        
+        # Get Knight's win condition effect
+        effects = EffectRegistry.get_effects(knight)
+        win_effect = next((e for e in effects if isinstance(e, KnightWinConditionEffect)), None)
+        
+        assert win_effect is not None, "Knight should have win condition effect"
+        
+        # Test that Knight auto-wins on own turn
+        assert win_effect.wins_tussle(game_state, opponent_card), \
+            "Knight should auto-win tussle on own turn"
+    
+    def test_knight_does_not_auto_win_on_opponent_turn(self):
+        """Knight should NOT auto-win tussles on opponent's turn."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Knight
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(knight)
+        
+        # Player 2 has opponent card
+        opponent_card = Card(
+            name="Ka",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="Buff adjacent cards",
+            strength=9,
+            speed=5,
+            stamina=9,
+            owner="player2",
+            controller="player2",
+            zone=Zone.IN_PLAY
+        )
+        player2.in_play.append(opponent_card)
+        
+        # Get Knight's win condition effect
+        effects = EffectRegistry.get_effects(knight)
+        win_effect = next((e for e in effects if isinstance(e, KnightWinConditionEffect)), None)
+        
+        assert win_effect is not None
+        
+        # Test that Knight does NOT auto-win on opponent's turn
+        assert not win_effect.wins_tussle(game_state, opponent_card), \
+            "Knight should NOT auto-win tussle on opponent's turn"
+    
+    def test_knight_auto_wins_against_beary(self):
+        """Knight should auto-win even against Beary (no more special exception)."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player1",
+            turn_number=1
+        )
+        
+        # Player 1 has Knight
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(knight)
+        
+        # Player 1 has Beary in play
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(beary)
+        player1.in_play.append(beary)
+        
+        # Player 2 tries to Twist Beary
+        effects = EffectRegistry.get_effects(knight)
+        win_effect = next((e for e in effects if isinstance(e, KnightWinConditionEffect)), None)
+        
+        assert win_effect is not None
+        
+        # Knight should now auto-win against Beary (no more exception)
+        assert win_effect.wins_tussle(game_state, beary), \
+            "Knight should auto-win against Beary after effect swap"
+
+
+class TestBearyNoTussleCancelEffect:
+    """Test that Beary NO LONGER has tussle cancel ability."""
+    
+    def test_beary_no_tussle_cancel_registration(self):
+        """Beary should not have BearyTussleCancelEffect registered."""
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            strength=5,
+            speed=3,
+            stamina=3
+        )
+        effects = EffectRegistry.get_effects(beary)
+        
+        # Check that no effect has "TussleCancel" in its name
+        effect_names = [type(e).__name__ for e in effects]
+        assert not any("TussleCancel" in name for name in effect_names), \
+            "Beary should not have BearyTussleCancelEffect after swap"
+
+
+class TestKnightBearyIntegration:
+    """Integration tests for Knight and Beary interactions."""
+    
+    def test_clean_sleeps_knight_but_not_beary(self):
+        """When opponent plays Clean, Knight gets sleeped but Beary doesn't."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has both Knight and Beary
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.extend([knight, beary])
+        
+        # Player 2 plays Clean
+        clean = Card(
+            name="Clean",
+            card_type=CardType.ACTION,
+            cost=0,
+            effect_text="Sleep all cards in play.",
+            effect_definitions="sleep_all",
+            owner="player2",
+            controller="player2"
+        )
+        clean_effect = SleepAllEffect(clean)
+        clean_effect.apply(game_state, player=player2)
+        
+        # Knight should be sleeped (no immunity)
+        assert knight in player1.sleep_zone, "Knight should be sleeped by opponent's Clean"
+        assert knight not in player1.in_play, "Knight should not be in play"
+        
+        # Beary should NOT be sleeped (has immunity)
+        assert beary in player1.in_play, "Beary should still be in play"
+        assert beary not in player1.sleep_zone, "Beary should not be sleeped by opponent's Clean"
+    
+    def test_own_clean_sleeps_both_knight_and_beary(self):
+        """When player plays their own Clean, both Knight and Beary get sleeped."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player1",
+            turn_number=1
+        )
+        
+        # Player 1 has both Knight and Beary
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.extend([knight, beary])
+        
+        # Player 1 plays their own Clean
+        clean = Card(
+            name="Clean",
+            card_type=CardType.ACTION,
+            cost=0,
+            effect_text="Sleep all cards in play.",
+            effect_definitions="sleep_all",
+            owner="player1",
+            controller="player1"
+        )
+        clean_effect = SleepAllEffect(clean)
+        clean_effect.apply(game_state, player=player1)
+        
+        # Both should be sleeped (Beary only immune to OPPONENT effects)
+        assert knight in player1.sleep_zone, "Knight should be sleeped by own Clean"
+        assert beary in player1.sleep_zone, "Beary should be sleeped by own Clean (not immune to own effects)"
+
+
+class TestBearyImmunityToAllActionEffects:
+    """Test that Beary is immune to ALL opponent action effects."""
+    
+    def test_beary_immune_to_opponent_toynado(self):
+        """Beary should NOT be returned to hand when opponent plays Toynado."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Beary and Knight
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.extend([beary, knight])
+        
+        # Player 2 plays Toynado
+        toynado = Card(
+            name="Toynado",
+            card_type=CardType.ACTION,
+            cost=1,
+            effect_text="Put all cards that are in play into their owner's hands.",
+            owner="player2",
+            controller="player2"
+        )
+        toynado_effect = ToynadoEffect(toynado)
+        toynado_effect.apply(game_state, player=player2)
+        
+        # Knight should be returned to hand (no immunity)
+        assert knight in player1.hand, "Knight should be returned to hand by opponent's Toynado"
+        assert knight not in player1.in_play, "Knight should not be in play"
+        
+        # Beary should still be in play (immune)
+        assert beary in player1.in_play, "Beary should still be in play"
+        assert beary not in player1.hand, "Beary should not be in hand"
+    
+    def test_beary_immune_to_opponent_twist(self):
+        """Beary cannot be controlled by opponent's Twist."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Beary
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(beary)
+        
+        # Player 2 tries to Twist Beary
+        twist = Card(
+            name="Twist",
+            card_type=CardType.ACTION,
+            cost=1,
+            effect_text="Put a card your opponent has in play in play, but under your control.",
+            owner="player2",
+            controller="player2"
+        )
+        twist_effect = TwistEffect(twist)
+        twist_effect.apply(game_state, player=player2, target=beary)
+        
+        # Beary should still be controlled by player1 (immune to Twist)
+        assert beary in player1.in_play, "Beary should still be in player1's play"
+        assert beary not in player2.in_play, "Beary should not be in player2's play"
+        assert beary.controller == "player1", "Beary's controller should still be player1"
+    
+    def test_knight_can_be_twisted(self):
+        """Knight CAN be controlled by opponent's Twist (no immunity)."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Knight
+        knight = Card(
+            name="Knight",
+            card_type=CardType.TOY,
+            cost=2,
+            effect_text="On your turn, this card wins all tussles it enters.",
+            strength=4,
+            speed=4,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(knight)
+        
+        # Player 2 Twists Knight
+        twist = Card(
+            name="Twist",
+            card_type=CardType.ACTION,
+            cost=1,
+            effect_text="Put a card your opponent has in play in play, but under your control.",
+            owner="player2",
+            controller="player2"
+        )
+        twist_effect = TwistEffect(twist)
+        twist_effect.apply(game_state, player=player2, target=knight)
+        
+        # Knight should now be controlled by player2
+        assert knight in player2.in_play, "Knight should be in player2's play"
+        assert knight not in player1.in_play, "Knight should not be in player1's play"
+        assert knight.controller == "player2", "Knight's controller should be player2"
+        assert knight.owner == "player1", "Knight's owner should still be player1"
+    
+    def test_copy_of_beary_immune_to_opponent_toynado(self):
+        """Copy of Beary should be immune to opponent's Toynado (data-driven effects)."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Beary
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",  # Data-driven
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(beary)
+        
+        # Player 1 has Copy card that copies Beary
+        copy_card = Card(
+            name="Copy",
+            card_type=CardType.ACTION,
+            cost=-1,
+            effect_text="This card acts as an exact copy of a card you have in play.",
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(copy_card)
+        
+        # Copy transforms into Beary
+        copy_effect = CopyEffect(copy_card)
+        copy_effect.apply(game_state, player=player1, target=beary)
+        
+        # Verify Copy has transformed
+        assert copy_card.name == "Copy of Beary", "Copy should transform name"
+        assert copy_card.effect_definitions == "opponent_immunity", "Copy should copy effect_definitions"
+        assert hasattr(copy_card, '_copied_effects'), "Copy should have _copied_effects"
+        assert len(copy_card._copied_effects) > 0, "Copy should have parsed effects"
+        
+        # Player 2 plays Toynado
+        toynado = Card(
+            name="Toynado",
+            card_type=CardType.ACTION,
+            cost=1,
+            effect_text="Put all cards that are in play into their owner's hands.",
+            owner="player2",
+            controller="player2"
+        )
+        toynado_effect = ToynadoEffect(toynado)
+        toynado_effect.apply(game_state, player=player2)
+        
+        # Both original Beary and Copy of Beary should still be in play (immune)
+        assert beary in player1.in_play, "Beary should still be in play (immune)"
+        assert copy_card in player1.in_play, "Copy of Beary should still be in play (immune)"
+        assert beary not in player1.hand, "Beary should not be in hand"
+        assert copy_card not in player1.hand, "Copy of Beary should not be in hand"
+    
+    def test_copy_of_beary_immune_to_opponent_twist(self):
+        """Copy of Beary cannot be controlled by opponent's Twist (data-driven effects)."""
+        # Setup
+        player1 = Player(player_id="player1", name="Player 1")
+        player2 = Player(player_id="player2", name="Player 2")
+        game_state = GameState(
+            game_id="test-game",
+            players={"player1": player1, "player2": player2},
+            active_player_id="player2",  # Opponent's turn
+            turn_number=1
+        )
+        
+        # Player 1 has Beary
+        beary = Card(
+            name="Beary",
+            card_type=CardType.TOY,
+            cost=1,
+            effect_text="Your opponent's cards' effects don't affect this card.",
+            effect_definitions="opponent_immunity",  # Data-driven
+            strength=5,
+            speed=3,
+            stamina=3,
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(beary)
+        
+        # Player 1 has Copy card that copies Beary
+        copy_card = Card(
+            name="Copy",
+            card_type=CardType.ACTION,
+            cost=-1,
+            effect_text="This card acts as an exact copy of a card you have in play.",
+            owner="player1",
+            controller="player1",
+            zone=Zone.IN_PLAY
+        )
+        player1.in_play.append(copy_card)
+        
+        # Copy transforms into Beary
+        copy_effect = CopyEffect(copy_card)
+        copy_effect.apply(game_state, player=player1, target=beary)
+        
+        # Player 2 tries to Twist Copy of Beary
+        twist = Card(
+            name="Twist",
+            card_type=CardType.ACTION,
+            cost=1,
+            effect_text="Put a card your opponent has in play in play, but under your control.",
+            owner="player2",
+            controller="player2"
+        )
+        twist_effect = TwistEffect(twist)
+        twist_effect.apply(game_state, player=player2, target=copy_card)
+        
+        # Copy of Beary should still be controlled by player1 (immune)
+        assert copy_card in player1.in_play, "Copy of Beary should still be in player1's play"
+        assert copy_card not in player2.in_play, "Copy of Beary should not be in player2's play"
+        assert copy_card.controller == "player1", "Copy of Beary's controller should still be player1"

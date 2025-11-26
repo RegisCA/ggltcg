@@ -78,6 +78,30 @@ class EffectFactory:
             elif effect_type == "set_self_tussle_cost":
                 effect = cls._parse_set_self_tussle_cost(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "opponent_immunity":
+                effect = cls._parse_opponent_immunity(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "auto_win_tussle_on_own_turn":
+                effect = cls._parse_auto_win_tussle(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "return_all_to_hand":
+                effect = cls._parse_return_all_to_hand(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "take_control":
+                effect = cls._parse_take_control(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "copy_card":
+                effect = cls._parse_copy_card(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "alternative_cost_sleep_card":
+                effect = cls._parse_alternative_cost_sleep_card(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "cannot_tussle":
+                effect = cls._parse_cannot_tussle(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "remove_stamina_ability":
+                effect = cls._parse_remove_stamina_ability(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -410,6 +434,278 @@ class EffectFactory:
         # Import here to avoid circular dependency
         from .continuous_effects import SetSelfTussleCostEffect
         return SetSelfTussleCostEffect(source_card, cost, not_turn_1)
+    
+    @classmethod
+    def _parse_opponent_immunity(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an opponent_immunity effect definition.
+        
+        Format: "opponent_immunity" (no parameters)
+        
+        Provides immunity from opponent's card effects.
+        Tussle damage is not an effect and can still harm the card.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            OpponentImmunityEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"opponent_immunity effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import OpponentImmunityEffect
+        return OpponentImmunityEffect(source_card)
+    
+    @classmethod
+    def _parse_auto_win_tussle(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an auto_win_tussle_on_own_turn effect definition.
+        
+        Format: "auto_win_tussle_on_own_turn" (no parameters)
+        
+        On the controller's turn, this card automatically wins all tussles.
+        The opponent is sleeped without striking back.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            KnightWinConditionEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"auto_win_tussle_on_own_turn effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import KnightWinConditionEffect
+        return KnightWinConditionEffect(source_card)
+    
+    @classmethod
+    def _parse_return_all_to_hand(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a return_all_to_hand effect definition.
+        
+        Format: "return_all_to_hand" (no parameters)
+        
+        Returns all cards in play to their owners' hands.
+        Respects protection effects.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            ToynadoEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"return_all_to_hand effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import ToynadoEffect
+        return ToynadoEffect(source_card)
+    
+    @classmethod
+    def _parse_take_control(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a take_control effect definition.
+        
+        Format: "take_control" (no parameters)
+        
+        Takes control of an opponent's card in play.
+        Requires target selection.
+        Respects protection effects.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            TwistEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"take_control effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import TwistEffect
+        return TwistEffect(source_card)
+    
+    @classmethod
+    def _parse_copy_card(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a copy_card effect definition.
+        
+        Format: "copy_card" (no parameters)
+        
+        Transforms this card into a copy of a target card in play.
+        Requires target selection.
+        Copies stats, effects, and appearance.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            CopyEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"copy_card effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import CopyEffect
+        return CopyEffect(source_card)
+    
+    @classmethod
+    def _parse_alternative_cost_sleep_card(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an alternative_cost_sleep_card effect definition.
+        
+        Format: "alternative_cost_sleep_card" (no parameters)
+        
+        Allows playing this card for free by sleeping one of your cards in play.
+        Provides an alternative to paying the normal CC cost.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            BallaberCostEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"alternative_cost_sleep_card effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import BallaberCostEffect
+        return BallaberCostEffect(source_card)
+    
+    @classmethod
+    def _parse_cannot_tussle(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a cannot_tussle effect definition.
+        
+        Format: "cannot_tussle" (no parameters)
+        
+        Prevents this card from being declared as an attacker in tussles.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            ArcherRestrictionEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"cannot_tussle effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import ArcherRestrictionEffect
+        return ArcherRestrictionEffect(source_card)
+    
+    @classmethod
+    def _parse_remove_stamina_ability(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a remove_stamina_ability effect definition.
+        
+        Format: "remove_stamina_ability:cc_cost" or "remove_stamina_ability:cc_cost:amount"
+        - cc_cost: CC cost per activation (typically 1)
+        - amount: Amount of stamina to remove per activation (defaults to 1)
+        
+        Activated ability: spend CC to remove stamina from any card in play.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            ArcherActivatedAbility instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) < 2 or len(parts) > 3:
+            raise ValueError(
+                f"remove_stamina_ability effect requires 1-2 parameters: cc_cost and optional amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Parse cc_cost
+        try:
+            cc_cost = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid cc_cost '{parts[1]}' for remove_stamina_ability. Must be an integer."
+            )
+        
+        if cc_cost < 0:
+            raise ValueError(
+                f"Invalid cc_cost {cc_cost} for remove_stamina_ability. Must be non-negative."
+            )
+        
+        # Parse optional amount (default 1)
+        amount = 1
+        if len(parts) == 3:
+            try:
+                amount = int(parts[2].strip())
+            except ValueError:
+                raise ValueError(
+                    f"Invalid amount '{parts[2]}' for remove_stamina_ability. Must be an integer."
+                )
+            
+            if amount < 1:
+                raise ValueError(
+                    f"Invalid amount {amount} for remove_stamina_ability. Must be at least 1."
+                )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import ArcherActivatedAbility
+        # Note: ArcherActivatedAbility currently only uses cc_cost in __init__
+        # The amount parameter would need to be added if we want variable damage
+        return ArcherActivatedAbility(source_card)
 
 
 class EffectRegistry:

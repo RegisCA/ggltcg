@@ -274,6 +274,143 @@ async def end_turn(game_id: str, request: EndTurnRequest) -> ActionResponse:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{game_id}/activate-ability", response_model=ActionResponse)
+async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> ActionResponse:
+    """
+    Activate a card's ability.
+    
+    - **game_id**: The game ID
+    - **player_id**: ID of player activating the ability
+    - **card_id**: ID of the card with the ability
+    - **target_id**: Optional target card ID for the ability
+    - **amount**: Amount parameter (e.g., for Archer to remove stamina)
+    """
+    service = get_game_service()
+    engine = service.get_game(game_id)
+    
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+    
+    game_state = engine.game_state
+    
+    # Verify it's the player's turn
+    if game_state.active_player_id != request.player_id:
+        raise HTTPException(status_code=400, detail="It's not your turn")
+    
+    player = game_state.players.get(request.player_id)
+    if player is None:
+        raise HTTPException(status_code=404, detail=f"Player {request.player_id} not found")
+    
+    # Find the card with the ability by ID
+    source_card = None
+    for card in player.in_play:
+        if card.id == request.card_id:
+            source_card = card
+            break
+    
+    if source_card is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Card with ID {request.card_id} not found in play"
+        )
+    
+    # Get the activated effect
+    from game_engine.rules.effects import EffectRegistry
+    from game_engine.rules.effects.base_effect import ActivatedEffect
+    
+    effects = EffectRegistry.get_effects(source_card)
+    activated_effect = None
+    for effect in effects:
+        if isinstance(effect, ActivatedEffect):
+            activated_effect = effect
+            break
+    
+    if activated_effect is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Card {source_card.name} has no activated ability"
+        )
+    
+    # Calculate cost (for Archer, it's the amount)
+    amount = request.amount or 1
+    cost = activated_effect.cost_cc * amount
+    
+    # Check if player can afford it
+    if player.cc < cost:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Not enough CC (need {cost}, have {player.cc})"
+        )
+    
+    # Get target if specified
+    target_card = None
+    if request.target_id:
+        # Find target by ID in all cards in play
+        all_cards = game_state.get_all_cards_in_play()
+        for card in all_cards:
+            if card.id == request.target_id:
+                target_card = card
+                break
+        
+        if target_card is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Target card with ID {request.target_id} not found in play"
+            )
+    
+    try:
+        # Pay the cost
+        player.spend_cc(cost)
+        
+        # Apply the ability
+        activated_effect.apply(
+            game_state,
+            target=target_card,
+            amount=amount,
+            game_engine=engine
+        )
+        
+        # Log to play-by-play
+        description = f"Activated {source_card.name}'s ability"
+        if target_card:
+            description += f" targeting {target_card.name}"
+        if amount > 1:
+            description += f" (amount: {amount})"
+        
+        game_state.add_play_by_play(
+            player_name=player.name,
+            action_type="activate_ability",
+            description=description
+        )
+        
+        # Save updated game state to database
+        service.update_game(game_id, engine)
+        
+        # Check for victory
+        winner = game_state.winner_id
+        if winner:
+            winner_name = game_state.players[winner].name
+            game_state.add_play_by_play(
+                player_name=winner_name,
+                action_type="victory",
+                description=f"{winner_name} wins! All opponent's cards are sleeped."
+            )
+            return ActionResponse(
+                success=True,
+                message=f"Ability activated! {winner} wins the game!",
+                game_state={"winner": winner}
+            )
+        
+        return ActionResponse(
+            success=True,
+            message=f"Ability activated successfully",
+            game_state={"turn": game_state.turn_number}
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{game_id}/valid-actions", response_model=ValidActionsResponse)
 async def get_valid_actions(game_id: str, player_id: str) -> ValidActionsResponse:
     """

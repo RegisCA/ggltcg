@@ -10,6 +10,7 @@ import type {
   PlayCardRequest,
   TussleRequest,
   EndTurnRequest,
+  ActivateAbilityRequest,
   ActionResponse,
   ValidActionsResponse,
 } from '../types/api';
@@ -112,6 +113,19 @@ export function useEndTurn(
   
   return useMutation({
     mutationFn: (data) => gameService.endTurn(gameId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: gameKeys.game(gameId) });
+    },
+  });
+}
+
+export function useActivateAbility(
+  gameId: string
+): UseMutationResult<ActionResponse, Error, ActivateAbilityRequest> {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data) => gameService.activateAbility(gameId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: gameKeys.game(gameId) });
     },

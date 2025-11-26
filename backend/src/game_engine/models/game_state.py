@@ -151,9 +151,15 @@ class GameState:
         Returns:
             Player controlling the card, or None if not in play
         """
+        # First check if card is in play
         for player in self.players.values():
             if card in player.in_play:
                 return player
+        
+        # Fallback: use card's controller field (for action cards or cards not yet in play)
+        if card.controller:
+            return self.players.get(card.controller)
+        
         return None
     
     def get_card_owner(self, card: Card) -> Optional[Player]:

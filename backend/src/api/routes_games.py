@@ -257,6 +257,155 @@ async def get_game_logs(game_id: str) -> Dict[str, List[str]]:
     return {"logs": engine.game_state.game_log}
 
 
+@router.get("/{game_id}/debug")
+async def get_game_debug_state(game_id: str) -> Dict[str, Any]:
+    """
+    Get detailed debug information about a game's internal state.
+    
+    ⚠️ **DEV-ONLY ENDPOINT** - Not secure for production use.
+    Exposes complete internal game state including:
+    - All cards in all zones with full details
+    - Effect definitions (CSV strings)
+    - Parsed effect objects (_copied_effects)
+    - Card modifications and transformations
+    - Internal flags like _is_transformed
+    
+    **Security Note**: This endpoint reveals complete game state including opponent's
+    hand. If test players discover this and use it to cheat, we'll buy them pizza! 🍕
+    
+    Returns:
+        Comprehensive debug view of the game state with all internal details exposed.
+    """
+    from game_engine.rules.effects.effect_registry import EffectFactory
+    
+    service = get_game_service()
+    engine = service.get_game(game_id)
+    
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+    
+    game_state = engine.game_state
+    
+    def _debug_card(card) -> Dict[str, Any]:
+        """Extract all card details for debugging."""
+        # Parse effects to show what would be created
+        parsed_effects = []
+        if hasattr(card, 'effect_definitions') and card.effect_definitions:
+            try:
+                effects = EffectFactory.parse_effects(card.effect_definitions, card)
+                parsed_effects = [
+                    {
+                        "class": type(effect).__name__,
+                        "repr": repr(effect),
+                    }
+                    for effect in effects
+                ]
+            except Exception as e:
+                parsed_effects = [{"error": str(e)}]
+        
+        # Get copied effects if present (for transformed Copy cards)
+        copied_effects = []
+        if hasattr(card, '_copied_effects') and card._copied_effects:
+            copied_effects = [
+                {
+                    "class": type(effect).__name__,
+                    "repr": repr(effect),
+                }
+                for effect in card._copied_effects
+            ]
+        
+        # Get effective stats from engine
+        effective_stats = {}
+        if card.is_toy():
+            effective_stats = {
+                "speed": engine.get_card_stat(card, "speed"),
+                "strength": engine.get_card_stat(card, "strength"),
+                "stamina": engine.get_card_stat(card, "stamina"),
+            }
+        
+        return {
+            # Basic card info
+            "id": card.id,
+            "name": card.name,
+            "card_type": card.card_type.value,
+            "cost": card.cost,
+            "zone": card.zone.value,
+            "owner": card.owner,
+            "controller": card.controller,
+            
+            # Base stats
+            "base_stats": {
+                "speed": card.speed,
+                "strength": card.strength,
+                "stamina": card.stamina,
+                "current_stamina": card.current_stamina,
+            } if card.is_toy() else None,
+            
+            # Effective stats (with all effects applied)
+            "effective_stats": effective_stats if effective_stats else None,
+            
+            # Effect system details
+            "effect_text": card.effect_text,
+            "effect_definitions": getattr(card, 'effect_definitions', ''),
+            "parsed_effects": parsed_effects,
+            "copied_effects": copied_effects,  # For Copy cards
+            
+            # Modifications and state
+            "modifications": card.modifications,
+            "is_transformed": getattr(card, '_is_transformed', False),
+            
+            # Colors
+            "primary_color": card.primary_color,
+            "accent_color": card.accent_color,
+        }
+    
+    def _debug_player(player) -> Dict[str, Any]:
+        """Extract all player details for debugging."""
+        return {
+            "player_id": player.player_id,
+            "name": player.name,
+            "cc": player.cc,
+            "direct_attacks_this_turn": player.direct_attacks_this_turn,
+            "hand": [_debug_card(card) for card in player.hand],
+            "in_play": [_debug_card(card) for card in player.in_play],
+            "sleep_zone": [_debug_card(card) for card in player.sleep_zone],
+            "hand_count": len(player.hand),
+            "in_play_count": len(player.in_play),
+            "sleep_zone_count": len(player.sleep_zone),
+        }
+    
+    # Build comprehensive debug state
+    debug_state = {
+        "game_id": game_id,
+        "turn_number": game_state.turn_number,
+        "phase": game_state.phase.value,
+        "active_player_id": game_state.active_player_id,
+        "first_player_id": game_state.first_player_id,
+        "winner_id": game_state.winner_id,
+        
+        # Complete player state (including opponent's hand)
+        "players": {
+            player_id: _debug_player(player)
+            for player_id, player in game_state.players.items()
+        },
+        
+        # Game logs
+        "game_log": game_state.game_log,
+        "play_by_play": game_state.play_by_play,
+        
+        # Metadata
+        "total_cards": sum(
+            len(p.hand) + len(p.in_play) + len(p.sleep_zone)
+            for p in game_state.players.values()
+        ),
+        
+        # Warning about security
+        "_warning": "This endpoint exposes complete game state. Dev-only. Pizza-worthy if exploited! 🍕",
+    }
+    
+    return debug_state
+
+
 @router.post("/narrative", response_model=NarrativeResponse)
 async def generate_narrative(request: NarrativeRequest) -> NarrativeResponse:
     """

@@ -24,7 +24,7 @@ from game_engine.models.card import CardType
 from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.rules.effects import EffectRegistry
-from game_engine.rules.effects.base_effect import PlayEffect
+from game_engine.rules.effects.base_effect import PlayEffect, ActivatedEffect
 from game_engine.rules.tussle_resolver import TussleResolver
 from api.schemas import ValidAction
 
@@ -97,6 +97,9 @@ class ActionValidator:
         
         # Get valid tussles
         valid_actions.extend(self._get_valid_tussles(player, filter_for_ai))
+        
+        # Get valid activated abilities
+        valid_actions.extend(self._get_valid_activated_abilities(player))
         
         # Sort actions to prioritize certain types
         if filter_for_ai:
@@ -348,5 +351,60 @@ class ActionValidator:
                             description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
                         )
                     )
+        
+        return valid_actions
+
+    def _get_valid_activated_abilities(self, player: Player) -> List[ValidAction]:
+        """
+        Get all valid activated ability actions for a player.
+        
+        Args:
+            player: The player to check
+        
+        Returns:
+            List of ValidAction objects for activated abilities
+        """
+        valid_actions = []
+        
+        # Check each card in play for activated abilities
+        for card in player.in_play:
+            effects = EffectRegistry.get_effects(card)
+            
+            for effect in effects:
+                if not isinstance(effect, ActivatedEffect):
+                    continue
+                
+                # Check if the ability can be activated
+                if not effect.can_apply(self.game_state):
+                    continue
+                
+                # Get target information for the ability
+                target_options = None
+                max_targets = 1
+                min_targets = 1
+                
+                if effect.requires_targets():
+                    valid_targets = effect.get_valid_targets(self.game_state)
+                    if valid_targets:
+                        target_options = [t.id for t in valid_targets]
+                        max_targets = getattr(effect, 'max_targets', 1)
+                        min_targets = getattr(effect, 'min_targets', 1)
+                
+                # Standard activated ability (Archer can be used multiple times)
+                cost_cc = effect.cost_cc
+                
+                valid_actions.append(
+                    ValidAction(
+                        action_type="activate_ability",
+                        card_id=card.id,
+                        card_name=card.name,
+                        ability_name=type(effect).__name__,
+                        cost_cc=cost_cc,
+                        target_options=target_options,
+                        max_targets=max_targets,
+                        min_targets=min_targets,
+                        description=f"{card.name}: Remove 1 stamina - {cost_cc} CC"
+                    )
+                )
         
         return valid_actions
