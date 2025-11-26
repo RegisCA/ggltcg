@@ -31,8 +31,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
   
   // Responsive layout detection
-  const { isDesktop } = useResponsive();
-  const cardSize = isDesktop ? 'medium' : 'small';
+  const { isDesktop, isMobile } = useResponsive();
+  // Use medium cards for both desktop and tablet (need to read descriptions)
+  // Only use small for mobile where space is very limited
+  const cardSize = isMobile ? 'small' : 'medium';
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {

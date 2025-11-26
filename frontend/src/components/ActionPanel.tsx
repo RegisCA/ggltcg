@@ -182,10 +182,10 @@ return (
                       disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                   >
-                    <div className={`flex justify-between items-center w-full ${compact ? 'gap-1' : 'gap-2'}`}>
+                    <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
                       {/* Keyboard shortcut indicator */}
                       {shortcutKey && (
-                        <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 ${compact ? 'w-5 h-5 text-[10px]' : 'w-6 h-6 text-xs'}`}>
+                        <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
                           {shortcutKey}
                         </span>
                       )}
