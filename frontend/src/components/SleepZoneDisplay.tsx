@@ -10,9 +10,15 @@ interface SleepZoneDisplayProps {
   cards: Card[];
   playerName: string;
   compact?: boolean;  // Reduce spacing in tablet mode
+  enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
-export function SleepZoneDisplay({ cards, playerName, compact = false }: SleepZoneDisplayProps) {
+export function SleepZoneDisplay({ 
+  cards, 
+  playerName, 
+  compact = false,
+  enableLayoutAnimation = false,
+}: SleepZoneDisplayProps) {
   const cardList = cards || [];
   // Calculate height: base card height (164px for small) + offset for each additional card
   const stackOffset = compact ? 22 : 28;
@@ -45,6 +51,7 @@ export function SleepZoneDisplay({ cards, playerName, compact = false }: SleepZo
               <CardDisplay
                 card={card}
                 size="small"
+                enableLayoutAnimation={enableLayoutAnimation}
               />
             </div>
           ))}

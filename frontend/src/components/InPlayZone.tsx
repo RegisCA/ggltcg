@@ -13,9 +13,17 @@ interface InPlayZoneProps {
   selectedCard?: string;  // Now expects card ID instead of card name
   onCardClick?: (cardId: string) => void;
   cardSize?: 'small' | 'medium';  // Responsive card size
+  enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
-export function InPlayZone({ cards, isHuman = false, selectedCard, onCardClick, cardSize = 'medium' }: InPlayZoneProps) {
+export function InPlayZone({ 
+  cards, 
+  isHuman = false, 
+  selectedCard, 
+  onCardClick, 
+  cardSize = 'medium',
+  enableLayoutAnimation = false,
+}: InPlayZoneProps) {
   const cardList = cards || [];
   const minHeight = cardSize === 'small' ? '170px' : '240px';
   
@@ -44,6 +52,7 @@ export function InPlayZone({ cards, isHuman = false, selectedCard, onCardClick, 
                 isSelected={selectedCard === card.id}
                 isClickable={isHuman && !!onCardClick}
                 onClick={isHuman && onCardClick ? () => onCardClick(card.id) : undefined}
+                enableLayoutAnimation={enableLayoutAnimation}
               />
             ))}
           </div>

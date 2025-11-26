@@ -13,6 +13,8 @@ interface HandZoneProps {
   playableCardIds?: string[];  // IDs of cards that can be played this turn
   isPlayerTurn?: boolean;  // Whether it's the player's turn
   cardSize?: 'small' | 'medium';  // Responsive card size
+  compact?: boolean;  // Compact mode for landscape tablets - scrollable horizontal
+  enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
 export function HandZone({ 
@@ -22,9 +24,11 @@ export function HandZone({
   playableCardIds = [],
   isPlayerTurn = false,
   cardSize = 'medium',
+  compact = false,
+  enableLayoutAnimation = false,
 }: HandZoneProps) {
   const cardList = cards || [];
-  const minHeight = cardSize === 'small' ? '170px' : '240px';
+  const minHeight = compact ? '130px' : (cardSize === 'small' ? '170px' : '240px');
   
   return (
     <div className="bg-blue-950 rounded border-2 border-blue-700 flex">
@@ -36,13 +40,13 @@ export function HandZone({
       </div>
       
       {/* Cards Area */}
-      <div className="flex-1 p-3">
+      <div className={`flex-1 ${compact ? 'p-2 overflow-x-auto' : 'p-3'}`}>
         {cardList.length === 0 ? (
           <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             No cards in hand
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className={`flex ${compact ? 'gap-1' : 'gap-2'}`}>
             {cardList.map((card) => {
               // Card is playable if it's in the playable list OR it's not the player's turn (don't dim during opponent's turn)
               const isPlayable = !isPlayerTurn || playableCardIds.includes(card.id);
@@ -55,6 +59,7 @@ export function HandZone({
                   isClickable={!!onCardClick}
                   isUnplayable={isPlayerTurn && !isPlayable}
                   onClick={onCardClick ? () => onCardClick(card.id) : undefined}
+                  enableLayoutAnimation={enableLayoutAnimation}
                 />
               );
             })}
