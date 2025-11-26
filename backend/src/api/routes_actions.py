@@ -174,7 +174,7 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         # Calculate cost before tussle
         cost = engine.calculate_tussle_cost(attacker, player)
         
-        success = engine.initiate_tussle(attacker, defender, player)
+        success, sleeped_from_hand = engine.initiate_tussle(attacker, defender, player)
         
         if not success:
             return ActionResponse(
@@ -186,11 +186,17 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         engine.check_state_based_actions()
         
         # Log to play-by-play with cost BEFORE victory check (so action appears first)
-        target_desc = defender.name if defender else "opponent directly"
+        if defender:
+            target_desc = defender.name
+        elif sleeped_from_hand:
+            target_desc = f"{sleeped_from_hand} (from hand)"
+        else:
+            target_desc = "opponent directly"
+        description = f"Spent {cost} CC for {attacker.name} to tussle {target_desc}"
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="tussle",
-            description=f"Spent {cost} CC for {attacker.name} to tussle {target_desc}",
+            description=description,
         )
         
         # Save updated game state to database
@@ -208,13 +214,13 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
             )
             return ActionResponse(
                 success=True,
-                message=f"Tussle successful! {winner} wins the game!",
+                message=f"Tussle successful! {winner_name} wins the game!",
                 game_state={"winner": winner}
             )
         
         return ActionResponse(
             success=True,
-            message=f"Tussle initiated successfully",
+            message=description,
             game_state={"turn": game_state.turn_number}
         )
     
@@ -403,7 +409,7 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
         
         return ActionResponse(
             success=True,
-            message=f"Ability activated successfully",
+            message=description,
             game_state={"turn": game_state.turn_number}
         )
     
@@ -702,6 +708,131 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 else:
                     error_detail = f"AI tussle execution failed: {error_msg}"
                 raise HTTPException(status_code=500, detail=error_detail)
+        
+        elif action_details["action_type"] == "activate_ability":
+            # Execute activated ability (e.g., Archer)
+            card_id = action_details["card_id"]
+            target_id = action_details.get("target_id")
+            amount = action_details.get("amount", 1)
+            
+            # Find the card with the ability
+            source_card = None
+            for card in player.in_play:
+                if card.id == card_id:
+                    source_card = card
+                    break
+            
+            if source_card is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"AI selected card with ID {card_id} not found in play"
+                )
+            
+            # Get the activated effect
+            from game_engine.rules.effects import EffectRegistry
+            from game_engine.rules.effects.base_effect import ActivatedEffect
+            
+            effects = EffectRegistry.get_effects(source_card)
+            activated_effect = None
+            for effect in effects:
+                if isinstance(effect, ActivatedEffect):
+                    activated_effect = effect
+                    break
+            
+            if activated_effect is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Card {source_card.name} has no activated ability"
+                )
+            
+            # Calculate cost
+            cost = activated_effect.cost_cc * amount
+            
+            # Check if player can afford it
+            if player.cc < cost:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"AI tried to activate ability without enough CC (need {cost}, have {player.cc})"
+                )
+            
+            # Get target if specified
+            target_card = None
+            if target_id:
+                all_cards = game_state.get_all_cards_in_play()
+                for card in all_cards:
+                    if card.id == target_id:
+                        target_card = card
+                        break
+                
+                if target_card is None:
+                    logger.error(
+                        f"🤖 LLM HALLUCINATION DETECTED - AI activate_ability target not found:\n"
+                        f"  Card ID: {card_id}\n"
+                        f"  Target ID: {target_id}\n"
+                        f"  Game: {game_id}, Turn: {game_state.turn_number}"
+                    )
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"AI selected invalid target ID (likely LLM hallucination): {target_id}"
+                    )
+            
+            try:
+                # Pay the cost
+                player.spend_cc(cost)
+                
+                # Apply the ability
+                activated_effect.apply(
+                    game_state,
+                    target=target_card,
+                    amount=amount,
+                    game_engine=engine
+                )
+                
+                # Log to play-by-play
+                description = f"Activated {source_card.name}'s ability"
+                if target_card:
+                    description += f" targeting {target_card.name}"
+                if amount > 1:
+                    description += f" (amount: {amount})"
+                
+                game_state.add_play_by_play(
+                    player_name=player.name,
+                    action_type="activate_ability",
+                    description=description,
+                    reasoning=reasoning,
+                    ai_endpoint=ai_endpoint_name,
+                )
+                
+                # Check for victory
+                winner = game_state.winner_id
+                if winner:
+                    winner_name = game_state.players[winner].name
+                    game_state.add_play_by_play(
+                        player_name=winner_name,
+                        action_type="victory",
+                        description=f"{winner_name} wins! All opponent's cards are sleeped."
+                    )
+                    # Save updated game state to database
+                    service.update_game(game_id, engine)
+                    return ActionResponse(
+                        success=True,
+                        message=f"AI ability activated! {winner_name} wins!",
+                        game_state={"winner": winner, "is_game_over": True},
+                        ai_turn_summary=turn_summary
+                    )
+                
+                # Save updated game state to database
+                service.update_game(game_id, engine)
+                
+                return ActionResponse(
+                    success=True,
+                    message=description,
+                    game_state={"turn": game_state.turn_number},
+                    ai_turn_summary=turn_summary
+                )
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"AI activate_ability failed: {str(e)}")
         
         else:
             logger.error(f"Unknown action type from AI: {action_details['action_type']}")

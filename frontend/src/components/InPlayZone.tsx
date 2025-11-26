@@ -10,8 +10,8 @@ interface InPlayZoneProps {
   cards: Card[];
   playerName: string;
   isHuman?: boolean;
-  selectedCard?: string;
-  onCardClick?: (cardName: string) => void;
+  selectedCard?: string;  // Now expects card ID instead of card name
+  onCardClick?: (cardId: string) => void;
 }
 
 export function InPlayZone({ cards, isHuman = false, selectedCard, onCardClick }: InPlayZoneProps) {
@@ -39,9 +39,9 @@ export function InPlayZone({ cards, isHuman = false, selectedCard, onCardClick }
                 key={card.id}
                 card={card}
                 size="medium"
-                isSelected={selectedCard === card.name}
+                isSelected={selectedCard === card.id}
                 isClickable={isHuman && !!onCardClick}
-                onClick={isHuman && onCardClick ? () => onCardClick(card.name) : undefined}
+                onClick={isHuman && onCardClick ? () => onCardClick(card.id) : undefined}
               />
             ))}
           </div>

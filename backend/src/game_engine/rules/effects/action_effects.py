@@ -393,6 +393,8 @@ class ArcherActivatedAbility(ActivatedEffect):
         Requires 'target' and 'amount' in kwargs.
         Amount defaults to 1 but can be higher if player pays more CC.
         """
+        from ..tussle_resolver import TussleResolver
+        
         target: Optional["Card"] = kwargs.get("target")
         amount: int = kwargs.get("amount", 1)
         
@@ -406,8 +408,8 @@ class ArcherActivatedAbility(ActivatedEffect):
         # Apply damage (updates current_stamina, not base stamina)
         target.apply_damage(amount)
         
-        # Check if card should be sleeped
-        if target.is_defeated():
+        # Check if card should be sleeped using proper effective stamina calculation
+        if TussleResolver.is_card_defeated(game_state, target):
             # Sleep via game engine to trigger when-sleeped effects
             game_engine = kwargs.get("game_engine")
             if game_engine:

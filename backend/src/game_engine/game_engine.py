@@ -431,7 +431,7 @@ class GameEngine:
         return min(costs)
     
     def initiate_tussle(self, attacker: Card, defender: Optional[Card], 
-                       player: Player) -> bool:
+                       player: Player) -> tuple[bool, Optional[str]]:
         """
         Initiate a tussle.
         
@@ -441,18 +441,20 @@ class GameEngine:
             player: Player initiating tussle
             
         Returns:
-            True if tussle completed successfully
+            Tuple of (success, sleeped_from_hand_name)
+            - success: True if tussle completed successfully
+            - sleeped_from_hand_name: Name of card sleeped from hand (direct attack only)
         """
         # Validate
         can_tussle, reason = self.can_tussle(attacker, defender, player)
         if not can_tussle:
             self.game_state.log_event(f"Cannot tussle: {reason}")
-            return False
+            return (False, None)
         
         # Calculate and pay cost
         cost = self.calculate_tussle_cost(attacker, player)
         if not player.spend_cc(cost):
-            return False
+            return (False, None)
         
         # Check for Beary interrupt
         opponent = self.game_state.get_opponent(player.player_id)
@@ -461,18 +463,19 @@ class GameEngine:
         if cancelled:
             self.game_state.log_event("Tussle cancelled by Beary!")
             # Cost is NOT refunded
-            return False
+            return (False, None)
         
         # Execute tussle
+        sleeped_from_hand = None
         if defender is None:
-            self._execute_direct_attack(attacker, player, opponent)
+            sleeped_from_hand = self._execute_direct_attack(attacker, player, opponent)
         else:
             self._execute_tussle(attacker, defender, player, opponent)
         
         # Check state-based actions
         self.check_state_based_actions()
         
-        return True
+        return (True, sleeped_from_hand)
     
     def _check_beary_cancel(self, opponent: Player) -> bool:
         """
@@ -493,7 +496,7 @@ class GameEngine:
         return False
     
     def _execute_direct_attack(self, attacker: Card, player: Player, 
-                               opponent: Player) -> None:
+                               opponent: Player) -> Optional[str]:
         """
         Execute a direct attack (sleep random card from opponent's hand).
         
@@ -501,6 +504,9 @@ class GameEngine:
             attacker: Attacking card
             player: Attacking player
             opponent: Defending player
+            
+        Returns:
+            Name of the card sleeped from hand, or None if no card was sleeped
         """
         player.direct_attacks_this_turn += 1
         
@@ -516,6 +522,9 @@ class GameEngine:
             )
             
             # Cards sleeped from hand do NOT trigger "when sleeped" effects
+            return target.name
+        
+        return None
     
     def _execute_tussle(self, attacker: Card, defender: Card, 
                        attacker_player: Player, defender_player: Player) -> None:

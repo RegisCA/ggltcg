@@ -8,8 +8,8 @@ import type { Card } from '../types/game';
 
 interface HandZoneProps {
   cards: Card[];
-  selectedCard?: string;
-  onCardClick?: (cardName: string) => void;
+  selectedCard?: string;  // Now expects card ID instead of card name
+  onCardClick?: (cardId: string) => void;
 }
 
 export function HandZone({ cards, selectedCard, onCardClick }: HandZoneProps) {
@@ -37,9 +37,9 @@ export function HandZone({ cards, selectedCard, onCardClick }: HandZoneProps) {
                 key={card.id}
                 card={card}
                 size="medium"
-                isSelected={selectedCard === card.name}
+                isSelected={selectedCard === card.id}
                 isClickable={!!onCardClick}
-                onClick={onCardClick ? () => onCardClick(card.name) : undefined}
+                onClick={onCardClick ? () => onCardClick(card.id) : undefined}
               />
             ))}
           </div>

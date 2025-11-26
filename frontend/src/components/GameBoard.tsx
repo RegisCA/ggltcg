@@ -329,7 +329,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               playerName={humanPlayer.name}
               isHuman={true}
               selectedCard={selectedCard || undefined}
-              onCardClick={(cardName) => setSelectedCard(cardName)}
+              onCardClick={(cardId) => setSelectedCard(cardId)}
             />
           </div>
 
@@ -385,7 +385,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           <HandZone
             cards={humanPlayer.hand || []}
             selectedCard={selectedCard || undefined}
-            onCardClick={(cardName) => setSelectedCard(cardName)}
+            onCardClick={(cardId) => setSelectedCard(cardId)}
           />
         </div>
       </div>
@@ -413,33 +413,18 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
       return [];
     }
 
-    // Build list of searchable cards based on action type
-    // Most effects target opponent's zones, but some (Wake, Sun) target your own zones
-    // Wake: targets your sleep zone only
-    // Sun: targets opponent's in_play only
-    // Twist: targets opponent's in_play only
-    // Copy: targets your in_play only
-    const isWake = action.card_name === 'Wake';
-    const isCopy = action.card_name === 'Copy';
-    
-    let allCards: Card[] = [];
-    if (isWake) {
-      // Wake: only search human player's sleep zone
-      allCards = [...humanPlayer.sleep_zone];
-    } else if (isCopy) {
-      // Copy: only search human player's in_play
-      allCards = [...humanPlayer.in_play];
-    } else {
-      // Default: search both players' in_play and sleep zones (but not hand to avoid duplicates)
-      allCards = [
-        ...humanPlayer.in_play,
-        ...humanPlayer.sleep_zone,
-        ...otherPlayer.in_play,
-        ...otherPlayer.sleep_zone,
-      ];
-    }
+    // Search all zones for both players - the backend already provides
+    // the valid target IDs in action.target_options, so we just need to
+    // find the card objects matching those IDs.
+    const allCards: Card[] = [
+      ...humanPlayer.in_play,
+      ...humanPlayer.sleep_zone,
+      ...(humanPlayer.hand || []),
+      ...otherPlayer.in_play,
+      ...otherPlayer.sleep_zone,
+    ];
 
-    // Filter using card IDs (target_options now contains IDs instead of names)
+    // Filter using card IDs (target_options contains valid target card IDs)
     return allCards.filter(card => action.target_options?.includes(card.id));
   }
 }

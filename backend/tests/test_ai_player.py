@@ -283,26 +283,16 @@ def main():
                             print(f"   ⚠ Tussle validation failed: {reason}")
                             print(f"      Debug: Opponent has {len(opponent.hand)} in hand, {len(opponent.in_play)} in play, {len(opponent.sleep_zone)} sleeped")
                         
-                        result = engine.initiate_tussle(attacker, defender, ai)
+                        result, sleeped_from_hand = engine.initiate_tussle(attacker, defender, ai)
                         cc_after = ai.cc
                         
                         if not result:
                             print(f"   ⚠ Tussle failed! (CC unchanged: {cc_after})")
                         elif defender:
                             print(f"   → Tussle succeeded! (spent {cc_before - cc_after} CC, now has {cc_after} CC)")
-                        else:
+                        elif sleeped_from_hand:
                             # Direct attack - show what card was sleeped
-                            opponent = game_state.get_opponent(ai.player_id)
-                            # Get the last log event which describes the attack
-                            if game_state.game_log:
-                                last_event = game_state.game_log[-1]
-                                # Extract the sleeped card name from the log message
-                                # Format: "Player's Card direct attack! Sleeped CardName from..."
-                                if "Sleeped" in last_event:
-                                    import re
-                                    match = re.search(r'Sleeped (\w+) from', last_event)
-                                    sleeped_card = match.group(1) if match else "unknown"
-                                    print(f"   → Direct attack succeeded! Sleeped {sleeped_card} from opponent's hand")
+                            print(f"   → Direct attack succeeded! Sleeped {sleeped_from_hand} from opponent's hand")
                                 else:
                                     print(f"   → Direct attack succeeded!")
                             else:
