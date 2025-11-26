@@ -195,7 +195,7 @@ export function TargetSelectionModal({
                         <div
                           key={card.id}
                           onClick={() => selectAlternativeCostCard(card.id)}
-                          className="flex justify-center"
+                          className="flex justify-center relative group"
                         >
                           <CardDisplay
                             card={card}
@@ -203,6 +203,12 @@ export function TargetSelectionModal({
                             isSelected={isSelected}
                             isClickable={true}
                           />
+                          {/* Hover tooltip */}
+                          {!isSelected && (
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                              Click to sleep this card
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -239,7 +245,7 @@ export function TargetSelectionModal({
                   <div
                     key={card.id}
                     onClick={() => !isDisabled && toggleTarget(card.id)}
-                    className="flex justify-center"
+                    className="flex justify-center relative group"
                   >
                     <CardDisplay
                       card={card}
@@ -248,6 +254,12 @@ export function TargetSelectionModal({
                       isClickable={!isDisabled}
                       isDisabled={isDisabled}
                     />
+                    {/* Hover tooltip */}
+                    {!isDisabled && !isSelected && (
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                        Click to select
+                      </div>
+                    )}
                   </div>
                 );
               })}

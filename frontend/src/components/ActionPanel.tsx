@@ -1,9 +1,10 @@
 /**
  * ActionPanel Component
  * Displays available actions and handles player inputs
+ * Supports keyboard shortcuts: 1-9 for actions, 0 for end turn
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ValidAction } from '../types/game';
 
 interface ActionPanelProps {
@@ -21,6 +22,55 @@ export function ActionPanel({
 }: ActionPanelProps) {
   const [shouldBlink, setShouldBlink] = useState(false);
   const [lastActionTime, setLastActionTime] = useState(Date.now());
+
+  // Build flat list of actions for keyboard shortcuts
+  // End turn is always index 0 (key '0'), other actions are 1-9
+  const flatActions = validActions.reduce((acc, action) => {
+    if (action.action_type === 'end_turn') {
+      // End turn goes to position 0
+      acc.unshift(action);
+    } else {
+      acc.push(action);
+    }
+    return acc;
+  }, [] as ValidAction[]);
+
+  // Keyboard shortcut handler
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Ignore if processing, or if user is typing in an input
+    if (isProcessing) return;
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    
+    const key = event.key;
+    
+    // 0 = end turn (first item), 1-9 = actions
+    if (key >= '0' && key <= '9') {
+      const index = parseInt(key, 10);
+      
+      if (index === 0) {
+        // End turn
+        const endTurnAction = flatActions.find(a => a.action_type === 'end_turn');
+        if (endTurnAction) {
+          event.preventDefault();
+          onAction(endTurnAction);
+        }
+      } else {
+        // Other actions (1-indexed, but skip end_turn which is at index 0)
+        const nonEndTurnActions = flatActions.filter(a => a.action_type !== 'end_turn');
+        const action = nonEndTurnActions[index - 1];
+        if (action) {
+          event.preventDefault();
+          onAction(action);
+        }
+      }
+    }
+  }, [flatActions, isProcessing, onAction]);
+
+  // Add keyboard listener
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   // Reset the inactivity timer whenever validActions changes (indicates an action was taken)
   useEffect(() => {
@@ -65,6 +115,16 @@ export function ActionPanel({
     return acc;
   }, {} as Record<string, ValidAction[]>);
 
+  // Build shortcut map: action ID -> shortcut key
+  // End turn = 0, other actions = 1-9
+  const getShortcutKey = (action: ValidAction): string | null => {
+    if (action.action_type === 'end_turn') return '0';
+    const nonEndTurnActions = validActions.filter(a => a.action_type !== 'end_turn');
+    const index = nonEndTurnActions.indexOf(action);
+    if (index >= 0 && index < 9) return String(index + 1);
+    return null;
+  };
+
   const getActionColor = (type: string) => {
     switch (type) {
       case 'play_card':
@@ -104,6 +164,7 @@ return (
             <div className="grid grid-cols-1 gap-3 w-full">
               {actions.map((action, index) => {
                 const cleanDescription = action.description.replace(/\s*\(Cost:.*?\)/, '');
+                const shortcutKey = getShortcutKey(action);
 
                 return (
                   <button
@@ -119,11 +180,17 @@ return (
                     `}
                   >
                     <div className="flex justify-between items-center w-full gap-2">
-                      <span className="font-bold text-left">{cleanDescription}</span>
+                      {/* Keyboard shortcut indicator */}
+                      {shortcutKey && (
+                        <span className="w-6 h-6 flex items-center justify-center bg-black/30 rounded text-xs font-mono font-bold flex-shrink-0">
+                          {shortcutKey}
+                        </span>
+                      )}
+                      <span className="font-bold text-left flex-1">{cleanDescription}</span>
                       
                       {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
                         <span className={`
-                          px-2 py-1 rounded text-xs font-bold whitespace-nowrap ml-auto
+                          px-2 py-1 rounded text-xs font-bold whitespace-nowrap
                           ${action.cost_cc > currentCC ? 'bg-red-800 text-white' : 'bg-black/40 text-white'}
                         `}>
                           {action.cost_cc} CC
