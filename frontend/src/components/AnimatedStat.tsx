@@ -4,10 +4,14 @@
  * Displays a stat value with animation when it changes.
  * - Green flash + scale up when value increases
  * - Red flash + shake when value decreases
+ * 
+ * Respects user's reduced motion preferences for accessibility (WCAG 2.1).
  */
 
-import { motion, AnimatePresence, type Easing } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePreviousValue } from '../hooks/usePreviousValue';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface AnimatedStatProps {
   value: number | null;
@@ -19,6 +23,26 @@ interface AnimatedStatProps {
   currentValue?: number | null;
 }
 
+// Animation variants defined outside component for performance (#116)
+const statVariants = {
+  initial: { scale: 1 },
+  increased: {
+    scale: [1, 1.3, 1],
+    transition: { duration: 0.4, ease: 'easeOut' as const }  // Use 'as const' for proper typing
+  },
+  decreased: {
+    x: [0, -3, 3, -3, 3, 0],
+    transition: { duration: 0.4, ease: 'easeOut' as const }
+  },
+};
+
+// No-animation variants for reduced motion preference
+const reducedMotionVariants = {
+  initial: { scale: 1 },
+  increased: { scale: 1 },
+  decreased: { scale: 1 },
+};
+
 export function AnimatedStat({
   value,
   baseValue,
@@ -27,8 +51,12 @@ export function AnimatedStat({
   size,
   currentValue,
 }: AnimatedStatProps) {
+  const prefersReducedMotion = useReducedMotion();
   const previousValue = usePreviousValue(value);
   const previousCurrent = usePreviousValue(currentValue);
+  
+  // State-based flash control for proper AnimatePresence animation (#114)
+  const [flashType, setFlashType] = useState<'increase' | 'decrease' | null>(null);
   
   // Determine if value changed and in which direction
   const valueIncreased = previousValue !== undefined && value !== null && previousValue !== null && value > previousValue;
@@ -37,6 +65,21 @@ export function AnimatedStat({
   // For stamina with current/max, also check current value changes
   const currentDecreased = previousCurrent !== undefined && currentValue !== undefined && currentValue !== null && previousCurrent !== null && currentValue < previousCurrent;
   const currentIncreased = previousCurrent !== undefined && currentValue !== undefined && currentValue !== null && previousCurrent !== null && currentValue > previousCurrent;
+  
+  // Trigger flash effect with proper timing for AnimatePresence (#114)
+  useEffect(() => {
+    if (prefersReducedMotion) return; // No flash effects for reduced motion
+    
+    if (valueIncreased || currentIncreased) {
+      setFlashType('increase');
+      const timer = setTimeout(() => setFlashType(null), 500);
+      return () => clearTimeout(timer);
+    } else if (valueDecreased || currentDecreased) {
+      setFlashType('decrease');
+      const timer = setTimeout(() => setFlashType(null), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [valueIncreased, currentIncreased, valueDecreased, currentDecreased, prefersReducedMotion]);
   
   // Determine animation key - changes trigger re-animation
   const animationKey = `${value}-${currentValue}`;
@@ -54,20 +97,6 @@ export function AnimatedStat({
     displayColor = '#4ade80'; // green-400
   }
   
-  // Animation variants with proper typing
-  const easeOut: Easing = 'easeOut';
-  const statVariants = {
-    initial: { scale: 1 },
-    increased: {
-      scale: [1, 1.3, 1],
-      transition: { duration: 0.4, ease: easeOut }
-    },
-    decreased: {
-      x: [0, -3, 3, -3, 3, 0],
-      transition: { duration: 0.4, ease: easeOut }
-    },
-  };
-  
   // Determine which animation to play
   let animateState: 'initial' | 'increased' | 'decreased' = 'initial';
   if (valueIncreased || currentIncreased) {
@@ -80,6 +109,9 @@ export function AnimatedStat({
   const displayValue = currentValue !== null && currentValue !== undefined && currentValue !== value
     ? `${currentValue}/${value}`
     : String(value);
+
+  // Use reduced motion variants if user prefers (#111)
+  const variants = prefersReducedMotion ? reducedMotionVariants : statVariants;
   
   return (
     <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center relative overflow-hidden">
@@ -97,7 +129,7 @@ export function AnimatedStat({
             color: displayColor,
             fontSize: size === 'small' ? '0.875rem' : '1rem',
           }}
-          variants={statVariants}
+          variants={variants}
           initial="initial"
           animate={animateState}
         >
@@ -108,10 +140,11 @@ export function AnimatedStat({
         </motion.div>
       </AnimatePresence>
       
-      {/* Flash overlay for dramatic effect */}
+      {/* Flash overlay for dramatic effect - using state-based timing (#114) */}
       <AnimatePresence>
-        {(valueIncreased || currentIncreased) && (
+        {flashType === 'increase' && (
           <motion.div
+            key="flash-increase"
             className="absolute inset-0 rounded pointer-events-none"
             style={{ backgroundColor: '#4ade80' }}
             initial={{ opacity: 0.6 }}
@@ -120,8 +153,9 @@ export function AnimatedStat({
             transition={{ duration: 0.5 }}
           />
         )}
-        {(valueDecreased || currentDecreased) && (
+        {flashType === 'decrease' && (
           <motion.div
+            key="flash-decrease"
             className="absolute inset-0 rounded pointer-events-none"
             style={{ backgroundColor: '#f87171' }}
             initial={{ opacity: 0.6 }}

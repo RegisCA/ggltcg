@@ -7,11 +7,14 @@
  * - layoutId enables smooth transitions when cards move between zones
  * - Entrance/exit animations
  * - Hover/tap feedback
+ * 
+ * Respects user's reduced motion preferences for accessibility (WCAG 2.1).
  */
 
 import { motion } from 'framer-motion';
 import type { Card } from '../types/game';
 import { AnimatedStat } from './AnimatedStat';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface CardDisplayProps {
   card: Card;
@@ -39,6 +42,8 @@ export function CardDisplay({
   size = 'medium',
   enableLayoutAnimation = false,
 }: CardDisplayProps) {
+  const prefersReducedMotion = useReducedMotion();
+  
   // Combine disabled states - isUnplayable is a specific kind of disabled
   const effectivelyDisabled = isDisabled || isUnplayable;
   const isToy = card.card_type === 'Toy';  // Match backend enum value
@@ -94,17 +99,17 @@ export function CardDisplay({
         // Apply grayscale filter for sleeped cards, but not opacity (handled by animate)
         filter: card.is_sleeped && !isSelected ? 'grayscale(100%)' : undefined,
       }}
-      initial={enableLayoutAnimation ? false : { opacity: 0, scale: 0.9 }}
+      initial={enableLayoutAnimation ? false : { opacity: 0, scale: prefersReducedMotion ? 1 : 0.9 }}
       animate={{ 
         opacity: effectivelyDisabled ? 0.5 : (card.is_sleeped && !isSelected ? 0.6 : 1), 
         scale: 1 
       }}
       transition={{ 
-        duration: 0.3,
-        layout: { duration: 0.4, ease: 'easeInOut' }
+        duration: prefersReducedMotion ? 0.1 : 0.3,
+        layout: { duration: prefersReducedMotion ? 0.1 : 0.4, ease: 'easeInOut' }
       }}
-      whileHover={isClickable && !effectivelyDisabled ? { scale: 1.05 } : undefined}
-      whileTap={isClickable && !effectivelyDisabled ? { scale: 0.98 } : undefined}
+      whileHover={isClickable && !effectivelyDisabled && !prefersReducedMotion ? { scale: 1.05 } : undefined}
+      whileTap={isClickable && !effectivelyDisabled && !prefersReducedMotion ? { scale: 0.98 } : undefined}
     >
       {/* Card Header: Cost + Name + Type Badge */}
       <div className="flex justify-between items-start mb-2" style={{ position: 'relative', zIndex: 1 }}>
