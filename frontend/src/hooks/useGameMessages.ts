@@ -37,16 +37,22 @@ export function useGameMessages(
   const hasShownStartingPlayer = useRef(false);
   const isProcessingMessage = useRef(false);
 
-  // Derive messages from play_by_play
+  // Derive messages from play_by_play (current turn and previous turn)
   const playByPlayMessages = useMemo(() => {
     if (!gameState?.play_by_play) return [];
     
-    // Convert play_by_play entries to display messages
-    return gameState.play_by_play.map((entry: PlayByPlayEntry) => {
-      // Format: "PlayerName: Action description"
-      return `${entry.player}: ${entry.description}`;
-    });
-  }, [gameState?.play_by_play]);
+    const currentTurn = gameState.turn_number;
+    
+    // Show messages from current turn AND previous turn
+    // This ensures you can see what happened on the opponent's turn
+    // when it switches back to your turn
+    return gameState.play_by_play
+      .filter((entry: PlayByPlayEntry) => entry.turn >= currentTurn - 1)
+      .map((entry: PlayByPlayEntry) => {
+        // Format: "PlayerName: Action description"
+        return `${entry.player}: ${entry.description}`;
+      });
+  }, [gameState?.play_by_play, gameState?.turn_number]);
 
   // Build starting player message
   const startingPlayerMessage = useMemo(() => {
