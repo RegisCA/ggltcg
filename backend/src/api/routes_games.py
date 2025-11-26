@@ -22,7 +22,7 @@ from api.schemas import (
 )
 from api.game_service import get_game_service
 from game_engine.models.card import Zone
-from game_engine.data.card_loader import random_deck, load_all_cards
+from game_engine.data.card_loader import load_all_cards
 from game_engine.ai.prompts import get_narrative_prompt
 from game_engine.ai.llm_player import get_llm_response
 
