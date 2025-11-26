@@ -113,7 +113,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
         
         return ActionResponse(
             success=True,
-            message=result.message,
+            message=result.description,  # Use detailed description for better UX
             game_state={"turn": game_state.turn_number, "phase": game_state.phase.value}
         )
         
@@ -621,7 +621,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 
                 return ActionResponse(
                     success=True,
-                    message=result.message,
+                    message=result.description,  # Use detailed description for better UX
                     game_state={"turn": game_state.turn_number},
                     ai_turn_summary=turn_summary
                 )
@@ -688,7 +688,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 
                 return ActionResponse(
                     success=True,
-                    message=result.message,
+                    message=result.description,  # Use detailed description for better UX
                     game_state={"turn": game_state.turn_number},
                     ai_turn_summary=turn_summary
                 )
