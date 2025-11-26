@@ -18,6 +18,7 @@ import { HandZone } from './HandZone';
 import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
 import { TargetSelectionModal } from './TargetSelectionModal';
+import { TurnTransition } from './TurnTransition';
 
 interface GameBoardProps {
   gameId: string;
@@ -158,6 +159,12 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   return (
     <div className="min-h-screen bg-game-bg p-3">
+      {/* Turn Transition Overlay */}
+      <TurnTransition
+        isPlayerTurn={isHumanTurn}
+        turnNumber={gameState.turn_number}
+      />
+      
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
         <div className="mb-3 p-3 bg-game-card rounded grid grid-cols-3 gap-4 items-center">
