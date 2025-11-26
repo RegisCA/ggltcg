@@ -82,7 +82,6 @@ export function CardDisplay({
         rounded
         ${isClickable && !effectivelyDisabled ? 'cursor-pointer' : ''}
         ${effectivelyDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-        ${card.is_sleeped ? 'opacity-50 grayscale' : ''}
       `}
       style={{
         width: `${config.width}px`,
@@ -92,9 +91,14 @@ export function CardDisplay({
         border: `${borderWidth} solid ${effectiveBorderColor}`,
         boxShadow,
         animation,
+        // Apply grayscale filter for sleeped cards, but not opacity (handled by animate)
+        filter: card.is_sleeped && !isSelected ? 'grayscale(100%)' : undefined,
       }}
       initial={enableLayoutAnimation ? false : { opacity: 0, scale: 0.9 }}
-      animate={{ opacity: card.is_sleeped || effectivelyDisabled ? 0.5 : 1, scale: 1 }}
+      animate={{ 
+        opacity: effectivelyDisabled ? 0.5 : (card.is_sleeped && !isSelected ? 0.6 : 1), 
+        scale: 1 
+      }}
       transition={{ 
         duration: 0.3,
         layout: { duration: 0.4, ease: 'easeInOut' }

@@ -21,7 +21,6 @@ import { HandZone } from './HandZone';
 import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
 import { TargetSelectionModal } from './TargetSelectionModal';
-import { TurnTransition } from './TurnTransition';
 
 interface GameBoardProps {
   gameId: string;
@@ -163,12 +162,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   return (
     <div className="min-h-screen bg-game-bg p-3">
-      {/* Turn Transition Overlay */}
-      <TurnTransition
-        isPlayerTurn={isHumanTurn}
-        turnNumber={gameState.turn_number}
-      />
-      
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
         <div className="mb-3 p-3 bg-game-card rounded grid grid-cols-3 gap-4 items-center">
@@ -177,7 +170,17 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             isActive={gameState.active_player_id === humanPlayerId}
           />
           <div className="text-center">
-            <div className="text-lg font-bold">Turn {gameState.turn_number}</div>
+            <div 
+              className={`
+                text-lg font-bold px-4 py-1 rounded-lg transition-all duration-300
+                ${isHumanTurn 
+                  ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
+                  : 'bg-gray-700 text-gray-300'
+                }
+              `}
+            >
+              {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
+            </div>
           </div>
           <div className="flex justify-end">
             <PlayerInfoBar
