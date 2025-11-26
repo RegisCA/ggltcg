@@ -2,6 +2,11 @@
  * CardDisplay Component
  * Renders a single card with GGLTCG design system
  * Supports multiple sizes and states according to UX spec
+ * 
+ * Uses Framer Motion for animations:
+ * - layoutId enables smooth transitions when cards move between zones
+ * - Entrance/exit animations
+ * - Hover/tap feedback
  */
 
 import { motion } from 'framer-motion';
@@ -18,6 +23,8 @@ interface CardDisplayProps {
   isUnplayable?: boolean;  // Card cannot be played this turn (not enough CC, restricted, etc.)
   isTussling?: boolean;
   size?: 'small' | 'medium' | 'large';
+  /** Enable layout animations for zone transitions (uses card.id as layoutId) */
+  enableLayoutAnimation?: boolean;
 }
 
 export function CardDisplay({
@@ -30,6 +37,7 @@ export function CardDisplay({
   isUnplayable = false,
   isTussling = false,
   size = 'medium',
+  enableLayoutAnimation = false,
 }: CardDisplayProps) {
   // Combine disabled states - isUnplayable is a specific kind of disabled
   const effectivelyDisabled = isDisabled || isUnplayable;
@@ -68,6 +76,7 @@ export function CardDisplay({
 
   return (
     <motion.div
+      layoutId={enableLayoutAnimation ? `card-${card.id}` : undefined}
       onClick={isClickable && !effectivelyDisabled ? onClick : undefined}
       className={`
         rounded
@@ -84,9 +93,12 @@ export function CardDisplay({
         boxShadow,
         animation,
       }}
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={enableLayoutAnimation ? false : { opacity: 0, scale: 0.9 }}
       animate={{ opacity: card.is_sleeped || effectivelyDisabled ? 0.5 : 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
+      transition={{ 
+        duration: 0.3,
+        layout: { duration: 0.4, ease: 'easeInOut' }
+      }}
       whileHover={isClickable && !effectivelyDisabled ? { scale: 1.05 } : undefined}
       whileTap={isClickable && !effectivelyDisabled ? { scale: 0.98 } : undefined}
     >

@@ -3,9 +3,12 @@
  * 
  * Main game interface that orchestrates all game components.
  * Refactored to use custom hooks for better separation of concerns.
+ * 
+ * Uses Framer Motion LayoutGroup for smooth card zone transitions.
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { LayoutGroup } from 'framer-motion';
 import type { ValidAction, GameState, Card } from '../types/game';
 import { useGameState, useValidActions } from '../hooks/useGame';
 import { useGameMessages } from '../hooks/useGameMessages';
@@ -32,10 +35,11 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
   
   // Responsive layout detection
-  const { isDesktop, isMobile } = useResponsive();
-  // Use medium cards for both desktop and tablet (need to read descriptions)
-  // Only use small for mobile where space is very limited
-  const cardSize = isMobile ? 'small' : 'medium';
+  const { isDesktop, isMobile, isLandscape, isTablet } = useResponsive();
+  // Use small cards for mobile OR tablet in landscape (limited vertical space)
+  // Use medium cards for desktop and tablet in portrait
+  const isLandscapeTablet = isTablet && isLandscape;
+  const cardSize = (isMobile || isLandscapeTablet) ? 'small' : 'medium';
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
@@ -184,6 +188,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         </div>
 
         {/* Main Game Area - Responsive Layout */}
+        <LayoutGroup>
         {isDesktop ? (
           /* Desktop: 3-column layout */
           <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 280px 350px' }}>
@@ -194,6 +199,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 playerName={otherPlayer.name}
                 isHuman={false}
                 cardSize={cardSize}
+                enableLayoutAnimation={true}
               />
               <div className="border-t-2 border-game-highlight"></div>
               <InPlayZone
@@ -203,6 +209,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 selectedCard={selectedCard || undefined}
                 onCardClick={(cardId) => setSelectedCard(cardId)}
                 cardSize={cardSize}
+                enableLayoutAnimation={true}
               />
             </div>
 
@@ -211,11 +218,13 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               <SleepZoneDisplay
                 cards={otherPlayer.sleep_zone}
                 playerName={otherPlayer.name}
+                enableLayoutAnimation={true}
               />
               <div className="border-t-2 border-game-highlight"></div>
               <SleepZoneDisplay
                 cards={humanPlayer.sleep_zone}
                 playerName={humanPlayer.name}
+                enableLayoutAnimation={true}
               />
             </div>
 
@@ -273,6 +282,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     playerName={otherPlayer.name}
                     isHuman={false}
                     cardSize={cardSize}
+                    enableLayoutAnimation={true}
                   />
                 </div>
                 <div style={{ width: '200px' }}>
@@ -280,6 +290,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     cards={otherPlayer.sleep_zone}
                     playerName={otherPlayer.name}
                     compact={true}
+                    enableLayoutAnimation={true}
                   />
                 </div>
               </div>
@@ -296,6 +307,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     selectedCard={selectedCard || undefined}
                     onCardClick={(cardId) => setSelectedCard(cardId)}
                     cardSize={cardSize}
+                    enableLayoutAnimation={true}
                   />
                 </div>
                 <div style={{ width: '200px' }}>
@@ -303,6 +315,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     cards={humanPlayer.sleep_zone}
                     playerName={humanPlayer.name}
                     compact={true}
+                    enableLayoutAnimation={true}
                   />
                 </div>
               </div>
@@ -361,8 +374,11 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             playableCardIds={playableCardIds}
             isPlayerTurn={isHumanTurn}
             cardSize={cardSize}
+            compact={isLandscapeTablet}
+            enableLayoutAnimation={true}
           />
         </div>
+        </LayoutGroup>
       </div>
 
       {/* Target Selection Modal */}
