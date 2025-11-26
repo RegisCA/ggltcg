@@ -1,15 +1,17 @@
 /**
  * useGameMessages Hook
  * 
- * Manages game message state and clearing logic.
+ * Manages game message state derived from the server's play_by_play.
+ * This ensures all players see all actions (including opponent's actions in multiplayer).
+ * 
  * Handles:
- * - Message display
+ * - Message display from play_by_play
  * - Starting player announcement
- * - Auto-clearing on turn transitions
+ * - Additional local messages (AI thinking, errors, etc.)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import type { GameState } from '../types/game';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import type { GameState, PlayByPlayEntry } from '../types/game';
 
 interface UseGameMessagesOptions {
   humanPlayerId: string;
@@ -25,62 +27,68 @@ interface UseGameMessagesReturn {
 
 export function useGameMessages(
   gameState: GameState | undefined,
-  options: UseGameMessagesOptions
+  _options: UseGameMessagesOptions  // Options kept for API compatibility, but not currently used
 ): UseGameMessagesReturn {
-  const { humanPlayerId, aiPlayerId } = options;
-  
-  const [messages, setMessages] = useState<string[]>([]);
-  const [shouldClearOnNextAction, setShouldClearOnNextAction] = useState(false);
+  // Local messages (for things like "AI is thinking..." that aren't in play_by_play)
+  const [localMessages, setLocalMessages] = useState<string[]>([]);
   
   // Track previous state for detecting transitions
-  const lastTurnNumber = useRef<number>(0);
-  const lastActivePlayerId = useRef<string>('');
+  const lastPlayByPlayLength = useRef<number>(0);
+  const hasShownStartingPlayer = useRef(false);
   const isProcessingMessage = useRef(false);
 
-  // Show starting player announcement and manage message clearing
+  // Derive messages from play_by_play
+  const playByPlayMessages = useMemo(() => {
+    if (!gameState?.play_by_play) return [];
+    
+    // Convert play_by_play entries to display messages
+    return gameState.play_by_play.map((entry: PlayByPlayEntry) => {
+      // Format: "PlayerName: Action description"
+      return `${entry.player}: ${entry.description}`;
+    });
+  }, [gameState?.play_by_play]);
+
+  // Build starting player message
+  const startingPlayerMessage = useMemo(() => {
+    if (!gameState || hasShownStartingPlayer.current) return null;
+    
+    const firstPlayerName = gameState.players[gameState.first_player_id]?.name || 'Unknown';
+    hasShownStartingPlayer.current = true;
+    return `${firstPlayerName} goes first!`;
+  }, [gameState]);
+
+  // Combined messages: starting player + play_by_play + local messages
+  const messages = useMemo(() => {
+    const allMessages: string[] = [];
+    
+    // Add starting player message first (if exists)
+    if (startingPlayerMessage) {
+      allMessages.push(startingPlayerMessage);
+    }
+    
+    // Add all play_by_play messages
+    allMessages.push(...playByPlayMessages);
+    
+    // Add any local messages (AI thinking, errors, etc.)
+    allMessages.push(...localMessages);
+    
+    return allMessages;
+  }, [startingPlayerMessage, playByPlayMessages, localMessages]);
+
+  // Clear local messages when new play_by_play entries arrive
+  // This removes stale "AI is thinking..." messages once the action completes
   useEffect(() => {
-    if (!gameState) return;
-
-    const currentTurn = gameState.turn_number;
-    const currentActivePlayer = gameState.active_player_id;
-
-    // Show starting player announcement on turn 1, first load
-    if (currentTurn === 1 && lastTurnNumber.current === 0 && !lastActivePlayerId.current) {
-      const firstPlayerName = gameState.players[gameState.first_player_id]?.name || 'Unknown';
-      setMessages([`${firstPlayerName} goes first!`]);
-      lastTurnNumber.current = 1;
-      lastActivePlayerId.current = currentActivePlayer;
-      
-      // If human goes first, set flag to clear on their first action
-      if (currentActivePlayer === humanPlayerId) {
-        setShouldClearOnNextAction(true);
-      }
-      return;
+    if (!gameState?.play_by_play) return;
+    
+    const currentLength = gameState.play_by_play.length;
+    if (currentLength > lastPlayByPlayLength.current) {
+      // New entries arrived, clear local messages
+      setLocalMessages([]);
+      lastPlayByPlayLength.current = currentLength;
     }
+  }, [gameState?.play_by_play]);
 
-    // When active player changes, handle message clearing
-    if (currentActivePlayer !== lastActivePlayerId.current && lastActivePlayerId.current !== '') {
-      if (currentActivePlayer === humanPlayerId) {
-        // Transitioning to human: set flag to clear on their first action
-        setShouldClearOnNextAction(true);
-        lastActivePlayerId.current = currentActivePlayer;
-      } else if (aiPlayerId && currentActivePlayer === aiPlayerId) {
-        // Transitioning to AI: clear messages immediately
-        setMessages([]);
-        lastActivePlayerId.current = currentActivePlayer;
-      } else {
-        // Transitioning to other human player in multiplayer
-        lastActivePlayerId.current = currentActivePlayer;
-      }
-    }
-
-    // Track turn number changes
-    if (currentTurn !== lastTurnNumber.current) {
-      lastTurnNumber.current = currentTurn;
-    }
-  }, [gameState, humanPlayerId, aiPlayerId]);
-
-  // Add a message with optional clearing behavior
+  // Add a local message (for things not in play_by_play)
   const addMessage = useCallback((
     msg: string, 
     options?: { skipIfGameOver?: boolean; response?: any }
@@ -90,18 +98,15 @@ export function useGameMessages(
       return;
     }
 
-    setMessages(prev => {
-      if (shouldClearOnNextAction) {
-        setShouldClearOnNextAction(false);
-        return [msg];
-      }
-      return [...prev, msg];
-    });
-  }, [shouldClearOnNextAction]);
+    // Don't add duplicate messages that are already in play_by_play
+    // (This handles the case where human actions are added locally before 
+    // the server response updates play_by_play)
+    setLocalMessages(prev => [...prev, msg]);
+  }, []);
 
-  // Clear all messages
+  // Clear local messages
   const clearMessages = useCallback(() => {
-    setMessages([]);
+    setLocalMessages([]);
   }, []);
 
   return {
