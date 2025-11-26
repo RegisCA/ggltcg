@@ -14,6 +14,7 @@ from game_engine.models.card import CardType, Zone
 from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.models.card import Card
+from game_engine.rules.effects.continuous_effects import BallaberCostEffect
 
 logger = logging.getLogger(__name__)
 
@@ -238,8 +239,6 @@ class ActionExecutor:
         Returns:
             tuple: (kwargs dict with alternative cost info, effective cost)
         """
-        from ..rules.effects.continuous_effects import BallaberCostEffect
-        
         kwargs = {}
         
         if alternative_cost_card_id and card.has_effect_type(BallaberCostEffect):
