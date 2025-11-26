@@ -50,7 +50,7 @@ export function CardDisplay({
   let effectiveBorderColor = borderColor;
   let boxShadow = undefined;
   let animation = undefined;
-  let borderWidth = '2px';
+  const borderWidth = '2px';  // Keep consistent to avoid layout shifts
   
   if (isTussling) {
     effectiveBorderColor = 'var(--ggltcg-red)';
@@ -58,8 +58,7 @@ export function CardDisplay({
     animation = 'tussle-shake 0.3s ease-in-out infinite';
   } else if (isSelected) {
     effectiveBorderColor = '#FFD700'; // Gold color for selection
-    boxShadow = '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4)';
-    borderWidth = '3px';
+    boxShadow = '0 0 12px rgba(255, 215, 0, 0.9), 0 0 24px rgba(255, 215, 0, 0.5)';
   } else if (isHighlighted) {
     effectiveBorderColor = 'var(--ui-highlight)';
     boxShadow = '0 0 12px rgba(74, 123, 255, 0.4)';
@@ -72,7 +71,6 @@ export function CardDisplay({
         transition-all duration-200 rounded
         ${isClickable && !effectivelyDisabled ? 'cursor-pointer hover:scale-105 hover:shadow-xl' : ''}
         ${effectivelyDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-        ${isSelected ? 'scale-105 shadow-xl' : ''}
         ${card.is_sleeped ? 'opacity-50 grayscale' : ''}
       `}
       style={{
