@@ -130,14 +130,14 @@ class ActionValidator:
             cost = self.engine.calculate_card_cost(card, player)
             
             # Check for alternative cost
+            from ..rules.effects.continuous_effects import BallaberCostEffect
             alternative_cost_available = False
             alternative_cost_options = None
             
-            if card.name == "Ballaber":
-                # Can sleep any card in hand or in play except Ballaber itself
+            if card.has_effect_type(BallaberCostEffect):
+                # Can sleep any card in hand or in play
                 alt_cards = [
                     c for c in (player.in_play + (player.hand or []))
-                    if c.name != "Ballaber"
                 ]
                 if alt_cards:
                     alternative_cost_available = True
@@ -155,8 +155,9 @@ class ActionValidator:
             if alternative_cost_available:
                 desc += " or sleep a card"
             
-            # Special handling for Copy - cost varies by target
-            if card.name == "Copy" and target_info["target_options"]:
+            # Special handling for cards with variable cost based on target (e.g., Copy)
+            from ..rules.effects.action_effects import CopyEffect
+            if card.has_effect_type(CopyEffect) and target_info["target_options"]:
                 valid_actions.append(
                     ValidAction(
                         action_type="play_card",

@@ -53,6 +53,9 @@ Thumbs.db
 logs/
 *.log
 
+# Temp files
+*.tsv
+
 # Test coverage
 .coverage
 htmlcov/
