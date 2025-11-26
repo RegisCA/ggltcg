@@ -337,6 +337,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 onAction={handleAction}
                 isProcessing={isProcessing}
                 currentCC={humanPlayer.cc}
+                compact={true}
               />
             </div>
           </div>

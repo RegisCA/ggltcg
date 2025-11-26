@@ -12,6 +12,7 @@ interface ActionPanelProps {
   onAction: (action: ValidAction) => void;
   isProcessing: boolean;
   currentCC: number;
+  compact?: boolean;  // Smaller buttons for tablet
 }
 
 export function ActionPanel({
@@ -19,6 +20,7 @@ export function ActionPanel({
   onAction,
   isProcessing,
   currentCC,
+  compact = false,
 }: ActionPanelProps) {
   const [shouldBlink, setShouldBlink] = useState(false);
   const [lastActionTime, setLastActionTime] = useState(Date.now());
@@ -139,12 +141,12 @@ export function ActionPanel({
   };
 
 return (
-  <div className="p-3 bg-game-card rounded border-2 border-game-accent w-full">
-    <div className="mb-3">
+  <div className={`bg-game-card rounded border-2 border-game-accent w-full ${compact ? 'p-2' : 'p-3'}`}>
+    <div className={compact ? 'mb-2' : 'mb-3'}>
       {/* CHANGE: Conditionally build the header text. 
         Only include the current CC if there are actions to display.
       */}
-      <h3 className="text-lg font-bold mb-1">
+      <h3 className={`font-bold ${compact ? 'text-sm mb-0.5' : 'text-lg mb-1'}`}>
         Available Actions
         {validActions.length > 0 && (
           // If actions are available, add " for {currentCC} CC"
@@ -154,14 +156,14 @@ return (
     </div>
 
     {validActions.length === 0 ? (
-      <div className="text-gray-500 italic text-center py-4">
+      <div className={`text-gray-500 italic text-center ${compact ? 'py-2 text-xs' : 'py-4'}`}>
         No actions available
       </div>
     ) : (
-      <div className="grid grid-cols-1 gap-3 w-full">
+      <div className={`grid grid-cols-1 w-full ${compact ? 'gap-1.5' : 'gap-3'}`}>
         {Object.entries(groupedActions).map(([actionType, actions]) => (
           <div key={actionType} className="w-full">
-            <div className="grid grid-cols-1 gap-3 w-full">
+            <div className={`grid grid-cols-1 w-full ${compact ? 'gap-1.5' : 'gap-3'}`}>
               {actions.map((action, index) => {
                 const cleanDescription = action.description.replace(/\s*\(Cost:.*?\)/, '');
                 const shortcutKey = getShortcutKey(action);
@@ -172,17 +174,18 @@ return (
                     onClick={() => onAction(action)}
                     disabled={isProcessing}
                     className={`
-                      w-full block px-4 py-3 rounded transition-all text-sm border-2
+                      w-full block rounded transition-all border-2
+                      ${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'}
                       ${getActionColor(action.action_type)}
                       ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
                       ${action.action_type === 'end_turn' && shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
                       disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                   >
-                    <div className="flex justify-between items-center w-full gap-2">
+                    <div className={`flex justify-between items-center w-full ${compact ? 'gap-1' : 'gap-2'}`}>
                       {/* Keyboard shortcut indicator */}
                       {shortcutKey && (
-                        <span className="w-6 h-6 flex items-center justify-center bg-black/30 rounded text-xs font-mono font-bold flex-shrink-0">
+                        <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 ${compact ? 'w-5 h-5 text-[10px]' : 'w-6 h-6 text-xs'}`}>
                           {shortcutKey}
                         </span>
                       )}
@@ -190,7 +193,8 @@ return (
                       
                       {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
                         <span className={`
-                          px-2 py-1 rounded text-xs font-bold whitespace-nowrap
+                          rounded font-bold whitespace-nowrap
+                          ${compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'}
                           ${action.cost_cc > currentCC ? 'bg-red-800 text-white' : 'bg-black/40 text-white'}
                         `}>
                           {action.cost_cc} CC
