@@ -48,6 +48,7 @@ function GameApp() {
   const [gameCode, setGameCode] = useState<string>('');
   const [currentPlayerId, setCurrentPlayerId] = useState<'player1' | 'player2'>('player1');
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [hiddenCardsMode, setHiddenCardsMode] = useState(false);
 
   const createGameMutation = useCreateGame();
 
@@ -68,8 +69,9 @@ function GameApp() {
     setGamePhase('lobby-join');
   };
 
-  const handlePlayVsAI = () => {
+  const handlePlayVsAI = (hiddenMode: boolean) => {
     setGameMode('single-player');
+    setHiddenCardsMode(hiddenMode);
     setGamePhase('deck-selection-p1');
   };
 
@@ -82,6 +84,7 @@ function GameApp() {
     setGameId(null);
     setGameCode('');
     setCurrentPlayerId('player1');
+    setHiddenCardsMode(false);
   };
 
   // Lobby handlers
@@ -163,6 +166,7 @@ function GameApp() {
     setGameCode('');
     setCurrentPlayerId('player1');
     setGameState(null);
+    setHiddenCardsMode(false);
   };
 
   if (gamePhase === 'loading') {
@@ -202,11 +206,11 @@ function GameApp() {
   }
 
   if (gamePhase === 'deck-selection-p1') {
-    return <DeckSelection playerName="Player" onDeckSelected={handlePlayer1DeckSelected} />;
+    return <DeckSelection playerName="Player" onDeckSelected={handlePlayer1DeckSelected} hiddenMode={hiddenCardsMode} />;
   }
 
   if (gamePhase === 'deck-selection-p2') {
-    return <DeckSelection playerName="Opponent" onDeckSelected={handlePlayer2DeckSelected} />;
+    return <DeckSelection playerName="Opponent" onDeckSelected={handlePlayer2DeckSelected} hiddenMode={hiddenCardsMode} />;
   }
 
   if (gamePhase === 'playing' && gameId) {
