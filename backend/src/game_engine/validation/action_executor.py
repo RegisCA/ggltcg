@@ -389,7 +389,14 @@ class ActionExecutor:
         
         # Add effect text for Action cards
         if card.is_action():
-            description += f" ({card.effect_text})"
+            # Strip play restrictions from effect text (they're not relevant after playing)
+            effect_description = card.effect_text
+            effect_description = effect_description.replace(
+                " This card may not be played on your first turn.", ""
+            ).replace(
+                "This card may not be played on your first turn.", ""
+            )
+            description += f" ({effect_description})"
             
             # Add target-specific details
             if card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
