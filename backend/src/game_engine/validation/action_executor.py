@@ -377,9 +377,11 @@ class ActionExecutor:
         kwargs: Dict[str, Any]
     ) -> str:
         """
-        Build a detailed description of playing a card.
+        Build a concise description of playing a card.
         
-        Includes cost, effect text, and target-specific details.
+        Focuses on the action result rather than repeating effect text.
+        Effect descriptions are removed as they're redundant - players can
+        see the card's effect on the card itself.
         """
         # Base description
         if kwargs.get("alternative_cost_paid"):
@@ -387,18 +389,8 @@ class ActionExecutor:
         else:
             description = f"Spent {cost} CC to play {card.name}"
         
-        # Add effect text for Action cards
+        # Add target-specific details for Action cards (the meaningful part)
         if card.is_action():
-            # Strip play restrictions from effect text (they're not relevant after playing)
-            effect_description = card.effect_text
-            effect_description = effect_description.replace(
-                " This card may not be played on your first turn.", ""
-            ).replace(
-                "This card may not be played on your first turn.", ""
-            )
-            description += f" ({effect_description})"
-            
-            # Add target-specific details
             if card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Unslept {target_card.name}"
