@@ -12,9 +12,10 @@ import type { CardDataResponse } from '../types/api';
 interface DeckSelectionProps {
   onDeckSelected: (deck: string[], customName?: string) => void;
   playerName: string;
+  hiddenMode?: boolean;  // When true, cards are face-down and only random selection works
 }
 
-export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps) {
+export function DeckSelection({ onDeckSelected, playerName, hiddenMode = false }: DeckSelectionProps) {
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [numToys, setNumToys] = useState(4); // Default: 4 Toys
   const [numActions, setNumActions] = useState(2); // Default: 2 Actions
@@ -225,11 +226,41 @@ export function DeckSelection({ onDeckSelected, playerName }: DeckSelectionProps
           </button>
         </div>
 
+        {/* Hidden Mode Info Banner */}
+        {hiddenMode && (
+          <div className="mb-3 p-3 bg-purple-900 rounded-lg text-center">
+            <span className="text-lg">🎭 <strong>Challenge Mode:</strong> Cards are hidden! Use the slider and Random Deck button to build your deck.</span>
+          </div>
+        )}
+
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
           {cards.map((cardData) => {
             const isSelected = selectedCards.includes(cardData.name);
             const card = createCardForDisplay(cardData);
-            const isDisabled = !isSelected && selectedCards.length >= 6;
+            const isDisabled = hiddenMode || (!isSelected && selectedCards.length >= 6);
+            
+            // In hidden mode, show card backs
+            if (hiddenMode) {
+              return (
+                <div
+                  key={cardData.name}
+                  style={{ display: 'flex', justifyContent: 'center' }}
+                >
+                  <div
+                    className={`
+                      w-[165px] h-[225px] rounded border-2 flex items-center justify-center p-4
+                      ${isSelected ? 'border-yellow-400 bg-gray-600 shadow-lg shadow-yellow-400/30' : 'border-gray-600 bg-gray-700'}
+                    `}
+                  >
+                    <img 
+                      src="/ggltcg-logo.svg" 
+                      alt="Hidden card" 
+                      className={`w-full h-full object-contain ${isSelected ? 'opacity-70' : 'opacity-40'}`}
+                    />
+                  </div>
+                </div>
+              );
+            }
             
             return (
               <div
