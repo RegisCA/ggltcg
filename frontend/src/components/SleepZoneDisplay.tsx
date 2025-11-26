@@ -9,15 +9,19 @@ import type { Card } from '../types/game';
 interface SleepZoneDisplayProps {
   cards: Card[];
   playerName: string;
+  compact?: boolean;  // Reduce spacing in tablet mode
 }
 
-export function SleepZoneDisplay({ cards, playerName }: SleepZoneDisplayProps) {
+export function SleepZoneDisplay({ cards, playerName, compact = false }: SleepZoneDisplayProps) {
   const cardList = cards || [];
   // Calculate height: base card height (164px for small) + offset for each additional card
-  const stackHeight = cardList.length > 0 ? 164 + (cardList.length - 1) * 28 : 160;
+  const stackOffset = compact ? 22 : 28;
+  const horizontalOffset = compact ? 18 : 25;
+  const stackHeight = cardList.length > 0 ? 164 + (cardList.length - 1) * stackOffset : 160;
+  const minHeight = compact ? '180px' : '200px';
   
   return (
-    <div className="bg-gray-800 rounded p-3 border border-gray-700" style={{ minHeight: '200px' }}>
+    <div className="bg-gray-800 rounded p-3 border border-gray-700" style={{ minHeight }}>
       <div className="text-sm text-gray-400 mb-2">
         {playerName} - SLEEP ZONE ({cardList.length})
       </div>
@@ -33,8 +37,8 @@ export function SleepZoneDisplay({ cards, playerName }: SleepZoneDisplayProps) {
               key={card.id}
               style={{ 
                 position: 'absolute',
-                top: `${index * 28}px`,
-                left: `${index * 25}px`,
+                top: `${index * stackOffset}px`,
+                left: `${index * horizontalOffset}px`,
                 zIndex: index,
               }}
             >
