@@ -124,11 +124,15 @@ export function TargetSelectionModal({
         {/* Header */}
         <div className="p-4 border-b-4 border-game-accent bg-gray-800 flex-shrink-0">
           <h2 className="text-2xl font-bold mb-1 text-game-highlight">
-            Playing {action.card_name}
+            {action.action_type === 'tussle' 
+              ? `Tussle with ${action.card_name}` 
+              : `Playing ${action.card_name}`}
           </h2>
-          <p className="text-base text-gray-300 mb-3">
-            Cost: {action.cost_cc} CC
-          </p>
+          {action.action_type !== 'tussle' && action.cost_cc !== undefined && (
+            <p className="text-base text-gray-300 mb-3">
+              Cost: {action.cost_cc} CC
+            </p>
+          )}
           <p className="text-base text-gray-100 mb-3">
             {action.description}
           </p>
@@ -145,12 +149,14 @@ export function TargetSelectionModal({
               className={`
                 px-8 py-3 rounded-lg font-bold transition-all text-white
                 ${canConfirm()
-                  ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
+                  ? action.action_type === 'tussle' 
+                    ? 'bg-red-600 hover:bg-red-700 cursor-pointer'
+                    : 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                   : 'bg-gray-600 cursor-not-allowed opacity-50'
                 }
               `}
             >
-              Confirm
+              {action.action_type === 'tussle' ? 'Attack!' : 'Confirm'}
             </button>
           </div>
         </div>

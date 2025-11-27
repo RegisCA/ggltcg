@@ -75,8 +75,9 @@ export function CardDisplay({
     effectiveBorderColor = '#FFD700'; // Gold color for selection
     boxShadow = '0 0 12px rgba(255, 215, 0, 0.9), 0 0 24px rgba(255, 215, 0, 0.5)';
   } else if (isHighlighted) {
-    effectiveBorderColor = 'var(--ui-highlight)';
-    boxShadow = '0 0 12px rgba(74, 123, 255, 0.4)';
+    // Subtle green glow for actionable cards (can tussle or use ability)
+    effectiveBorderColor = '#22c55e'; // Green border
+    boxShadow = '0 0 8px rgba(34, 197, 94, 0.5)';
   }
 
   return (
