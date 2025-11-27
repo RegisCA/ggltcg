@@ -94,6 +94,10 @@ class StatBoostEffect(ContinuousEffect):
         if card.zone != Zone.IN_PLAY:
             return base_value
         
+        # Also check source card is in play
+        if self.source_card.zone != Zone.IN_PLAY:
+            return base_value
+        
         # Check if this effect applies to the requested stat
         if self.stat_name != "all" and self.stat_name != stat_name:
             return base_value
@@ -273,6 +277,10 @@ class KaEffect(ContinuousEffect):
         if card.zone != Zone.IN_PLAY:
             return base_value
         
+        # Also check source card (Ka) is in play
+        if self.source_card.zone != Zone.IN_PLAY:
+            return base_value
+        
         if stat_name != "strength":
             return base_value
         
@@ -329,6 +337,10 @@ class DemidecaEffect(ContinuousEffect):
         # FIX (Issue #123): Only buff cards in IN_PLAY zone
         from ...models.card import Zone
         if card.zone != Zone.IN_PLAY:
+            return base_value
+        
+        # Also check source card (Demideca) is in play
+        if self.source_card.zone != Zone.IN_PLAY:
             return base_value
         
         # Only modify toy stats (speed, strength, stamina)
