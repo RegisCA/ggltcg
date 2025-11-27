@@ -195,7 +195,6 @@ class TussleResolver:
         if attacker_speed > defender_speed:
             # Attacker strikes first
             result.first_striker = "attacker"
-            attacker.apply_damage(defender_strength)
             defender.apply_damage(attacker_strength)
             
             # Check if defender is sleeped before counter-attack
@@ -203,13 +202,15 @@ class TussleResolver:
                 result.defender_sleeped = True
                 # Defender doesn't strike back
                 result.defender_damage = 0
-            elif TussleResolver.is_card_defeated(game_state, attacker):
-                result.attacker_sleeped = True
+            else:
+                # Defender survived, strikes back
+                attacker.apply_damage(defender_strength)
+                if TussleResolver.is_card_defeated(game_state, attacker):
+                    result.attacker_sleeped = True
         
         elif defender_speed > attacker_speed:
             # Defender strikes first
             result.first_striker = "defender"
-            defender.apply_damage(attacker_strength)
             attacker.apply_damage(defender_strength)
             
             # Check if attacker is sleeped before counter-attack
@@ -217,8 +218,11 @@ class TussleResolver:
                 result.attacker_sleeped = True
                 # Attacker doesn't deal damage
                 result.attacker_damage = 0
-            elif TussleResolver.is_card_defeated(game_state, defender):
-                result.defender_sleeped = True
+            else:
+                # Attacker survived, strikes back
+                defender.apply_damage(attacker_strength)
+                if TussleResolver.is_card_defeated(game_state, defender):
+                    result.defender_sleeped = True
         
         else:
             # Simultaneous strikes
