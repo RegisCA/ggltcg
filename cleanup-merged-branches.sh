@@ -34,7 +34,7 @@ echo "📋 Merged branches (will be deleted):"
 echo "-------------------------------------"
 
 # Find merged branches (excluding main and current branch)
-MERGED_BRANCHES=$(git branch --merged main | grep -v "^\*" | grep -v "main" | grep -v "fix/bugs-107-108-123")
+MERGED_BRANCHES=$(git branch --merged main | grep -v "^\*" | grep -v "main")
 
 if [ -z "$MERGED_BRANCHES" ]; then
     echo "✅ No merged branches to clean up!"

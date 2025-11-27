@@ -8,14 +8,12 @@ Both bugs stem from applying damage to both cards before checking
 if the first striker defeated their opponent.
 """
 
-import pytest
 import sys
 from pathlib import Path
 
 # Add backend/src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from game_engine.game_engine import GameEngine
 from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.models.card import Card, CardType, Zone
@@ -357,8 +355,8 @@ class TestBug129BearyVsKnightTussle:
 class TestTussleStrikeOrderEdgeCases:
     """Additional edge case tests for strike order logic."""
     
-    def test_simultaneous_strikes_both_defeated(self):
-        """When speeds are tied, both strike simultaneously and can both be defeated."""
+    def test_attacker_strikes_first_with_turn_bonus(self):
+        """Attacker gets +1 speed turn bonus and strikes first, not simultaneous."""
         # Setup
         player1 = Player(player_id="player1", name="Player 1")
         player2 = Player(player_id="player2", name="Player 2")
