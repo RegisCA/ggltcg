@@ -513,7 +513,9 @@ class GameEngine:
         # Sleep random card from opponent's hand
         if opponent.hand:
             target = random.choice(opponent.hand)
-            opponent.sleep_card(target)
+            # FIX (Issue #107): Sleep to owner's zone, not controller's zone
+            target_owner = self.game_state.players[target.owner]
+            target_owner.sleep_card(target)
             
             self.game_state.log_event(
                 f"{player.name}'s {attacker.name} direct attack! "
@@ -550,7 +552,9 @@ class GameEngine:
                     self.game_state.log_event(
                         f"{attacker.name} auto-wins! {defender.name} is sleeped."
                     )
-                    self._sleep_card(defender, defender_player, was_in_play=True)
+                    # Sleep to owner's zone (not controller's)
+                    defender_owner = self.game_state.players[defender.owner]
+                    self._sleep_card(defender, defender_owner, was_in_play=True)
                     return
         
         # Calculate speeds (with turn bonus for attacker)
@@ -579,7 +583,9 @@ class GameEngine:
             
             if defender.current_stamina <= 0:
                 self.game_state.log_event(f"{defender.name} is sleeped!")
-                self._sleep_card(defender, defender_player, was_in_play=True)
+                # Sleep to owner's zone (not controller's)
+                defender_owner = self.game_state.players[defender.owner]
+                self._sleep_card(defender, defender_owner, was_in_play=True)
             else:
                 # Defender strikes back
                 attacker.current_stamina -= defender_strength
@@ -590,7 +596,9 @@ class GameEngine:
                 
                 if attacker.current_stamina <= 0:
                     self.game_state.log_event(f"{attacker.name} is sleeped!")
-                    self._sleep_card(attacker, attacker_player, was_in_play=True)
+                    # Sleep to owner's zone (not controller's)
+                    attacker_owner = self.game_state.players[attacker.owner]
+                    self._sleep_card(attacker, attacker_owner, was_in_play=True)
         
         elif defender_speed > attacker_speed:
             # Defender strikes first
@@ -602,7 +610,9 @@ class GameEngine:
             
             if attacker.current_stamina <= 0:
                 self.game_state.log_event(f"{attacker.name} is sleeped!")
-                self._sleep_card(attacker, attacker_player, was_in_play=True)
+                # Sleep to owner's zone (not controller's)
+                attacker_owner = self.game_state.players[attacker.owner]
+                self._sleep_card(attacker, attacker_owner, was_in_play=True)
             else:
                 # Attacker strikes back
                 defender.current_stamina -= attacker_strength
@@ -613,7 +623,9 @@ class GameEngine:
                 
                 if defender.current_stamina <= 0:
                     self.game_state.log_event(f"{defender.name} is sleeped!")
-                    self._sleep_card(defender, defender_player, was_in_play=True)
+                    # Sleep to owner's zone (not controller's)
+                    defender_owner = self.game_state.players[defender.owner]
+                    self._sleep_card(defender, defender_owner, was_in_play=True)
         
         else:
             # Tied speed - simultaneous strikes
@@ -627,11 +639,15 @@ class GameEngine:
             
             if attacker.current_stamina <= 0:
                 self.game_state.log_event(f"{attacker.name} is sleeped!")
-                self._sleep_card(attacker, attacker_player, was_in_play=True)
+                # Sleep to owner's zone (not controller's)
+                attacker_owner = self.game_state.players[attacker.owner]
+                self._sleep_card(attacker, attacker_owner, was_in_play=True)
             
             if defender.current_stamina <= 0:
                 self.game_state.log_event(f"{defender.name} is sleeped!")
-                self._sleep_card(defender, defender_player, was_in_play=True)
+                # Sleep to owner's zone (not controller's)
+                defender_owner = self.game_state.players[defender.owner]
+                self._sleep_card(defender, defender_owner, was_in_play=True)
     
     def _sleep_card(self, card: Card, player: Player, was_in_play: bool) -> None:
         """
@@ -679,7 +695,9 @@ class GameEngine:
                         cards_to_sleep.append(card)
             
             for card in cards_to_sleep:
-                self._sleep_card(card, player, was_in_play=True)
+                # Sleep to owner's zone (not controller's)
+                owner = self.game_state.players[card.owner]
+                self._sleep_card(card, owner, was_in_play=True)
         
         # Check victory
         self.game_state.check_victory()

@@ -89,6 +89,11 @@ class StatBoostEffect(ContinuousEffect):
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
                    game_state: "GameState") -> int:
         """Apply stat boost to controller's cards."""
+        # FIX (Issue #123): Only buff cards in IN_PLAY zone
+        from ...models.card import Zone
+        if card.zone != Zone.IN_PLAY:
+            return base_value
+        
         # Check if this effect applies to the requested stat
         if self.stat_name != "all" and self.stat_name != stat_name:
             return base_value
@@ -137,6 +142,12 @@ class SetTussleCostEffect(CostModificationEffect):
     def modify_tussle_cost(self, base_cost: int, game_state: "GameState",
                           controller: "Player") -> int:
         """Set tussle cost for controller's cards."""
+        # FIX (Issue #123): Only apply to cards in IN_PLAY zone
+        # (Tussle cost only matters for cards in play, but adding check for consistency)
+        from ...models.card import Zone
+        if self.source_card.zone != Zone.IN_PLAY:
+            return base_cost
+        
         effect_controller = game_state.get_card_controller(self.source_card)
         
         if effect_controller and effect_controller == controller:
@@ -257,6 +268,11 @@ class KaEffect(ContinuousEffect):
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
                    game_state: "GameState") -> int:
         """Apply +2 Strength to controller's cards."""
+        # FIX (Issue #123): Only buff cards in IN_PLAY zone
+        from ...models.card import Zone
+        if card.zone != Zone.IN_PLAY:
+            return base_value
+        
         if stat_name != "strength":
             return base_value
         
@@ -286,6 +302,11 @@ class WizardEffect(CostModificationEffect):
     def modify_tussle_cost(self, base_cost: int, game_state: "GameState",
                           controller: "Player") -> int:
         """Set tussle cost to 1 for Wizard's controller."""
+        # FIX (Issue #123): Only apply when Wizard is in IN_PLAY zone
+        from ...models.card import Zone
+        if self.source_card.zone != Zone.IN_PLAY:
+            return base_cost
+        
         wizard_controller = game_state.get_card_controller(self.source_card)
         
         if wizard_controller and wizard_controller == controller:
@@ -305,6 +326,11 @@ class DemidecaEffect(ContinuousEffect):
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
                    game_state: "GameState") -> int:
         """Apply +1 to all stats for controller's cards."""
+        # FIX (Issue #123): Only buff cards in IN_PLAY zone
+        from ...models.card import Zone
+        if card.zone != Zone.IN_PLAY:
+            return base_value
+        
         # Only modify toy stats (speed, strength, stamina)
         if stat_name not in ("speed", "strength", "stamina"):
             return base_value
