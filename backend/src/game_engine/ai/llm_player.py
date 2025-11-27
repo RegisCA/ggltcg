@@ -165,6 +165,13 @@ class LLMPlayer:
             target_id = response_data.get("target_id")
             alternative_cost_id = response_data.get("alternative_cost_id")
             
+            # Normalize string "null" to actual None
+            # Some LLMs return the string "null" instead of null/None
+            if target_id == "null" or target_id == "None":
+                target_id = None
+            if alternative_cost_id == "null" or alternative_cost_id == "None":
+                alternative_cost_id = None
+            
             # DEBUG: Log all actions with their numbers
             logger.info("=" * 60)
             logger.info("DEBUG - Valid Actions List:")
