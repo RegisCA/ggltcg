@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes_games import router as games_router
 from .routes_actions import router as actions_router
 from .routes_lobby import router as lobby_router
+from .auth_routes import router as auth_router
 
 # Configure logging
 logging.basicConfig(
@@ -48,6 +49,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(games_router)
 app.include_router(actions_router)
 app.include_router(lobby_router)

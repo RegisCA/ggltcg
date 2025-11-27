@@ -4,41 +4,34 @@
  */
 
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { createLobby } from '../api/gameService';
 
 interface LobbyCreateProps {
-  onLobbyCreated: (gameId: string, gameCode: string, playerName: string) => void;
+  onLobbyCreated: (gameId: string, gameCode: string) => void;
   onBack: () => void;
 }
 
 export function LobbyCreate({ onLobbyCreated, onBack }: LobbyCreateProps) {
-  const [playerName, setPlayerName] = useState('');
+  const { user } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const playerName = user?.display_name || 'Player';
+
   const handleCreate = async () => {
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
 
     setIsCreating(true);
     setError(null);
 
     try {
-      const response = await createLobby({ player1_name: playerName.trim() });
-      onLobbyCreated(response.game_id, response.game_code, playerName.trim());
+      const response = await createLobby({ player1_name: playerName });
+      onLobbyCreated(response.game_id, response.game_code);
     } catch (err: any) {
       console.error('Failed to create lobby:', err);
       setError(err.response?.data?.detail || 'Failed to create lobby. Please try again.');
     } finally {
       setIsCreating(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && playerName.trim() && !isCreating) {
-      handleCreate();
     }
   };
 
@@ -56,34 +49,12 @@ export function LobbyCreate({ onLobbyCreated, onBack }: LobbyCreateProps) {
         {/* Title */}
         <div className="text-center mb-8">
           <h1 className="text-5xl font-bold mb-3 text-game-highlight">Create Game</h1>
-          <p className="text-xl text-gray-200 font-semibold">Enter your name to start a new game</p>
+          <p className="text-xl text-gray-200 font-semibold">Start a new game as <span className="text-game-highlight">{playerName}</span></p>
         </div>
 
         {/* Form */}
         <div className="bg-gray-800 rounded-lg p-8 border-2 border-gray-600">
           <div className="space-y-6">
-            {/* Player Name Input */}
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-300">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Enter your name..."
-                maxLength={50}
-                disabled={isCreating}
-                autoFocus
-                className={`
-                  w-full px-4 py-3 rounded bg-gray-700 border-2 text-lg
-                  focus:outline-none focus:border-game-highlight transition-colors
-                  ${isCreating ? 'opacity-50 cursor-not-allowed' : 'border-gray-600'}
-                `}
-              />
-            </div>
-
             {/* Error Message */}
             {error && (
               <div className="bg-red-900/30 border-2 border-red-500 rounded p-3 text-red-200">
@@ -94,10 +65,10 @@ export function LobbyCreate({ onLobbyCreated, onBack }: LobbyCreateProps) {
             {/* Create Button */}
             <button
               onClick={handleCreate}
-              disabled={!playerName.trim() || isCreating}
+              disabled={isCreating}
               className={`
                 w-full py-4 rounded-lg font-bold text-xl transition-all
-                ${!playerName.trim() || isCreating
+                ${isCreating
                   ? 'bg-gray-600 cursor-not-allowed opacity-50'
                   : 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                 }

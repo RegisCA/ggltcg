@@ -4,24 +4,23 @@
  */
 
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { joinLobby } from '../api/gameService';
 
 interface LobbyJoinProps {
-  onLobbyJoined: (gameId: string, gameCode: string, player1Name: string, player2Name: string) => void;
+  onLobbyJoined: (gameId: string, gameCode: string, player1Name: string) => void;
   onBack: () => void;
 }
 
 export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
-  const [playerName, setPlayerName] = useState('');
+  const { user } = useAuth();
   const [gameCode, setGameCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const playerName = user?.display_name || 'Player';
+
   const handleJoin = async () => {
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
 
     if (!gameCode.trim()) {
       setError('Please enter a game code');
@@ -39,8 +38,8 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
     setError(null);
 
     try {
-      const response = await joinLobby(cleanCode, { player2_name: playerName.trim() });
-      onLobbyJoined(response.game_id, response.game_code, response.player1_name, playerName.trim());
+      const response = await joinLobby(cleanCode, { player2_name: playerName });
+      onLobbyJoined(response.game_id, response.game_code, response.player1_name);
     } catch (err: any) {
       console.error('Failed to join lobby:', err);
       const errorMsg = err.response?.data?.detail || 'Failed to join lobby. Please check the game code and try again.';
@@ -51,7 +50,7 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && playerName.trim() && gameCode.trim() && !isJoining) {
+    if (e.key === 'Enter' && gameCode.trim() && !isJoining) {
       handleJoin();
     }
   };
@@ -76,34 +75,12 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
         {/* Title */}
         <div className="text-center mb-8">
           <h1 className="text-5xl font-bold mb-3 text-game-highlight">Join Game</h1>
-          <p className="text-xl text-gray-200 font-semibold">Enter the game code from your friend</p>
+          <p className="text-xl text-gray-200 font-semibold">Joining as <span className="text-game-highlight">{playerName}</span></p>
         </div>
 
         {/* Form */}
         <div className="bg-gray-800 rounded-lg p-8 border-2 border-gray-600">
           <div className="space-y-6">
-            {/* Player Name Input */}
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-300">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Enter your name..."
-                maxLength={50}
-                disabled={isJoining}
-                autoFocus
-                className={`
-                  w-full px-4 py-3 rounded bg-gray-700 border-2 text-lg
-                  focus:outline-none focus:border-game-highlight transition-colors
-                  ${isJoining ? 'opacity-50 cursor-not-allowed' : 'border-gray-600'}
-                `}
-              />
-            </div>
-
             {/* Game Code Input */}
             <div>
               <label className="block text-sm font-semibold mb-2 text-gray-300">
@@ -117,6 +94,7 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
                 placeholder="6-character code"
                 maxLength={6}
                 disabled={isJoining}
+                autoFocus
                 className={`
                   w-full px-4 py-3 rounded bg-gray-700 border-2 text-2xl font-mono text-center tracking-widest
                   focus:outline-none focus:border-game-highlight transition-colors uppercase
@@ -138,10 +116,10 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
             {/* Join Button */}
             <button
               onClick={handleJoin}
-              disabled={!playerName.trim() || !gameCode.trim() || isJoining}
+              disabled={!gameCode.trim() || isJoining}
               className={`
                 w-full py-4 rounded-lg font-bold text-xl transition-all
-                ${!playerName.trim() || !gameCode.trim() || isJoining
+                ${!gameCode.trim() || isJoining
                   ? 'bg-gray-600 cursor-not-allowed opacity-50'
                   : 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                 }

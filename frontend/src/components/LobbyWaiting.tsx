@@ -47,7 +47,7 @@ export function LobbyWaiting({
   });
 
   // Handle deck selection submission
-  const handleDeckSelected = async (deck: string[]) => {
+  const handleDeckSelected = async (deck: string[], _playerName: string) => {
     setError(null);
 
     try {
@@ -93,7 +93,6 @@ export function LobbyWaiting({
         )}
 
         <DeckSelection
-          playerName={currentPlayerName}
           onDeckSelected={handleDeckSelected}
         />
       </div>

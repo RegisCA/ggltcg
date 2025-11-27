@@ -16,6 +16,48 @@ import uuid
 Base = declarative_base()
 
 
+class UserModel(Base):
+    """
+    Database model for authenticated users.
+    
+    Stores user information from Google OAuth for authentication and display.
+    """
+    __tablename__ = "users"
+    
+    # Primary key - Google ID (subject identifier from Google OAuth)
+    google_id = Column(String(255), primary_key=True)
+    
+    # User profile information
+    first_name = Column(String(255), nullable=False)
+    custom_display_name = Column(String(255), nullable=True)
+    
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now()
+    )
+    
+    # Indexes for efficient lookups
+    __table_args__ = (
+        Index('idx_users_display_name', 'custom_display_name'),
+    )
+    
+    def __repr__(self):
+        return f"<User(google_id={self.google_id}, name={self.display_name})>"
+    
+    @property
+    def display_name(self) -> str:
+        """Return custom display name if set, otherwise first name."""
+        return self.custom_display_name or self.first_name
+
+
 class GameModel(Base):
     """
     Database model for game sessions.
