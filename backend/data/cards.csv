@@ -6,7 +6,6 @@ Archer,18,0,This card can't start tussles. You may spend CC to remove stamina fr
 Umbruh,18,1,"When sleeped, gain 1 CC.",4,4,4,,,#C74444,#C74444,gain_cc_when_sleeped:1
 Ka,18,2,Your cards have + 2 strength.,5,9,1,,,#C74444,#C74444,stat_boost:strength:2
 Demideca,18,1,Your cards have + 1 of all stats.,3,2,3,,,#C74444,#C74444,stat_boost:all:1
-Snuggles,18,2,"Just a snuggle. No effect yet.",2,3,1,,,#C74444,#C74444,
 Raggy,18,3,This card's tussles cost 0. This card may not tussle on the first turn of the game.,2,3,2,,,#C74444,#C74444,set_self_tussle_cost:0:not_turn_1
 Ballaber,18,3,You may sleep 1 of your cards to play this card for free.,4,6,4,,,#C74444,#C74444,alternative_cost_sleep_card
 Dream,18,4,This card costs 1 less for each of your sleeping cards.,4,5,4,,,#d8c7fa,#C74444,reduce_cost_by_sleeping
