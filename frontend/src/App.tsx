@@ -1,11 +1,14 @@
 /**
  * Main App Component
- * Handles game flow: menu → lobby/deck selection → game → game over
+ * Handles game flow: login → menu → lobby/deck selection → game → game over
  */
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/LoadingScreen';
+import LoginPage from './components/LoginPage';
+import { UserMenu } from './components/UserMenu';
 import { LobbyHome } from './components/LobbyHome';
 import { LobbyCreate } from './components/LobbyCreate';
 import { LobbyJoin } from './components/LobbyJoin';
@@ -39,6 +42,7 @@ type GamePhase =
 type GameMode = 'single-player' | 'multiplayer';
 
 function GameApp() {
+  // Auth context is used by DeckSelection to get user's display name
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
   const [gameMode, setGameMode] = useState<GameMode>('single-player');
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
@@ -88,19 +92,17 @@ function GameApp() {
   };
 
   // Lobby handlers
-  const handleLobbyCreated = (newGameId: string, newGameCode: string, playerName: string) => {
+  const handleLobbyCreated = (newGameId: string, newGameCode: string) => {
     setGameId(newGameId);
     setGameCode(newGameCode);
-    setPlayer1Name(playerName);
     setCurrentPlayerId('player1');
     setGamePhase('lobby-waiting');
   };
 
-  const handleLobbyJoined = (newGameId: string, newGameCode: string, player1: string, player2: string) => {
+  const handleLobbyJoined = (newGameId: string, newGameCode: string, player1Name: string) => {
     setGameId(newGameId);
     setGameCode(newGameCode);
-    setPlayer1Name(player1);
-    setPlayer2Name(player2);
+    setPlayer1Name(player1Name);
     setCurrentPlayerId('player2');
     setGamePhase('lobby-waiting');
   };
@@ -110,18 +112,14 @@ function GameApp() {
     setGamePhase('playing');
   };
 
-  const handlePlayer1DeckSelected = (deck: string[], customName?: string) => {
+  const handlePlayer1DeckSelected = (deck: string[], playerName: string) => {
     setPlayer1Deck(deck);
-    if (customName) {
-      setPlayer1Name(customName);
-    }
+    setPlayer1Name(playerName);
     setGamePhase('deck-selection-p2');
   };
 
-  const handlePlayer2DeckSelected = (deck: string[], customName?: string) => {
-    if (customName) {
-      setPlayer2Name(customName);
-    }
+  const handlePlayer2DeckSelected = (deck: string[], playerName: string) => {
+    setPlayer2Name(playerName);
     
     // Create the game
     createGameMutation.mutate(
@@ -133,7 +131,7 @@ function GameApp() {
         },
         player2: {
           player_id: 'ai',
-          name: customName || player2Name,
+          name: playerName,
           deck,
         },
       },
@@ -206,11 +204,11 @@ function GameApp() {
   }
 
   if (gamePhase === 'deck-selection-p1') {
-    return <DeckSelection playerName="Player" onDeckSelected={handlePlayer1DeckSelected} hiddenMode={hiddenCardsMode} />;
+    return <DeckSelection onDeckSelected={handlePlayer1DeckSelected} hiddenMode={hiddenCardsMode} />;
   }
 
   if (gamePhase === 'deck-selection-p2') {
-    return <DeckSelection playerName="Opponent" onDeckSelected={handlePlayer2DeckSelected} hiddenMode={hiddenCardsMode} />;
+    return <DeckSelection onDeckSelected={handlePlayer2DeckSelected} hiddenMode={hiddenCardsMode} />;
   }
 
   if (gamePhase === 'playing' && gameId) {
@@ -242,8 +240,34 @@ function GameApp() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <GameApp />
+      <AuthWrapper />
     </QueryClientProvider>
+  );
+}
+
+function AuthWrapper() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading while checking auth state
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+        <div style={{ fontSize: '1.5rem' }}>Loading...</div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  // Show game app if authenticated with UserMenu overlay
+  return (
+    <>
+      <UserMenu />
+      <GameApp />
+    </>
   );
 }
 

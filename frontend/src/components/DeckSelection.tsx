@@ -4,26 +4,28 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { CardDisplay } from './CardDisplay';
 import { getRandomDeck, getAllCards } from '../api/gameService';
 import type { Card } from '../types/game';
 import type { CardDataResponse } from '../types/api';
 
 interface DeckSelectionProps {
-  onDeckSelected: (deck: string[], customName?: string) => void;
-  playerName: string;
+  onDeckSelected: (deck: string[], playerName: string) => void;
   hiddenMode?: boolean;  // When true, cards are face-down and only random selection works
 }
 
-export function DeckSelection({ onDeckSelected, playerName, hiddenMode = false }: DeckSelectionProps) {
+export function DeckSelection({ onDeckSelected, hiddenMode = false }: DeckSelectionProps) {
+  const { user } = useAuth();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [numToys, setNumToys] = useState(4); // Default: 4 Toys
   const [numActions, setNumActions] = useState(2); // Default: 2 Actions
   const [isRandomizing, setIsRandomizing] = useState(false);
-  const [customName, setCustomName] = useState(playerName);
-  const [isEditingName, setIsEditingName] = useState(false);
   const [cards, setCards] = useState<CardDataResponse[]>([]);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
+
+  // Get display name from authenticated user
+  const playerName = user?.display_name || 'Player';
 
   // Load cards from backend on mount
   useEffect(() => {
@@ -38,14 +40,6 @@ export function DeckSelection({ onDeckSelected, playerName, hiddenMode = false }
         setIsLoadingCards(false);
       });
   }, []);
-
-  // Reset customName and clear selections when playerName prop changes (when switching between player 1 and player 2)
-  useEffect(() => {
-    setCustomName(playerName);
-    setSelectedCards([]);
-    setNumToys(4);
-    setNumActions(2);
-  }, [playerName]);
 
   const toggleCard = (cardName: string) => {
     if (selectedCards.includes(cardName)) {
@@ -77,7 +71,7 @@ export function DeckSelection({ onDeckSelected, playerName, hiddenMode = false }
 
   const handleConfirm = () => {
     if (selectedCards.length === 6) {
-      onDeckSelected(selectedCards, customName);
+      onDeckSelected(selectedCards, playerName);
     }
   };
 
@@ -117,42 +111,9 @@ export function DeckSelection({ onDeckSelected, playerName, hiddenMode = false }
         {/* Header with title, card count, and Confirm button */}
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-3">
-            {isEditingName ? (
-              <input
-                type="text"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                onBlur={() => setIsEditingName(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setIsEditingName(false);
-                }}
-                autoFocus
-                maxLength={30}
-                className="text-3xl font-bold bg-gray-800 border-2 border-game-highlight rounded px-3 py-1 focus:outline-none"
-              />
-            ) : (
-              <h1 
-                className="text-3xl font-bold cursor-pointer hover:text-game-highlight transition-colors"
-                onClick={() => setIsEditingName(true)}
-                title="Click to edit name"
-              >
-                {customName}
-              </h1>
-            )}
-            <button
-              onClick={() => setIsEditingName(true)}
-              className="text-gray-400 hover:text-game-highlight transition-colors"
-              style={{ 
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                fontSize: '1.25rem'
-              }}
-              title="Edit name"
-            >
-              ✏️
-            </button>
+            <h1 className="text-3xl font-bold">
+              {playerName}
+            </h1>
           </div>
 
           <p className="text-xl font-semibold text-game-highlight">
