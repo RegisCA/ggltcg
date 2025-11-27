@@ -7,12 +7,18 @@ Tests for bug fixes #107, #108, and #123.
 """
 
 import pytest
+import sys
 from pathlib import Path
-from src.game_engine.game_engine import GameEngine
-from src.game_engine.models.game_state import GameState
-from src.game_engine.models.player import Player
-from src.game_engine.models.card import Card, CardType, Zone
-from src.game_engine.data.card_loader import CardLoader
+
+# Add backend/src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from game_engine.game_engine import GameEngine
+from game_engine.models.game_state import GameState
+from game_engine.models.player import Player
+from game_engine.models.card import Card, CardType, Zone
+from game_engine.data.card_loader import CardLoader
+
 
 
 class TestBug107SleepToOwnerZone:
@@ -273,7 +279,7 @@ class TestBug123StatBuffsOnlyInPlay:
         player1.hand.append(snuggles_in_hand)
         
         # Get Ka's effect
-        from src.game_engine.rules.effects.effect_registry import EffectRegistry
+        from game_engine.rules.effects.effect_registry import EffectRegistry
         ka_effects = EffectRegistry.get_effects(ka)
         
         # Find the stat boost effect
@@ -357,7 +363,7 @@ class TestBug123StatBuffsOnlyInPlay:
         player1.hand.append(card_in_hand)
         
         # Get Demideca's effect
-        from src.game_engine.rules.effects.effect_registry import EffectRegistry
+        from game_engine.rules.effects.effect_registry import EffectRegistry
         demideca_effects = EffectRegistry.get_effects(demideca)
         
         # Find the stat boost effect
@@ -438,7 +444,7 @@ class TestBug123StatBuffsOnlyInPlay:
         player1.hand.append(wizard_in_hand)
         
         # Get effects
-        from src.game_engine.rules.effects.effect_registry import EffectRegistry
+        from game_engine.rules.effects.effect_registry import EffectRegistry
         
         # Wizard in play - should apply cost reduction
         effects_in_play = EffectRegistry.get_effects(wizard_in_play)

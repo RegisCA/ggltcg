@@ -278,8 +278,8 @@ class ActionValidator:
                     target_options = [t.id for t in valid_targets]
                     logger.debug(f"Card {card.name}: target_options set to {len(target_options)} IDs")
                 
-                # Mark as requiring targets only if valid targets exist or min_targets == 0
-                requires_targets = bool(valid_targets) or min_targets == 0
+                # Card requires targets (effect.requires_targets() returned True)
+                requires_targets = True
                 break
         
         return {
