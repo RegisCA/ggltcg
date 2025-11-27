@@ -21,6 +21,7 @@ import { HandZone } from './HandZone';
 import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
 import { TargetSelectionModal } from './TargetSelectionModal';
+import { GameMessages } from './GameMessages';
 
 interface GameBoardProps {
   gameId: string;
@@ -82,6 +83,20 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     .filter(a => a.action_type === 'play_card' && a.card_id)
     .map(a => a.card_id!);
 
+  // Compute cards that can initiate tussle (attacker cards)
+  const tussleableCardIds = (validActionsData?.valid_actions || [])
+    .filter(a => a.action_type === 'tussle' && a.card_id)
+    .map(a => a.card_id!)
+    .filter((id, index, arr) => arr.indexOf(id) === index); // unique
+
+  // Compute cards with activated abilities
+  const activatableCardIds = (validActionsData?.valid_actions || [])
+    .filter(a => a.action_type === 'activate_ability' && a.card_id)
+    .map(a => a.card_id!);
+
+  // Cards in play that have any action available (tussle OR activate)
+  const actionableInPlayCardIds = [...new Set([...tussleableCardIds, ...activatableCardIds])];
+
   const isHumanTurn = gameState?.active_player_id === humanPlayerId;
 
   // Clear pendingAction (modal) when turn ends or active player changes
@@ -108,15 +123,93 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     executeAction(action, []);
   }, [executeAction]);
 
+  // Handle direct card click from Hand zone - find and execute play_card action
+  const handleHandCardClick = useCallback((cardId: string) => {
+    setSelectedCard(cardId);
+    
+    // Find the play_card action for this card
+    const playAction = (validActionsData?.valid_actions || []).find(
+      a => a.action_type === 'play_card' && a.card_id === cardId
+    );
+    
+    if (playAction) {
+      // Trigger the action (will open modal if targets needed, otherwise execute)
+      handleAction(playAction);
+    }
+  }, [validActionsData?.valid_actions, handleAction]);
+
+  // Handle direct card click from InPlay zone - find tussle or activated ability action
+  const handleInPlayCardClick = useCallback((cardId: string) => {
+    setSelectedCard(cardId);
+    
+    const validActions = validActionsData?.valid_actions || [];
+    
+    // Check for activated ability first (like Archer)
+    const abilityAction = validActions.find(
+      a => a.action_type === 'activate_ability' && a.card_id === cardId
+    );
+    
+    if (abilityAction) {
+      handleAction(abilityAction);
+      return;
+    }
+    
+    // Check for tussle actions from this card
+    const tussleActions = validActions.filter(
+      a => a.action_type === 'tussle' && a.card_id === cardId
+    );
+    
+    if (tussleActions.length === 1 && tussleActions[0].target_options?.length === 1) {
+      // Single target - execute directly (like direct attack or only one defender)
+      executeAction(tussleActions[0], []);
+    } else if (tussleActions.length > 0) {
+      // Multiple tussle targets - create a synthetic action for target selection modal
+      // Collect all unique target options from all tussle actions for this card
+      const allTargetIds = [...new Set(
+        tussleActions.flatMap(a => a.target_options || [])
+      )];
+      
+      const syntheticTussleAction: ValidAction = {
+        action_type: 'tussle',
+        card_id: cardId,
+        card_name: tussleActions[0].card_name,
+        target_options: allTargetIds,
+        min_targets: 1,
+        max_targets: 1,
+        description: `Select target for ${tussleActions[0].card_name} to tussle`,
+      };
+      
+      setPendingAction(syntheticTussleAction);
+    }
+  }, [validActionsData?.valid_actions, handleAction, executeAction]);
+
   // Handle target selection from modal
   const handleTargetSelection = useCallback((
     selectedTargets: string[],
     alternativeCostCard?: string
   ) => {
     if (!pendingAction) return;
+    
+    // For tussle actions, we need to find the actual action with this target
+    // because the backend expects the specific tussle action, not a synthetic one
+    if (pendingAction.action_type === 'tussle' && selectedTargets.length === 1) {
+      const targetId = selectedTargets[0];
+      const actualTussleAction = (validActionsData?.valid_actions || []).find(
+        a => a.action_type === 'tussle' && 
+             a.card_id === pendingAction.card_id && 
+             a.target_options?.includes(targetId)
+      );
+      
+      if (actualTussleAction) {
+        executeAction(actualTussleAction, selectedTargets, alternativeCostCard);
+        setPendingAction(null);
+        return;
+      }
+    }
+    
     executeAction(pendingAction, selectedTargets, alternativeCostCard);
     setPendingAction(null);
-  }, [pendingAction, executeAction]);
+  }, [pendingAction, executeAction, validActionsData?.valid_actions]);
 
   const handleCancelTargetSelection = useCallback(() => {
     setPendingAction(null);
@@ -210,7 +303,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 playerName={humanPlayer.name}
                 isHuman={true}
                 selectedCard={selectedCard || undefined}
-                onCardClick={(cardId) => setSelectedCard(cardId)}
+                onCardClick={handleInPlayCardClick}
+                actionableCardIds={actionableInPlayCardIds}
+                isPlayerTurn={isHumanTurn}
                 cardSize={cardSize}
                 enableLayoutAnimation={true}
               />
@@ -233,35 +328,11 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
             {/* Right Column - Messages + Actions */}
             <div className="space-y-3">
-              {/* Messages Area */}
-              <div
-                className="bg-gray-800 rounded p-3 border border-gray-700"
-                style={{ minHeight: '200px', maxHeight: '400px', overflowY: 'auto' }}
-              >
-                <div className="text-sm text-gray-400 mb-2">Game Messages</div>
-                <div className="space-y-2">
-                  {messages.map((msg, idx) => (
-                    <div key={idx} className="p-2 bg-blue-900 rounded text-sm">
-                      {msg}
-                    </div>
-                  ))}
-                  {isAIThinking && (
-                    <div className="p-2 bg-purple-900 rounded text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                      <svg 
-                        style={{ width: '14px', height: '14px', flexShrink: 0 }}
-                        className="animate-spin text-purple-300" 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        fill="none" 
-                        viewBox="0 0 24 24"
-                      >
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Opponent is thinking...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Messages Area - Collapsible */}
+              <GameMessages
+                messages={messages}
+                isAIThinking={isAIThinking}
+              />
 
               {/* Actions Panel */}
               <ActionPanel
@@ -308,7 +379,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     playerName={humanPlayer.name}
                     isHuman={true}
                     selectedCard={selectedCard || undefined}
-                    onCardClick={(cardId) => setSelectedCard(cardId)}
+                    onCardClick={handleInPlayCardClick}
+                    actionableCardIds={actionableInPlayCardIds}
+                    isPlayerTurn={isHumanTurn}
                     cardSize={cardSize}
                     enableLayoutAnimation={true}
                   />
@@ -326,35 +399,12 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
             {/* Right Column - Messages + Actions */}
             <div className="space-y-2">
-              {/* Messages Area - Compact */}
-              <div
-                className="bg-gray-800 rounded p-2 border border-gray-700"
-                style={{ maxHeight: '180px', overflowY: 'auto' }}
-              >
-                <div className="text-xs text-gray-400 mb-1">Game Messages</div>
-                <div className="space-y-1">
-                  {messages.slice(-5).map((msg, idx) => (
-                    <div key={idx} className="p-1 bg-blue-900 rounded text-xs">
-                      {msg}
-                    </div>
-                  ))}
-                  {isAIThinking && (
-                    <div className="p-1 bg-purple-900 rounded text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <svg 
-                        style={{ width: '12px', height: '12px', flexShrink: 0 }}
-                        className="animate-spin text-purple-300" 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        fill="none" 
-                        viewBox="0 0 24 24"
-                      >
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Opponent thinking...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Messages Area - Compact & Collapsible */}
+              <GameMessages
+                messages={messages}
+                isAIThinking={isAIThinking}
+                compact={true}
+              />
 
               {/* Actions Panel */}
               <ActionPanel
@@ -373,7 +423,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           <HandZone
             cards={humanPlayer.hand || []}
             selectedCard={selectedCard || undefined}
-            onCardClick={(cardId) => setSelectedCard(cardId)}
+            onCardClick={handleHandCardClick}
             playableCardIds={playableCardIds}
             isPlayerTurn={isHumanTurn}
             cardSize={cardSize}

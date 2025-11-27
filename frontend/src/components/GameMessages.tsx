@@ -1,0 +1,139 @@
+/**
+ * GameMessages Component
+ * 
+ * Displays game messages/play-by-play with collapsible functionality.
+ * Supports both desktop and compact (tablet) modes.
+ */
+
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface GameMessagesProps {
+  messages: string[];
+  isAIThinking?: boolean;
+  compact?: boolean;  // Compact mode for tablet
+}
+
+export function GameMessages({ 
+  messages, 
+  isAIThinking = false, 
+  compact = false 
+}: GameMessagesProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // In compact mode, show fewer messages by default
+  const displayMessages = compact ? messages.slice(-5) : messages;
+  const messageCount = messages.length;
+
+  return (
+    <div className="bg-gray-800 rounded border border-gray-700 overflow-hidden">
+      {/* Header - Always visible, clickable to toggle */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className={`
+          w-full flex items-center justify-between
+          ${compact ? 'px-2 py-1.5' : 'px-3 py-2'}
+          bg-gray-900 hover:bg-gray-800 transition-colors
+          ${!isCollapsed ? 'border-b border-gray-700' : ''}
+        `}
+      >
+        <div className="flex items-center gap-2">
+          <span className={`text-gray-400 font-medium ${compact ? 'text-xs' : 'text-sm'}`}>
+            Game Log
+          </span>
+          {messageCount > 0 && (
+            <span className={`
+              px-1.5 py-0.5 rounded-full bg-blue-900 text-blue-300
+              ${compact ? 'text-[10px]' : 'text-xs'}
+            `}>
+              {messageCount}
+            </span>
+          )}
+        </div>
+        <svg
+          className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'} ${compact ? 'w-3 h-3' : 'w-4 h-4'}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          style={{ width: compact ? '12px' : '16px', height: compact ? '12px' : '16px' }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        </svg>
+      </button>
+
+      {/* Collapsible Content */}
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div
+              className={compact ? 'p-2' : 'p-3'}
+              style={{ 
+                maxHeight: compact ? '150px' : '350px', 
+                overflowY: 'auto' 
+              }}
+            >
+              {displayMessages.length === 0 && !isAIThinking ? (
+                <div className={`text-gray-500 italic ${compact ? 'text-xs' : 'text-sm'}`}>
+                  No messages yet
+                </div>
+              ) : (
+                <div className={compact ? 'space-y-1' : 'space-y-2'}>
+                  {displayMessages.map((msg, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`
+                        bg-blue-900 rounded
+                        ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}
+                      `}
+                    >
+                      {msg}
+                    </div>
+                  ))}
+                  {isAIThinking && (
+                    <div 
+                      className={`
+                        bg-purple-900 rounded inline-flex items-center
+                        ${compact ? 'p-1 text-xs gap-1.5' : 'p-2 text-sm gap-2'}
+                      `}
+                    >
+                      <svg 
+                        style={{ 
+                          width: compact ? '12px' : '14px', 
+                          height: compact ? '12px' : '14px', 
+                          flexShrink: 0 
+                        }}
+                        className="animate-spin text-purple-300" 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        fill="none" 
+                        viewBox="0 0 24 24"
+                      >
+                        <circle 
+                          className="opacity-25" 
+                          cx="12" cy="12" r="10" 
+                          stroke="currentColor" 
+                          strokeWidth="4"
+                        />
+                        <path 
+                          className="opacity-75" 
+                          fill="currentColor" 
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      <span>{compact ? 'Opponent thinking...' : 'Opponent is thinking...'}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

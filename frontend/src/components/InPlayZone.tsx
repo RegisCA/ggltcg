@@ -1,6 +1,9 @@
 /**
  * InPlayZone Component
  * Displays cards that are in play for a player
+ * 
+ * Supports direct card interaction for tussles and activated abilities.
+ * Cards that have available actions show a subtle glow when hovered.
  */
 
 import { CardDisplay } from './CardDisplay';
@@ -12,6 +15,8 @@ interface InPlayZoneProps {
   isHuman?: boolean;
   selectedCard?: string;  // Now expects card ID instead of card name
   onCardClick?: (cardId: string) => void;
+  actionableCardIds?: string[];  // IDs of cards that can perform actions (tussle/ability)
+  isPlayerTurn?: boolean;  // Whether it's the player's turn
   cardSize?: 'small' | 'medium';  // Responsive card size
   enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
@@ -21,6 +26,8 @@ export function InPlayZone({
   isHuman = false, 
   selectedCard, 
   onCardClick, 
+  actionableCardIds = [],
+  isPlayerTurn = false,
   cardSize = 'medium',
   enableLayoutAnimation = false,
 }: InPlayZoneProps) {
@@ -44,17 +51,26 @@ export function InPlayZone({
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {cardList.map((card) => (
-              <CardDisplay
-                key={card.id}
-                card={card}
-                size={cardSize}
-                isSelected={selectedCard === card.id}
-                isClickable={isHuman && !!onCardClick}
-                onClick={isHuman && onCardClick ? () => onCardClick(card.id) : undefined}
-                enableLayoutAnimation={enableLayoutAnimation}
-              />
-            ))}
+            {cardList.map((card) => {
+              // Card is actionable if it's in the actionable list (can tussle or use ability)
+              const isActionable = isPlayerTurn && actionableCardIds.includes(card.id);
+              // Card is clickable if it's the human's zone, has a click handler, AND has an action
+              // Non-actionable cards are still visible but not clickable
+              const isClickable = isHuman && !!onCardClick && isActionable;
+              
+              return (
+                <CardDisplay
+                  key={card.id}
+                  card={card}
+                  size={cardSize}
+                  isSelected={selectedCard === card.id}
+                  isClickable={isClickable}
+                  isHighlighted={isActionable}
+                  onClick={isClickable ? () => onCardClick(card.id) : undefined}
+                  enableLayoutAnimation={enableLayoutAnimation}
+                />
+              );
+            })}
           </div>
         )}
       </div>
