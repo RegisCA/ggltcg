@@ -13,9 +13,10 @@ import type { CardDataResponse } from '../types/api';
 interface DeckSelectionProps {
   onDeckSelected: (deck: string[], playerName: string) => void;
   hiddenMode?: boolean;  // When true, cards are face-down and only random selection works
+  defaultPlayerName?: string;  // Override the default player name (for AI player)
 }
 
-export function DeckSelection({ onDeckSelected, hiddenMode = false }: DeckSelectionProps) {
+export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlayerName }: DeckSelectionProps) {
   const { user } = useAuth();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [numToys, setNumToys] = useState(4); // Default: 4 Toys
@@ -24,8 +25,8 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false }: DeckSelect
   const [cards, setCards] = useState<CardDataResponse[]>([]);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
 
-  // Get display name from authenticated user
-  const playerName = user?.display_name || 'Player';
+  // Use provided default name, or get display name from authenticated user
+  const playerName = defaultPlayerName || user?.display_name || 'Player';
 
   // Load cards from backend on mount
   useEffect(() => {
