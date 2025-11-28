@@ -26,20 +26,12 @@ from pathlib import Path
 # Add backend/src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from game_engine.game_engine import GameEngine
-from game_engine.models.game_state import GameState, Phase
-from game_engine.models.player import Player
-from game_engine.models.card import Card, CardType, Zone
-from game_engine.data.card_loader import CardLoader
+from game_engine.models.card import Zone
 
 # Import test helpers
 from conftest import (
-    create_basic_game,
     create_game_with_cards,
     create_card,
-    get_card_template,
-    steal_card,
-    GameSetup,
 )
 
 

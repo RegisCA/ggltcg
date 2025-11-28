@@ -20,7 +20,7 @@ Guidelines:
 import pytest
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
 # Add backend/src to path

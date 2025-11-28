@@ -40,14 +40,9 @@ Use `steal_card()` to simulate Twist effect:
 
 ```python
 # Card owned by P1, controlled by P2
-stolen_card = steal_card(
-    game_state=setup.game_state,
-    card=original_card,
-    from_player=setup.player1,
-    to_player=setup.player2
-)
-# stolen_card.owner == "player1"
-# stolen_card.controller == "player2"
+steal_card(setup.game_state, original_card, setup.player2.player_id)
+# original_card.owner == "player1"
+# original_card.controller == "player2"
 ```
 
 ## Method Signatures
