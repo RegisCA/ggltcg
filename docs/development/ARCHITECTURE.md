@@ -80,7 +80,6 @@ backend/
 │       │   └── actions.py    # Structured action types
 │       ├── rules/
 │       │   ├── turn_manager.py
-│       │   ├── tussle_resolver.py
 │       │   └── effects/       # Card effects system
 │       │       ├── base_effect.py
 │       │       ├── action_effects.py
