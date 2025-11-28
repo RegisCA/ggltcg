@@ -527,7 +527,8 @@ class TestTussleStaminaIntegrity:
         # Umbruh: 4 speed, 4 strength, 4 stamina
 
         # Signature: initiate_tussle(attacker, defender, player)
-        setup.engine.initiate_tussle(ka, umbruh, setup.player1)        # Umbruh should be sleeped
+        # Umbruh should be sleeped
+        setup.engine.initiate_tussle(ka, umbruh, setup.player1)
         assert umbruh in setup.player2.sleep_zone, "Umbruh should be sleeped"
         
         # Ka should have full stamina (no counter-attack)
