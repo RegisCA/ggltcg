@@ -25,7 +25,6 @@ from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.rules.effects import EffectRegistry
 from game_engine.rules.effects.base_effect import PlayEffect, ActivatedEffect
-from game_engine.rules.tussle_resolver import TussleResolver
 from api.schemas import ValidAction
 
 logger = logging.getLogger(__name__)
@@ -336,9 +335,7 @@ class ActionValidator:
                     
                     # For AI, filter out guaranteed losses
                     if filter_for_ai:
-                        predicted = TussleResolver.predict_winner(
-                            self.game_state, card, defender
-                        )
+                        predicted = self.engine.predict_tussle_winner(card, defender)
                         
                         logger.debug(
                             f"Tussle prediction: {card.name} vs {defender.name} = {predicted} "

@@ -90,11 +90,11 @@ ggltcg/
 │   ├── src/
 │   │   ├── game_engine/
 │   │   │   ├── models/          ✅ Card, Player, GameState
-│   │   │   ├── rules/           ✅ TurnManager, TussleResolver
+│   │   │   ├── rules/           ✅ TurnManager, Effects
 │   │   │   │   └── effects/     ✅ Effect system (7 files)
 │   │   │   ├── ai/              ✅ LLM player (Gemini)
 │   │   │   ├── data/            ✅ CardLoader (CSV single source of truth)
-│   │   │   └── game_engine.py   ✅ Main controller
+│   │   │   └── game_engine.py   ✅ Main controller + tussle resolution
 │   │   └── api/                 ✅ FastAPI REST API (9 endpoints)
 │   ├── data/
 │   │   └── cards.csv            ✅ 18 cards - SINGLE SOURCE OF TRUTH

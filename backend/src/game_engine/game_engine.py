@@ -116,7 +116,7 @@ class GameEngine:
         Args:
             card: Card to play
             player: Player attempting to play
-            **kwargs: Additional context (targets, etc.)
+            **kwargs: Additional context (targets, alternative_cost_card_id, etc.)
             
         Returns:
             Tuple of (can_play, reason)
@@ -134,6 +134,21 @@ class GameEngine:
         if self.game_state.phase != Phase.MAIN and card.name != "Beary":
             return False, "Can only play cards during Main phase"
         
+        # Check if alternative cost is being used (e.g., Ballaber)
+        alternative_cost_card_id = kwargs.get("alternative_cost_card_id")
+        if alternative_cost_card_id:
+            from .rules.effects.continuous_effects import BallaberCostEffect
+            if card.has_effect_type(BallaberCostEffect):
+                # Alternative cost: verify the card to sleep exists
+                card_to_sleep = self._find_alternative_cost_card(
+                    player, alternative_cost_card_id
+                )
+                if card_to_sleep:
+                    # Alternative cost is valid, no CC needed
+                    return True, ""
+                else:
+                    return False, "Alternative cost card not found"
+        
         # Calculate cost (pass target_name for Copy if available)
         target_name = kwargs.get("target_name")
         cost = self.calculate_card_cost(card, player, target_name=target_name)
@@ -150,6 +165,18 @@ class GameEngine:
                     return False, f"{card.name} cannot be played now"
         
         return True, ""
+    
+    def _find_alternative_cost_card(
+        self, player: Player, card_id: str
+    ) -> Optional[Card]:
+        """Find a card to use for alternative cost (in play or hand)."""
+        for card in player.in_play:
+            if card.id == card_id:
+                return card
+        for card in player.hand:
+            if card.id == card_id:
+                return card
+        return None
     
     def calculate_card_cost(self, card: Card, player: Player, target_name: Optional[str] = None) -> int:
         """
@@ -214,7 +241,7 @@ class GameEngine:
         Args:
             player: Player playing the card
             card: Card to play
-            **kwargs: Additional context (targets for effects, etc.)
+            **kwargs: Additional context (targets for effects, alternative_cost_card_id, etc.)
             
         Returns:
             True if successful
@@ -225,12 +252,28 @@ class GameEngine:
             self.game_state.log_event(f"Cannot play {card.name}: {reason}")
             return False
         
-        # Check if alternative cost was paid (handled by action_executor)
+        # Check if alternative cost is being used via alternative_cost_card_id
+        alternative_cost_card_id = kwargs.get("alternative_cost_card_id")
         alternative_cost_paid = kwargs.get("alternative_cost_paid", False)
         alternative_cost_card_name = kwargs.get("alternative_cost_card", None)
         
+        # Handle alternative cost if card_id is provided (direct API call)
+        if alternative_cost_card_id and not alternative_cost_paid:
+            from .rules.effects.continuous_effects import BallaberCostEffect
+            if card.has_effect_type(BallaberCostEffect):
+                card_to_sleep = self._find_alternative_cost_card(
+                    player, alternative_cost_card_id
+                )
+                if card_to_sleep:
+                    # Sleep the card to pay alternative cost
+                    was_in_play = card_to_sleep in player.in_play
+                    owner = self.game_state.get_card_owner(card_to_sleep)
+                    self._sleep_card(card_to_sleep, owner, was_in_play=was_in_play)
+                    alternative_cost_paid = True
+                    alternative_cost_card_name = card_to_sleep.name
+        
         if alternative_cost_paid and alternative_cost_card_name:
-            # Alternative cost already paid by action_executor
+            # Alternative cost already paid by action_executor or above
             self.game_state.log_event(
                 f"{player.name} plays {card.name} by sleeping {alternative_cost_card_name} (alternative cost)"
             )
@@ -289,6 +332,16 @@ class GameEngine:
     
     def _resolve_action_card(self, card: Card, player: Player, **kwargs: Any) -> None:
         """Resolve an Action card's effect."""
+        # Convert target_ids to targets if needed
+        if "target_ids" in kwargs and "targets" not in kwargs:
+            target_ids = kwargs.get("target_ids", [])
+            targets = []
+            for card_id in target_ids:
+                target = self.game_state.find_card_by_id(card_id)
+                if target:
+                    targets.append(target)
+            kwargs["targets"] = targets
+        
         # Get and apply effects for all action cards (including Copy)
         effects = EffectRegistry.get_effects(card)
         for effect in effects:
@@ -327,6 +380,129 @@ class GameEngine:
                     )
         
         return modified_value
+    
+    def get_effective_stamina(self, card: Card) -> int:
+        """
+        Get a card's effective stamina considering current_stamina and continuous effects.
+        
+        This is the correct way to check stamina - it combines:
+        1. current_stamina (base stamina minus damage taken)
+        2. stamina modifications from continuous effects (like Demideca's +1)
+        
+        Args:
+            card: Card to get effective stamina for
+            
+        Returns:
+            Effective stamina value (can be negative if heavily damaged)
+        """
+        if card.current_stamina is None:
+            return 0
+        
+        # Start with current stamina (base minus damage)
+        effective = card.current_stamina
+        
+        # Add continuous effect modifications
+        for card_in_play in self.game_state.get_all_cards_in_play():
+            effects = EffectRegistry.get_effects(card_in_play)
+            for effect in effects:
+                if isinstance(effect, ContinuousEffect):
+                    # Get modification amount by asking effect to modify from 0
+                    # This gives us just the bonus/penalty
+                    modification = effect.modify_stat(card, "stamina", 0, self.game_state)
+                    effective += modification
+        
+        return effective
+    
+    def is_card_defeated(self, card: Card) -> bool:
+        """
+        Check if a card is defeated (effective stamina <= 0).
+        
+        This correctly accounts for continuous effects like Demideca's +1 stamina.
+        
+        Args:
+            card: Card to check
+            
+        Returns:
+            True if card's effective stamina is 0 or less
+        """
+        return self.get_effective_stamina(card) <= 0
+    
+    def predict_tussle_winner(
+        self, 
+        attacker: Card, 
+        defender: Card
+    ) -> str:
+        """
+        Predict the winner of a tussle without executing it.
+        
+        Used by AI to filter out guaranteed-loss tussles.
+        Uses the same logic as _execute_tussle to ensure consistency.
+        
+        Args:
+            attacker: The attacking card
+            defender: The defending card
+            
+        Returns:
+            "attacker" if attacker wins, "defender" if defender wins, "tie" if both lose
+        """
+        # Check Knight auto-win
+        attacker_effects = EffectRegistry.get_effects(attacker)
+        for effect in attacker_effects:
+            if hasattr(effect, 'wins_tussle'):
+                if effect.wins_tussle(self.game_state, defender):
+                    # Check if defender is protected (e.g., Beary vs Knight)
+                    if not self.game_state.is_protected_from_effect(defender, effect):
+                        return "attacker"
+        
+        # Get effective stats (with continuous effects applied)
+        attacker_speed = self.get_card_stat(attacker, "speed") + 1  # Turn bonus
+        defender_speed = self.get_card_stat(defender, "speed")
+        attacker_strength = self.get_card_stat(attacker, "strength")
+        defender_strength = self.get_card_stat(defender, "strength")
+        attacker_stamina = self.get_effective_stamina(attacker)
+        defender_stamina = self.get_effective_stamina(defender)
+        
+        # Simulate tussle outcome
+        if attacker_speed > defender_speed:
+            # Attacker strikes first
+            defender_stamina -= attacker_strength
+            if defender_stamina <= 0:
+                return "attacker"
+            # Defender strikes back
+            attacker_stamina -= defender_strength
+            if attacker_stamina <= 0:
+                return "defender"
+            # Both survive
+            return "tie"
+        
+        elif defender_speed > attacker_speed:
+            # Defender strikes first
+            attacker_stamina -= defender_strength
+            if attacker_stamina <= 0:
+                return "defender"
+            # Attacker strikes back
+            defender_stamina -= attacker_strength
+            if defender_stamina <= 0:
+                return "attacker"
+            # Both survive
+            return "tie"
+        
+        else:
+            # Simultaneous strikes
+            attacker_stamina -= defender_strength
+            defender_stamina -= attacker_strength
+            
+            attacker_defeated = attacker_stamina <= 0
+            defender_defeated = defender_stamina <= 0
+            
+            if attacker_defeated and defender_defeated:
+                return "tie"
+            elif defender_defeated:
+                return "attacker"
+            elif attacker_defeated:
+                return "defender"
+            else:
+                return "tie"  # Neither defeated
     
     # ========================================================================
     # TUSSLE SYSTEM
@@ -549,6 +725,15 @@ class GameEngine:
         for effect in attacker_effects:
             if hasattr(effect, 'wins_tussle'):
                 if effect.wins_tussle(self.game_state, defender):
+                    # FIX (Issue #131): Check if defender is protected from this effect
+                    # Beary's opponent_immunity blocks Knight's auto-win
+                    if self.game_state.is_protected_from_effect(defender, effect):
+                        self.game_state.log_event(
+                            f"{defender.name} is protected from {attacker.name}'s auto-win!"
+                        )
+                        # Fall through to normal tussle
+                        break
+                    
                     self.game_state.log_event(
                         f"{attacker.name} auto-wins! {defender.name} is sleeped."
                     )
@@ -649,17 +834,32 @@ class GameEngine:
                 defender_owner = self.game_state.players[defender.owner]
                 self._sleep_card(defender, defender_owner, was_in_play=True)
     
-    def _sleep_card(self, card: Card, player: Player, was_in_play: bool) -> None:
+    def _sleep_card(self, card: Card, owner: Player, was_in_play: bool) -> None:
         """
         Sleep a card and trigger "when sleeped" effects.
         
+        For stolen cards (controller != owner), removes from controller's zone
+        and adds to owner's sleep zone.
+        
         Args:
             card: Card to sleep
-            player: Player who owns the card
+            owner: Player who OWNS the card (card goes to their sleep zone)
             was_in_play: Whether card was in play (vs sleeped from hand)
         """
-        # Move to sleep zone
-        player.sleep_card(card)
+        # For stolen cards, we need to remove from controller's zone, not owner's
+        controller = self.game_state.players.get(card.controller)
+        
+        if controller and controller != owner:
+            # Card is stolen - remove from controller's in_play
+            if card in controller.in_play:
+                controller.in_play.remove(card)
+            # Add to owner's sleep zone
+            card.zone = Zone.SLEEP
+            card.controller = owner.player_id  # Reset controller back to owner
+            owner.sleep_zone.append(card)
+        else:
+            # Normal case - card is controlled by owner
+            owner.sleep_card(card)
         
         # Trigger "when sleeped" effects (only if was in play)
         if was_in_play:

@@ -20,7 +20,6 @@ from api.schemas import (
 from api.game_service import get_game_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
-from game_engine.rules.tussle_resolver import TussleResolver
 from game_engine.validation import ActionValidator, ActionExecutor
 
 logger = logging.getLogger(__name__)

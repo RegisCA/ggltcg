@@ -117,6 +117,45 @@ if game_state.calculate_cost(card):  # Logic belongs in GameEngine!
 - Need to access data? → `game_state`
 - Unsure? → Use `game_engine` (it will use `game_state` internally)
 
+### 3.1 Owner vs Controller (Stolen Cards)
+
+**CRITICAL**: Understand the difference between `card.owner` and `card.controller`.
+
+| Property | Meaning | Changes? |
+|----------|---------|----------|
+| `owner` | Original card owner | NEVER changes |
+| `controller` | Who currently controls the card | Changes via Twist |
+
+**Key Rules**:
+- Cards always sleep to **owner's** sleep zone
+- "Your cards" effects check **controller**, not owner
+- When sleeping a stolen card, remove from **controller's** `in_play`, add to **owner's** `sleep_zone`
+
+**✅ CORRECT** (in `_sleep_card`):
+```python
+controller = game_state.players.get(card.controller)
+owner = game_state.players.get(card.owner)
+
+if controller != owner:
+    # Stolen card - remove from controller's zone
+    controller.in_play.remove(card)
+    # Add to owner's sleep zone
+    owner.sleep_zone.append(card)
+```
+
+### 3.2 Tussle Prediction (Single Source of Truth)
+
+**RESOLVED**: Tussle logic is now consolidated in GameEngine with these key methods:
+
+| Method | Purpose |
+|--------|---------|
+| `_execute_tussle()` | Actual tussle execution with side effects |
+| `predict_tussle_winner()` | AI prediction (returns "attacker"/"defender"/"tie") |
+| `get_effective_stamina()` | Get stamina with continuous effects applied |
+| `is_card_defeated()` | Check if card should be sleeped |
+
+All tussle-related logic lives in `game_engine.py`. The duplicate `TussleResolver` class has been removed.
+
 ### 4. Effect System - Data-Driven First
 
 **Pattern**: Use data-driven CSV effect definitions. Only create custom effect classes for truly unique mechanics.

@@ -133,9 +133,9 @@ GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
 ```
 backend/src/game_engine/
 ├── models/              # Data classes (Card, Player, GameState, Zone)
-├── rules/               # Game logic (turn_manager, tussle_resolver, cost_calculator)
+├── rules/               # Game logic (turn_manager, effects)
 │   └── effects/         # Individual card effect handlers
-├── validation/          # Action validation and execution (NEW Nov 21, 2025)
+├── validation/          # Action validation and execution
 │   ├── action_validator.py  # Validates action legality
 │   └── action_executor.py   # Executes validated actions
 ├── ai/                  # LLM player (prompt_builder, action_parser, llm_player)
