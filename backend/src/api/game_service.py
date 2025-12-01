@@ -405,12 +405,22 @@ class GameService:
         # (hand + in_play + sleep_zone = all cards the player has)
         def get_deck_names(player: Player) -> list[str]:
             all_cards = player.hand + player.in_play + player.sleep_zone
-            return [card.name for card in all_cards]
+            # Normalize Copy cards back to "Copy" for deck reconstruction
+            # Copy cards change their name to "Copy of [Target]" when played
+            deck_names = []
+            for card in all_cards:
+                if card.name.startswith("Copy of "):
+                    deck_names.append("Copy")
+                else:
+                    deck_names.append(card.name)
+            return deck_names
         
         starting_deck_p1 = get_deck_names(player1)
         starting_deck_p2 = get_deck_names(player2)
         
         # Calculate tussle stats from play-by-play
+        # Note: The game engine logs tussles as "{player}'s {card} tussles {opponent}'s {card}"
+        # We can count initiations but tussle wins are not explicitly logged
         p1_tussles = 0
         p1_tussles_won = 0
         p2_tussles = 0
@@ -420,19 +430,17 @@ class GameService:
             description = entry.get('description', '').lower()
             player_name = entry.get('player', '')
             
-            if 'tussle' in description and 'initiated' in description:
-                # Find which player initiated
-                if player_name == player1.name:
+            # Match tussle format: "{player}'s {card} tussles {opponent}'s {card}"
+            if ' tussles ' in description:
+                # Find which player initiated by checking whose name appears first
+                if description.startswith(player1.name.lower()):
                     p1_tussles += 1
-                elif player_name == player2.name:
+                elif description.startswith(player2.name.lower()):
                     p2_tussles += 1
             
-            if 'wins the tussle' in description or 'won the tussle' in description:
-                # The player mentioned won
-                if player_name == player1.name:
-                    p1_tussles_won += 1
-                elif player_name == player2.name:
-                    p2_tussles_won += 1
+            # Note: Tussle wins are not explicitly logged in play-by-play
+            # We would need to infer from "is sleeped" entries following tussles
+            # For now, tussles_won will remain 0 until we add explicit logging
         
         # Save game playback
         try:

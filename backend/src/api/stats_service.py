@@ -7,17 +7,7 @@ Handles AI decision logging, game playback recording, and player stats updates.
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional, TYPE_CHECKING
-
-# Lazy imports for database components (avoid requiring DATABASE_URL when not using DB)
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-    from api.db_models import (
-        AIDecisionLogModel,
-        GamePlaybackModel,
-        PlayerStatsModel,
-        GameModel,
-    )
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -332,7 +322,7 @@ class StatsService:
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
             deleted = db.query(GamePlaybackModel).filter(
-                GamePlaybackModel.created_at < cutoff
+                GamePlaybackModel.completed_at < cutoff
             ).delete()
             db.commit()
             logger.info(f"Cleaned up {deleted} game playback records older than {max_age_hours} hour(s)")
