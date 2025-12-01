@@ -4,6 +4,8 @@
  */
 
 import { useState } from 'react';
+import { Leaderboard } from './Leaderboard';
+import { PlayerStats } from './PlayerStats';
 
 interface LobbyHomeProps {
   onCreateLobby: () => void;
@@ -14,6 +16,8 @@ interface LobbyHomeProps {
 export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeProps) {
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [hiddenCardsMode, setHiddenCardsMode] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-game-bg flex items-center justify-center p-4">
@@ -112,6 +116,25 @@ export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeP
               </span>
             </div>
           </div>
+
+          {/* Leaderboard Button */}
+          <button
+            onClick={() => setShowLeaderboard(true)}
+            onMouseEnter={() => setHoveredButton('leaderboard')}
+            onMouseLeave={() => setHoveredButton(null)}
+            className={`
+              w-full p-6 rounded-lg border-4 transition-all
+              ${hoveredButton === 'leaderboard'
+                ? 'border-yellow-500 bg-gray-700 scale-105'
+                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+              }
+            `}
+          >
+            <div className="text-3xl mb-2 font-bold text-white">🏆 Leaderboard</div>
+            <div className="text-xl text-gray-100 font-semibold">
+              View top players and rankings
+            </div>
+          </button>
         </div>
 
         {/* Footer */}
@@ -119,6 +142,25 @@ export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeP
           <p>A trading card game where strategy meets imagination</p>
         </div>
       </div>
+
+      {/* Leaderboard Modal */}
+      {showLeaderboard && (
+        <Leaderboard
+          onClose={() => setShowLeaderboard(false)}
+          onViewPlayer={(playerId) => {
+            setShowLeaderboard(false);
+            setViewingPlayerId(playerId);
+          }}
+        />
+      )}
+
+      {/* Player Stats Modal */}
+      {viewingPlayerId && (
+        <PlayerStats
+          playerId={viewingPlayerId}
+          onClose={() => setViewingPlayerId(null)}
+        />
+      )}
     </div>
   );
 }

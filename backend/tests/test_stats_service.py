@@ -4,10 +4,8 @@ Tests for the StatsService (AI decision logging, game playback, player stats).
 These tests verify the data logging and statistics functionality.
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Add backend/src to path
 import sys
