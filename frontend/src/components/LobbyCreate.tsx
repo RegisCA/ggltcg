@@ -18,14 +18,22 @@ export function LobbyCreate({ onLobbyCreated, onBack }: LobbyCreateProps) {
   const [error, setError] = useState<string | null>(null);
 
   const playerName = user?.display_name || 'Player';
+  const playerId = user?.google_id || '';
 
   const handleCreate = async () => {
+    if (!playerId) {
+      setError('You must be logged in to create a game');
+      return;
+    }
 
     setIsCreating(true);
     setError(null);
 
     try {
-      const response = await createLobby({ player1_name: playerName });
+      const response = await createLobby({ 
+        player1_id: playerId,
+        player1_name: playerName 
+      });
       onLobbyCreated(response.game_id, response.game_code);
     } catch (err: any) {
       console.error('Failed to create lobby:', err);
