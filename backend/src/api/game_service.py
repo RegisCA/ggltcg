@@ -26,6 +26,7 @@ from api.serialization import (
     deserialize_game_state,
     extract_metadata,
 )
+from api.stats_service import get_stats_service
 
 
 class GameService:
@@ -381,6 +382,8 @@ class GameService:
         """
         Save game statistics to database.
         
+        Also saves game playback and updates player stats via StatsService.
+        
         Args:
             game_id: Game ID
             engine: Completed GameEngine instance
@@ -388,6 +391,90 @@ class GameService:
         if not self.use_database:
             return
         
+        game_state = engine.game_state
+        stats_service = get_stats_service()
+        
+        # Extract player info
+        player_ids = list(game_state.players.keys())
+        player1_id = player_ids[0]
+        player2_id = player_ids[1]
+        player1 = game_state.players[player1_id]
+        player2 = game_state.players[player2_id]
+        
+        # Reconstruct starting decks from current state
+        # (hand + in_play + sleep_zone = all cards the player has)
+        def get_deck_names(player: Player) -> list[str]:
+            all_cards = player.hand + player.in_play + player.sleep_zone
+            return [card.name for card in all_cards]
+        
+        starting_deck_p1 = get_deck_names(player1)
+        starting_deck_p2 = get_deck_names(player2)
+        
+        # Calculate tussle stats from play-by-play
+        p1_tussles = 0
+        p1_tussles_won = 0
+        p2_tussles = 0
+        p2_tussles_won = 0
+        
+        for entry in game_state.play_by_play:
+            description = entry.get('description', '').lower()
+            player_name = entry.get('player', '')
+            
+            if 'tussle' in description and 'initiated' in description:
+                # Find which player initiated
+                if player_name == player1.name:
+                    p1_tussles += 1
+                elif player_name == player2.name:
+                    p2_tussles += 1
+            
+            if 'wins the tussle' in description or 'won the tussle' in description:
+                # The player mentioned won
+                if player_name == player1.name:
+                    p1_tussles_won += 1
+                elif player_name == player2.name:
+                    p2_tussles_won += 1
+        
+        # Save game playback
+        try:
+            stats_service.record_game_playback(
+                game_id=game_id,
+                player1_id=player1_id,
+                player1_name=player1.name,
+                player2_id=player2_id,
+                player2_name=player2.name,
+                winner_id=game_state.winner_id,
+                starting_deck_p1=starting_deck_p1,
+                starting_deck_p2=starting_deck_p2,
+                first_player_id=game_state.first_player_id,
+                play_by_play=game_state.play_by_play,
+                turn_count=game_state.turn_number,
+            )
+        except Exception as e:
+            logger.error(f"Failed to save game playback: {e}")
+        
+        # Update player stats for both players
+        winner_id = game_state.winner_id
+        try:
+            stats_service.update_player_stats(
+                player_id=player1_id,
+                display_name=player1.name,
+                won=(winner_id == player1_id),
+                cards_used=starting_deck_p1,
+                tussles_initiated=p1_tussles,
+                tussles_won=p1_tussles_won,
+            )
+            stats_service.update_player_stats(
+                player_id=player2_id,
+                display_name=player2.name,
+                won=(winner_id == player2_id),
+                cards_used=starting_deck_p2,
+                tussles_initiated=p2_tussles,
+                tussles_won=p2_tussles_won,
+            )
+        except Exception as e:
+            logger.error(f"Failed to update player stats: {e}")
+        
+        # Save legacy game stats (GameStatsModel)
         db = SessionLocal()
         try:
             # Check if stats already exist (idempotent)
