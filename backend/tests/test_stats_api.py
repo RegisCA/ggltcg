@@ -4,8 +4,6 @@ Tests for Stats API routes.
 Tests the /stats/* endpoints for leaderboard and player stats.
 """
 
-import pytest
-import uuid
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 

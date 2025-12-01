@@ -5,7 +5,6 @@ Endpoints for retrieving player stats and leaderboard data.
 """
 
 import logging
-from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from api.schemas import (

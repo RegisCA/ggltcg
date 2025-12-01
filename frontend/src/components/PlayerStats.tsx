@@ -35,6 +35,15 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
     fetchStats();
   }, [playerId]);
 
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const getWinRateColor = (rate: number): string => {
     if (rate >= 70) return 'text-green-400';
     if (rate >= 50) return 'text-yellow-400';

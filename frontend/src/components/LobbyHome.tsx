@@ -130,8 +130,8 @@ export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeP
               }
             `}
           >
-            <div className="text-3xl mb-2 font-bold text-gray-900">🏆 Leaderboard</div>
-            <div className="text-xl text-gray-800 font-semibold">
+            <div className="text-3xl mb-2 font-bold text-white">🏆 Leaderboard</div>
+            <div className="text-xl text-gray-100 font-semibold">
               View top players and rankings
             </div>
           </button>

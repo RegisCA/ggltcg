@@ -17,23 +17,32 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchLeaderboard() {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getLeaderboard(10, 1); // Top 10, min 1 game for now
-        setLeaderboard(data);
-      } catch (err) {
-        console.error('Failed to fetch leaderboard:', err);
-        setError('Failed to load leaderboard');
-      } finally {
-        setLoading(false);
-      }
+  const fetchLeaderboard = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getLeaderboard(10, 3); // Top 10, min 3 games to match backend default
+      setLeaderboard(data);
+    } catch (err) {
+      console.error('Failed to fetch leaderboard:', err);
+      setError('Failed to load leaderboard');
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchLeaderboard();
   }, []);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const getRankEmoji = (rank: number): string => {
     switch (rank) {
@@ -108,7 +117,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
               <div className="text-4xl mb-4">😢</div>
               <p className="text-red-400">{error}</p>
               <button
-                onClick={() => window.location.reload()}
+                onClick={fetchLeaderboard}
                 className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
               >
                 Retry
