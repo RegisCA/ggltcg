@@ -54,22 +54,44 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl border-4 border-game-highlight max-w-xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+    <div 
+      style={{ 
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.80)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem'
+      }}
+    >
+      <div 
+        className="bg-gray-900 rounded-xl border-4 border-game-highlight shadow-2xl flex flex-col"
+        style={{ 
+          width: '600px',
+          maxHeight: '80vh',
+        }}
+      >
         {/* Header */}
-        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold text-game-highlight">🏆 Leaderboard</h2>
-            <p className="text-gray-400 mt-1">
-              Top players by win rate
-            </p>
+        <div className="p-4 border-b-4 border-game-accent bg-gray-800 flex-shrink-0">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl font-bold text-game-highlight">🏆 Leaderboard</h2>
+              <p className="text-gray-300 mt-1">
+                Top players by win rate
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white text-2xl font-bold p-1"
+            >
+              ✕
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl font-bold p-2"
-          >
-            ✕
-          </button>
         </div>
 
         {/* Content */}
