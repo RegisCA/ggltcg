@@ -524,11 +524,12 @@ class GameService:
     
     # ===== LOBBY SYSTEM METHODS =====
     
-    def create_lobby(self, player1_name: str) -> tuple[str, str]:
+    def create_lobby(self, player1_id: str, player1_name: str) -> tuple[str, str]:
         """
         Create a new game lobby waiting for player 2.
         
         Args:
+            player1_id: Google ID for player 1 (for stats tracking)
             player1_name: Display name for player 1
             
         Returns:
@@ -550,7 +551,7 @@ class GameService:
             # Create minimal game model (waiting for player 2)
             game_model = GameModel(
                 id=uuid.UUID(game_id),
-                player1_id="player1",  # Temporary until we have auth
+                player1_id=player1_id,  # Use actual Google ID
                 player1_name=player1_name,
                 player2_id=None,  # Will be set when player 2 joins
                 player2_name=None,
@@ -575,16 +576,17 @@ class GameService:
         finally:
             db.close()
     
-    def join_lobby(self, game_code: str, player2_name: str) -> tuple[str, str]:
+    def join_lobby(self, game_code: str, player2_id: str, player2_name: str) -> tuple[str, str, str]:
         """
         Join an existing lobby as player 2.
         
         Args:
             game_code: 6-character game code
+            player2_id: Google ID for player 2 (for stats tracking)
             player2_name: Display name for player 2
             
         Returns:
-            Tuple of (game_id, player1_name)
+            Tuple of (game_id, player1_id, player1_name)
             
         Raises:
             ValueError: If lobby not found or already full
@@ -608,16 +610,16 @@ class GameService:
             if game_model.player2_id is not None:
                 raise ValueError(f"Lobby {game_code} is already full")
             
-            # Add player 2
-            game_model.player2_id = "player2"  # Temporary until we have auth
+            # Add player 2 with actual Google ID
+            game_model.player2_id = player2_id
             game_model.player2_name = player2_name
             game_model.status = "deck_selection"
             
             db.commit()
             
-            logger.info(f"Player 2 joined lobby {game_model.id}: {player2_name}")
+            logger.info(f"Player 2 joined lobby {game_model.id}: {player2_name} ({player2_id})")
             
-            return str(game_model.id), game_model.player1_name
+            return str(game_model.id), game_model.player1_id, game_model.player1_name
         except Exception as e:
             db.rollback()
             logger.error(f"Failed to join lobby: {e}")
@@ -650,7 +652,9 @@ class GameService:
             return {
                 "game_id": str(game_model.id),
                 "game_code": game_model.game_code,
+                "player1_id": game_model.player1_id,
                 "player1_name": game_model.player1_name,
+                "player2_id": game_model.player2_id,
                 "player2_name": game_model.player2_name,
                 "status": game_model.status,
                 "ready_to_start": (
@@ -672,7 +676,7 @@ class GameService:
         
         Args:
             game_code: 6-character game code
-            player_id: Player ID (player1 or player2)
+            player_id: Actual player ID (Google ID)
             deck: List of 6 card names
             
         Returns:
@@ -696,27 +700,29 @@ class GameService:
             if game_model.status not in ("deck_selection", "active"):
                 raise ValueError(f"Lobby {game_code} is not in deck selection phase")
             
-            # Store deck in game_state temporarily
+            # Store deck in game_state temporarily, keyed by actual player ID
             current_state = game_model.game_state or {}
             decks = current_state.get("decks", {})
             decks[player_id] = deck
             current_state["decks"] = decks
             
-            # Check if both players have submitted decks
-            has_both_decks = "player1" in decks and "player2" in decks
+            # Check if both players have submitted decks using their actual IDs
+            player1_id = game_model.player1_id
+            player2_id = game_model.player2_id
+            has_both_decks = player1_id in decks and player2_id in decks
             
             if has_both_decks and game_model.status == "deck_selection":
                 # Start the game!
                 logger.info(f"Both players ready, starting game {game_model.id}")
                 
-                # Create actual game state
+                # Create actual game state using real player IDs
                 game_id, engine = self.create_game(
-                    player1_id="player1",
+                    player1_id=player1_id,
                     player1_name=game_model.player1_name,
-                    player1_deck=decks["player1"],
-                    player2_id="player2",
+                    player1_deck=decks[player1_id],
+                    player2_id=player2_id,
                     player2_name=game_model.player2_name,
-                    player2_deck=decks["player2"],
+                    player2_deck=decks[player2_id],
                 )
                 
                 # Update the existing game model with new state

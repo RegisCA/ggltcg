@@ -20,7 +20,8 @@ import {
 interface LobbyWaitingProps {
   gameId: string;
   gameCode: string;
-  currentPlayerId: 'player1' | 'player2';
+  actualPlayerId: string;  // Google ID for API calls
+  currentPlayerId: 'player1' | 'player2';  // For display purposes only
   currentPlayerName: string;
   otherPlayerName: string | null;
   onGameStarted: (gameId: string, firstPlayerId: string) => void;
@@ -30,6 +31,7 @@ interface LobbyWaitingProps {
 export function LobbyWaiting({
   gameId,
   gameCode,
+  actualPlayerId,
   currentPlayerId,
   currentPlayerName,
   otherPlayerName: initialOtherPlayerName,
@@ -52,7 +54,7 @@ export function LobbyWaiting({
 
     try {
       const response = await startLobbyGame(gameCode, {
-        player_id: currentPlayerId,
+        player_id: actualPlayerId,  // Use actual Google ID
         deck,
       });
 

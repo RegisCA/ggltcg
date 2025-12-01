@@ -42,7 +42,8 @@ type GamePhase =
 type GameMode = 'single-player' | 'multiplayer';
 
 function GameApp() {
-  // Auth context is used by DeckSelection to get user's display name
+  // Auth context provides the authenticated user's Google ID for consistent stats tracking
+  const { user } = useAuth();
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
   const [gameMode, setGameMode] = useState<GameMode>('single-player');
   const [player1Deck, setPlayer1Deck] = useState<string[]>([]);
@@ -53,8 +54,10 @@ function GameApp() {
   const [currentPlayerId, setCurrentPlayerId] = useState<'player1' | 'player2'>('player1');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [hiddenCardsMode, setHiddenCardsMode] = useState(false);
-  // Store actual player IDs for single-player games (generated UUIDs)
-  const [singlePlayerIds, setSinglePlayerIds] = useState<{ human: string; ai: string } | null>(null);
+  // Store actual player IDs for games
+  // For single-player: { human: google_id, ai: 'ai-gemiknight' }
+  // For multiplayer: { human: google_id, opponent: opponent_google_id }
+  const [playerIds, setPlayerIds] = useState<{ human: string; other: string } | null>(null);
 
   const createGameMutation = useCreateGame();
 
@@ -91,7 +94,7 @@ function GameApp() {
     setGameCode('');
     setCurrentPlayerId('player1');
     setHiddenCardsMode(false);
-    setSinglePlayerIds(null);
+    setPlayerIds(null);
   };
 
   // Lobby handlers
@@ -99,14 +102,22 @@ function GameApp() {
     setGameId(newGameId);
     setGameCode(newGameCode);
     setCurrentPlayerId('player1');
+    // Store the current user's Google ID as player 1
+    if (user?.google_id) {
+      setPlayerIds({ human: user.google_id, other: '' });
+    }
     setGamePhase('lobby-waiting');
   };
 
-  const handleLobbyJoined = (newGameId: string, newGameCode: string, player1Name: string) => {
+  const handleLobbyJoined = (newGameId: string, newGameCode: string, opponentName: string, opponentId: string) => {
     setGameId(newGameId);
     setGameCode(newGameCode);
-    setPlayer1Name(player1Name);
+    setPlayer1Name(opponentName);  // player1 is the opponent in this case
     setCurrentPlayerId('player2');
+    // Store both player IDs - we're player2, opponent (player1) ID from response
+    if (user?.google_id) {
+      setPlayerIds({ human: user.google_id, other: opponentId });
+    }
     setGamePhase('lobby-waiting');
   };
 
@@ -124,13 +135,13 @@ function GameApp() {
   const handlePlayer2DeckSelected = (deck: string[], playerName: string) => {
     setPlayer2Name(playerName);
     
-    // Generate unique player IDs for single-player games
-    // This ensures stats are tracked per-player, not merged across all games
-    const humanPlayerId = `human-${crypto.randomUUID()}`;
-    const aiPlayerId = `ai-${crypto.randomUUID()}`;
+    // Use Google ID for authenticated user, ensures stats aggregate correctly
+    // AI always uses a consistent ID so AI stats are tracked separately
+    const humanPlayerId = user?.google_id || `guest-${crypto.randomUUID()}`;
+    const aiPlayerId = 'ai-gemiknight';
     
     // Store the IDs so GameBoard can use them
-    setSinglePlayerIds({ human: humanPlayerId, ai: aiPlayerId });
+    setPlayerIds({ human: humanPlayerId, other: aiPlayerId });
     
     // Create the game
     createGameMutation.mutate(
@@ -176,7 +187,7 @@ function GameApp() {
     setCurrentPlayerId('player1');
     setGameState(null);
     setHiddenCardsMode(false);
-    setSinglePlayerIds(null);
+    setPlayerIds(null);
   };
 
   if (gamePhase === 'loading') {
@@ -201,11 +212,12 @@ function GameApp() {
     return <LobbyJoin onLobbyJoined={handleLobbyJoined} onBack={handleBackToMenu} />;
   }
 
-  if (gamePhase === 'lobby-waiting' && gameId && gameCode) {
+  if (gamePhase === 'lobby-waiting' && gameId && gameCode && playerIds) {
     return (
       <LobbyWaiting
         gameId={gameId}
         gameCode={gameCode}
+        actualPlayerId={playerIds.human}
         currentPlayerId={currentPlayerId}
         currentPlayerName={currentPlayerId === 'player1' ? player1Name : player2Name}
         otherPlayerName={currentPlayerId === 'player1' ? player2Name : player1Name}
@@ -225,20 +237,16 @@ function GameApp() {
     return <DeckSelection onDeckSelected={handlePlayer2DeckSelected} hiddenMode={hiddenCardsMode} defaultPlayerName={aiDefaultName} />;
   }
 
-  if (gamePhase === 'playing' && gameId) {
-    // For multiplayer, use player1/player2 IDs; for single-player use the generated UUIDs
-    const humanPlayerId = gameMode === 'multiplayer' 
-      ? currentPlayerId 
-      : (singlePlayerIds?.human || 'human');
-    const aiPlayerId = gameMode === 'multiplayer' 
-      ? (currentPlayerId === 'player1' ? 'player2' : 'player1') 
-      : (singlePlayerIds?.ai || 'ai');
+  if (gamePhase === 'playing' && gameId && playerIds) {
+    // Use actual player IDs (Google IDs for humans, 'ai-gemiknight' for AI)
+    const humanPlayerId = playerIds.human;
+    const otherPlayerId = playerIds.other;
 
     return (
       <GameBoard
         gameId={gameId}
         humanPlayerId={humanPlayerId}
-        aiPlayerId={gameMode === 'single-player' ? aiPlayerId : undefined}
+        aiPlayerId={gameMode === 'single-player' ? otherPlayerId : undefined}
         onGameEnd={handleGameEnd}
       />
     );

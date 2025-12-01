@@ -82,24 +82,29 @@ export interface CardDataResponse {
 
 // Lobby / Multiplayer
 export interface CreateLobbyRequest {
+  player1_id: string;  // Google ID for authenticated users
   player1_name: string;
 }
 
 export interface CreateLobbyResponse {
   game_id: string;
   game_code: string;
+  player1_id: string;
   player1_name: string;
   status: string;
 }
 
 export interface JoinLobbyRequest {
+  player2_id: string;  // Google ID for authenticated users
   player2_name: string;
 }
 
 export interface JoinLobbyResponse {
   game_id: string;
   game_code: string;
+  player1_id: string;
   player1_name: string;
+  player2_id: string;
   player2_name: string;
   status: string;
 }
@@ -107,7 +112,9 @@ export interface JoinLobbyResponse {
 export interface LobbyStatusResponse {
   game_id: string;
   game_code: string;
+  player1_id: string;
   player1_name: string;
+  player2_id: string | null;
   player2_name: string | null;
   status: string;
   ready_to_start: boolean;

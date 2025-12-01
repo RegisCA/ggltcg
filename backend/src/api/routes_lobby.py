@@ -21,6 +21,7 @@ router = APIRouter(prefix="/games/lobby", tags=["lobby"])
 
 class CreateLobbyRequest(BaseModel):
     """Request to create a new lobby (waiting for player 2)."""
+    player1_id: str = Field(..., min_length=1, max_length=255, description="Player 1's Google ID")
     player1_name: str = Field(..., min_length=1, max_length=50, description="Player 1's display name")
 
 
@@ -28,12 +29,14 @@ class CreateLobbyResponse(BaseModel):
     """Response after creating a lobby."""
     game_id: str
     game_code: str = Field(..., description="6-character code to share with player 2")
+    player1_id: str
     player1_name: str
     status: str = Field(..., description="Game status (waiting_for_player)")
 
 
 class JoinLobbyRequest(BaseModel):
     """Request to join an existing lobby."""
+    player2_id: str = Field(..., min_length=1, max_length=255, description="Player 2's Google ID")
     player2_name: str = Field(..., min_length=1, max_length=50, description="Player 2's display name")
 
 
@@ -41,7 +44,9 @@ class JoinLobbyResponse(BaseModel):
     """Response after joining a lobby."""
     game_id: str
     game_code: str
+    player1_id: str
     player1_name: str
+    player2_id: str
     player2_name: str
     status: str = Field(..., description="Game status (deck_selection)")
 
@@ -50,7 +55,9 @@ class LobbyStatusResponse(BaseModel):
     """Current status of a lobby."""
     game_id: str
     game_code: str
+    player1_id: str
     player1_name: str
+    player2_id: Optional[str] = None
     player2_name: Optional[str] = None
     status: str
     ready_to_start: bool = Field(..., description="True if both players joined and selected decks")
@@ -83,13 +90,17 @@ def create_lobby(request: CreateLobbyRequest):
     
     try:
         # Create lobby game
-        game_id, game_code = service.create_lobby(player1_name=request.player1_name)
+        game_id, game_code = service.create_lobby(
+            player1_id=request.player1_id,
+            player1_name=request.player1_name
+        )
         
-        logger.info(f"Lobby created: {game_id}, code: {game_code}, player: {request.player1_name}")
+        logger.info(f"Lobby created: {game_id}, code: {game_code}, player: {request.player1_name} ({request.player1_id})")
         
         return CreateLobbyResponse(
             game_id=game_id,
             game_code=game_code,
+            player1_id=request.player1_id,
             player1_name=request.player1_name,
             status="waiting_for_player"
         )
@@ -113,17 +124,20 @@ def join_lobby(game_code: str, request: JoinLobbyRequest):
     
     try:
         # Join the lobby
-        game_id, player1_name = service.join_lobby(
+        game_id, player1_id, player1_name = service.join_lobby(
             game_code=game_code.upper(),
+            player2_id=request.player2_id,
             player2_name=request.player2_name
         )
         
-        logger.info(f"Player joined lobby: {game_id}, code: {game_code}, player: {request.player2_name}")
+        logger.info(f"Player joined lobby: {game_id}, code: {game_code}, player: {request.player2_name} ({request.player2_id})")
         
         return JoinLobbyResponse(
             game_id=game_id,
             game_code=game_code.upper(),
+            player1_id=player1_id,
             player1_name=player1_name,
+            player2_id=request.player2_id,
             player2_name=request.player2_name,
             status="deck_selection"
         )

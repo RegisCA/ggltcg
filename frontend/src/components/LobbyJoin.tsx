@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { joinLobby } from '../api/gameService';
 
 interface LobbyJoinProps {
-  onLobbyJoined: (gameId: string, gameCode: string, player1Name: string) => void;
+  onLobbyJoined: (gameId: string, gameCode: string, player1Name: string, player1Id: string) => void;
   onBack: () => void;
 }
 
@@ -19,8 +19,13 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
   const [error, setError] = useState<string | null>(null);
 
   const playerName = user?.display_name || 'Player';
+  const playerId = user?.google_id || '';
 
   const handleJoin = async () => {
+    if (!playerId) {
+      setError('You must be logged in to join a game');
+      return;
+    }
 
     if (!gameCode.trim()) {
       setError('Please enter a game code');
@@ -38,8 +43,11 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
     setError(null);
 
     try {
-      const response = await joinLobby(cleanCode, { player2_name: playerName });
-      onLobbyJoined(response.game_id, response.game_code, response.player1_name);
+      const response = await joinLobby(cleanCode, { 
+        player2_id: playerId,
+        player2_name: playerName 
+      });
+      onLobbyJoined(response.game_id, response.game_code, response.player1_name, response.player1_id);
     } catch (err: any) {
       console.error('Failed to join lobby:', err);
       const errorMsg = err.response?.data?.detail || 'Failed to join lobby. Please check the game code and try again.';

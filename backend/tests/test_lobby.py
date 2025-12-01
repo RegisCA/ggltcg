@@ -12,15 +12,20 @@ BASE_URL = "http://localhost:8000"
 def test_lobby_flow():
     """Test complete lobby flow."""
     
+    # Use Google-ID-like strings for testing
+    player1_id = "google_111222333444"
+    player2_id = "google_555666777888"
+    
     print("=== STEP 1: Player 1 creates lobby ===")
     create_response = requests.post(
         f"{BASE_URL}/games/lobby/create",
-        json={"player1_name": "Alice"}
+        json={"player1_id": player1_id, "player1_name": "Alice"}
     )
     create_response.raise_for_status()
     create_data = create_response.json()
     print(f"✓ Lobby created: {create_data['game_code']}")
     print(f"  Game ID: {create_data['game_id']}")
+    print(f"  Player 1 ID: {create_data['player1_id']}")
     print(f"  Status: {create_data['status']}")
     
     game_code = create_data['game_code']
@@ -31,19 +36,19 @@ def test_lobby_flow():
     status_response.raise_for_status()
     status_data = status_response.json()
     print(f"✓ Status: {status_data['status']}")
-    print(f"  Player 1: {status_data['player1_name']}")
+    print(f"  Player 1: {status_data['player1_name']} ({status_data['player1_id']})")
     print(f"  Player 2: {status_data['player2_name']}")
     
     print(f"\n=== STEP 3: Player 2 joins lobby ===")
     join_response = requests.post(
         f"{BASE_URL}/games/lobby/{game_code}/join",
-        json={"player2_name": "Bob"}
+        json={"player2_id": player2_id, "player2_name": "Bob"}
     )
     join_response.raise_for_status()
     join_data = join_response.json()
     print(f"✓ Player 2 joined")
-    print(f"  Player 1: {join_data['player1_name']}")
-    print(f"  Player 2: {join_data['player2_name']}")
+    print(f"  Player 1: {join_data['player1_name']} ({join_data['player1_id']})")
+    print(f"  Player 2: {join_data['player2_name']} ({join_data['player2_id']})")
     print(f"  Status: {join_data['status']}")
     
     print(f"\n=== STEP 4: Check lobby status (both players joined) ===")
@@ -58,7 +63,7 @@ def test_lobby_flow():
     start1_response = requests.post(
         f"{BASE_URL}/games/lobby/{game_code}/start",
         json={
-            "player_id": "player1",
+            "player_id": player1_id,
             "deck": p1_deck
         }
     )
@@ -73,7 +78,7 @@ def test_lobby_flow():
     start2_response = requests.post(
         f"{BASE_URL}/games/lobby/{game_code}/start",
         json={
-            "player_id": "player2",
+            "player_id": player2_id,
             "deck": p2_deck
         }
     )
