@@ -53,6 +53,8 @@ function GameApp() {
   const [currentPlayerId, setCurrentPlayerId] = useState<'player1' | 'player2'>('player1');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [hiddenCardsMode, setHiddenCardsMode] = useState(false);
+  // Store actual player IDs for single-player games (generated UUIDs)
+  const [singlePlayerIds, setSinglePlayerIds] = useState<{ human: string; ai: string } | null>(null);
 
   const createGameMutation = useCreateGame();
 
@@ -89,6 +91,7 @@ function GameApp() {
     setGameCode('');
     setCurrentPlayerId('player1');
     setHiddenCardsMode(false);
+    setSinglePlayerIds(null);
   };
 
   // Lobby handlers
@@ -125,6 +128,9 @@ function GameApp() {
     // This ensures stats are tracked per-player, not merged across all games
     const humanPlayerId = `human-${crypto.randomUUID()}`;
     const aiPlayerId = `ai-${crypto.randomUUID()}`;
+    
+    // Store the IDs so GameBoard can use them
+    setSinglePlayerIds({ human: humanPlayerId, ai: aiPlayerId });
     
     // Create the game
     createGameMutation.mutate(
@@ -170,6 +176,7 @@ function GameApp() {
     setCurrentPlayerId('player1');
     setGameState(null);
     setHiddenCardsMode(false);
+    setSinglePlayerIds(null);
   };
 
   if (gamePhase === 'loading') {
@@ -219,9 +226,13 @@ function GameApp() {
   }
 
   if (gamePhase === 'playing' && gameId) {
-    // For multiplayer, use player1/player2 IDs; for single-player use human/ai
-    const humanPlayerId = gameMode === 'multiplayer' ? currentPlayerId : 'human';
-    const aiPlayerId = gameMode === 'multiplayer' ? (currentPlayerId === 'player1' ? 'player2' : 'player1') : 'ai';
+    // For multiplayer, use player1/player2 IDs; for single-player use the generated UUIDs
+    const humanPlayerId = gameMode === 'multiplayer' 
+      ? currentPlayerId 
+      : (singlePlayerIds?.human || 'human');
+    const aiPlayerId = gameMode === 'multiplayer' 
+      ? (currentPlayerId === 'player1' ? 'player2' : 'player1') 
+      : (singlePlayerIds?.ai || 'ai');
 
     return (
       <GameBoard
