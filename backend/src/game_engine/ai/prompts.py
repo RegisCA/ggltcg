@@ -4,6 +4,11 @@ Prompt templates for the AI player.
 These prompts guide Claude to play GGLTCG strategically and aggressively.
 """
 
+# Version tracking for AI decision logs
+# Increment this when making significant changes to prompts or strategy
+# Format: MAJOR.MINOR (MAJOR = strategy overhaul, MINOR = tweaks/fixes)
+PROMPTS_VERSION = "1.0"
+
 # Card effect library for AI strategic understanding
 CARD_EFFECTS_LIBRARY = {
     # TOY CARDS

@@ -18,6 +18,7 @@ from api.schemas import (
     ValidAction,
 )
 from api.game_service import get_game_service
+from api.stats_service import get_stats_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
 from game_engine.validation import ActionValidator, ActionExecutor
@@ -534,6 +535,25 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         selected_action = valid_actions[action_index]
         action_details = ai_player.get_action_details(selected_action)
         ai_endpoint_name = ai_player.get_endpoint_name()
+        
+        # Log AI decision to database for debugging
+        try:
+            decision_info = ai_player.get_last_decision_info()
+            stats_service = get_stats_service()
+            stats_service.log_ai_decision(
+                game_id=game_id,
+                turn_number=game_state.turn_number,
+                player_id=player_id,
+                model_name=decision_info["model_name"],
+                prompts_version=decision_info["prompts_version"],
+                prompt=decision_info["prompt"] or "",
+                response=decision_info["response"] or "",
+                action_number=decision_info["action_number"],
+                reasoning=decision_info["reasoning"],
+            )
+        except Exception as e:
+            # Don't fail the action if logging fails
+            logger.warning(f"Failed to log AI decision: {e}")
         
         # Build turn summary for response
         turn_summary = {

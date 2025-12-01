@@ -25,7 +25,7 @@ try:
 except ImportError:
     pass  # python-dotenv is optional
 
-from .prompts import SYSTEM_PROMPT, get_ai_turn_prompt
+from .prompts import SYSTEM_PROMPT, get_ai_turn_prompt, PROMPTS_VERSION
 from game_engine.models.game_state import GameState
 from api.schemas import ValidAction
 
@@ -56,6 +56,12 @@ class LLMPlayer:
         # Store last target/alternative cost selections from LLM
         self._last_target_id: Optional[str] = None
         self._last_alternative_cost_id: Optional[str] = None
+        
+        # Store last prompt/response for logging
+        self._last_prompt: Optional[str] = None
+        self._last_response: Optional[str] = None
+        self._last_action_number: Optional[int] = None
+        self._last_reasoning: Optional[str] = None
         
         if provider == "anthropic":
             from anthropic import Anthropic
@@ -132,6 +138,12 @@ class LLMPlayer:
         # Build the prompt
         prompt = get_ai_turn_prompt(game_state, ai_player_id, valid_actions)
         
+        # Store prompt for logging
+        self._last_prompt = prompt
+        self._last_response = None
+        self._last_action_number = None
+        self._last_reasoning = None
+        
         logger.debug(f"AI Prompt:\n{prompt}")
         
         try:
@@ -142,6 +154,9 @@ class LLMPlayer:
                 response_text = self._call_anthropic(prompt)
             else:  # gemini
                 response_text = self._call_gemini(prompt)
+            
+            # Store raw response for logging
+            self._last_response = response_text
             
             logger.debug(f"Raw API Response:\n{response_text}")
             
@@ -209,6 +224,10 @@ class LLMPlayer:
             self._last_target_id = target_id
             self._last_alternative_cost_id = alternative_cost_id
             
+            # Store parsed action data for logging
+            self._last_action_number = action_number
+            self._last_reasoning = reasoning
+            
             return (action_index, reasoning)
         
         except json.JSONDecodeError as e:
@@ -219,6 +238,22 @@ class LLMPlayer:
         except Exception as e:
             logger.exception(f"Error getting AI decision: {e}")
             return None
+    
+    def get_last_decision_info(self) -> Dict[str, Any]:
+        """
+        Get information about the last AI decision for logging.
+        
+        Returns:
+            Dict containing prompt, response, model info, and parsed action data
+        """
+        return {
+            "prompt": self._last_prompt,
+            "response": self._last_response,
+            "model_name": self.model_name if self.provider == "gemini" else self.model,
+            "prompts_version": PROMPTS_VERSION,
+            "action_number": self._last_action_number,
+            "reasoning": self._last_reasoning,
+        }
     
     def _call_anthropic(self, prompt: str) -> str:
         """Call Anthropic Claude API."""
