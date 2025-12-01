@@ -189,6 +189,52 @@ class ValidActionsResponse(BaseModel):
 
 
 # ============================================================================
+# STATS AND LEADERBOARD
+# ============================================================================
+
+class CardStatsResponse(BaseModel):
+    """Statistics for a specific card in a player's history."""
+    card_name: str = Field(..., description="Name of the card")
+    games_played: int = Field(..., description="Number of games using this card")
+    games_won: int = Field(..., description="Number of wins using this card")
+    win_rate: float = Field(..., description="Win percentage with this card")
+
+
+class PlayerStatsResponse(BaseModel):
+    """Complete statistics for a player."""
+    player_id: str = Field(..., description="Player's unique ID")
+    display_name: str = Field(..., description="Player's display name")
+    games_played: int = Field(..., description="Total games played")
+    games_won: int = Field(..., description="Total games won")
+    win_rate: float = Field(..., description="Overall win percentage")
+    total_tussles: int = Field(..., description="Total tussles initiated")
+    tussles_won: int = Field(..., description="Total tussles won")
+    tussle_win_rate: float = Field(..., description="Tussle win percentage")
+    card_stats: List[CardStatsResponse] = Field(
+        default_factory=list,
+        description="Per-card statistics sorted by usage"
+    )
+
+
+class LeaderboardEntry(BaseModel):
+    """Single entry in the leaderboard."""
+    rank: int = Field(..., description="Position on leaderboard")
+    player_id: str = Field(..., description="Player's unique ID")
+    display_name: str = Field(..., description="Player's display name")
+    games_played: int = Field(..., description="Total games played")
+    games_won: int = Field(..., description="Total games won")
+    win_rate: float = Field(..., description="Win percentage")
+
+
+class LeaderboardResponse(BaseModel):
+    """Leaderboard with ranked players."""
+    entries: List[LeaderboardEntry] = Field(..., description="Ranked list of players")
+    total_players: int = Field(..., description="Number of players returned")
+    min_games_required: int = Field(..., description="Minimum games to qualify")
+    card_name: Optional[str] = Field(None, description="Card name if card-specific leaderboard")
+
+
+# ============================================================================
 # ERROR RESPONSES
 # ============================================================================
 

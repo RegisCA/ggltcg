@@ -389,12 +389,13 @@ class StatsService:
         finally:
             db.close()
     
-    def get_leaderboard(self, limit: int = 10) -> list[dict]:
+    def get_leaderboard(self, limit: int = 10, min_games: int = 3) -> list[dict]:
         """
-        Get top players by win rate (minimum 5 games).
+        Get top players by win rate.
         
         Args:
             limit: Maximum number of players to return
+            min_games: Minimum games played to qualify
             
         Returns:
             List of player stats dicts ordered by win rate
@@ -407,22 +408,19 @@ class StatsService:
         
         db = SessionLocal()
         try:
-            # Get players with at least 5 games, ordered by win rate
+            # Get players with minimum games, calculate win rate in Python for reliability
             stats_list = db.query(PlayerStatsModel).filter(
-                PlayerStatsModel.games_played >= 5
-            ).order_by(
-                (PlayerStatsModel.games_won.cast(db.bind.dialect.type_descriptor(
-                    type(PlayerStatsModel.games_won.type)
-                )) / PlayerStatsModel.games_played).desc()
-            ).limit(limit).all()
+                PlayerStatsModel.games_played >= min_games
+            ).all()
             
-            # Fallback to simple ordering if the above doesn't work
-            if not stats_list:
-                stats_list = db.query(PlayerStatsModel).filter(
-                    PlayerStatsModel.games_played >= 5
-                ).order_by(
-                    PlayerStatsModel.games_won.desc()
-                ).limit(limit).all()
+            # Sort by win rate (descending), then by total wins (descending)
+            stats_list.sort(
+                key=lambda s: (s.win_rate, s.games_won),
+                reverse=True
+            )
+            
+            # Take top N
+            stats_list = stats_list[:limit]
             
             return [
                 {
@@ -436,6 +434,70 @@ class StatsService:
             ]
         except Exception as e:
             logger.error(f"Failed to get leaderboard: {e}")
+            return []
+        finally:
+            db.close()
+    
+    def get_card_leaderboard(
+        self,
+        card_name: str,
+        limit: int = 10,
+        min_games: int = 3,
+    ) -> list[dict]:
+        """
+        Get top players by win rate with a specific card.
+        
+        Args:
+            card_name: Name of the card
+            limit: Maximum number of players to return
+            min_games: Minimum games with this card to qualify
+            
+        Returns:
+            List of player stats dicts ordered by win rate with card
+        """
+        if not self.use_database:
+            return []
+        
+        SessionLocal = _get_session_local()
+        _, _, PlayerStatsModel, _ = _get_models()
+        
+        db = SessionLocal()
+        try:
+            # Get all players who have used this card
+            all_stats = db.query(PlayerStatsModel).all()
+            
+            # Filter and calculate card-specific stats
+            card_stats_list = []
+            for stats in all_stats:
+                if not stats.card_stats or card_name not in stats.card_stats:
+                    continue
+                
+                card_data = stats.card_stats[card_name]
+                games_played = card_data.get("games_played", 0)
+                games_won = card_data.get("games_won", 0)
+                
+                if games_played < min_games:
+                    continue
+                
+                win_rate = (games_won / games_played * 100) if games_played > 0 else 0.0
+                
+                card_stats_list.append({
+                    "player_id": stats.player_id,
+                    "display_name": stats.display_name,
+                    "games_played": games_played,
+                    "games_won": games_won,
+                    "win_rate": win_rate,
+                })
+            
+            # Sort by win rate (descending), then by total wins (descending)
+            card_stats_list.sort(
+                key=lambda s: (s["win_rate"], s["games_won"]),
+                reverse=True
+            )
+            
+            return card_stats_list[:limit]
+        except Exception as e:
+            logger.error(f"Failed to get card leaderboard: {e}")
             return []
         finally:
             db.close()

@@ -124,3 +124,42 @@ export interface StartGameResponse {
   first_player_id: string;
   game_state: any;
 }
+
+// ============================================================================
+// STATS AND LEADERBOARD
+// ============================================================================
+
+export interface CardStats {
+  card_name: string;
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+}
+
+export interface PlayerStats {
+  player_id: string;
+  display_name: string;
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+  total_tussles: number;
+  tussles_won: number;
+  tussle_win_rate: number;
+  card_stats: CardStats[];
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  player_id: string;
+  display_name: string;
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  total_players: number;
+  min_games_required: number;
+  card_name?: string;
+}
