@@ -121,16 +121,21 @@ function GameApp() {
   const handlePlayer2DeckSelected = (deck: string[], playerName: string) => {
     setPlayer2Name(playerName);
     
+    // Generate unique player IDs for single-player games
+    // This ensures stats are tracked per-player, not merged across all games
+    const humanPlayerId = `human-${crypto.randomUUID()}`;
+    const aiPlayerId = `ai-${crypto.randomUUID()}`;
+    
     // Create the game
     createGameMutation.mutate(
       {
         player1: {
-          player_id: 'human',
+          player_id: humanPlayerId,
           name: player1Name,
           deck: player1Deck,
         },
         player2: {
-          player_id: 'ai',
+          player_id: aiPlayerId,
           name: playerName,
           deck,
         },
