@@ -12,7 +12,7 @@ from api.game_service import GameService
 def test_create_and_load_game():
     """Test creating a game, saving to DB, and loading it back"""
     from pathlib import Path
-    cards_csv = Path(__file__).parent / "data" / "cards.csv"
+    cards_csv = Path(__file__).parent.parent / "data" / "cards.csv"
     service = GameService(cards_csv_path=str(cards_csv), use_database=True)
     
     print("\n🎮 Testing Database Persistence Integration")

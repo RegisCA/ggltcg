@@ -34,11 +34,11 @@ class TestBug107SleepToOwnerZone:
         it should return to the original owner's sleep zone.
         
         Steps:
-        1. Player 2 plays Snuggles (Owner: P2, Controller: P2)
-        2. Player 1 plays Twist to steal Snuggles (Owner: P2, Controller: P1)
-        3. Player 2 plays Knight and tussles Snuggles
+        1. Player 2 plays Clean (Owner: P2, Controller: P2)
+        2. Player 1 plays Twist to steal Clean (Owner: P2, Controller: P1)
+        3. Player 2 plays Knight and tussles Clean
         4. Knight wins (6 STR vs 2 STA)
-        5. Snuggles should sleep to Player 2's zone (the owner)
+        5. Clean should sleep to Player 2's zone (the owner)
         """
         # Setup game
         player1 = Player(player_id="player1", name="Player 1")
@@ -57,19 +57,19 @@ class TestBug107SleepToOwnerZone:
         
         # Create cards
         snuggles = Card(
-            name="Snuggles",
+            name="Clean",
             card_type=CardType.TOY,
             cost=1,
-            effect_text=card_data["Snuggles"].effect_text,
-            speed=card_data["Snuggles"].speed,
-            strength=card_data["Snuggles"].strength,
-            stamina=card_data["Snuggles"].stamina,
-            primary_color=card_data["Snuggles"].primary_color,
-            accent_color=card_data["Snuggles"].accent_color,
+            effect_text=card_data["Clean"].effect_text,
+            speed=card_data["Clean"].speed,
+            strength=card_data["Clean"].strength,
+            stamina=card_data["Clean"].stamina,
+            primary_color=card_data["Clean"].primary_color,
+            accent_color=card_data["Clean"].accent_color,
             owner="player2",
             controller="player2",
             zone=Zone.IN_PLAY,
-            effect_definitions=card_data["Snuggles"].effect_definitions
+            effect_definitions=card_data["Clean"].effect_definitions
         )
         snuggles.current_stamina = snuggles.stamina
         
@@ -90,7 +90,7 @@ class TestBug107SleepToOwnerZone:
         )
         knight.current_stamina = knight.stamina
         
-        # Setup: Snuggles is in play (owned by P2, controlled by P1 after Twist)
+        # Setup: Clean is in play (owned by P2, controlled by P1 after Twist)
         player1.cc = 10
         player1.in_play.append(snuggles)
         snuggles.controller = "player1"  # Simulate Twist effect
@@ -109,10 +109,10 @@ class TestBug107SleepToOwnerZone:
         assert knight in player2.in_play
         assert knight.zone == Zone.IN_PLAY
         
-        # Player 2 tussles Snuggles with Knight
+        # Player 2 tussles Clean with Knight
         engine.initiate_tussle(player2, knight, snuggles)
         
-        # Verify Snuggles is sleeped to OWNER's (Player 2) sleep zone
+        # Verify Clean is sleeped to OWNER's (Player 2) sleep zone
         assert snuggles not in player1.in_play
         assert snuggles not in player1.sleep_zone  # BUG: This was happening before fix
         assert snuggles in player2.sleep_zone  # FIX: Should sleep to owner's zone
@@ -161,19 +161,19 @@ class TestBug107SleepToOwnerZone:
         # Create target card in opponent's hand
         # This card is owned by player1 but somehow in player2's hand (edge case)
         target_card = Card(
-            name="Snuggles",
+            name="Clean",
             card_type=CardType.TOY,
             cost=1,
-            effect_text=card_data["Snuggles"].effect_text,
-            speed=card_data["Snuggles"].speed,
-            strength=card_data["Snuggles"].strength,
-            stamina=card_data["Snuggles"].stamina,
-            primary_color=card_data["Snuggles"].primary_color,
-            accent_color=card_data["Snuggles"].accent_color,
+            effect_text=card_data["Clean"].effect_text,
+            speed=card_data["Clean"].speed,
+            strength=card_data["Clean"].strength,
+            stamina=card_data["Clean"].stamina,
+            primary_color=card_data["Clean"].primary_color,
+            accent_color=card_data["Clean"].accent_color,
             owner="player1",  # Owner is player1
             controller="player2",  # But controlled by player2 (edge case)
             zone=Zone.HAND,
-            effect_definitions=card_data["Snuggles"].effect_definitions
+            effect_definitions=card_data["Clean"].effect_definitions
         )
         
         # Setup game state
@@ -239,39 +239,39 @@ class TestBug123StatBuffsOnlyInPlay:
         )
         ka.current_stamina = ka.stamina
         
-        # Create Snuggles in play (should be buffed)
+        # Create Clean in play (should be buffed)
         snuggles_in_play = Card(
-            name="Snuggles",
+            name="Clean",
             card_type=CardType.TOY,
             cost=1,
-            effect_text=card_data["Snuggles"].effect_text,
-            speed=card_data["Snuggles"].speed,
-            strength=card_data["Snuggles"].strength,
-            stamina=card_data["Snuggles"].stamina,
-            primary_color=card_data["Snuggles"].primary_color,
-            accent_color=card_data["Snuggles"].accent_color,
+            effect_text=card_data["Clean"].effect_text,
+            speed=card_data["Clean"].speed,
+            strength=card_data["Clean"].strength,
+            stamina=card_data["Clean"].stamina,
+            primary_color=card_data["Clean"].primary_color,
+            accent_color=card_data["Clean"].accent_color,
             owner="player1",
             controller="player1",
             zone=Zone.IN_PLAY,
-            effect_definitions=card_data["Snuggles"].effect_definitions
+            effect_definitions=card_data["Clean"].effect_definitions
         )
         snuggles_in_play.current_stamina = snuggles_in_play.stamina
         
-        # Create Snuggles in hand (should NOT be buffed)
+        # Create Clean in hand (should NOT be buffed)
         snuggles_in_hand = Card(
-            name="Snuggles",
+            name="Clean",
             card_type=CardType.TOY,
             cost=1,
-            effect_text=card_data["Snuggles"].effect_text,
-            speed=card_data["Snuggles"].speed,
-            strength=card_data["Snuggles"].strength,
-            stamina=card_data["Snuggles"].stamina,
-            primary_color=card_data["Snuggles"].primary_color,
-            accent_color=card_data["Snuggles"].accent_color,
+            effect_text=card_data["Clean"].effect_text,
+            speed=card_data["Clean"].speed,
+            strength=card_data["Clean"].strength,
+            stamina=card_data["Clean"].stamina,
+            primary_color=card_data["Clean"].primary_color,
+            accent_color=card_data["Clean"].accent_color,
             owner="player1",
             controller="player1",
             zone=Zone.HAND,
-            effect_definitions=card_data["Snuggles"].effect_definitions
+            effect_definitions=card_data["Clean"].effect_definitions
         )
         
         # Setup game state

@@ -28,14 +28,17 @@ def test_alternate_deck_via_env():
     
     print(f"✓ Loaded {len(cards)} cards from alternate deck")
     
-    # Verify we have 3 cards (2 toys, 1 action)
-    assert len(cards) == 3, f"Expected 3 cards, got {len(cards)}"
+    # Verify we have 6 cards (4 toys, 2 actions)
+    assert len(cards) == 6, f"Expected 6 cards, got {len(cards)}"
     
     # Verify the cards are the test cards
     card_names = [card.name for card in cards]
     assert "TestToy1" in card_names, "TestToy1 not found"
     assert "TestToy2" in card_names, "TestToy2 not found"
+    assert "TestToy3" in card_names, "TestToy3 not found"
+    assert "TestToy4" in card_names, "TestToy4 not found"
     assert "TestAction1" in card_names, "TestAction1 not found"
+    assert "TestAction2" in card_names, "TestAction2 not found"
     
     # Check a specific card
     test_toy1 = next(card for card in cards if card.name == "TestToy1")
@@ -72,12 +75,15 @@ def test_game_service_with_alternate_deck():
     service = GameService(str(test_csv))
     
     # Verify cards were loaded
-    assert len(service.all_cards) == 3, f"Expected 3 cards, got {len(service.all_cards)}"
+    assert len(service.all_cards) == 6, f"Expected 6 cards, got {len(service.all_cards)}"
     
     card_names = [card.name for card in service.all_cards]
     assert "TestToy1" in card_names, "TestToy1 not found in service"
     assert "TestToy2" in card_names, "TestToy2 not found in service"
+    assert "TestToy3" in card_names, "TestToy3 not found in service"
+    assert "TestToy4" in card_names, "TestToy4 not found in service"
     assert "TestAction1" in card_names, "TestAction1 not found in service"
+    assert "TestAction2" in card_names, "TestAction2 not found in service"
     
     print(f"✓ GameService loaded {len(service.all_cards)} cards from alternate deck")
     print("✅ GameService alternate deck test passed!")

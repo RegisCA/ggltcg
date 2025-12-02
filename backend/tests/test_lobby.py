@@ -4,11 +4,13 @@ Test the multiplayer lobby flow.
 Tests: create lobby, join lobby, submit decks, start game.
 """
 
+import pytest
 import requests
 import json
 
 BASE_URL = "http://localhost:8000"
 
+@pytest.mark.skip(reason="Requires running server - integration test")
 def test_lobby_flow():
     """Test complete lobby flow."""
     

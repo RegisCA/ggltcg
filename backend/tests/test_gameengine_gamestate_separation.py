@@ -150,26 +150,26 @@ def test_ballaber_sleeps_umbruh_from_hand_no_trigger():
 
 def test_snuggles_sleeps_umbruh_triggers_cc_gain():
     """
-    Test that when Snuggles is sleeped and sleeps Umbruh (cascading effect),
+    Test that when Clean is sleeped and sleeps Umbruh (cascading effect),
     Umbruh's when-sleeped effect triggers and grants 1 CC.
     
     This tests the fix in triggered_effects.py:109
     """
-    print("\n=== Test: Snuggles sleeps Umbruh (cascading effects) ===")
+    print("\n=== Test: Clean sleeps Umbruh (cascading effects) ===")
     
     # Load cards from CSV
     loader = CardLoader(CARDS_CSV_PATH)
     all_cards = loader.load_cards()
     
-    # Find Snuggles and Umbruh
-    snuggles = next(c for c in all_cards if c.name == "Snuggles")
+    # Find Clean and Umbruh
+    snuggles = next(c for c in all_cards if c.name == "Clean")
     umbruh = next(c for c in all_cards if c.name == "Umbruh")
     
     # Create players
     p1 = Player(player_id="p1", name="Player 1")
     p2 = Player(player_id="p2", name="Player 2")
     
-    # Give P1: Snuggles and Umbruh both in play
+    # Give P1: Clean and Umbruh both in play
     snuggles.zone = Zone.IN_PLAY
     snuggles.owner = "p1"
     snuggles.controller = "p1"
@@ -192,14 +192,14 @@ def test_snuggles_sleeps_umbruh_triggers_cc_gain():
     )
     engine = GameEngine(game_state)
     
-    print(f"Before: P1 CC = {p1.cc}, Snuggles and Umbruh in play")
+    print(f"Before: P1 CC = {p1.cc}, Clean and Umbruh in play")
     
-    # Sleep Snuggles from play (this should trigger Snuggles' effect)
-    # Snuggles' effect should sleep Umbruh
+    # Sleep Clean from play (this should trigger Clean' effect)
+    # Clean' effect should sleep Umbruh
     # Umbruh's effect should grant 1 CC
     engine._sleep_card(snuggles, p1, was_in_play=True)
     
-    # Snuggles effect is optional and requires a target
+    # Clean effect is optional and requires a target
     # The effect should fire but we need to provide target via kwargs
     # Let's manually trigger it with the target
     from game_engine.rules.effects import EffectRegistry
@@ -208,20 +208,20 @@ def test_snuggles_sleeps_umbruh_triggers_cc_gain():
         from game_engine.rules.effects.base_effect import TriggeredEffect, TriggerTiming
         if isinstance(effect, TriggeredEffect) and effect.trigger == TriggerTiming.WHEN_SLEEPED:
             if effect.should_trigger(game_state, sleeped_card=snuggles, was_in_play=True):
-                # Snuggles' effect requires a target - provide Umbruh
+                # Clean' effect requires a target - provide Umbruh
                 effect.apply(game_state, sleeped_card=snuggles, target=umbruh, game_engine=engine)
     
     print(f"After: P1 CC = {p1.cc}")
-    print(f"Snuggles in sleep zone: {snuggles in p1.sleep_zone}")
+    print(f"Clean in sleep zone: {snuggles in p1.sleep_zone}")
     print(f"Umbruh in sleep zone: {umbruh in p1.sleep_zone}")
     
     # Assertions
-    assert snuggles in p1.sleep_zone, "Snuggles should be in sleep zone"
-    assert umbruh in p1.sleep_zone, "Umbruh should be sleeped by Snuggles effect"
+    assert snuggles in p1.sleep_zone, "Clean should be in sleep zone"
+    assert umbruh in p1.sleep_zone, "Umbruh should be sleeped by Clean effect"
     assert p1.cc == 4, f"P1 should have gained 1 CC from Umbruh trigger (expected 4, got {p1.cc})"
     # 3 initial CC + 1 from Umbruh when sleeped = 4
     
-    print("✓ Snuggles + Umbruh cascading effects work correctly")
+    print("✓ Clean + Umbruh cascading effects work correctly")
 
 
 def test_clean_sleeps_umbruh_triggers_cc_gain():

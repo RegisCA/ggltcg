@@ -17,20 +17,24 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable is required. "
-        "Please set it to your PostgreSQL connection string."
+    logger.warning(
+        "DATABASE_URL environment variable not set. "
+        "Database features will not be available. "
+        "Set DATABASE_URL to enable PostgreSQL persistence."
     )
-
-# Create SQLAlchemy engine
-# Using pool_pre_ping to handle stale connections
-# Note: SQLite doesn't support pool_size/max_overflow (uses SingletonThreadPool)
-if DATABASE_URL.startswith('sqlite'):
+    # Create a dummy engine that won't be used
+    # This allows imports to succeed even without a database
+    engine = None
+    SessionLocal = None
+elif DATABASE_URL.startswith('sqlite'):
+    # SQLite doesn't support pool_size/max_overflow (uses SingletonThreadPool)
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,  # Verify connections before use
         echo=False,  # Set to True for SQL query logging during development
     )
+    # Create session factory
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 else:
     # PostgreSQL or other databases that support connection pooling
     engine = create_engine(
@@ -40,9 +44,8 @@ else:
         pool_pre_ping=True,  # Verify connections before use
         echo=False,  # Set to True for SQL query logging during development
     )
-
-# Create session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    # Create session factory
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 # Log connection pool statistics (useful for debugging)
