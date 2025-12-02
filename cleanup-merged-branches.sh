@@ -1,6 +1,7 @@
 #!/bin/bash
 # Branch Cleanup Script
 # Safely removes local branches that have been merged into main
+# Works with both regular merges and squash merges (GitHub's default)
 
 set -e
 
@@ -13,7 +14,7 @@ echo "📥 Fetching latest from origin..."
 git fetch origin --prune
 
 echo ""
-echo "🔍 Finding merged branches..."
+echo "🔍 Finding branches to clean up..."
 echo ""
 
 # Get current branch
@@ -30,18 +31,48 @@ fi
 git pull origin main
 
 echo ""
-echo "📋 Merged branches (will be deleted):"
-echo "-------------------------------------"
+echo "📋 Branches to clean up:"
+echo "------------------------"
 
-# Find merged branches (excluding main and current branch)
-MERGED_BRANCHES=$(git branch --merged main | grep -v "^\*" | grep -v "main" | grep -v "fix/bugs-107-108-123")
+# Find branches that:
+# 1. Are merged (traditional merge)
+# 2. OR have a corresponding remote branch that was deleted (squash merged PRs)
+# 3. OR whose remote branch no longer exists after fetch --prune
+BRANCHES_TO_DELETE=""
 
-if [ -z "$MERGED_BRANCHES" ]; then
-    echo "✅ No merged branches to clean up!"
+for branch in $(git branch | grep -v "^\*" | grep -v "main"); do
+    branch=$(echo "$branch" | xargs)  # Trim whitespace
+    
+    # Skip protected branches
+    if [ "$branch" = "main" ] || [ -z "$branch" ]; then
+        continue
+    fi
+    
+    # Check if branch is merged (traditional)
+    if git branch --merged main | grep -q "^\s*$branch$"; then
+        echo "  $branch (merged)"
+        BRANCHES_TO_DELETE="$BRANCHES_TO_DELETE $branch"
+        continue
+    fi
+    
+    # Check if remote tracking branch was deleted (squash merge indicator)
+    REMOTE_BRANCH="origin/$branch"
+    if ! git show-ref --verify --quiet "refs/remotes/$REMOTE_BRANCH"; then
+        # Remote branch doesn't exist - likely squash merged and deleted
+        echo "  $branch (remote deleted - likely squash merged)"
+        BRANCHES_TO_DELETE="$BRANCHES_TO_DELETE $branch"
+        continue
+    fi
+done
+
+if [ -z "$BRANCHES_TO_DELETE" ]; then
+    echo "✅ No branches to clean up!"
+    echo ""
+    echo "📊 Current local branches:"
+    git branch
     exit 0
 fi
 
-echo "$MERGED_BRANCHES"
 echo ""
 
 # Ask for confirmation
@@ -50,22 +81,18 @@ echo ""
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
-    echo "🗑️  Deleting merged branches..."
+    echo "🗑️  Deleting branches..."
     
-    # Delete each merged branch
-    echo "$MERGED_BRANCHES" | while read -r branch; do
+    # Delete each branch
+    for branch in $BRANCHES_TO_DELETE; do
         if [ ! -z "$branch" ]; then
             echo "   Deleting: $branch"
-            git branch -d "$branch" 2>/dev/null || echo "   ⚠️  Could not delete $branch (may have unmerged changes)"
+            git branch -D "$branch" 2>/dev/null || echo "   ⚠️  Could not delete $branch"
         fi
     done
     
     echo ""
     echo "✅ Local cleanup complete!"
-    echo ""
-    echo "🌐 Remote branches:"
-    echo "   To delete remote branches, run:"
-    echo "   git push origin --delete <branch-name>"
     echo ""
 else
     echo "❌ Cleanup cancelled"

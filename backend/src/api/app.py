@@ -74,14 +74,48 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint with database and migration status."""
     from .game_service import get_game_service
+    from .database import SessionLocal
+    from .db_models import GameModel
+    import os
     
     service = get_game_service()
     
+    # Get game counts by status
+    db_connected = False
+    games_in_progress = 0
+    total_games = 0
+    alembic_version = None
+    
+    try:
+        db = SessionLocal()
+        db_connected = True
+        
+        # Count games by status
+        games_in_progress = db.query(GameModel).filter(GameModel.status == "active").count()
+        total_games = db.query(GameModel).count()
+        
+        # Get current Alembic migration version
+        from sqlalchemy import text
+        result = db.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+        if result:
+            alembic_version = result[0]
+        
+        db.close()
+    except Exception as e:
+        logger.warning(f"Health check database query failed: {e}")
+    
     return {
         "status": "healthy",
-        "active_games": service.get_active_games_count(),
+        "database": {
+            "connected": db_connected,
+            "migration_version": alembic_version,
+        },
+        "games": {
+            "in_progress": games_in_progress,
+            "total": total_games,
+        },
     }
 
 
