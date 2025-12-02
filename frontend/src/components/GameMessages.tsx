@@ -30,6 +30,7 @@ export function GameMessages({
       {/* Header - Always visible, clickable to toggle */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
+        aria-label={isCollapsed ? "Expand game log" : "Collapse game log"}
         className={`
           w-full flex items-center justify-between
           ${compact ? 'px-2 py-1.5' : 'px-3 py-2'}
@@ -51,11 +52,16 @@ export function GameMessages({
           )}
         </div>
         <svg
-          className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'} ${compact ? 'w-3 h-3' : 'w-4 h-4'}`}
+          aria-hidden="true"
+          className="text-gray-400 flex-shrink-0 transition-transform duration-200"
+          style={{
+            width: compact ? '12px' : '16px',
+            height: compact ? '12px' : '16px',
+            transform: isCollapsed ? 'none' : 'rotate(180deg)'
+          }}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
-          style={{ width: compact ? '12px' : '16px', height: compact ? '12px' : '16px' }}
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
         </svg>
@@ -86,7 +92,7 @@ export function GameMessages({
                 <div className={compact ? 'space-y-1' : 'space-y-2'}>
                   {displayMessages.map((msg, idx) => (
                     <div 
-                      key={idx} 
+                      key={`${idx}-${msg.substring(0, 20)}`} 
                       className={`
                         bg-blue-900 rounded
                         ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}

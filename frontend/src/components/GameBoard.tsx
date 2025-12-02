@@ -161,7 +161,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     
     if (tussleActions.length === 1 && tussleActions[0].target_options?.length === 1) {
       // Single target - execute directly (like direct attack or only one defender)
-      executeAction(tussleActions[0], []);
+      executeAction(tussleActions[0], tussleActions[0].target_options);
     } else if (tussleActions.length > 0) {
       // Multiple tussle targets - create a synthetic action for target selection modal
       // Collect all unique target options from all tussle actions for this card
