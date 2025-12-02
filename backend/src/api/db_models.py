@@ -4,7 +4,6 @@ SQLAlchemy ORM models for database persistence.
 Defines the database schema using SQLAlchemy declarative models.
 """
 
-import os
 from datetime import datetime
 from sqlalchemy import (
     Column, String, Integer, DateTime, Text, CheckConstraint, Index, ForeignKey, JSON
@@ -16,10 +15,11 @@ import uuid
 
 Base = declarative_base()
 
-# Conditional JSON type - use JSONB for PostgreSQL, JSON for SQLite
-# SQLite doesn't support JSONB, but JSON works fine for tests
-DATABASE_URL = os.getenv("DATABASE_URL", "")
-JSONType = JSON if DATABASE_URL.startswith('sqlite') else JSONB
+# Use JSON type for cross-database compatibility
+# JSON works in both PostgreSQL and SQLite (JSONB is PostgreSQL-only)
+# For production PostgreSQL, we could use JSONB for better performance,
+# but JSON is sufficient and allows tests to run with SQLite
+JSONType = JSON
 
 
 class UserModel(Base):
