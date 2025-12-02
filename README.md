@@ -1,21 +1,69 @@
 # GGLTCG - Googooland Trading Card Game
 
+![CI Status](https://github.com/RegisCA/ggltcg/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.13-blue.svg)
+![React](https://img.shields.io/badge/react-19-blue.svg)
+
 A tactical two-player card game with no randomness in draws—only skill and strategy.
 
 ## Project Overview
 
-GGLTCG is a web application that allows players to play the Googooland TCG against an AI opponent. The game features 18 unique cards with diverse mechanics and strategic depth.
+GGLTCG is a web application that allows players to play the Googooland TCG against an AI opponent or challenge friends online. The game features 18 unique cards with diverse mechanics and strategic depth, backed by a persistent database for stats and history.
+
+## Key Features
+
+- **1v1 Online Multiplayer**: Real-time lobby system to create private games and challenge friends via code.
+- **Google OAuth Authentication**: Secure sign-in with Google to protect your account and stats.
+- **Strategic AI Opponent**: Powered by Google Gemini (LLM) to provide a challenging and thematic opponent.
+- **Persistent Stats & Leaderboards**: Track your win rates, match history, and card usage statistics.
+- **No-RNG Gameplay**: A deterministic combat system ("Tussles") where speed and strategy determine the winner.
+- **Reactive UI**: Built with React 19 and React Query for optimistic updates and smooth game state synchronization.
+- **Data-Driven Design**: Card attributes and effects are defined in CSV, making balancing and expansion easy.
+- **Type-Safe Architecture**: Full TypeScript frontend and Pydantic-validated backend.
+
+## Production Engineering
+
+This project demonstrates professional software engineering practices:
+
+- **Database Migrations**: Uses **Alembic** for reliable schema evolution and version control of the database.
+- **Automated Maintenance**: Background tasks automatically clean up abandoned games and stale logs to keep the database healthy.
+- **Operational Security**: Maintenance endpoints are secured with API keys; user data is protected via OAuth 2.0.
+- **Scalable Architecture**: Stateless backend design allows for horizontal scaling (deployed on Render).
+
+## Architecture
+
+```mermaid
+graph TD
+    User[User Browser] <-->|HTTPS/JSON| Frontend[React Frontend]
+    Frontend <-->|REST API| Backend[FastAPI Backend]
+    Frontend <-->|OAuth| Google[Google Identity Services]
+    Backend <-->|Read| CSV[Card Data CSV]
+    Backend <-->|Prompt/Response| LLM[Google Gemini API]
+    Backend <-->|Read/Write| DB[(PostgreSQL DB)]
+    
+    subgraph "Backend Services"
+        Backend
+        CSV
+        DB
+    end
+    
+    subgraph "External"
+        LLM
+        Google
+    end
+```
 
 ## Tech Stack
 
 ### Backend
 
 - **Python 3.13** with FastAPI 0.115.6
+- **PostgreSQL** database with SQLAlchemy & Alembic
 - Uvicorn 0.34.0 ASGI server
-- Card data stored in CSV format
+- Card data stored in CSV format (Single Source of Truth)
 - Game state management with JSON serialization
 - AI player powered by Google Gemini (free tier available)
-- Alternative LLM providers supported (see `backend/AI_SETUP.md`)
 - **Deployed on Render.com** (free tier)
 
 ### Frontend
@@ -26,7 +74,6 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 - **Axios** for HTTP client
 - **TailwindCSS 4.1** for styling
 - Dark theme UI with responsive design
-- 6 polished components for complete game experience
 - **Deployed on Vercel** (free tier)
 
 ## Live Demo
@@ -34,6 +81,7 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 **Play now:** <https://ggltcg.vercel.app>
 
 **Backend API:** <https://ggltcg.onrender.com>
+
 - API docs: <https://ggltcg.onrender.com/docs>
 - Health check: <https://ggltcg.onrender.com/health>
 
@@ -41,7 +89,7 @@ GGLTCG is a web application that allows players to play the Googooland TCG again
 
 ## Project Structure
 
-```
+```mermaid
 ggltcg/
 ├── backend/
 │   ├── src/
@@ -132,6 +180,7 @@ The backend server supports the following command-line arguments:
 - `--no-reload`: Disable auto-reload on code changes
 
 Example with custom deck and different port:
+
 ```bash
 python run_server.py --deck-csv my_custom_deck.csv --port 8080
 ```
@@ -157,6 +206,7 @@ Rush,18,0,A Toy you choose gets +2 speed until end of turn.,,,,,#8B5FA8,#8B5FA8
 ```
 
 **Required columns:**
+
 - `name`: Card name (must be unique)
 - `cost`: Card cost (use `?` for variable cost cards like Copy)
 - `effect`: Card effect text
@@ -164,6 +214,7 @@ Rush,18,0,A Toy you choose gets +2 speed until end of turn.,,,,,#8B5FA8,#8B5FA8
 - `primary_color`, `accent_color`: Hex color codes for card appearance
 
 **Card Types:**
+
 - **Toy cards**: Must have speed, strength, and stamina values
 - **Action cards**: Leave speed, strength, and stamina columns empty
 
@@ -181,12 +232,14 @@ See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
 ## Deployment
 
 The application is deployed and live:
+
 - **Frontend:** <https://ggltcg.vercel.app> (Vercel)
 - **Backend:** <https://ggltcg.onrender.com> (Render.com)
 
 For deployment instructions, see:
-- **`DEPLOYMENT.md`** - Complete step-by-step deployment guide
-- **`DEPLOYMENT_QUICKSTART.md`** - Quick reference for common tasks
+
+- **`docs/deployment/DEPLOYMENT.md`** - Complete step-by-step deployment guide
+- **`docs/deployment/DEPLOYMENT_QUICKSTART.md`** - Quick reference for common tasks
 
 Both services run on free tiers. Note that the Render backend may take ~50 seconds to wake up from inactivity.
 
@@ -225,8 +278,6 @@ Both services run on free tiers. Note that the Render backend may take ~50 secon
 - This project supports multiple LLM providers (Gemini, Claude, etc.)
 - See `backend/AI_SETUP.md` for detailed setup instructions for each provider
 - Gemini is recommended for development due to its generous free tier
-
-
 
 ## Development Roadmap
 
@@ -272,8 +323,15 @@ Both services run on free tiers. Note that the Render backend may take ~50 secon
 
 ## Contributing
 
-This project is developed using GitHub Copilot. See `COPILOT_CONTEXT.md` for development guidelines and context.
+This project is developed using GitHub Copilot. See `docs/dev-notes/COPILOT_CONTEXT.md` for development guidelines and context.
 
 ## License
 
-Private project - All rights reserved
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+This means you are free to use, modify, and distribute this software, provided that any modifications are also made open source under the same license. If you run this software on a network server, you must provide the source code to users of that server.
+
+**Commercial Licensing:**
+If you wish to use this software in a proprietary product or without the obligations of the AGPL-3.0, commercial licenses are available. Please contact the maintainers for more information.
+
+See the [LICENSE](LICENSE) file for details.
