@@ -1,0 +1,62 @@
+name: Database Cleanup
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    # Allow manual trigger from Actions tab
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Run cleanup
+        env:
+          MAINTENANCE_API_KEY: ${{ secrets.MAINTENANCE_API_KEY }}
+          API_URL: https://ggltcg.onrender.com
+        run: |
+          echo "🧹 Running database cleanup..."
+          
+          # First, get stats to see what will be cleaned
+          echo "📊 Current stats:"
+          curl -s -X GET "$API_URL/maintenance/stats" \
+            -H "X-API-Key: $MAINTENANCE_API_KEY" \
+            -H "Content-Type: application/json" | jq .
+          
+          # Run the cleanup
+          echo ""
+          echo "🗑️ Running cleanup..."
+          RESULT=$(curl -s -X POST "$API_URL/maintenance/cleanup" \
+            -H "X-API-Key: $MAINTENANCE_API_KEY" \
+            -H "Content-Type: application/json")
+          
+          echo "$RESULT" | jq .
+          
+          # Check if cleanup was successful
+          if echo "$RESULT" | jq -e '.games_abandoned >= 0' > /dev/null 2>&1; then
+            echo ""
+            echo "✅ Cleanup completed successfully!"
+            
+            # Extract and display summary
+            GAMES=$(echo "$RESULT" | jq '.games_abandoned')
+            AI_LOGS=$(echo "$RESULT" | jq '.ai_logs_deleted')
+            PLAYBACK=$(echo "$RESULT" | jq '.playback_deleted')
+            TIME_MS=$(echo "$RESULT" | jq '.execution_time_ms')
+            
+            echo "   - Games marked abandoned: $GAMES"
+            echo "   - AI logs deleted: $AI_LOGS"
+            echo "   - Playback records deleted: $PLAYBACK"
+            echo "   - Execution time: ${TIME_MS}ms"
+          else
+            echo ""
+            echo "❌ Cleanup failed!"
+            echo "$RESULT"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "⚠️ Database cleanup failed! Check the logs above for details."
