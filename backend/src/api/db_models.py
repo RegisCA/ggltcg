@@ -1,5 +1,4 @@
 """
-"""
 SQLAlchemy ORM models for database persistence.
 
 Defines the database schema using SQLAlchemy declarative models.
