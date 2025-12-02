@@ -11,8 +11,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import patch, MagicMock
 
-from src.api.db_models import Base, UserModel
-from src.api.user_service import UserService
+from api.db_models import Base, UserModel
+from api.user_service import UserService
 
 
 # Test database setup

@@ -24,13 +24,22 @@ if not DATABASE_URL:
 
 # Create SQLAlchemy engine
 # Using pool_pre_ping to handle stale connections
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=5,
-    max_overflow=10,
-    pool_pre_ping=True,  # Verify connections before use
-    echo=False,  # Set to True for SQL query logging during development
-)
+# Note: SQLite doesn't support pool_size/max_overflow (uses SingletonThreadPool)
+if DATABASE_URL.startswith('sqlite'):
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,  # Verify connections before use
+        echo=False,  # Set to True for SQL query logging during development
+    )
+else:
+    # PostgreSQL or other databases that support connection pooling
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,  # Verify connections before use
+        echo=False,  # Set to True for SQL query logging during development
+    )
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
