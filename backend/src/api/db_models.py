@@ -1,12 +1,13 @@
 """
-SQLAlchemy ORM models for database persistence.
+"""SQLAlchemy ORM models for database persistence.
 
 Defines the database schema using SQLAlchemy declarative models.
 """
 
+import os
 from datetime import datetime
 from sqlalchemy import (
-    Column, String, Integer, DateTime, Text, CheckConstraint, Index, ForeignKey
+    Column, String, Integer, DateTime, Text, CheckConstraint, Index, ForeignKey, JSON
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.ext.declarative import declarative_base
@@ -14,6 +15,11 @@ from sqlalchemy.sql import func
 import uuid
 
 Base = declarative_base()
+
+# Conditional JSON type - use JSONB for PostgreSQL, JSON for SQLite
+# SQLite doesn't support JSONB, but JSON works fine for tests
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+JSONType = JSON if DATABASE_URL.startswith('sqlite') else JSONB
 
 
 class UserModel(Base):
@@ -107,8 +113,8 @@ class GameModel(Base):
     active_player_id = Column(String(255), nullable=False)
     phase = Column(String(50), nullable=False, default="Start")
     
-    # Full game state (JSONB)
-    game_state = Column(JSONB, nullable=False)
+    # Full game state (JSONB for PostgreSQL, JSON for SQLite)
+    game_state = Column(JSONType, nullable=False)
     
     # Constraints
     __table_args__ = (
@@ -157,8 +163,8 @@ class GameActionModel(Base):
     player_id = Column(String(255), nullable=False, index=True)
     action_type = Column(String(50), nullable=False, index=True)
     
-    # Action details (JSONB for flexibility)
-    action_data = Column(JSONB, nullable=False)
+    # Action details (JSONB for PostgreSQL, JSON for SQLite)
+    action_data = Column(JSONType, nullable=False)
     
     # Result of action
     result_description = Column(Text, nullable=True)
@@ -292,12 +298,12 @@ class GamePlaybackModel(Base):
     winner_id = Column(String(255), nullable=True, index=True)
     
     # Starting state (for reproduction)
-    starting_deck_p1 = Column(JSONB, nullable=False)  # List of card names
-    starting_deck_p2 = Column(JSONB, nullable=False)  # List of card names
+    starting_deck_p1 = Column(JSONType, nullable=False)  # List of card names
+    starting_deck_p2 = Column(JSONType, nullable=False)  # List of card names
     first_player_id = Column(String(255), nullable=False)
     
     # Game progression
-    play_by_play = Column(JSONB, nullable=False)  # List of action entries
+    play_by_play = Column(JSONType, nullable=False)  # List of action entries
     turn_count = Column(Integer, nullable=False)
     
     # Timestamps
@@ -342,7 +348,7 @@ class PlayerStatsModel(Base):
     #   "Ka": {"games_played": 50, "games_won": 28, "tussles_initiated": 30, "tussles_won": 22},
     #   "Knight": {"games_played": 45, "games_won": 25, ...}
     # }
-    card_stats = Column(JSONB, nullable=False, default={})
+    card_stats = Column(JSONType, nullable=False, default={})
     
     # Timestamps
     created_at = Column(
