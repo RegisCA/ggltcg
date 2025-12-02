@@ -49,7 +49,7 @@ export function LobbyWaiting({
   });
 
   // Handle deck selection submission
-  const handleDeckSelected = async (deck: string[], _playerName: string) => {
+  const handleDeckSelected = async (deck: string[]) => {
     setError(null);
 
     try {
@@ -66,9 +66,10 @@ export function LobbyWaiting({
       } else {
         setPhase('waiting-for-decks');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to submit deck:', err);
-      setError(err.response?.data?.detail || 'Failed to submit deck. Please try again.');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any).response?.data?.detail || 'Failed to submit deck. Please try again.');
     }
   };
 

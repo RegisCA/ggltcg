@@ -43,9 +43,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ isOpen, onCl
         });
         onClose();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update display name:', err);
-      setError(err.response?.data?.detail || 'Failed to update display name. Please try again.');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any).response?.data?.detail || 'Failed to update display name. Please try again.');
     } finally {
       setIsLoading(false);
     }

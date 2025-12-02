@@ -110,7 +110,7 @@ export async function getValidActions(
   return response.data;
 }
 
-export async function generateNarrative(playByPlay: any[]): Promise<string> {
+export async function generateNarrative(playByPlay: unknown[]): Promise<string> {
   const response = await apiClient.post<{ narrative: string }>(
     '/games/narrative',
     { play_by_play: playByPlay }

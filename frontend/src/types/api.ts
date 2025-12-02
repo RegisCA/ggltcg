@@ -51,7 +51,7 @@ export interface ActivateAbilityRequest {
 export interface ActionResponse {
   success: boolean;
   message: string;
-  game_state?: Record<string, any>;
+  game_state?: Record<string, unknown>;
 }
 
 // Valid Actions
@@ -129,7 +129,7 @@ export interface StartGameResponse {
   game_id: string;
   status: string;
   first_player_id: string;
-  game_state: any;
+  game_state: unknown;
 }
 
 // ============================================================================

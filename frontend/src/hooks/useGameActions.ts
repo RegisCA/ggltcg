@@ -18,7 +18,7 @@ import { usePlayCard, useTussle, useEndTurn, useActivateAbility } from './useGam
 interface UseGameActionsOptions {
   gameId: string;
   humanPlayerId: string;
-  onMessage: (msg: string, response?: any) => void;
+  onMessage: (msg: string, response?: unknown) => void;
   onActionComplete?: () => void;
 }
 
@@ -51,7 +51,7 @@ export function useGameActions(options: UseGameActionsOptions): UseGameActionsRe
     selectedTargets: string[],
     alternativeCostCard?: string
   ) => {
-    const handleSuccess = (response: any) => {
+    const handleSuccess = (response: { message: string }) => {
       onMessage(response.message, response);
       onActionComplete?.();
     };

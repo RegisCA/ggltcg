@@ -47,6 +47,7 @@ export function useGameFlow(
   // Handle game not found (404 error)
   useEffect(() => {
     if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apiError = error as any;
       if (apiError?.response?.status === 404) {
         alert('Game not found. The server may have restarted. Please create a new game.');
@@ -90,12 +91,10 @@ export function useGameFlow(
       return () => clearTimeout(timer);
     }
   }, [
-    gameState?.active_player_id, 
-    gameState?.turn_number, 
-    gameState?.is_game_over,
+    gameState,
     aiPlayerId, 
     isProcessing, 
-    aiTurnMutation.isPending,
+    aiTurnMutation,
     onAIMessage,
     onAIError,
   ]);

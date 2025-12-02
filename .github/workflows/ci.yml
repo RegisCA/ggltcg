@@ -29,6 +29,10 @@ jobs:
         pip install pytest pytest-asyncio httpx
 
     - name: Run tests
+      env:
+        DATABASE_URL: "sqlite:///:memory:"  # Use in-memory SQLite for tests
+        GOOGLE_API_KEY: "dummy_key"         # Dummy key for tests
+        MAINTENANCE_API_KEY: "dummy_key"    # Dummy key for tests
       run: |
         pytest tests/
 
