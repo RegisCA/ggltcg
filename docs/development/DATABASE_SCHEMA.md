@@ -570,8 +570,94 @@ This schema design provides a solid foundation for PostgreSQL persistence while 
 
 **Next Steps:**
 1. ✅ Review and approve schema design
-2. Set up Render PostgreSQL instance
-3. Implement SQLAlchemy models
-4. Create Alembic migrations
-5. Refactor game_service.py
-6. Deploy and test
+2. ✅ Set up Render PostgreSQL instance
+3. ✅ Implement SQLAlchemy models
+4. ✅ Create Alembic migrations
+5. ✅ Refactor game_service.py
+6. ✅ Deploy and test
+
+---
+
+## Appendix: Player ID Strategy
+
+**Updated:** December 2, 2025
+
+### Player Identification
+
+Players are identified by their **Google ID** (from OAuth authentication), not by randomly generated UUIDs or session-based IDs.
+
+| Player Type | ID Format | Example |
+|-------------|-----------|---------|
+| Authenticated User | Google ID (numeric string) | `109662458516887657743` |
+| AI Opponent | Fixed string | `ai-gemiknight` |
+| Guest (future) | `guest-{uuid}` | `guest-a1b2c3d4-...` |
+
+**Why Google ID?**
+
+- Consistent across sessions and devices
+- Enables accurate stat tracking per player
+- No duplicate records when same player plays multiple games
+
+**Implementation:**
+
+- Frontend passes `user.google_id` from auth context when starting games
+- Backend stores this in `player1_id`/`player2_id` columns
+- Stats are aggregated by this ID in `player_stats` table
+
+### Table: `player_stats` (Implemented)
+
+Tracks cumulative statistics per player across all games.
+
+```sql
+CREATE TABLE player_stats (
+    player_id VARCHAR(255) PRIMARY KEY,  -- Google ID or 'ai-gemiknight'
+    display_name VARCHAR(255) NOT NULL,
+    games_played INTEGER NOT NULL DEFAULT 0,
+    games_won INTEGER NOT NULL DEFAULT 0,
+    total_tussles INTEGER NOT NULL DEFAULT 0,
+    tussles_won INTEGER NOT NULL DEFAULT 0,
+    card_stats JSONB DEFAULT '{}',  -- Per-card statistics
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+**`card_stats` JSONB Structure:**
+
+```json
+{
+  "Ka": {
+    "games_played": 15,
+    "games_won": 12,
+    "tussles_initiated": 8,
+    "tussles_won": 6
+  },
+  "Knight": {
+    "games_played": 10,
+    "games_won": 8,
+    "tussles_initiated": 5,
+    "tussles_won": 4
+  }
+}
+```
+
+### Migration Notes
+
+**Migration 005** (`005_merge_legacy_player_stats.py`) consolidated legacy records from before the Google ID fix:
+
+- Merged `human`, `player1` → Sully's Google ID
+- Merged `human-*`, `player2` → Régis's Google ID  
+- Merged `ai`, `ai-*` → `ai-gemiknight`
+
+### Alembic Migrations at Startup
+
+Since Render free tier doesn't support `preDeployCommand`, migrations run automatically at app startup via FastAPI's lifespan handler in `app.py`:
+
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    run_migrations()  # Runs 'alembic upgrade head'
+    yield
+```
+
+This ensures database schema is always up-to-date when the app starts.
