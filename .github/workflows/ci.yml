@@ -33,6 +33,7 @@ jobs:
         DATABASE_URL: "sqlite:///:memory:"  # Use in-memory SQLite for tests
         GOOGLE_API_KEY: "dummy_key"         # Dummy key for tests
         MAINTENANCE_API_KEY: "dummy_key"    # Dummy key for tests
+        JWT_SECRET_KEY: "test_secret_key_for_ci"  # Dummy JWT secret for tests
       run: |
         pytest tests/
 
