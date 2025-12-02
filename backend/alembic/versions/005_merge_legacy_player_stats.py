@@ -25,8 +25,8 @@ from sqlalchemy import text
 
 
 # revision identifiers, used by Alembic.
-revision = '005_merge_legacy_stats'
-down_revision = '004_create_stats_tables'
+revision = '005'
+down_revision = '004'
 branch_labels = None
 depends_on = None
 
