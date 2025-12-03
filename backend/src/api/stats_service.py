@@ -126,6 +126,7 @@ class StatsService:
         first_player_id: str,
         play_by_play: list[dict],
         turn_count: int,
+        game_started_at: Optional[datetime] = None,
     ) -> None:
         """
         Record a completed game for playback and analysis.
@@ -142,6 +143,7 @@ class StatsService:
             first_player_id: ID of player who went first
             play_by_play: List of play-by-play entries
             turn_count: Total number of turns
+            game_started_at: When the game was created (for duration calculation)
         """
         if not self.use_database:
             logger.debug(f"Game playback recorded (no-db): game={game_id}")
@@ -175,6 +177,9 @@ class StatsService:
                 turn_count=turn_count,
                 completed_at=datetime.now(timezone.utc),
             )
+            # Set created_at to game start time if provided (for duration calculation)
+            if game_started_at:
+                playback.created_at = game_started_at
             db.add(playback)
             db.commit()
             logger.info(f"Game playback recorded: game={game_id}, turns={turn_count}")

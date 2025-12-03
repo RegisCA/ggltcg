@@ -88,6 +88,18 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def get_session_local():
+    """
+    Get the SessionLocal factory for direct session creation.
+    
+    Use this when you need to create a session outside of FastAPI dependencies.
+    
+    Returns:
+        SessionLocal factory or None if database not configured
+    """
+    return SessionLocal
+
+
 def init_db():
     """
     Initialize database tables.

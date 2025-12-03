@@ -13,6 +13,7 @@ from .routes_actions import router as actions_router
 from .routes_lobby import router as lobby_router
 from .routes_stats import router as stats_router
 from .routes_maintenance import router as maintenance_router
+from .routes_admin import router as admin_router
 from .auth_routes import router as auth_router
 
 # Configure logging
@@ -57,6 +58,7 @@ app.include_router(actions_router)
 app.include_router(lobby_router)
 app.include_router(stats_router)
 app.include_router(maintenance_router)
+app.include_router(admin_router)
 
 
 @app.get("/")
