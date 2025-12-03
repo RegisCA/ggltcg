@@ -4,11 +4,13 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
+import pytest
 from dotenv import load_dotenv
 load_dotenv()
 
 from api.game_service import GameService
 
+@pytest.mark.skip(reason="Requires database setup - integration test")
 def test_create_and_load_game():
     """Test creating a game, saving to DB, and loading it back"""
     from pathlib import Path
