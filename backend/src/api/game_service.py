@@ -19,7 +19,7 @@ from game_engine.models.game_state import GameState, Phase
 from game_engine.models.player import Player
 from game_engine.models.card import Card
 from game_engine.data.card_loader import CardLoader
-from api.database import SessionLocal
+from api.database import SessionLocal, get_session_local
 from api.db_models import GameModel, GameStatsModel
 from api.serialization import (
     serialize_game_state,
@@ -444,6 +444,18 @@ class GameService:
         
         # Save game playback
         try:
+            # Get game start time from database for accurate duration
+            game_started_at = None
+            if self.use_database:
+                SessionLocal = get_session_local()
+                db = SessionLocal()
+                try:
+                    game_model = db.query(GameModel).filter(GameModel.id == game_id).first()
+                    if game_model:
+                        game_started_at = game_model.created_at
+                finally:
+                    db.close()
+            
             stats_service.record_game_playback(
                 game_id=game_id,
                 player1_id=player1_id,
@@ -456,6 +468,7 @@ class GameService:
                 first_player_id=game_state.first_player_id,
                 play_by_play=game_state.play_by_play,
                 turn_count=game_state.turn_number,
+                game_started_at=game_started_at,
             )
         except Exception as e:
             logger.error(f"Failed to save game playback: {e}")
