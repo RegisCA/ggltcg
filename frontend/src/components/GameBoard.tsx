@@ -105,7 +105,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     if (gameState.active_player_id !== humanPlayerId && pendingAction) {
       setPendingAction(null);
     }
-  }, [gameState?.active_player_id, gameState?.turn_number, humanPlayerId, pendingAction]);
+  }, [gameState, humanPlayerId, pendingAction]);
 
   // Handle action - check if needs target selection modal
   const handleAction = useCallback((action: ValidAction) => {

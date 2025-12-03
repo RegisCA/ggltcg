@@ -20,13 +20,14 @@ interface UseGameMessagesOptions {
 
 interface UseGameMessagesReturn {
   messages: string[];
-  addMessage: (msg: string, options?: { skipIfGameOver?: boolean; response?: any }) => void;
+  addMessage: (msg: string, options?: { skipIfGameOver?: boolean; response?: unknown }) => void;
   clearMessages: () => void;
   isProcessingMessage: boolean;
 }
 
 export function useGameMessages(
   gameState: GameState | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _options: UseGameMessagesOptions  // Options kept for API compatibility, but not currently used
 ): UseGameMessagesReturn {
   // Local messages (for things like "AI is thinking..." that aren't in play_by_play)
@@ -97,10 +98,11 @@ export function useGameMessages(
   // Add a local message (for things not in play_by_play)
   const addMessage = useCallback((
     msg: string, 
-    options?: { skipIfGameOver?: boolean; response?: any }
+    options?: { skipIfGameOver?: boolean; response?: unknown }
   ) => {
     // Don't add action messages if the response indicates game is over
-    if (options?.skipIfGameOver && options?.response?.game_state?.is_game_over) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (options?.skipIfGameOver && (options?.response as any)?.game_state?.is_game_over) {
       return;
     }
 

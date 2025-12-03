@@ -27,9 +27,12 @@ python3.13 -m venv venv  # Use Python 3.13
 source venv/bin/activate  # On macOS/Linux; use venv\Scripts\activate on Windows
 pip install -r requirements.txt
 
-# Set up API key
+# Set up API key and Database
 cp .env.example .env
-# Edit .env and add: GOOGLE_API_KEY=your_key_here
+# Edit .env and add:
+# GOOGLE_API_KEY=your_key_here
+# DATABASE_URL=postgresql://user:password@localhost/ggltcg_db
+# GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
 ### Frontend Setup
@@ -37,6 +40,8 @@ cp .env.example .env
 ```bash
 cd frontend
 npm install
+# Create .env.local
+echo "VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id" > .env.local
 ```
 
 ### Start Playing
@@ -66,17 +71,20 @@ Open <http://localhost:5175> and play against the AI!
 ## Key Features
 
 ### 🎮 Gameplay
+
 - **Deck Selection** - Automated random deck picker with customizable toy/action ratio
 - **Player Customization** - Click to edit player names
 - **Strategic AI** - Powered by Google Gemini with intelligent decision-making
 - **Live Play-by-Play** - Track every action with AI reasoning displayed
 
 ### 📖 Victory Screen
+
 - **Factual Mode** - Complete play-by-play with CC costs and AI reasoning
 - **Story Mode** - AI-generated "bedtime story" narrative of your epic battle
 - **Beautiful Formatting** - Organized by turns with clear visual hierarchy
 
 ### 🎨 UI/UX Polish
+
 - **Card Size Options** - Medium-sized hand cards show effects clearly
 - **Responsive Design** - Works on desktop and tablet
 - **Dark Theme** - Easy on the eyes with GGLTCG branding
@@ -84,7 +92,7 @@ Open <http://localhost:5175> and play against the AI!
 
 ## Project Structure Reference
 
-```
+```mermaid
 ggltcg/
 ├── backend/
 │   ├── src/
@@ -119,6 +127,7 @@ ggltcg/
 The backend provides 9 REST endpoints:
 
 **Game Management:**
+
 - `GET /games/cards` - Get all card data from CSV (frontend loads this on startup)
 - `POST /games` - Create new game
 - `GET /games/{id}` - Get game state
@@ -126,16 +135,19 @@ The backend provides 9 REST endpoints:
 - `POST /games/random-deck` - Generate random deck
 
 **Game Actions:**
+
 - `POST /games/{id}/play-card` - Play a card
 - `POST /games/{id}/tussle` - Initiate tussle
 - `POST /games/{id}/end-turn` - End turn
 - `POST /games/{id}/ai-turn` - AI takes action
 
 **Game Features:**
+
 - `GET /games/{id}/valid-actions` - Get available actions
 - `POST /games/narrative` - Generate bedtime story from play-by-play
 
 **Other:**
+
 - `GET /` - API info
 - `GET /health` - Health check
 

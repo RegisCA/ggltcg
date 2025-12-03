@@ -17,7 +17,7 @@ import { DeckSelection } from './components/DeckSelection';
 import { GameBoard } from './components/GameBoard';
 import { VictoryScreen } from './components/VictoryScreen';
 import { useCreateGame } from './hooks/useGame';
-import type { GameState, Card } from './types/game';
+import type { GameState } from './types/game';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,7 +61,7 @@ function GameApp() {
 
   const createGameMutation = useCreateGame();
 
-  const handleLoadingComplete = (_cards: Card[]) => {
+  const handleLoadingComplete = () => {
     // Cards are preloaded but DeckSelection fetches them independently
     // TODO: Pass cards to DeckSelection to avoid duplicate fetch
     setGamePhase('menu');
@@ -121,7 +121,7 @@ function GameApp() {
     setGamePhase('lobby-waiting');
   };
 
-  const handleMultiplayerGameStarted = (startedGameId: string, _firstPlayerId: string) => {
+  const handleMultiplayerGameStarted = (startedGameId: string) => {
     setGameId(startedGameId);
     setGamePhase('playing');
   };

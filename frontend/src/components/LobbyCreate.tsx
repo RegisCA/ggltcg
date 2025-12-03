@@ -35,9 +35,10 @@ export function LobbyCreate({ onLobbyCreated, onBack }: LobbyCreateProps) {
         player1_name: playerName 
       });
       onLobbyCreated(response.game_id, response.game_code);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create lobby:', err);
-      setError(err.response?.data?.detail || 'Failed to create lobby. Please try again.');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any).response?.data?.detail || 'Failed to create lobby. Please try again.');
     } finally {
       setIsCreating(false);
     }

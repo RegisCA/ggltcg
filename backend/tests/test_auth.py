@@ -11,8 +11,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import patch, MagicMock
 
-from src.api.db_models import Base, UserModel
-from src.api.user_service import UserService
+from api.db_models import Base, UserModel
+from api.user_service import UserService
 
 
 # Test database setup
@@ -42,7 +42,7 @@ class TestUserService:
             'iss': 'accounts.google.com'
         }
         
-        with patch('src.api.user_service.id_token.verify_oauth2_token') as mock_verify:
+        with patch('api.user_service.id_token.verify_oauth2_token') as mock_verify:
             mock_verify.return_value = mock_idinfo
             
             result = UserService.verify_google_token('fake_token')
@@ -57,7 +57,7 @@ class TestUserService:
             'iss': 'evil.com'  # Invalid issuer
         }
         
-        with patch('src.api.user_service.id_token.verify_oauth2_token') as mock_verify:
+        with patch('api.user_service.id_token.verify_oauth2_token') as mock_verify:
             mock_verify.return_value = mock_idinfo
             
             with pytest.raises(ValueError, match='Invalid token issuer'):

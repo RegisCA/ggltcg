@@ -3,7 +3,7 @@
  * Displays game winner with play-by-play summary and AI reasoning
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { GameState } from '../types/game';
 import { generateNarrative } from '../api/gameService';
 
@@ -14,7 +14,7 @@ interface VictoryScreenProps {
 
 export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
   const winnerPlayer = gameState.players[gameState.winner || ''];
-  const playByPlay = gameState.play_by_play || [];
+  const playByPlay = useMemo(() => gameState.play_by_play || [], [gameState.play_by_play]);
   const [narrativeMode, setNarrativeMode] = useState(false);
   const [narrative, setNarrative] = useState<string>('');
   const [isLoadingNarrative, setIsLoadingNarrative] = useState(false);

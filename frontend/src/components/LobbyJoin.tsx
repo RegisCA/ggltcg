@@ -48,9 +48,10 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
         player2_name: playerName 
       });
       onLobbyJoined(response.game_id, response.game_code, response.player1_name, response.player1_id);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to join lobby:', err);
-      const errorMsg = err.response?.data?.detail || 'Failed to join lobby. Please check the game code and try again.';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMsg = (err as any).response?.data?.detail || 'Failed to join lobby. Please check the game code and try again.';
       setError(errorMsg);
     } finally {
       setIsJoining(false);

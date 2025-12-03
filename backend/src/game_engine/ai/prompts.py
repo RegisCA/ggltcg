@@ -334,7 +334,9 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
                     display_name, actual_id = get_card_details(target_id)
                     # Put the UUID first so LLM clearly sees it's the ID to use
                     target_details.append(f"[ID: {actual_id}] {display_name}")
-                action_text += f"\n   Available targets (use the UUID from [ID: ...]):\n   - {'\n   - '.join(target_details)}"
+                # Format targets list (extract join logic to avoid backslash in f-string)
+                targets_list = '\n   - '.join(target_details)
+                action_text += f"\n   Available targets (use the UUID from [ID: ...]):\n   - {targets_list}"
         
         # Add alternative cost information if available
         if action.alternative_cost_options is not None and len(action.alternative_cost_options) > 0:
@@ -343,7 +345,9 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
                 display_name, actual_id = get_card_details(alt_id)
                 # Put the UUID first so LLM clearly sees it's the ID to use
                 alt_cost_details.append(f"[ID: {actual_id}] {display_name}")
-            action_text += f"\n   Can pay alternative cost by sleeping (use the UUID from [ID: ...]):\n   - {'\n   - '.join(alt_cost_details)}"
+            # Format alternative cost list (extract join logic to avoid backslash in f-string)
+            alt_cost_list = '\n   - '.join(alt_cost_details)
+            action_text += f"\n   Can pay alternative cost by sleeping (use the UUID from [ID: ...]):\n   - {alt_cost_list}"
         
         # Add strategic hint for card plays
         if action.action_type == "play_card" and action.card_id:

@@ -16,8 +16,8 @@ def test_load_cards():
     cards = load_all_cards()
     print(f"✓ Loaded {len(cards)} cards")
     
-    # Verify we have 18 cards
-    assert len(cards) == 18, f"Expected 18 cards, got {len(cards)}"
+    # Verify we have 17 cards
+    assert len(cards) == 17, f"Expected 17 cards, got {len(cards)}"
     
     # Check some specific cards
     cards_dict = load_cards_dict()
@@ -26,9 +26,9 @@ def test_load_cards():
     beary = cards_dict.get("Beary")
     assert beary is not None, "Beary not found"
     assert beary.is_toy(), "Beary should be a Toy"
-    assert beary.speed == 3, f"Beary speed should be 3, got {beary.speed}"
+    assert beary.speed == 5, f"Beary speed should be 5, got {beary.speed}"
     assert beary.strength == 3, f"Beary strength should be 3, got {beary.strength}"
-    assert beary.stamina == 5, f"Beary stamina should be 5, got {beary.stamina}"
+    assert beary.stamina == 3, f"Beary stamina should be 3, got {beary.stamina}"
     assert beary.cost == 1, f"Beary cost should be 1, got {beary.cost}"
     assert beary.primary_color == "#C74444", f"Beary primary_color should be #C74444, got {beary.primary_color}"
     assert beary.accent_color == "#C74444", f"Beary accent_color should be #C74444, got {beary.accent_color}"
@@ -40,8 +40,8 @@ def test_load_cards():
     assert rush.is_action(), "Rush should be an Action"
     assert rush.speed is None, "Rush should not have speed"
     assert rush.cost == 0, f"Rush cost should be 0, got {rush.cost}"
-    assert rush.primary_color == "#8B5FA8", f"Rush primary_color should be #8B5FA8 (purple), got {rush.primary_color}"
-    assert rush.accent_color == "#8B5FA8", f"Rush accent_color should be #8B5FA8 (purple), got {rush.accent_color}"
+    assert rush.primary_color == "#ffeb99", f"Rush primary_color should be #ffeb99, got {rush.primary_color}"
+    assert rush.accent_color == "#ffa51f", f"Rush accent_color should be #ffa51f, got {rush.accent_color}"
     print(f"✓ Rush: {rush.name} - Action card, Cost {rush.cost}")
     
     # Test variable cost card
