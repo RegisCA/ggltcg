@@ -96,15 +96,20 @@ export function GameMessages({
         {!isCollapsed && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ 
+              height: compact ? '150px' : '350px',
+              opacity: 1 
+            }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
+            style={{
+              maxHeight: compact ? '150px' : '350px'
+            }}
           >
             <div
-              className={compact ? 'px-3 py-2' : 'px-4 py-3'}
+              className={compact ? 'px-3 py-2 h-full' : 'px-4 py-3 h-full'}
               style={{ 
-                maxHeight: compact ? '150px' : '350px', 
                 overflowY: 'auto' 
               }}
             >
