@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { Button } from './ui/Button';
 import type { GameState } from '../types/game';
 import { generateNarrative } from '../api/gameService';
 
@@ -63,12 +64,11 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
       <div className="absolute inset-0 bg-game-bg bg-opacity-90 pointer-events-none" />
 
       {/* Play Again Button - Top Right Corner */}
-      <button
-        onClick={onPlayAgain}
-        className="absolute top-8 right-8 z-20 px-6 py-3 bg-game-highlight hover:bg-red-600 rounded text-xl font-bold transition-all shadow-lg"
-      >
-        Play Again
-      </button>
+      <div className="absolute top-8 right-8 z-20">
+        <Button variant="primary" size="lg" onClick={onPlayAgain}>
+          Play Again
+        </Button>
+      </div>
 
       <div className="relative z-10 max-w-5xl mx-auto">
         {/* Victory Header */}
