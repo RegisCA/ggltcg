@@ -109,14 +109,6 @@ export function ActionPanel({
     };
   }, [lastActionTime]);
 
-  const groupedActions = validActions.reduce((acc, action) => {
-    if (!acc[action.action_type]) {
-      acc[action.action_type] = [];
-    }
-    acc[action.action_type].push(action);
-    return acc;
-  }, {} as Record<string, ValidAction[]>);
-
   // Build shortcut map: action ID -> shortcut key
   // End turn = 0, other actions = 1-9
   const getShortcutKey = (action: ValidAction): string | null => {

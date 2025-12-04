@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from './ui/Button';
 import { createLobby } from '../api/gameService';
 
 interface LobbyCreateProps {
