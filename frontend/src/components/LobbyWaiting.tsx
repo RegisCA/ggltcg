@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from './ui/Button';
 import { startLobbyGame } from '../api/gameService';
 import { useLobbyPolling } from '../hooks/useLobbyPolling';
 import { DeckSelection } from './DeckSelection';
@@ -104,18 +105,17 @@ export function LobbyWaiting({
 
   // Waiting room display (waiting for player, waiting for decks, starting)
   return (
-    <div className="min-h-screen bg-game-bg flex items-center justify-center p-4">
+    <div className="min-h-screen bg-game-bg flex items-center justify-center" style={{ padding: 'var(--spacing-component-md)' }}>
       <div className="max-w-2xl w-full">
         {/* Back Button */}
-        <button
-          onClick={onBack}
-          className="mb-8 text-xl text-gray-400 hover:text-game-highlight transition-colors flex items-center gap-2 font-semibold"
-        >
-          <span className="text-2xl">←</span> Leave Lobby
-        </button>
+        <div style={{ marginBottom: 'var(--spacing-component-xl)' }}>
+          <Button variant="ghost" size="md" onClick={onBack}>
+            ← Back to Main Menu
+          </Button>
+        </div>
 
         {/* Game Code Display */}
-        <div className="bg-gray-800 rounded-lg p-8 border-2 border-gray-600 mb-6">
+        <div className="modal-padding bg-gray-800 rounded-lg border-2 border-gray-600" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
           <GameCodeDisplay 
             code={gameCode} 
             size="large" 
@@ -124,7 +124,7 @@ export function LobbyWaiting({
         </div>
 
         {/* Players Status */}
-        <div className="mb-6">
+        <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
           <PlayersStatusCard
             player1={{
               name: player1Name || null,

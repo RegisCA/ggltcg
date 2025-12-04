@@ -107,11 +107,11 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
   }
 
   return (
-    <div className="min-h-screen bg-game-bg p-4">
+    <div className="min-h-screen bg-game-bg" style={{ padding: 'var(--spacing-component-md)' }}>
       <div className="max-w-7xl mx-auto">
         {/* Header with title, card count, and Confirm button */}
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center gap-3">
+        <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+          <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
             <h1 className="text-3xl font-bold">
               {playerName}
             </h1>
@@ -124,21 +124,27 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
           <button
             onClick={handleConfirm}
             disabled={selectedCards.length !== 6}
-            className={`
-              px-8 py-3 rounded text-xl font-bold transition-all
-              ${selectedCards.length === 6
+            className={`rounded text-xl font-bold transition-all ${
+              selectedCards.length === 6
                 ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                 : 'bg-gray-600 cursor-not-allowed opacity-50'
-              }
-            `}
+            }`}
+            style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
           >
             Confirm Deck {selectedCards.length === 6 ? '✓' : `(${selectedCards.length}/6)`}
           </button>
         </div>
 
         {/* Deck Composition Controls */}
-        <div className="mb-3 p-3 bg-gray-800 rounded-lg flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4" style={{ maxWidth: '600px' }}>
+        <div 
+          className="bg-gray-800 rounded-lg flex items-center justify-between"
+          style={{ 
+            marginBottom: 'var(--spacing-component-sm)', 
+            padding: 'var(--spacing-component-sm)',
+            gap: 'var(--spacing-component-lg)'
+          }}
+        >
+          <div className="flex items-center" style={{ gap: 'var(--spacing-component-md)', maxWidth: '600px' }}>
             <span className="text-lg font-semibold whitespace-nowrap">
               <span className="text-red-400">Toys:</span> {numToys}
             </span>
@@ -176,19 +182,18 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
           <button
             onClick={handleRandomize}
             disabled={isRandomizing}
-            className={`
-              px-6 py-3 rounded font-bold transition-all whitespace-nowrap
-              ${isRandomizing
+            className={`rounded font-bold transition-all whitespace-nowrap ${
+              isRandomizing
                 ? 'bg-gray-600 cursor-not-allowed opacity-50'
                 : 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
-              }
-            `}
+            }`}
+            style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
           >
             {isRandomizing ? 'Randomizing...' : '🎲 Random Deck'}
           </button>
         </div>
 
-        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
+        <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
           {cards.map((cardData) => {
             const isSelected = selectedCards.includes(cardData.name);
             const card = createCardForDisplay(cardData);

@@ -1,38 +1,112 @@
-/* Temporary: Using plain CSS until Tailwind v4 issues are resolved */
+@import "tailwindcss";
 
-/* GGLTCG Design System - CSS Custom Properties */
+/**
+ * Tailwind v4 Theme Configuration
+ * 
+ * WCAG AA Compliant Color Pairings:
+ * ✓ text-primary (#FFFFFF) on dark backgrounds (21:1 ratio)
+ * ✓ text-secondary (#D1D5DB) on dark backgrounds (9.7:1 ratio)
+ * ✓ text-muted (#9CA3AF) on dark backgrounds (5.8:1 ratio)
+ * ✓ text-error (#FCA5A5) on dark backgrounds (6.2:1 ratio)
+ * ✓ text-success (#86EFAC) on dark backgrounds (10.1:1 ratio)
+ * 
+ * Font Usage:
+ * - font-bangers: Headings, card names, titles, game branding
+ * - font-lato: Body text, labels, descriptions, UI text
+ */
+@theme {
+  /* Legacy colors (keep for backward compatibility) */
+  --color-game-bg: #1a1a2e;
+  --color-game-card: #16213e;
+  --color-game-accent: #0f3460;
+  --color-game-highlight: #e94560;
+  
+  /* GGLTCG Design System Colors */
+  --color-ggltcg-black: #1A1A1A;
+  --color-ggltcg-cream: #F5F0E8;
+  --color-ggltcg-gray: #8B8680;
+  --color-ggltcg-red: #C74444;
+  --color-ggltcg-blue: #5B7FA8;
+  --color-ggltcg-purple: #8B5FA8;
+  --color-ggltcg-brown: #8B6F47;
+  --color-ggltcg-ui-dark-bg: #1A1F3A;
+  --color-ggltcg-ui-card-bg: #2A3556;
+  --color-ggltcg-ui-highlight: #4A7BFF;
+  --color-ggltcg-ui-toy-badge: #4A7BFF;
+  --color-ggltcg-ui-action-badge: #C850FF;
+  
+  /* Semantic Text Colors (WCAG AA Compliant) */
+  --color-text-primary: #FFFFFF;      /* Main text on dark (21:1) */
+  --color-text-secondary: #D1D5DB;    /* Softer text, gray-300 (9.7:1) */
+  --color-text-muted: #9CA3AF;        /* Subtle text, gray-400 (5.8:1) */
+  --color-text-inverse: #1A1A1A;      /* Text on light backgrounds */
+  --color-text-error: #FCA5A5;        /* Error messages, red-300 (6.2:1) */
+  --color-text-success: #86EFAC;      /* Success messages, green-300 (10.1:1) */
+  --color-text-warning: #FCD34D;      /* Warning messages, yellow-300 (11.8:1) */
+  
+  /* Font Families */
+  --font-family-bangers: 'Bangers', 'Impact', sans-serif;
+  --font-family-lato: 'Lato', 'Arial', sans-serif;
+  
+  /* Spacing tokens for card dimensions */
+  --spacing-card-base-w: 825px;
+  --spacing-card-base-h: 1125px;
+  --spacing-card-small-w: 120px;
+  --spacing-card-small-h: 164px;
+  --spacing-card-medium-w: 165px;
+  --spacing-card-medium-h: 225px;
+  --spacing-card-large-w: 330px;
+  --spacing-card-large-h: 450px;
+  
+  /* Scale transformations */
+  --scale-145: 1.45;
+  --scale-200: 2.00;
+  --scale-400: 4.00;
+  
+  /* Component Spacing Standards */
+  /* Use these for consistent padding/spacing across all UI components */
+  --spacing-component-xs: 8px;   /* 0.5rem - Tight spacing (buttons, small cards) */
+  --spacing-component-sm: 12px;  /* 0.75rem - Compact spacing (mobile cards) */
+  --spacing-component-md: 16px;  /* 1rem - Standard spacing (most components) */
+  --spacing-component-lg: 24px;  /* 1.5rem - Generous spacing (panels, modals) */
+  --spacing-component-xl: 32px;  /* 2rem - Large spacing (page sections) */
+}
+
+/* Additional CSS Custom Properties (non-Tailwind) */
 :root {
-  /* Primary Colors */
-  --ggltcg-black: #1A1A1A;
-  --ggltcg-cream: #F5F0E8;
-  --ggltcg-gray: #8B8680;
-  
-  /* Card Accent Colors (for borders/cost indicators) */
-  --ggltcg-red: #C74444;
-  --ggltcg-blue: #5B7FA8;
-  --ggltcg-purple: #8B5FA8;
-  --ggltcg-brown: #8B6F47;
-  
-  /* UI Colors */
-  --ui-dark-bg: #1A1F3A;
-  --ui-card-bg: #2A3556;
-  --ui-highlight: #4A7BFF;
-  --ui-toy-badge: #4A7BFF;
-  --ui-action-badge: #C850FF;
-  
   /* Typography */
   --font-card-name: 'Bangers', 'Impact', sans-serif;
   --font-body: 'Lato', 'Arial', sans-serif;
-  
-  /* Card Dimensions */
-  --card-base-width: 825px;
-  --card-base-height: 1125px;
-  --card-small-width: 120px;
-  --card-small-height: 164px;
-  --card-medium-width: 165px;
-  --card-medium-height: 225px;
-  --card-large-width: 330px;
-  --card-large-height: 450px;
+}
+
+/* Standard Component Spacing Classes */
+/* Apply these to maintain consistent spacing throughout the app */
+.panel-padding {
+  padding: var(--spacing-component-lg);
+}
+
+.card-padding {
+  padding: var(--spacing-component-md);
+}
+
+.modal-padding {
+  padding: var(--spacing-component-lg);
+}
+
+.section-spacing {
+  margin-bottom: var(--spacing-component-xl);
+}
+
+.content-spacing > * + * {
+  margin-top: var(--spacing-component-md);
+}
+
+/* Responsive padding utility */
+@media (max-width: 640px) {
+  .panel-padding,
+  .modal-padding {
+    padding: var(--spacing-component-md);
+  }
 }
 
 * {
@@ -48,158 +122,22 @@ body {
   font-family: var(--font-body);
 }
 
-/* Utility classes we need */
-.bg-game-bg { background-color: #1a1a2e; }
-.bg-game-card { background-color: #16213e; }
-.bg-game-accent { background-color: #0f3460; }
-.bg-game-highlight { background-color: #e94560; }
-.bg-blue-600 { background-color: #2563eb; }
-.bg-blue-700 { background-color: #1d4ed8; }
-.bg-blue-800 { background-color: #1e40af; }
-.bg-blue-900 { background-color: #1e3a8a; }
-.bg-purple-600 { background-color: #9333ea; }
-.bg-purple-700 { background-color: #7e22ce; }
-.bg-purple-800 { background-color: #6b21a8; }
-.bg-purple-900 { background-color: #581c87; }
-.bg-red-600 { background-color: #dc2626; }
-.bg-red-700 { background-color: #b91c1c; }
-.bg-red-800 { background-color: #991b1b; }
-.bg-green-600 { background-color: #16a34a; }
-.bg-green-700 { background-color: #15803d; }
-.bg-gray-500 { background-color: #6b7280; }
-.bg-gray-600 { background-color: #4b5563; }
-.bg-gray-700 { background-color: #374151; }
-.bg-black { background-color: #000; }
-.bg-opacity-20 { background-color: rgba(0, 0, 0, 0.2); }
-.bg-opacity-30 { background-color: rgba(0, 0, 0, 0.3); }
+/* Global Focus Ring Styles for Keyboard Accessibility */
+/* Visible focus indicator for all interactive elements (WCAG 2.1 SC 2.4.7) */
+*:focus-visible {
+  outline: 2px solid #fbbf24; /* yellow-400 */
+  outline-offset: 2px;
+}
 
-.text-white { color: white; }
-.text-gray-300 { color: #d1d5db; }
-.text-gray-400 { color: #9ca3af; }
-.text-gray-500 { color: #6b7280; }
-.text-red-400 { color: #f87171; }
-.text-yellow-400 { color: #facc15; }
+/* Enhanced focus for buttons and links */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
+}
 
-.border { border-width: 1px; }
-.border-2 { border-width: 2px; }
-.border-gray-600 { border-color: #4b5563; }
-.border-blue-600 { border-color: #2563eb; }
-.border-purple-600 { border-color: #9333ea; }
-.border-game-card { border-color: #16213e; }
-.border-game-accent { border-color: #0f3460; }
-.border-game-highlight { border-color: #e94560; }
-
-.rounded { border-radius: 0.25rem; }
-.rounded-lg { border-radius: 0.5rem; }
-
-.p-2 { padding: 0.5rem; }
-.p-3 { padding: 0.75rem; }
-.p-4 { padding: 1rem; }
-.p-8 { padding: 2rem; }
-.px-1\.5 { padding-left: 0.375rem; padding-right: 0.375rem; }
-.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
-.px-4 { padding-left: 1rem; padding-right: 1rem; }
-.px-8 { padding-left: 2rem; padding-right: 2rem; }
-.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-.py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
-.py-4 { padding-top: 1rem; padding-bottom: 1rem; }
-.py-8 { padding-top: 2rem; padding-bottom: 2rem; }
-
-.m-auto { margin: auto; }
-.mb-1 { margin-bottom: 0.25rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 0.75rem; }
-.mb-4 { margin-bottom: 1rem; }
-.mb-8 { margin-bottom: 2rem; }
-.ml-1 { margin-left: 0.25rem; }
-.mt-2 { margin-top: 0.5rem; }
-
-.flex { display: flex; }
-.grid { display: grid; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 0.75rem; }
-.gap-4 { gap: 1rem; }
-.space-y-2 > * + * { margin-top: 0.5rem; }
-.space-y-4 > * + * { margin-top: 1rem; }
-
-.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-
-.flex-1 { flex: 1 1 0%; }
-.flex-wrap { flex-wrap: wrap; }
-.items-center { align-items: center; }
-.items-start { align-items: flex-start; }
-.justify-between { justify-content: space-between; }
-
-.text-xs { font-size: 0.75rem; line-height: 1rem; }
-.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-.text-base { font-size: 1rem; line-height: 1.5rem; }
-.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
-.text-2xl { font-size: 1.5rem; line-height: 2rem; }
-.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
-.text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
-.text-6xl { font-size: 3.75rem; line-height: 1; }
-
-.font-medium { font-weight: 500; }
-.font-bold { font-weight: 700; }
-
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
-.italic { font-style: italic; }
-.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.line-clamp-4 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
-
-.w-32 { width: 8rem; }
-.w-48 { width: 12rem; }
-.w-64 { width: 16rem; }
-.w-full { width: 100%; }
-.h-40 { height: 10rem; }
-
-.min-h-screen { min-height: 100vh; }
-.min-h-\[100px\] { min-height: 100px; }
-.min-h-\[180px\] { min-height: 180px; }
-.min-h-\[200px\] { min-height: 200px; }
-
-.max-w-6xl { max-width: 72rem; }
-.max-w-7xl { max-width: 80rem; }
-
-.mx-auto { margin-left: auto; margin-right: auto; }
-
-.opacity-50 { opacity: 0.5; }
-.grayscale { filter: grayscale(100%); }
-
-.transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
-.duration-200 { transition-duration: 200ms; }
-
-.cursor-pointer { cursor: pointer; }
-.cursor-not-allowed { cursor: not-allowed; }
-
-.hover\:scale-105:hover { transform: scale(1.05); }
-.hover\:scale-102:hover { transform: scale(1.02); }
-.hover\:shadow-xl:hover { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-.hover\:bg-blue-700:hover { background-color: #1d4ed8; }
-.hover\:bg-red-600:hover { background-color: #dc2626; }
-.hover\:bg-red-700:hover { background-color: #b91c1c; }
-.hover\:bg-green-700:hover { background-color: #15803d; }
-.hover\:bg-gray-700:hover { background-color: #374151; }
-.hover\:bg-gray-500:hover { background-color: #6b7280; }
-.hover\:border-gray-500:hover { border-color: #6b7280; }
-
-.disabled\:opacity-50:disabled { opacity: 0.5; }
-.disabled\:cursor-not-allowed:disabled { cursor: not-allowed; }
-
-.scale-105 { transform: scale(1.05); }
-
-.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-.shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-
-.animate-fade-in { animation: fadeIn 0.2s ease-in; }
-.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-
+/* Custom Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -216,29 +154,6 @@ body {
   75% { transform: translateX(4px) rotate(2deg); }
 }
 
-.card-glow {
-  box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
-}
-
-/* Gradient backgrounds */
-.bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)); }
-.from-blue-900 { --tw-gradient-from: #1e3a8a; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(30, 58, 138, 0)); }
-.to-blue-800 { --tw-gradient-to: #1e40af; }
-.from-purple-900 { --tw-gradient-from: #581c87; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(88, 28, 135, 0)); }
-.to-purple-800 { --tw-gradient-to: #6b21a8; }
-
-/* Responsive */
-@media (min-width: 768px) {
-  .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1024px) {
-  .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .lg\:col-span-2 { grid-column: span 2 / span 2; }
-  .lg\:col-span-3 { grid-column: span 3 / span 3; }
-}
-
-/* Custom Animations */
 @keyframes blink {
   0%, 49% {
     opacity: 1;
@@ -250,6 +165,7 @@ body {
   }
 }
 
-.animate-blink {
-  animation: blink 0.4s ease-in-out infinite;
+/* Custom class for card glow effect */
+.card-glow {
+  box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
 }

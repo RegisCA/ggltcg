@@ -2,9 +2,12 @@
  * TargetSelectionModal Component
  * Modal for selecting targets when playing cards that require targeting
  * (Copy, Sun, Wake, Twist, etc.)
+ * 
+ * Refactored to use Modal component wrapper for consistent accessibility.
  */
 
 import { useState, useEffect } from 'react';
+import { Modal } from './ui/Modal';
 import { CardDisplay } from './CardDisplay';
 import type { Card, ValidAction } from '../types/game';
 
@@ -98,48 +101,34 @@ export function TargetSelectionModal({
     return selectedTargets.length >= minTargets && selectedTargets.length <= maxTargets;
   };
 
+  const modalTitle = action.action_type === 'tussle' 
+    ? `Tussle with ${action.card_name}` 
+    : `Playing ${action.card_name}`;
+
   return (
-    <div 
-      style={{ 
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.80)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem'
-      }}
+    <Modal
+      isOpen={true}
+      onClose={onCancel}
+      title={modalTitle}
+      closeOnBackdropClick={false}
+      closeOnEscape={true}
     >
-      <div 
-        className="bg-gray-900 rounded-xl border-4 border-game-highlight shadow-2xl flex flex-col" 
-        style={{ 
-          width: '700px',
-          maxHeight: '80vh',
-        }}
-      >
-        {/* Header */}
-        <div className="p-4 border-b-4 border-game-accent bg-gray-800 flex-shrink-0">
-          <h2 className="text-2xl font-bold mb-1 text-game-highlight">
-            {action.action_type === 'tussle' 
-              ? `Tussle with ${action.card_name}` 
-              : `Playing ${action.card_name}`}
-          </h2>
+      <div className="flex flex-col" style={{ maxHeight: '70vh' }}>
+        {/* Action Description */}
+        <div className="flex-shrink-0" style={{ marginBottom: 'var(--spacing-component-md)' }}>
           {action.action_type !== 'tussle' && action.cost_cc !== undefined && (
-            <p className="text-base text-gray-300 mb-3">
+            <p className="text-base text-gray-300" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
               Cost: {action.cost_cc} CC
             </p>
           )}
-          <p className="text-base text-gray-100 mb-3">
+          <p className="text-base text-gray-100" style={{ marginBottom: 'var(--spacing-component-md)' }}>
             {action.description}
           </p>
-          <div className="flex gap-3">
+          <div className="flex" style={{ gap: 'var(--spacing-component-sm)' }}>
             <button
               onClick={onCancel}
-              className="px-8 py-3 rounded-lg bg-gray-600 hover:bg-gray-700 font-bold transition-all text-white"
+              className="rounded-lg bg-gray-600 hover:bg-gray-700 font-bold transition-all text-white focus:ring-2 focus:ring-yellow-400"
+              style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
             >
               Cancel
             </button>
@@ -147,7 +136,7 @@ export function TargetSelectionModal({
               onClick={handleConfirm}
               disabled={!canConfirm()}
               className={`
-                px-8 py-3 rounded-lg font-bold transition-all text-white
+                rounded-lg font-bold transition-all text-white focus:ring-2 focus:ring-yellow-400
                 ${canConfirm()
                   ? action.action_type === 'tussle' 
                     ? 'bg-red-600 hover:bg-red-700 cursor-pointer'
@@ -155,6 +144,7 @@ export function TargetSelectionModal({
                   : 'bg-gray-600 cursor-not-allowed opacity-50'
                 }
               `}
+              style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
             >
               {action.action_type === 'tussle' ? 'Attack!' : 'Confirm'}
             </button>
@@ -165,16 +155,18 @@ export function TargetSelectionModal({
         <div className="flex-1 overflow-y-auto">
           {/* Ballaber alternative cost: one-click selection */}
           {hasAlternativeCost && (
-            <div className="p-4 bg-gray-900">
-              <h3 className="text-lg font-bold mb-3">Pay cost to play Ballaber:</h3>
+            <div style={{ marginBottom: 'var(--spacing-component-md)' }}>
+              <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Pay cost to play Ballaber:</h3>
               <button
-                style={
-                  useAlternativeCost && !alternativeCostCard
+                style={{
+                  ...(useAlternativeCost && !alternativeCostCard
                     ? { boxShadow: '0 0 0 4px rgb(250 204 21), 0 10px 15px -3px rgba(250, 204, 21, 0.5)' }
-                    : undefined
-                }
+                    : {}),
+                  padding: 'var(--spacing-component-sm) var(--spacing-component-md)',
+                  marginBottom: 'var(--spacing-component-md)'
+                }}
                 className={`
-                  w-full px-4 py-3.5 rounded transition-all text-sm mb-4
+                  w-full rounded transition-all text-sm focus:ring-2 focus:ring-yellow-400
                   ${useAlternativeCost && !alternativeCostCard
                     ? 'bg-red-700'
                     : 'bg-red-600 hover:bg-red-700 cursor-pointer'
@@ -182,19 +174,22 @@ export function TargetSelectionModal({
                 `}
                 onClick={selectPayCC}
               >
-                <div className="flex justify-between items-center gap-3">
+                <div className="flex justify-between items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
                   <span className="font-medium leading-tight text-left flex-1">
                     Pay {action.cost_cc} CC
                   </span>
-                  <span className="px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap flex-shrink-0 bg-black bg-opacity-30">
+                  <span 
+                    className="rounded text-xs font-bold whitespace-nowrap flex-shrink-0 bg-black bg-opacity-30"
+                    style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-xs)' }}
+                  >
                     {action.cost_cc} CC
                   </span>
                 </div>
               </button>
               {hasCardsToSleep ? (
                 <>
-                  <h4 className="text-md font-semibold mb-3">Or select a card to sleep:</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <h4 className="text-md font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Or select a card to sleep:</h4>
+                  <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
                     {filteredAlternativeCostOptions.map((card) => {
                       const isSelected = alternativeCostCard === card.id;
                       return (
@@ -224,50 +219,50 @@ export function TargetSelectionModal({
 
           {/* Target Selection (for other cards) */}
           {!useAlternativeCost && availableTargets.length > 0 && (
-            <div className="p-4">
-            <h3 className="text-lg font-bold mb-3">
-              {maxTargets > 1
-                ? `Select up to ${maxTargets} target${maxTargets !== 1 ? 's' : ''}`
-                : 'Select a target '
-              }
-              {minTargets === 0 && ' (optional)'}
-              {selectedTargets.length > 0 && (
-                <span className="ml-2 text-yellow-400">
-                  ({selectedTargets.length}/{maxTargets} selected)
-                </span>
-              )}
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {availableTargets.map((card) => {
-                const isSelected = selectedTargets.includes(card.id);
-                const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => !isDisabled && toggleTarget(card.id)}
-                    className="flex justify-center"
-                  >
-                    <CardDisplay
-                      card={card}
-                      size="medium"
-                      isSelected={isSelected}
-                      isClickable={!isDisabled}
-                      isDisabled={isDisabled}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            <div>
+              <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                {maxTargets > 1
+                  ? `Select up to ${maxTargets} target${maxTargets !== 1 ? 's' : ''}`
+                  : 'Select a target '
+                }
+                {minTargets === 0 && ' (optional)'}
+                {selectedTargets.length > 0 && (
+                  <span className="text-yellow-400" style={{ marginLeft: 'var(--spacing-component-xs)' }}>
+                    ({selectedTargets.length}/{maxTargets} selected)
+                  </span>
+                )}
+              </h3>
+              <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
+                {availableTargets.map((card) => {
+                  const isSelected = selectedTargets.includes(card.id);
+                  const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
+                  return (
+                    <div
+                      key={card.id}
+                      onClick={() => !isDisabled && toggleTarget(card.id)}
+                      className="flex justify-center"
+                    >
+                      <CardDisplay
+                        card={card}
+                        size="medium"
+                        isSelected={isSelected}
+                        isClickable={!isDisabled}
+                        isDisabled={isDisabled}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
           {!useAlternativeCost && availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
-            <div className="p-4 text-center text-gray-400">
+            <div className="text-center text-gray-400">
               No targets available, but you can still play this card.
             </div>
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

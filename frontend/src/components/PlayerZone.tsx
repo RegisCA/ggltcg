@@ -74,10 +74,10 @@ export function PlayerZone({
 
               {/* Hand Zone */}
               <div>
-                <h3 className="text-sm font-bold text-gray-400 mb-2">
+                <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
                   HAND ({player.hand ? player.hand.length : player.hand_count})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[230px] p-2 bg-black bg-opacity-20 rounded">
+                <div className="flex gap-2 flex-wrap min-h-[230px] p-4 bg-black bg-opacity-20 rounded">
                   {player.hand ? (
                     player.hand.length === 0 ? (
                       <div className="text-gray-500 italic text-sm m-auto">No cards in hand</div>
@@ -116,10 +116,10 @@ export function PlayerZone({
             <>
               {/* Hand Zone (AI shows first) */}
               <div>
-                <h3 className="text-sm font-bold text-gray-400 mb-2">
+                <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
                   HAND ({player.hand ? player.hand.length : player.hand_count})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[140px] p-2 bg-black bg-opacity-20 rounded">
+                <div className="flex gap-2 flex-wrap min-h-[140px] p-4 bg-black bg-opacity-20 rounded">
                   {player.hand ? (
                     player.hand.length === 0 ? (
                       <div className="text-gray-500 italic text-sm m-auto">No cards in hand</div>
@@ -153,10 +153,10 @@ export function PlayerZone({
 
               {/* In Play Zone */}
               <div>
-                <h3 className="text-sm font-bold text-gray-400 mb-2">
+                <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
                   IN PLAY ({player.in_play.length})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[180px] p-2 bg-black bg-opacity-20 rounded">
+                <div className="flex gap-2 flex-wrap min-h-[180px] p-4 bg-black bg-opacity-20 rounded">
                   {player.in_play.length === 0 ? (
                     <div className="text-gray-500 italic text-sm m-auto">No cards in play</div>
                   ) : (
@@ -176,10 +176,10 @@ export function PlayerZone({
 
         {/* Right side - Sleep Zone (fixed width) */}
         <div className="w-40 flex-shrink-0">
-          <h3 className="text-sm font-bold text-gray-400 mb-2">
+          <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
             SLEEP ZONE ({player.sleep_zone.length})
           </h3>
-          <div className="flex flex-col gap-2 min-h-[340px] p-2 bg-black bg-opacity-20 rounded">
+          <div className="flex flex-col gap-2 min-h-[340px] p-4 bg-black bg-opacity-20 rounded">
             {player.sleep_zone.length === 0 ? (
               <div className="text-gray-500 italic text-sm m-auto text-center">No sleeping cards</div>
             ) : (

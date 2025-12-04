@@ -5,25 +5,57 @@
  * Supports both desktop and compact (tablet) modes.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { PlayByPlayEntry } from '../types/game';
 
 interface GameMessagesProps {
   messages: string[];
   isAIThinking?: boolean;
   compact?: boolean;  // Compact mode for tablet
+  playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
 }
 
 export function GameMessages({ 
   messages, 
   isAIThinking = false, 
-  compact = false 
+  compact = false,
+  playByPlay = []
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [lastSeenCount, setLastSeenCount] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Default to collapsed on mobile (<768px)
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      setIsCollapsed(isMobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Update last seen count when expanded
+  useEffect(() => {
+    if (!isCollapsed) {
+      setLastSeenCount(messages.length);
+    }
+  }, [isCollapsed, messages.length]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (!isCollapsed && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [playByPlay.length, messages.length, isCollapsed]);
 
   // In compact mode, show fewer messages by default
   const displayMessages = compact ? messages.slice(-5) : messages;
   const messageCount = messages.length;
+  const newEventCount = Math.max(0, messageCount - lastSeenCount);
 
   return (
     <div className="bg-gray-800 rounded border border-gray-700 overflow-hidden">
@@ -31,23 +63,25 @@ export function GameMessages({
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         aria-label={isCollapsed ? "Expand game log" : "Collapse game log"}
-        className={`
-          w-full flex items-center justify-between
-          ${compact ? 'px-2 py-1.5' : 'px-3 py-2'}
-          bg-gray-900 hover:bg-gray-800 transition-colors
-          ${!isCollapsed ? 'border-b border-gray-700' : ''}
-        `}
+        className="w-full flex items-center justify-between bg-gray-900 hover:bg-gray-800 transition-colors"
+        style={{
+          padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+          borderBottom: !isCollapsed ? '1px solid rgb(55 65 81)' : 'none'
+        }}
       >
         <div className="flex items-center gap-2">
           <span className={`text-gray-400 font-medium ${compact ? 'text-xs' : 'text-sm'}`}>
             Game Log
           </span>
-          {messageCount > 0 && (
-            <span className={`
-              px-1.5 py-0.5 rounded-full bg-blue-900 text-blue-300
-              ${compact ? 'text-[10px]' : 'text-xs'}
-            `}>
-              {messageCount}
+          {isCollapsed && newEventCount > 0 && (
+            <span 
+              className="rounded-full bg-amber-900 text-amber-300 font-semibold"
+              style={{
+                padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                fontSize: compact ? '10px' : '0.75rem'
+              }}
+            >
+              {newEventCount} new
             </span>
           )}
         </div>
@@ -72,16 +106,23 @@ export function GameMessages({
         {!isCollapsed && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ 
+              height: compact ? '150px' : '350px',
+              opacity: 1 
+            }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
+            style={{
+              maxHeight: compact ? '150px' : '350px'
+            }}
           >
             <div
-              className={compact ? 'p-2' : 'p-3'}
+              ref={scrollContainerRef}
+              className="h-full"
               style={{ 
-                maxHeight: compact ? '150px' : '350px', 
-                overflowY: 'auto' 
+                overflowY: 'auto',
+                padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-md)'
               }}
             >
               {displayMessages.length === 0 && !isAIThinking ? (
@@ -90,23 +131,77 @@ export function GameMessages({
                 </div>
               ) : (
                 <div className={compact ? 'space-y-1' : 'space-y-2'}>
-                  {displayMessages.map((msg, idx) => (
-                    <div 
-                      key={`${idx}-${msg.substring(0, 20)}`} 
-                      className={`
-                        bg-blue-900 rounded
-                        ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}
-                      `}
-                    >
-                      {msg}
-                    </div>
-                  ))}
+                  {/* If we have play-by-play data with reasoning, use it */}
+                  {playByPlay.length > 0 ? (
+                    (() => {
+                      // Group entries by turn for visual separation
+                      const entriesToShow = compact ? playByPlay.slice(-5) : playByPlay;
+                      const groupedByTurn: Record<number, typeof entriesToShow> = {};
+                      
+                      entriesToShow.forEach(entry => {
+                        if (!groupedByTurn[entry.turn]) {
+                          groupedByTurn[entry.turn] = [];
+                        }
+                        groupedByTurn[entry.turn].push(entry);
+                      });
+                      
+                      return Object.entries(groupedByTurn).map(([turn, entries], turnIdx) => (
+                        <div key={`turn-${turn}`}>
+                          {/* Turn separator */}
+                          {turnIdx > 0 && (
+                            <div className={`
+                              border-t border-gray-700 my-2
+                              ${compact ? 'pt-1' : 'pt-2'}
+                            `} />
+                          )}
+                          
+                          {/* Turn entries */}
+                          <div className={compact ? 'space-y-1' : 'space-y-2'}>
+                            {entries.map((entry, idx) => {
+                              const entryKey = `${turn}-${idx}`;
+                              
+                              return (
+                                <div 
+                                  key={entryKey}
+                                  className="bg-blue-900 rounded overflow-hidden"
+                                  style={{
+                                    padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)'
+                                  }}
+                                >
+                                  <div className={compact ? 'text-xs' : 'text-sm'}>
+                                    <span className="font-semibold">{entry.player}:</span> {entry.description}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ));
+                    })()
+                  ) : (
+                    /* Fallback to simple messages if no play-by-play data */
+                    displayMessages.map((msg, idx) => (
+                      <div 
+                        key={`${idx}-${msg.substring(0, 20)}`} 
+                        className="bg-blue-900 rounded"
+                        style={{
+                          padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                          fontSize: compact ? '0.75rem' : '0.875rem'
+                        }}
+                      >
+                        {msg}
+                      </div>
+                    ))
+                  )}
+                  
                   {isAIThinking && (
                     <div 
-                      className={`
-                        bg-purple-900 rounded inline-flex items-center
-                        ${compact ? 'p-1 text-xs gap-1.5' : 'p-2 text-sm gap-2'}
-                      `}
+                      className="bg-purple-900 rounded inline-flex items-center"
+                      style={{
+                        padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                        gap: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                        fontSize: compact ? '0.75rem' : '0.875rem'
+                      }}
                     >
                       <svg 
                         style={{ 

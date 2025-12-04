@@ -109,14 +109,6 @@ export function ActionPanel({
     };
   }, [lastActionTime]);
 
-  const groupedActions = validActions.reduce((acc, action) => {
-    if (!acc[action.action_type]) {
-      acc[action.action_type] = [];
-    }
-    acc[action.action_type].push(action);
-    return acc;
-  }, {} as Record<string, ValidAction[]>);
-
   // Build shortcut map: action ID -> shortcut key
   // End turn = 0, other actions = 1-9
   const getShortcutKey = (action: ValidAction): string | null => {
@@ -133,23 +125,28 @@ export function ActionPanel({
         return 'bg-blue-600 hover:bg-blue-700';
       case 'tussle':
         return 'bg-red-600 hover:bg-red-700';
+      case 'activate_ability':
+        return 'bg-purple-600 hover:bg-purple-700';
       case 'end_turn':
-        return 'bg-green-600 hover:bg-green-700';
+        return 'bg-amber-600 hover:bg-amber-700';
       default:
         return 'bg-gray-600 hover:bg-gray-700';
     }
   };
 
+  // Separate card actions from turn control
+  const cardActions = validActions.filter(a => a.action_type !== 'end_turn');
+  const endTurnAction = validActions.find(a => a.action_type === 'end_turn');
+
 return (
-  <div className={`bg-game-card rounded border-2 border-game-accent w-full ${compact ? 'p-2' : 'p-3'}`}>
-    <div className={compact ? 'mb-2' : 'mb-3'}>
-      {/* CHANGE: Conditionally build the header text. 
-        Only include the current CC if there are actions to display.
-      */}
+  <div 
+    className="bg-game-card rounded border-2 border-game-accent w-full"
+    style={{ padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}
+  >
+    <div style={{ marginBottom: 'var(--spacing-component-xs)' }}>
       <h3 className={`font-bold ${compact ? 'text-sm mb-0.5' : 'text-lg mb-1'}`}>
         Available Actions
         {validActions.length > 0 && (
-          // If actions are available, add " for {currentCC} CC"
           <span> for {currentCC} CC</span>
         )}
       </h3>
@@ -160,53 +157,98 @@ return (
         No actions available
       </div>
     ) : (
-      <div className={`grid grid-cols-1 w-full ${compact ? 'gap-1.5' : 'gap-3'}`}>
-        {Object.entries(groupedActions).map(([actionType, actions]) => (
-          <div key={actionType} className="w-full">
-            <div className={`grid grid-cols-1 w-full ${compact ? 'gap-1.5' : 'gap-3'}`}>
-              {actions.map((action, index) => {
-                const cleanDescription = action.description.replace(/\s*\(Cost:.*?\)/, '');
-                const shortcutKey = getShortcutKey(action);
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)' }}>
+        {/* Card Actions Group */}
+        {cardActions.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)' }}>
+            {cardActions.map((action, index) => {
+              const cleanDescription = action.description.replace(/\s*\(Cost:.*?\)/, '');
+              const shortcutKey = getShortcutKey(action);
+              const isUnaffordable = action.cost_cc !== undefined && action.cost_cc > currentCC;
 
-                return (
-                  <button
-                    key={`${action.action_type}-${action.card_id || 'action'}-${index}`}
-                    onClick={() => onAction(action)}
-                    disabled={isProcessing}
-                    className={`
-                      w-full block rounded transition-all border-2
-                      ${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'}
-                      ${getActionColor(action.action_type)}
-                      ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
-                      ${action.action_type === 'end_turn' && shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    `}
-                  >
-                    <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
-                      {/* Keyboard shortcut indicator */}
-                      {shortcutKey && (
-                        <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
-                          {shortcutKey}
-                        </span>
-                      )}
-                      <span className="font-bold text-left flex-1">{cleanDescription}</span>
-                      
-                      {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
-                        <span className={`
-                          rounded font-bold whitespace-nowrap
-                          ${compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'}
-                          ${action.cost_cc > currentCC ? 'bg-red-800 text-white' : 'bg-black/40 text-white'}
-                        `}>
-                          {action.cost_cc} CC
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+              return (
+                <button
+                  key={`${action.action_type}-${action.card_id || 'action'}-${index}`}
+                  onClick={() => onAction(action)}
+                  disabled={isProcessing || isUnaffordable}
+                  className={`
+                    w-full block rounded transition-all border-2 text-white border-transparent
+                    ${getActionColor(action.action_type)}
+                    ${isProcessing || isUnaffordable ? 'opacity-40 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
+                    focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
+                  `}
+                  style={{
+                    padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+                    fontSize: compact ? '0.75rem' : '0.875rem'
+                  }}
+                >
+                  <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
+                    {/* Keyboard shortcut indicator */}
+                    {shortcutKey && (
+                      <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
+                        {shortcutKey}
+                      </span>
+                    )}
+                    <span className="font-bold text-left flex-1 text-white">
+                      {cleanDescription}
+                    </span>
+                    
+                    {action.cost_cc !== undefined && (
+                      <span 
+                        className="rounded font-bold whitespace-nowrap"
+                        style={{
+                          padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                          fontSize: compact ? '10px' : '0.75rem',
+                          backgroundColor: isUnaffordable ? 'rgb(153 27 27)' : 'rgba(0,0,0,0.4)',
+                          color: 'white'
+                        }}
+                      >
+                        {isUnaffordable && '🔒 '}
+                        {action.cost_cc} CC
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        ))}
+        )}
+
+        {/* Separator between card actions and turn control */}
+        {cardActions.length > 0 && endTurnAction && (
+          <div 
+            className="border-t border-game-accent" 
+            style={{ margin: 'var(--spacing-component-xs) 0' }}
+          />
+        )}
+
+        {/* Turn Control */}
+        {endTurnAction && (
+          <button
+            onClick={() => onAction(endTurnAction)}
+            disabled={isProcessing}
+            className={`
+              w-full block rounded transition-all border-2 text-white
+              ${getActionColor('end_turn')}
+              ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
+              ${shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
+              focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
+            `}
+            style={{
+              padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+              fontSize: compact ? '0.75rem' : '0.875rem'
+            }}
+          >
+            <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
+              <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
+                0
+              </span>
+              <span className="font-bold text-left flex-1 text-white">
+                {endTurnAction.description.replace(/\s*\(Cost:.*?\)/, '')}
+              </span>
+            </div>
+          </button>
+        )}
       </div>
     )}
   </div>

@@ -395,6 +395,94 @@ const { data: gameState } = useQuery({
 });
 ```
 
+### Frontend Spacing Design System
+
+**CRITICAL**: ALWAYS use spacing design tokens, NEVER hardcode spacing values.
+
+**Spacing Tokens** (defined in `frontend/src/index.css`):
+```css
+@theme {
+  --spacing-component-xs: 8px;   /* Tight spacing within components */
+  --spacing-component-sm: 12px;  /* Standard component padding */
+  --spacing-component-md: 16px;  /* Default content spacing */
+  --spacing-component-lg: 24px;  /* Section separation */
+  --spacing-component-xl: 32px;  /* Major layout spacing */
+}
+```
+
+**Utility Classes**:
+- `.panel-padding` - Standard panel padding (md)
+- `.modal-padding` - Modal content padding (lg)
+- `.card-padding` - Card component padding (sm)
+- `.content-spacing` - Content element gaps (md)
+
+**✅ CORRECT Usage**:
+```tsx
+// Use design tokens in inline styles
+<div style={{ padding: 'var(--spacing-component-md)' }}>
+  <div style={{ gap: 'var(--spacing-component-sm)' }}>
+    Content
+  </div>
+</div>
+
+// Use utility classes
+<div className="panel-padding">
+  <div className="content-spacing">
+    Content
+  </div>
+</div>
+
+// Use in styled components
+const Container = styled.div`
+  padding: var(--spacing-component-lg);
+  gap: var(--spacing-component-md);
+`;
+```
+
+**❌ WRONG Usage**:
+```tsx
+// NEVER hardcode spacing values
+<div style={{ padding: '16px' }}>  // BAD!
+<div className="p-4">  // BAD! (Tailwind utility)
+<div style={{ gap: '12px' }}>  // BAD!
+```
+
+**Exceptions**: NONE. All spacing must use design tokens for consistency and maintainability.
+
+**Responsive Spacing**:
+```tsx
+// Use design tokens with responsive conditionals
+const spacing = isMobile 
+  ? 'var(--spacing-component-xs)' 
+  : 'var(--spacing-component-md)';
+
+<div style={{ padding: spacing }}>
+```
+
+**Layout Patterns**:
+
+**GameBoard Layout** (Desktop):
+```tsx
+// 2-column grid: game zones | messages+actions
+<div className="grid" style={{ 
+  gap: 'var(--spacing-component-sm)', 
+  gridTemplateColumns: '1fr 350px' 
+}}>
+  <div className="space-y-3">
+    {/* Left: Opponent zones, player zones, hand */}
+  </div>
+  <div className="space-y-3">
+    {/* Right: Messages + Actions (350px fixed) */}
+  </div>
+</div>
+```
+
+**Zone Organization**:
+- Each player's zones displayed side-by-side (InPlay + Sleep)
+- Clear visual divider between opponent and player zones
+- Hand positioned full-width below player's zones only
+- Messages + Actions always visible on right side
+
 ## Common Patterns & Anti-Patterns
 
 ### ✅ Good Patterns
