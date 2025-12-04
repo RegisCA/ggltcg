@@ -286,71 +286,90 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         {/* Main Game Area - Responsive Layout */}
         <LayoutGroup>
         {isDesktop ? (
-          /* Desktop: 3-column layout */
-          <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '1fr 280px 350px' }}>
-            {/* Left Column - In Play Zones */}
-            <div className="space-y-3">
-              <InPlayZone
-                cards={otherPlayer.in_play}
-                playerName={otherPlayer.name}
-                isHuman={false}
-                cardSize={cardSize}
-                enableLayoutAnimation={true}
-              />
-              <div className="border-t-2 border-game-highlight"></div>
-              <InPlayZone
-                cards={humanPlayer.in_play}
-                playerName={humanPlayer.name}
-                isHuman={true}
+          /* Desktop: Restructured layout with full-width hand at bottom */
+          <>
+            {/* Top Section: Game zones */}
+            <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '1fr 280px', marginBottom: 'var(--spacing-component-sm)' }}>
+              {/* Left Column - In Play Zones */}
+              <div className="space-y-3">
+                <InPlayZone
+                  cards={otherPlayer.in_play}
+                  playerName={otherPlayer.name}
+                  isHuman={false}
+                  cardSize={cardSize}
+                  enableLayoutAnimation={true}
+                />
+                <div className="border-t-2 border-game-highlight"></div>
+                <InPlayZone
+                  cards={humanPlayer.in_play}
+                  playerName={humanPlayer.name}
+                  isHuman={true}
+                  selectedCard={selectedCard || undefined}
+                  onCardClick={handleInPlayCardClick}
+                  actionableCardIds={actionableInPlayCardIds}
+                  isPlayerTurn={isHumanTurn}
+                  cardSize={cardSize}
+                  enableLayoutAnimation={true}
+                />
+              </div>
+
+              {/* Right Column - Sleep Zones */}
+              <div className="space-y-3">
+                <SleepZoneDisplay
+                  cards={otherPlayer.sleep_zone}
+                  playerName={otherPlayer.name}
+                  enableLayoutAnimation={true}
+                />
+                <div className="border-t-2 border-game-highlight"></div>
+                <SleepZoneDisplay
+                  cards={humanPlayer.sleep_zone}
+                  playerName={humanPlayer.name}
+                  enableLayoutAnimation={true}
+                />
+              </div>
+            </div>
+
+            {/* Bottom Section: Messages, Actions, and Hand */}
+            <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '350px 1fr' }}>
+              {/* Left: Messages + Actions */}
+              <div className="space-y-3">
+                {/* Messages Area - Collapsible */}
+                <GameMessages
+                  messages={messages}
+                  isAIThinking={isAIThinking}
+                  playByPlay={gameState?.play_by_play}
+                />
+
+                {/* Actions Panel */}
+                <ActionPanel
+                  validActions={validActionsData?.valid_actions || []}
+                  onAction={handleAction}
+                  isProcessing={isProcessing}
+                  currentCC={humanPlayer.cc}
+                />
+              </div>
+
+              {/* Right: Hand Zone - Full Width */}
+              <HandZone
+                cards={humanPlayer.hand || []}
                 selectedCard={selectedCard || undefined}
-                onCardClick={handleInPlayCardClick}
-                actionableCardIds={actionableInPlayCardIds}
+                onCardClick={handleHandCardClick}
+                playableCardIds={playableCardIds}
                 isPlayerTurn={isHumanTurn}
                 cardSize={cardSize}
+                compact={false}
                 enableLayoutAnimation={true}
               />
             </div>
-
-            {/* Center Column - Sleep Zones */}
-            <div className="space-y-3">
-              <SleepZoneDisplay
-                cards={otherPlayer.sleep_zone}
-                playerName={otherPlayer.name}
-                enableLayoutAnimation={true}
-              />
-              <div className="border-t-2 border-game-highlight"></div>
-              <SleepZoneDisplay
-                cards={humanPlayer.sleep_zone}
-                playerName={humanPlayer.name}
-                enableLayoutAnimation={true}
-              />
-            </div>
-
-            {/* Right Column - Messages + Actions */}
-            <div className="space-y-3">
-              {/* Messages Area - Collapsible */}
-              <GameMessages
-                messages={messages}
-                isAIThinking={isAIThinking}
-                playByPlay={gameState?.play_by_play}
-              />
-
-              {/* Actions Panel */}
-              <ActionPanel
-                validActions={validActionsData?.valid_actions || []}
-                onAction={handleAction}
-                isProcessing={isProcessing}
-                currentCC={humanPlayer.cc}
-              />
-            </div>
-          </div>
+          </>
         ) : (
           /* Tablet/Mobile: 2-column layout */
-          <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 280px' }}>
+          <>
+          <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: '1fr 280px' }}>
             {/* Left Column - Game Zones (In Play + Sleep stacked) */}
             <div className="space-y-2">
               {/* Opponent's zones */}
-              <div className="flex gap-2">
+              <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
                 <div className="flex-1">
                   <InPlayZone
                     cards={otherPlayer.in_play}
@@ -418,21 +437,22 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               />
             </div>
           </div>
-        )}
 
-        {/* Human Hand - Full Width at Bottom */}
-        <div className={isDesktop ? "mt-3" : "mt-2"}>
-          <HandZone
-            cards={humanPlayer.hand || []}
-            selectedCard={selectedCard || undefined}
-            onCardClick={handleHandCardClick}
-            playableCardIds={playableCardIds}
-            isPlayerTurn={isHumanTurn}
-            cardSize={cardSize}
-            compact={isLandscapeTablet}
-            enableLayoutAnimation={true}
-          />
-        </div>
+          {/* Human Hand - Full Width at Bottom (Tablet/Mobile only) */}
+          <div style={{ marginTop: 'var(--spacing-component-xs)' }}>
+            <HandZone
+              cards={humanPlayer.hand || []}
+              selectedCard={selectedCard || undefined}
+              onCardClick={handleHandCardClick}
+              playableCardIds={playableCardIds}
+              isPlayerTurn={isHumanTurn}
+              cardSize={cardSize}
+              compact={isLandscapeTablet}
+              enableLayoutAnimation={true}
+            />
+          </div>
+          </>
+        )}
         </LayoutGroup>
       </div>
 
