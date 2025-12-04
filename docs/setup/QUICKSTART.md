@@ -72,7 +72,8 @@ Open <http://localhost:5175> and play against the AI!
 
 ### 🎮 Gameplay
 
-- **Deck Selection** - Automated random deck picker with customizable toy/action ratio
+- **Quick Play** - Jump straight into battle with random decks for instant action
+- **Deck Selection** - Build your own deck with customizable toy/action ratio
 - **Player Customization** - Click to edit player names
 - **Strategic AI** - Powered by Google Gemini with intelligent decision-making
 - **Live Play-by-Play** - Track every action with AI reasoning displayed

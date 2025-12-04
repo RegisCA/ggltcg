@@ -188,13 +188,6 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
           </button>
         </div>
 
-        {/* Hidden Mode Info Banner */}
-        {hiddenMode && (
-          <div className="mb-3 p-3 bg-purple-900 rounded-lg text-center">
-            <span className="text-lg">🎭 <strong>Challenge Mode:</strong> Cards are hidden! Use the slider and Random Deck button to build your deck.</span>
-          </div>
-        )}
-
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
           {cards.map((cardData) => {
             const isSelected = selectedCards.includes(cardData.name);

@@ -16,6 +16,8 @@ from api.schemas import (
     ErrorResponse,
     RandomDeckRequest,
     RandomDeckResponse,
+    QuickPlayRequest,
+    QuickPlayResponse,
     NarrativeRequest,
     NarrativeResponse,
     CardDataResponse,
@@ -116,6 +118,58 @@ async def get_random_deck(request: RandomDeckRequest) -> RandomDeckResponse:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate random deck: {str(e)}")
+
+
+@router.post("/quick-play", response_model=QuickPlayResponse, status_code=201)
+async def create_quick_play_game(request: QuickPlayRequest) -> QuickPlayResponse:
+    """
+    Create a Quick Play game with random decks and random starting player.
+    
+    This is a fast-start mode that:
+    - Generates random 6-card decks for both player and AI (any combination of toys/actions)
+    - Randomly selects who goes first
+    - Creates the game immediately
+    - Skips deck selection screen
+    
+    - **player_id**: Unique identifier for the player
+    - **player_name**: Display name for the player
+    
+    Returns game ID, both decks, and who goes first.
+    """
+    service = get_game_service()
+    
+    try:
+        import random
+        
+        # Generate random decks for both players
+        player_deck = service.generate_random_full_deck()
+        ai_deck = service.generate_random_full_deck()
+        
+        # Randomly select first player
+        first_player_id = random.choice([request.player_id, 'ai-gemiknight'])
+        
+        # Create the game
+        game_id, engine = service.create_game(
+            player1_id=request.player_id,
+            player1_name=request.player_name,
+            player1_deck=player_deck,
+            player2_id='ai-gemiknight',
+            player2_name='Gemiknight',
+            player2_deck=ai_deck,
+            first_player_id=first_player_id,
+        )
+        
+        return QuickPlayResponse(
+            game_id=game_id,
+            player_deck=player_deck,
+            ai_deck=ai_deck,
+            first_player_id=first_player_id,
+        )
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create Quick Play game: {str(e)}")
 
 
 @router.get("/{game_id}", response_model=GameStateResponse)

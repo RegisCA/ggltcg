@@ -871,6 +871,30 @@ class GameService:
         
         return deck
 
+    def generate_random_full_deck(self) -> list[str]:
+        """
+        Generate a completely random deck of 6 cards from all available cards.
+        
+        No restrictions on card type ratio - can be any combination of toys and actions.
+        This is used for Quick Play mode.
+        
+        Returns:
+            List of 6 random card names
+        """
+        import random
+        
+        all_card_names = [card.name for card in self.all_cards]
+        
+        if len(all_card_names) < 6:
+            raise ValueError(f"Not enough cards available: have {len(all_card_names)}, need 6")
+        
+        # Randomly select 6 cards
+        deck = random.sample(all_card_names, 6)
+        
+        logger.info(f"Generated random full deck: {deck}")
+        
+        return deck
+
 
 # Singleton instance
 _game_service: Optional[GameService] = None

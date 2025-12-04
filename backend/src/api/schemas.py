@@ -45,6 +45,21 @@ class RandomDeckResponse(BaseModel):
     num_actions: int = Field(..., description="Number of Action cards in deck")
 
 
+class QuickPlayRequest(BaseModel):
+    """Request to create a Quick Play game."""
+    player_id: str = Field(..., description="Unique identifier for the player")
+    player_name: str = Field(..., description="Display name for the player")
+
+
+class QuickPlayResponse(BaseModel):
+    """Response after creating a Quick Play game."""
+    game_id: str = Field(..., description="Unique identifier for the created game")
+    player_deck: list[str] = Field(..., description="Player's randomly assigned deck")
+    ai_deck: list[str] = Field(..., description="AI's randomly assigned deck")
+    first_player_id: str = Field(..., description="ID of the player who goes first")
+    message: str = "Quick Play game created successfully"
+
+
 class NarrativeRequest(BaseModel):
     """Request to generate narrative play-by-play."""
     play_by_play: List[Dict[str, Any]] = Field(..., description="Play-by-play entries from the game")

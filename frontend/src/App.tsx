@@ -84,6 +84,29 @@ function GameApp() {
     setGamePhase('deck-selection-p1');
   };
 
+  const handleQuickPlay = async () => {
+    if (!user?.google_id) {
+      alert('You must be logged in to play Quick Play');
+      return;
+    }
+
+    try {
+      const { quickPlay } = await import('./api/gameService');
+      const response = await quickPlay(user.google_id, user.display_name || 'Player');
+      
+      // Set game state and jump directly to playing
+      setGameMode('single-player');
+      setGameId(response.game_id);
+      setPlayer1Name(user.display_name || 'Player');
+      setPlayer2Name('Gemiknight');
+      setPlayerIds({ human: user.google_id, other: 'ai-gemiknight' });
+      setGamePhase('playing');
+    } catch (error) {
+      console.error('Failed to start Quick Play:', error);
+      alert('Failed to start Quick Play. Please try again.');
+    }
+  };
+
   const handleBackToMenu = () => {
     setGamePhase('menu');
     setGameMode('single-player');
@@ -200,6 +223,7 @@ function GameApp() {
         onCreateLobby={handleCreateLobby}
         onJoinLobby={handleJoinLobby}
         onPlayVsAI={handlePlayVsAI}
+        onQuickPlay={handleQuickPlay}
       />
     );
   }
