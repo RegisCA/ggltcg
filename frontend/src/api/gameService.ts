@@ -50,6 +50,22 @@ export async function getRandomDeck(numToys: number, numActions: number): Promis
   return response.data.deck;
 }
 
+export interface QuickPlayResponse {
+  game_id: string;
+  player_deck: string[];
+  ai_deck: string[];
+  first_player_id: string;
+  message: string;
+}
+
+export async function quickPlay(playerId: string, playerName: string): Promise<QuickPlayResponse> {
+  const response = await apiClient.post<QuickPlayResponse>('/games/quick-play', {
+    player_id: playerId,
+    player_name: playerName,
+  });
+  return response.data;
+}
+
 export async function getGameState(gameId: string, playerId?: string): Promise<GameState> {
   const params = playerId ? { player_id: playerId } : {};
   const response = await apiClient.get<GameState>(`/games/${gameId}`, { params });

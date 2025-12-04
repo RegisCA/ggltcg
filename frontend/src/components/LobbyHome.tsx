@@ -11,11 +11,11 @@ interface LobbyHomeProps {
   onCreateLobby: () => void;
   onJoinLobby: () => void;
   onPlayVsAI: (hiddenMode: boolean) => void;
+  onQuickPlay: () => void;
 }
 
-export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeProps) {
+export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI, onQuickPlay }: LobbyHomeProps) {
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
-  const [hiddenCardsMode, setHiddenCardsMode] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
 
@@ -23,31 +23,31 @@ export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeP
     <div className="min-h-screen bg-game-bg flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
         {/* Title */}
-        <div className="text-center mb-12">
-          <h1 className="text-7xl font-bold mb-4 text-game-highlight">GGLTCG</h1>
+        <div className="text-center mb-8">
+          <h1 className="text-7xl font-bold mb-3 text-game-highlight">GGLTCG</h1>
           <p className="text-3xl text-gray-100 font-semibold">Choose Your Game Mode</p>
         </div>
 
         {/* Game Mode Options */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Create Lobby */}
           <button
             onClick={onCreateLobby}
             onMouseEnter={() => setHoveredButton('create')}
             onMouseLeave={() => setHoveredButton(null)}
             className={`
-              w-full p-8 rounded-lg border-4 transition-all
+              w-full p-6 rounded-lg border-4 transition-all
               ${hoveredButton === 'create'
                 ? 'border-game-highlight bg-gray-700 scale-105'
                 : 'border-gray-600 bg-gray-800 hover:border-gray-500'
               }
             `}
           >
-            <div className="text-4xl mb-3 font-bold text-gray-900">🎮 Create Game</div>
-            <div className="text-2xl text-gray-800 font-semibold">
+            <div className="text-3xl mb-2 font-bold text-gray-900">🎮 Create Game</div>
+            <div className="text-xl text-gray-800 font-semibold">
               Host a new game and invite a friend
             </div>
-            <div className="text-base text-gray-700 mt-2">
+            <div className="text-sm text-gray-700 mt-1">
               Get a 6-character code to share
             </div>
           </button>
@@ -58,64 +58,65 @@ export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeP
             onMouseEnter={() => setHoveredButton('join')}
             onMouseLeave={() => setHoveredButton(null)}
             className={`
-              w-full p-8 rounded-lg border-4 transition-all
+              w-full p-6 rounded-lg border-4 transition-all
               ${hoveredButton === 'join'
                 ? 'border-game-highlight bg-gray-700 scale-105'
                 : 'border-gray-600 bg-gray-800 hover:border-gray-500'
               }
             `}
           >
-            <div className="text-4xl mb-3 font-bold text-gray-900">🔗 Join Game</div>
-            <div className="text-2xl text-gray-800 font-semibold">
+            <div className="text-3xl mb-2 font-bold text-gray-900">🔗 Join Game</div>
+            <div className="text-xl text-gray-800 font-semibold">
               Enter a friend's game code
             </div>
-            <div className="text-base text-gray-700 mt-2">
+            <div className="text-sm text-gray-700 mt-1">
               Connect to an existing lobby
             </div>
           </button>
 
           {/* Play vs AI */}
-          <div className="space-y-3">
-            <button
-              onClick={() => onPlayVsAI(hiddenCardsMode)}
-              onMouseEnter={() => setHoveredButton('ai')}
-              onMouseLeave={() => setHoveredButton(null)}
-              className={`
-                w-full p-8 rounded-lg border-4 transition-all
-                ${hoveredButton === 'ai'
-                  ? 'border-purple-500 bg-gray-700 scale-105'
-                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                }
-              `}
-            >
-              <div className="text-4xl mb-3 font-bold text-gray-900">🤖 Play vs AI</div>
-              <div className="text-2xl text-gray-800 font-semibold">
-                Practice against computer opponent
-              </div>
-              <div className="text-base text-gray-700 mt-2">
-                Single-player mode
-              </div>
-            </button>
-
-            {/* Hidden Cards Toggle */}
-            <div 
-              className="flex items-center justify-center gap-3 p-3 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700 transition-colors"
-              onClick={() => setHiddenCardsMode(!hiddenCardsMode)}
-            >
-              <div className={`
-                w-12 h-6 rounded-full transition-colors relative
-                ${hiddenCardsMode ? 'bg-purple-600' : 'bg-gray-600'}
-              `}>
-                <div className={`
-                  absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform
-                  ${hiddenCardsMode ? 'translate-x-6' : 'translate-x-0.5'}
-                `} />
-              </div>
-              <span className="text-lg">
-                🎭 <strong>Challenge Mode:</strong> Hidden cards during deck selection
-              </span>
+          <button
+            onClick={() => onPlayVsAI(false)}
+            onMouseEnter={() => setHoveredButton('ai')}
+            onMouseLeave={() => setHoveredButton(null)}
+            className={`
+              w-full p-6 rounded-lg border-4 transition-all
+              ${hoveredButton === 'ai'
+                ? 'border-purple-500 bg-gray-700 scale-105'
+                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+              }
+            `}
+          >
+            <div className="text-3xl mb-2 font-bold text-gray-900">🤖 Play vs AI</div>
+            <div className="text-xl text-gray-800 font-semibold">
+              Practice against computer opponent
             </div>
-          </div>
+            <div className="text-sm text-gray-700 mt-1">
+              Single-player mode
+            </div>
+          </button>
+
+          {/* Quick Play */}
+          <button
+            onClick={onQuickPlay}
+            onMouseEnter={() => setHoveredButton('quick')}
+            onMouseLeave={() => setHoveredButton(null)}
+            className={`
+              w-full p-6 rounded-lg border-4 transition-all
+              ${hoveredButton === 'quick'
+                ? 'border-orange-500 bg-gray-700 scale-105'
+                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+              }
+            `}
+          >
+            <div className="text-3xl mb-2 font-bold text-gray-900">⚡ Quick Play</div>
+            <div className="text-xl text-gray-800 font-semibold">
+              Jump straight into battle
+            </div>
+            <div className="text-sm text-gray-700 mt-1">
+              Random decks, instant action!
+            </div>
+          </button>
 
           {/* Leaderboard Button */}
           <button
@@ -123,22 +124,22 @@ export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI }: LobbyHomeP
             onMouseEnter={() => setHoveredButton('leaderboard')}
             onMouseLeave={() => setHoveredButton(null)}
             className={`
-              w-full p-6 rounded-lg border-4 transition-all
+              w-full p-5 rounded-lg border-4 transition-all mt-2
               ${hoveredButton === 'leaderboard'
                 ? 'border-yellow-500 bg-gray-700 scale-105'
                 : 'border-gray-600 bg-gray-800 hover:border-gray-500'
               }
             `}
           >
-            <div className="text-3xl mb-2 font-bold text-white">🏆 Leaderboard</div>
-            <div className="text-xl text-gray-100 font-semibold">
+            <div className="text-2xl mb-1 font-bold text-white">🏆 Leaderboard</div>
+            <div className="text-lg text-gray-100 font-semibold">
               View top players and rankings
             </div>
           </button>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-12 text-gray-500 text-sm">
+        <div className="text-center mt-8 text-gray-500 text-sm">
           <p>A trading card game where strategy meets imagination</p>
         </div>
       </div>

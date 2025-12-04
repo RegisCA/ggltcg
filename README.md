@@ -9,11 +9,12 @@ A tactical two-player card game with no randomness in draws—only skill and str
 
 ## Project Overview
 
-GGLTCG is a web application that allows players to play the Googooland TCG against an AI opponent or challenge friends online. The game features 18 unique cards with diverse mechanics and strategic depth, backed by a persistent database for stats and history.
+GGLTCG is a web application that allows players to play the Googooland TCG against an AI opponent or play with friends online. The game features 18 unique cards with diverse mechanics and strategic depth, backed by a persistent database for stats and history.
 
 ## Key Features
 
-- **1v1 Online Multiplayer**: Real-time lobby system to create private games and challenge friends via code.
+- **1v1 Online Multiplayer**: Real-time lobby system to create private games and invite friends via code.
+- **⚡ Quick Play**: Jump straight into action with random decks for instant battles against the AI.
 - **Google OAuth Authentication**: Secure sign-in with Google to protect your account and stats.
 - **Strategic AI Opponent**: Powered by Google Gemini (LLM) to provide a challenging and thematic opponent.
 - **Persistent Stats & Leaderboards**: Track your win rates, match history, and card usage statistics.
