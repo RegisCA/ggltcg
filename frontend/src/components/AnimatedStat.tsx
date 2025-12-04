@@ -139,7 +139,7 @@ export function AnimatedStat({
           {displayValue}
           {isBuffed && buffAmount > 0 && (
             <span className="text-xs ml-0.5" title={`Buffed from ${baseValue} (+${buffAmount})`}>
-              ↑{buffAmount > 1 ? buffAmount : ''}
+              ↑
             </span>
           )}
         </motion.div>

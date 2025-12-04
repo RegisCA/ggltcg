@@ -24,7 +24,6 @@ export function GameMessages({
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [lastSeenCount, setLastSeenCount] = useState(0);
-  const [expandedReasoningIds, setExpandedReasoningIds] = useState<Set<number>>(new Set());
 
   // Default to collapsed on mobile (<768px)
   useEffect(() => {
@@ -50,18 +49,6 @@ export function GameMessages({
   const messageCount = messages.length;
   const newEventCount = Math.max(0, messageCount - lastSeenCount);
 
-  const toggleReasoning = (index: number) => {
-    setExpandedReasoningIds(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
   return (
     <div className="bg-gray-800 rounded border border-gray-700 overflow-hidden">
       {/* Header - Always visible, clickable to toggle */}
@@ -79,14 +66,6 @@ export function GameMessages({
           <span className={`text-gray-400 font-medium ${compact ? 'text-xs' : 'text-sm'}`}>
             Game Log
           </span>
-          {messageCount > 0 && (
-            <span className={`
-              px-1.5 py-0.5 rounded-full bg-blue-900 text-blue-300
-              ${compact ? 'text-[10px]' : 'text-xs'}
-            `}>
-              {messageCount}
-            </span>
-          )}
           {isCollapsed && newEventCount > 0 && (
             <span className={`
               px-1.5 py-0.5 rounded-full bg-amber-900 text-amber-300 font-semibold
@@ -162,9 +141,7 @@ export function GameMessages({
                           {/* Turn entries */}
                           <div className={compact ? 'space-y-1' : 'space-y-2'}>
                             {entries.map((entry, idx) => {
-                              const hasReasoning = !!entry.reasoning;
                               const entryKey = `${turn}-${idx}`;
-                              const isReasoningExpanded = expandedReasoningIds.has(parseInt(entryKey.replace('-', '')));
                               
                               return (
                                 <div 
@@ -177,30 +154,6 @@ export function GameMessages({
                                   <div className={compact ? 'text-xs' : 'text-sm'}>
                                     {entry.description}
                                   </div>
-                                  
-                                  {/* AI Reasoning Toggle */}
-                                  {hasReasoning && (
-                                    <div className="mt-1">
-                                      <button
-                                        onClick={() => toggleReasoning(parseInt(entryKey.replace('-', '')))}
-                                        className={`
-                                          text-purple-300 hover:text-purple-200 underline
-                                          ${compact ? 'text-[10px]' : 'text-xs'}
-                                        `}
-                                      >
-                                        {isReasoningExpanded ? '− Hide' : '+ Show'} AI reasoning
-                                      </button>
-                                      
-                                      {isReasoningExpanded && (
-                                        <div className={`
-                                          mt-1 p-1.5 bg-purple-900/50 rounded text-purple-200
-                                          ${compact ? 'text-[10px]' : 'text-xs'}
-                                        `}>
-                                          {entry.reasoning}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
                                 </div>
                               );
                             })}
