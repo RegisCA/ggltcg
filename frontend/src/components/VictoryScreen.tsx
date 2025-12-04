@@ -51,7 +51,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
 
   return (
     <div 
-      className="min-h-screen bg-game-bg p-8 relative overflow-auto"
+      className="min-h-screen bg-game-bg flex items-center justify-center p-4 sm:p-8 relative overflow-auto"
       style={{
         backgroundImage: 'url(/ggltcg-logo.svg)',
         backgroundPosition: 'center',
@@ -64,28 +64,28 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
       <div className="absolute inset-0 bg-game-bg bg-opacity-90 pointer-events-none" />
 
       {/* Play Again Button - Top Right Corner */}
-      <div className="absolute top-8 right-8 z-20">
+      <div className="absolute top-4 sm:top-8 right-4 sm:right-8 z-20">
         <Button variant="primary" size="lg" onClick={onPlayAgain}>
           Play Again
         </Button>
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6">
         {/* Victory Header */}
         <div className="text-center mb-8">
-          <h1 className="text-6xl font-bold mb-4 text-game-highlight">
+          <h1 className="text-4xl sm:text-6xl font-bold mb-4 text-game-highlight">
             Game Over!
           </h1>
-          <p className="text-4xl mb-6">
+          <p className="text-2xl sm:text-4xl mb-6">
             {winnerPlayer?.name || gameState.winner} Wins!
           </p>
         </div>
 
         {/* Play-by-Play Summary */}
         {playByPlay.length > 0 && (
-          <div className="bg-gray-800 bg-opacity-95 rounded-lg p-8 shadow-2xl max-w-3xl mx-auto">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-700">
-              <h2 className="text-3xl font-bold text-center">Game Summary</h2>
+          <div className="bg-gray-800 bg-opacity-95 rounded-lg p-6 sm:p-8 shadow-2xl">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-gray-700">
+              <h2 className="text-2xl sm:text-3xl font-bold">Game Summary</h2>
               
               {/* Mode Toggle */}
               <div className="flex items-center gap-3">
@@ -122,7 +122,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                     <p>Generating your epic bedtime story...</p>
                   </div>
                 ) : narrative ? (
-                  <div className="text-gray-100 leading-loose space-y-4 text-lg">
+                  <div className="text-gray-100 leading-loose space-y-4 text-base sm:text-lg px-2">
                     {narrative.split('\n\n').map((paragraph, idx) => (
                       <p key={idx} className="text-justify">
                         {paragraph}
@@ -145,7 +145,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                 return (
                   <div
                     key={key}
-                    className={`rounded-lg p-4 border-l-4 ${
+                    className={`rounded-lg p-4 sm:p-6 border-l-4 ${
                       isAI 
                         ? 'bg-purple-900 bg-opacity-20 border-purple-500' 
                         : 'bg-gray-900 bg-opacity-70 border-game-highlight'
@@ -156,13 +156,13 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                       <span className="bg-gray-700 text-gray-300 text-xs font-mono px-2 py-1 rounded">
                         Turn {firstAction.turn}
                       </span>
-                      <span className="font-bold text-white text-lg">
+                      <span className="font-bold text-white text-base sm:text-lg">
                         {firstAction.player}
                       </span>
                     </div>
                     
                     {/* Actions for this turn/player */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 px-2">
                       {actions.map((entry, index) => (
                         <div key={index}>
                           {/* Action Description */}
@@ -172,7 +172,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
 
                           {/* AI Reasoning */}
                           {entry.reasoning && (
-                            <div className="mt-2 ml-4 pt-2 border-t border-purple-700 bg-purple-900 bg-opacity-30 p-3 rounded">
+                            <div className="mt-2 ml-2 sm:ml-4 pt-2 border-t border-purple-700 bg-purple-900 bg-opacity-30 p-3 rounded">
                               <p className="text-sm text-purple-200 italic leading-relaxed">
                                 <span className="text-purple-300 font-semibold not-italic">💭 AI Strategy:</span> {entry.reasoning}
                               </p>
