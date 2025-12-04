@@ -25,6 +25,7 @@ interface CardDisplayProps {
   isDisabled?: boolean;
   isUnplayable?: boolean;  // Card cannot be played this turn (not enough CC, restricted, etc.)
   isTussling?: boolean;
+  isCopy?: boolean;  // Card created by Copy effect
   size?: 'small' | 'medium' | 'large';
   /** Enable layout animations for zone transitions (uses card.id as layoutId) */
   enableLayoutAnimation?: boolean;
@@ -39,6 +40,7 @@ export function CardDisplay({
   isDisabled = false,
   isUnplayable = false,
   isTussling = false,
+  isCopy = false,
   size = 'medium',
   enableLayoutAnimation = false,
 }: CardDisplayProps) {
@@ -65,19 +67,23 @@ export function CardDisplay({
   let effectiveBorderColor = borderColor;
   let boxShadow = undefined;
   let animation = undefined;
-  const borderWidth = '2px';  // Keep consistent to avoid layout shifts
+  let borderWidth = '2px';  // Default border width
   
   if (isTussling) {
     effectiveBorderColor = 'var(--ggltcg-red)';
     boxShadow = '0 0 16px rgba(199, 68, 68, 0.8)';
     animation = 'tussle-shake 0.3s ease-in-out infinite';
+    borderWidth = '3px';  // Thicker border for tussling
   } else if (isSelected) {
     effectiveBorderColor = '#FFD700'; // Gold color for selection
     boxShadow = '0 0 12px rgba(255, 215, 0, 0.9), 0 0 24px rgba(255, 215, 0, 0.5)';
+    borderWidth = '3px';  // Thicker border for selection
   } else if (isHighlighted) {
     // Subtle green glow for actionable cards (can tussle or use ability)
+    // Thicker border + icon badge for colorblind accessibility
     effectiveBorderColor = '#22c55e'; // Green border
     boxShadow = '0 0 8px rgba(34, 197, 94, 0.5)';
+    borderWidth = '4px';  // Significantly thicker border for highlighted state
   }
 
   return (
@@ -112,6 +118,37 @@ export function CardDisplay({
       whileHover={isClickable && !effectivelyDisabled && !prefersReducedMotion ? { scale: 1.05 } : undefined}
       whileTap={isClickable && !effectivelyDisabled && !prefersReducedMotion ? { scale: 0.98 } : undefined}
     >
+      {/* Colorblind-Accessible Visual Indicators */}
+      {/* Available Action Badge - top-right corner */}
+      {isHighlighted && !effectivelyDisabled && (
+        <div
+          className="absolute top-1 right-1 bg-green-500 text-white rounded-full flex items-center justify-center font-bold shadow-lg"
+          style={{
+            width: size === 'small' ? '20px' : size === 'medium' ? '24px' : '32px',
+            height: size === 'small' ? '20px' : size === 'medium' ? '24px' : '32px',
+            fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '0.875rem' : '1.125rem',
+            zIndex: 10,
+          }}
+          title="Available action"
+        >
+          ⚡
+        </div>
+      )}
+
+      {/* Copy Badge - top-left corner */}
+      {isCopy && (
+        <div
+          className="absolute top-1 left-1 bg-purple-600 text-white rounded px-1 font-bold shadow-lg"
+          style={{
+            fontSize: size === 'small' ? '0.625rem' : size === 'medium' ? '0.75rem' : '0.875rem',
+            zIndex: 10,
+          }}
+          title="Copy of another card"
+        >
+          COPY
+        </div>
+      )}
+
       {/* Card Header: Cost + Name + Type Badge */}
       <div className="flex justify-between items-start mb-2" style={{ position: 'relative', zIndex: 1 }}>
         {/* Cost Indicator */}

@@ -110,6 +110,9 @@ export function AnimatedStat({
     ? `${currentValue}/${value}`
     : String(value);
 
+  // Calculate buff amount for accessibility (colorblind users)
+  const buffAmount = isBuffed && value !== null && baseValue !== null ? value - baseValue : 0;
+
   // Use reduced motion variants if user prefers (#111)
   const variants = prefersReducedMotion ? reducedMotionVariants : statVariants;
   
@@ -134,8 +137,10 @@ export function AnimatedStat({
           animate={animateState}
         >
           {displayValue}
-          {isBuffed && (
-            <span className="text-xs ml-0.5">↑</span>
+          {isBuffed && buffAmount > 0 && (
+            <span className="text-xs ml-0.5" title={`Buffed from ${baseValue} (+${buffAmount})`}>
+              ↑{buffAmount > 1 ? buffAmount : ''}
+            </span>
           )}
         </motion.div>
       </AnimatePresence>
