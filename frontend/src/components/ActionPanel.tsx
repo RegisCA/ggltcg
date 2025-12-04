@@ -139,8 +139,10 @@ export function ActionPanel({
   const endTurnAction = validActions.find(a => a.action_type === 'end_turn');
 
 return (
-  <div className={`bg-game-card rounded border-2 border-game-accent w-full ${compact ? 'p-2' : 'p-3'}`}>
-    <div className={compact ? 'mb-2' : 'mb-3'}>
+  <div 
+    className="panel-padding bg-game-card rounded border-2 border-game-accent w-full"
+  >
+    <div style={{ marginBottom: compact ? 'var(--spacing-component-sm)' : 'var(--spacing-component-md)' }}>
       <h3 className={`font-bold ${compact ? 'text-sm mb-0.5' : 'text-lg mb-1'}`}>
         Available Actions
         {validActions.length > 0 && (
@@ -169,13 +171,15 @@ return (
                   onClick={() => onAction(action)}
                   disabled={isProcessing || isUnaffordable}
                   className={`
-                    w-full block rounded transition-all border-2 text-white
-                    ${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'}
+                    w-full block rounded transition-all border-2 text-white border-transparent
                     ${getActionColor(action.action_type)}
                     ${isProcessing || isUnaffordable ? 'opacity-40 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
-                    border-transparent
                     focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
                   `}
+                  style={{
+                    padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+                    fontSize: compact ? '0.75rem' : '0.875rem'
+                  }}
                 >
                   <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
                     {/* Keyboard shortcut indicator */}
@@ -189,11 +193,15 @@ return (
                     </span>
                     
                     {action.cost_cc !== undefined && (
-                      <span className={`
-                        rounded font-bold whitespace-nowrap
-                        ${compact ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'}
-                        ${isUnaffordable ? 'bg-red-800 text-white' : 'bg-black/40 text-white'}
-                      `}>
+                      <span 
+                        className="rounded font-bold whitespace-nowrap"
+                        style={{
+                          padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                          fontSize: compact ? '10px' : '0.75rem',
+                          backgroundColor: isUnaffordable ? 'rgb(153 27 27)' : 'rgba(0,0,0,0.4)',
+                          color: 'white'
+                        }}
+                      >
                         {isUnaffordable && '🔒 '}
                         {action.cost_cc} CC
                       </span>
@@ -207,7 +215,10 @@ return (
 
         {/* Separator between card actions and turn control */}
         {cardActions.length > 0 && endTurnAction && (
-          <div className="border-t border-game-accent my-4" />
+          <div 
+            className="border-t border-game-accent" 
+            style={{ margin: 'var(--spacing-component-md) 0' }}
+          />
         )}
 
         {/* Turn Control */}
@@ -217,12 +228,15 @@ return (
             disabled={isProcessing}
             className={`
               w-full block rounded transition-all border-2 text-white
-              ${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'}
               ${getActionColor('end_turn')}
               ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
               ${shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
               focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
             `}
+            style={{
+              padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+              fontSize: compact ? '0.75rem' : '0.875rem'
+            }}
           >
             <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
               <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>

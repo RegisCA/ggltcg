@@ -63,22 +63,24 @@ export function GameMessages({
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         aria-label={isCollapsed ? "Expand game log" : "Collapse game log"}
-        className={`
-          w-full flex items-center justify-between
-          ${compact ? 'px-2 py-1.5' : 'px-3 py-2'}
-          bg-gray-900 hover:bg-gray-800 transition-colors
-          ${!isCollapsed ? 'border-b border-gray-700' : ''}
-        `}
+        className="w-full flex items-center justify-between bg-gray-900 hover:bg-gray-800 transition-colors"
+        style={{
+          padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+          borderBottom: !isCollapsed ? '1px solid rgb(55 65 81)' : 'none'
+        }}
       >
         <div className="flex items-center gap-2">
           <span className={`text-gray-400 font-medium ${compact ? 'text-xs' : 'text-sm'}`}>
             Game Log
           </span>
           {isCollapsed && newEventCount > 0 && (
-            <span className={`
-              px-1.5 py-0.5 rounded-full bg-amber-900 text-amber-300 font-semibold
-              ${compact ? 'text-[10px]' : 'text-xs'}
-            `}>
+            <span 
+              className="rounded-full bg-amber-900 text-amber-300 font-semibold"
+              style={{
+                padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                fontSize: compact ? '10px' : '0.75rem'
+              }}
+            >
               {newEventCount} new
             </span>
           )}
@@ -117,9 +119,10 @@ export function GameMessages({
           >
             <div
               ref={scrollContainerRef}
-              className={compact ? 'px-3 py-2 h-full' : 'px-4 py-3 h-full'}
+              className="h-full"
               style={{ 
-                overflowY: 'auto' 
+                overflowY: 'auto',
+                padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-md)'
               }}
             >
               {displayMessages.length === 0 && !isAIThinking ? (
@@ -160,10 +163,10 @@ export function GameMessages({
                               return (
                                 <div 
                                   key={entryKey}
-                                  className={`
-                                    bg-blue-900 rounded overflow-hidden
-                                    ${compact ? 'p-1.5' : 'p-2.5'}
-                                  `}
+                                  className="bg-blue-900 rounded overflow-hidden"
+                                  style={{
+                                    padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)'
+                                  }}
                                 >
                                   <div className={compact ? 'text-xs' : 'text-sm'}>
                                     <span className="font-semibold">{entry.player}:</span> {entry.description}
@@ -180,10 +183,11 @@ export function GameMessages({
                     displayMessages.map((msg, idx) => (
                       <div 
                         key={`${idx}-${msg.substring(0, 20)}`} 
-                        className={`
-                          bg-blue-900 rounded
-                          ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}
-                        `}
+                        className="bg-blue-900 rounded"
+                        style={{
+                          padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                          fontSize: compact ? '0.75rem' : '0.875rem'
+                        }}
                       >
                         {msg}
                       </div>
@@ -192,10 +196,12 @@ export function GameMessages({
                   
                   {isAIThinking && (
                     <div 
-                      className={`
-                        bg-purple-900 rounded inline-flex items-center
-                        ${compact ? 'p-1 text-xs gap-1.5' : 'p-2 text-sm gap-2'}
-                      `}
+                      className="bg-purple-900 rounded inline-flex items-center"
+                      style={{
+                        padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                        gap: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                        fontSize: compact ? '0.75rem' : '0.875rem'
+                      }}
                     >
                       <svg 
                         style={{ 

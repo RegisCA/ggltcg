@@ -95,7 +95,8 @@ export const Modal: React.FC<ModalProps> = ({
   
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80"
+      style={{ padding: 'var(--spacing-component-md)' }}
       onClick={handleBackdropClick}
     >
       <div
@@ -103,7 +104,7 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="bg-gray-900 rounded-lg border-2 border-game-highlight shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="modal-padding bg-gray-900 rounded-lg border-2 border-game-highlight shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
       >
         <div id={titleId} className="sr-only">
           {title}
