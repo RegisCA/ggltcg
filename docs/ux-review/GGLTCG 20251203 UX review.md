@@ -4,12 +4,32 @@
 
 This document captures UX observations, feedback, and improvement opportunities for the GGLTCG web application across multiple device types and screen sizes.
 
+### Background
+
+The number of UX components has grown as we’ve added more features, such as player authenticating through google and the ability to play 1vs1 online games.
+While the current UX is pretty functional, there are inconsistencies in how things look and feel, but also in how they are implemented.
+
+### Review Goals
+
+- UX: optimize the game board for the different ways to play/interact with the app, keeping in mind that being able to read the stats and effect description of each card during gameplay is critical:
+  - On a desktop/laptop, tablet, or phone
+  - With a mouse/trackpad, keyboard, touch controls, or a combination of those
+  - Interacting with the cards, using the action panel, or both
+  
+- UX: make all components visually cohesive (buttons to go back to the landing screen all have different labels!). The game needs to look complete and professional. This may require adding a Copyright notice and other key info.
+- Accessibility - let's try to be smart where we can to make the game enjoyable for everyone:
+  - Color contrast meets WCAG AA standards
+  - Keyboard navigation functional
+  - Screen reader friendly (semantic HTML)
+  - Touch target sizes (minimum 44x44px)
+- Front end code base quality: we need to ensure code and design principles are implemented and respected. There have been many iterations and bug fixes, but we have a lack of consistency in how things are done. Code maintainability is important as I’m planning to open source this code base.
+
 ### Review Scope
 
-- **Date**: December 3, 2025
+- **Date**: December 4, 2025
 - **Version**: Production build (ggltcg.vercel.app)
 - **Devices Tested**:
-  - Laptop (1440x900)
+  - Laptop (1440x900) + Laptop (2880x1800)
   - Tablet Landscape (1024x768)
   - Tablet Portrait (768x1024)
   - Phone Portrait (390x844 - iPhone 13)
@@ -18,6 +38,7 @@ This document captures UX observations, feedback, and improvement opportunities 
 ### Screenshot Organization
 
 Screenshots are organized by viewport size in `screenshots/` subdirectories:
+
 - `laptop-1440x900/` - Automated screenshots at standard laptop resolution
 - `laptop-2880x1800/` - **High-resolution manual screenshots** (2x scale) - detailed gameplay states
 - `tablet-landscape-1024x768/`
@@ -25,653 +46,698 @@ Screenshots are organized by viewport size in `screenshots/` subdirectories:
 - `phone-portrait-390x844/`
 - `phone-landscape-844x390/`
 
-**Note**: The `laptop-2880x1800/` folder contains manually captured screenshots at high resolution (2880x1800), focusing on specific gameplay scenarios not captured in automated tests: target selection modals, cards in play/sleep zones, tussle states, activated abilities, and victory screens.
+**Note**: The `laptop-2880x1800/` folder contains manually captured screenshots at high resolution (2880x1800), focusing on specific gameplay scenarios not captured in automated tests (target selection modals, cards in play/sleep zones, tussle states, activated abilities), lobby (create, join, wait), leaderboard and player stats, and victory screens.
 
 ---
 
-## 1. Landing/Load Screen
+## 1. Loading Screen
+
+**Purpose**: First screen shown while connecting to backend server
+
+### Loading Screen - Screenshots
+
+- Laptop: ![Loading](screenshots/laptop-2880x1800/00-loading-screen.png)
+
+### Loading Screen - Observations
+
+- **Loading state**: Clean, minimal design with spinner animation
+- **Branding**: Game title and subtitle clearly displayed
+- **Wait time**: Can take up to 1 minute on free tier (Render cold start)
+- **User feedback**: "Connecting to game server...." message provides context
+- **Improvement**: Consider adding estimated wait time or progress indicator for long loads
+- **Improvement**: Could add tips/hints about gameplay during wait
+
+---
+
+## 2. Landing/Load Screen
 
 **Purpose**: First impression, branding, and initial user journey
 
-### Screenshots
-- Laptop: ![Landing](screenshots/laptop-1440x900/01-landing-screen.png)
-- Tablet (Landscape): ![Landing](screenshots/tablet-landscape-1024x768/01-landing-screen.png)
-- Tablet (Portrait): ![Landing](screenshots/tablet-portrait-768x1024/01-landing-screen.png)
-- Phone (Portrait): ![Landing](screenshots/phone-portrait-390x844/01-landing-screen.png)
-- Phone (Landscape): ![Landing](screenshots/phone-landscape-844x390/01-landing-screen.png)
+### Landing/Load Screen - Screenshots
 
-### Observations
+- Laptop: ![Landing](screenshots/laptop-2880x1800/20-landing-screen.png)
 
-#### Laptop (1440x900)
-- [ ] **Branding**: Copyright notice present/absent?
-- [ ] **Layout**: Centered, balanced, professional?
-- [ ] **CTA Clarity**: Primary action clearly visible?
-- [ ] **Visual Hierarchy**: Clear information flow?
+### Landing/Load Screen - Observations
 
-#### Tablet Landscape (1024x768)
-- [ ] **Adaptation**: Layout adapts well to reduced width?
-- [ ] **Touch Targets**: Buttons appropriately sized for touch?
-- [ ] **Readability**: Text remains legible?
-
-#### Tablet Portrait (768x1024)
-- [ ] **Vertical Layout**: Content stacks appropriately?
-- [ ] **Scrolling**: Is scrolling required? Excessive?
-- [ ] **Navigation**: Navigation remains accessible?
-
-#### Phone Portrait (390x844)
-- [ ] **Mobile Optimization**: Is the layout usable on phone?
-- [ ] **Text Size**: Can text be read without zooming?
-- [ ] **Button Size**: Are buttons easily tappable?
-- [ ] **Information Density**: Is too much/too little shown?
-
-#### Phone Landscape (844x390)
-- [ ] **Horizontal Constraints**: Does layout break?
-- [ ] **Playability**: Can the game be played in this orientation?
-- [ ] **Recommendation**: Should this orientation be supported?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
+- **Branding**: Missing Copyright notice. Privacy Policy and Terms of Service were just added.
+- **New player onboarding**: no usage hints, no quick game reference/rules explanation
+- **About**: Missing. need basic info about the game and link to repo
+- **Profile**: link in top left corner is barely visible and white on grey.
+- **Layout**: Functional, but icon choices cheapen the game?
 
 ---
 
-## 2. Lobby: Create Game
+## 3. Lobby: Create Game
 
 **Purpose**: User initiates new game, selects options
 
-### Screenshots
-- Laptop: ![Create Game](screenshots/laptop-1440x900/02-lobby-create-game.png)
-- Tablet (Landscape): ![Create Game](screenshots/tablet-landscape-1024x768/02-lobby-create-game.png)
-- Tablet (Portrait): ![Create Game](screenshots/tablet-portrait-768x1024/02-lobby-create-game.png)
-- Phone (Portrait): ![Create Game](screenshots/phone-portrait-390x844/02-lobby-create-game.png)
-- Phone (Landscape): ![Create Game](screenshots/phone-landscape-844x390/02-lobby-create-game.png)
+### Lobby: Create Game - Screenshots
 
-### Observations
+- Laptop: ![Create Game](screenshots/laptop-2880x1800/21-lobby-create-game.png)
 
-#### Cross-Platform
-- [ ] **Options Visibility**: Game creation options clearly presented?
-- [ ] **Mode Selection**: Single/Multiplayer options intuitive?
-- [ ] **Visual Feedback**: Active selections clearly indicated?
+### Lobby: Create Game - Observations
 
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
+- simple and functional
+- contrast of `Back to Menu` button not ideal
 
 ---
 
-## 3. Lobby: Join Game
+## 4. Lobby: Join Game
 
 **Purpose**: User joins existing multiplayer game via code
 
-### Screenshots
-- Laptop: ![Join Game](screenshots/laptop-1440x900/03-lobby-join-game.png)
-- Tablet (Landscape): ![Join Game](screenshots/tablet-landscape-1024x768/03-lobby-join-game.png)
-- Tablet (Portrait): ![Join Game](screenshots/tablet-portrait-768x1024/03-lobby-join-game.png)
-- Phone (Portrait): ![Join Game](screenshots/phone-portrait-390x844/03-lobby-join-game.png)
-- Phone (Landscape): ![Join Game](screenshots/phone-landscape-844x390/03-lobby-join-game.png)
+### Lobby: Join Game - Screenshots
 
-### Observations
+- Laptop: ![Join Game](screenshots/laptop-2880x1800/22-lobby-join-game.png)
 
-#### Cross-Platform
-- [ ] **Code Input**: Input field appropriately sized?
-- [ ] **Error Handling**: Invalid code feedback clear?
-- [ ] **Instructions**: User knows what to do?
+### Lobby: Join Game - Observations
 
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
+- functional
 
 ---
 
-## 4. Lobby: Waiting for Opponent
+## 5. Lobby: Waiting for Opponent
 
 **Purpose**: Hold state while waiting for second player to join
 
+### Lobby: Waiting - Screenshots
+
+- Laptop: ![Waiting](screenshots/laptop-2880x1800/23-lobby-wait.png)
+
+### Lobby: Waiting - Observations
+
+- functional
+- would be nice to display player names (users have to be authenticated, we have that info, it's just a matter of polling once the 2nd player joins maybe?)
+
+## 6. Leaderboard and Player Stats
+
+**Purpose**: Leaderboard ranking and player stats
+
 ### Screenshots
-- Laptop: ![Waiting](screenshots/laptop-1440x900/04-lobby-ready-to-start.png)
-- Tablet (Landscape): ![Waiting](screenshots/tablet-landscape-1024x768/04-lobby-ready-to-start.png)
-- Tablet (Portrait): ![Waiting](screenshots/tablet-portrait-768x1024/04-lobby-ready-to-start.png)
-- Phone (Portrait): ![Waiting](screenshots/phone-portrait-390x844/04-lobby-ready-to-start.png)
-- Phone (Landscape): ![Waiting](screenshots/phone-landscape-844x390/04-lobby-ready-to-start.png)
+
+- Laptop: ![Leaderboard](screenshots/laptop-2880x1800/24-leaderboard.png)
+- Laptop: ![Player Stats](screenshots/laptop-2880x1800/25-leaderboard-player-stats.png)
 
 ### Observations
 
-#### Cross-Platform
-- [ ] **Status Clarity**: User knows what's happening?
-- [ ] **Code Display**: Game code easily visible/copyable?
-- [ ] **Cancel Option**: Can user back out?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
+- Leaderboard's transparency should be adjusted - content hard to read
+- Player Stats should probably be floating like the leaderboard component and not be squished to the right side like this. Great info, but hard to read!
 
 ---
 
-## 5. Game Board: Initial State (Turn 1, Start Phase)
+## 7. Deck Selection
 
-**Purpose**: First turn experience, learning the UI
+**Purpose**: Players select their decks before game starts
 
-### Screenshots
-- Laptop: ![Initial](screenshots/laptop-1440x900/05-game-initial-state.png)
-- Tablet (Landscape): ![Initial](screenshots/tablet-landscape-1024x768/05-game-initial-state.png)
-- Tablet (Portrait): ![Initial](screenshots/tablet-portrait-768x1024/05-game-initial-state.png)
-- Phone (Portrait): ![Initial](screenshots/phone-portrait-390x844/05-game-initial-state.png)
-- Phone (Landscape): ![Initial](screenshots/phone-landscape-844x390/05-game-initial-state.png)
+### Deck Selection - Screenshots
 
-### Observations
+- Laptop (P1): ![Deck Selection P1](screenshots/laptop-1440x900/05-deck-selection-p1.png)
+- Laptop (P2): ![Deck Selection P2](screenshots/laptop-1440x900/06-deck-selection-p2.png)
 
-#### Information Architecture
-- [ ] **Zone Organization**: Hand, Play Zone, Sleep Zone clearly distinct?
-- [ ] **Player Indicators**: Clear who is who (you vs opponent)?
-- [ ] **Resource Display**: CC (currency) clearly visible?
-- [ ] **Phase Indicator**: Current phase obvious?
-- [ ] **Turn Indicator**: Whose turn it is clear?
+### Deck Selection - Observations
 
-#### Visual Design
-- [ ] **Color Coding**: Effective use of color to distinguish elements?
-- [ ] **Card Readability**: Can card text/stats be read?
-- [ ] **Spacing**: Elements have breathing room?
-- [ ] **Contrast**: Sufficient contrast for readability?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
+- Currently single deck option available (standard deck)
+- Simple "Ready" confirmation screen
+- Functional and clear for current use case with 17 cards.
+- A future enhancement could be filtering by card type when more cards get added.
 
 ---
 
-## 6. Game Board: Hand View with Cards
+# GAME BOARD SECTION
 
-**Purpose**: Primary interaction - viewing and selecting cards to play
+## 8. Game Board: Overview & Layout
 
-### Screenshots
-- Laptop: ![Hand](screenshots/laptop-1440x900/06-game-hand-view.png)
-- Tablet (Landscape): ![Hand](screenshots/tablet-landscape-1024x768/06-game-hand-view.png)
-- Tablet (Portrait): ![Hand](screenshots/tablet-portrait-768x1024/06-game-hand-view.png)
-- Phone (Portrait): ![Hand](screenshots/phone-portrait-390x844/06-game-hand-view.png)
-- Phone (Landscape): ![Hand](screenshots/phone-landscape-844x390/06-game-hand-view.png)
+**Purpose**: Overall game board organization, responsive layout, and initial impressions
 
-### Observations
+### Initial State Screenshots (Multiple Viewports)
 
-#### Card Display
-- [ ] **Card Size**: Appropriate for viewport?
-- [ ] **Card Details**: Name, cost, effect visible without interaction?
-- [ ] **Card Count**: Can see all cards without scrolling?
-- [ ] **Selection Affordance**: Clear how to select/play a card?
+- Laptop: ![Initial](screenshots/laptop-1440x900/07-game-initial-state.png)
+- Tablet (Landscape): ![Initial](screenshots/tablet-landscape-1024x768/07-game-initial-state.png)
+- Tablet (Portrait): ![Initial](screenshots/tablet-portrait-768x1024/07-game-initial-state.png)
+- Phone (Portrait): ![Initial](screenshots/phone-portrait-390x844/07-game-initial-state.png)
+- Phone (Landscape): ![Initial](screenshots/phone-landscape-844x390/07-game-initial-state.png)
 
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
+### Full Page Layout Screenshots
 
----
-
-## 7. Game Board: Card Selected/Hover State
-
-**Purpose**: Interaction feedback when examining cards
-
-### Screenshots
-- Laptop: ![Hover](screenshots/laptop-1440x900/07-game-card-hover.png)
-- Tablet (Landscape): ![Hover](screenshots/tablet-landscape-1024x768/07-game-card-hover.png)
-- Tablet (Portrait): ![Hover](screenshots/tablet-portrait-768x1024/07-game-card-hover.png)
-- Phone (Portrait): ![Hover](screenshots/phone-portrait-390x844/07-game-card-hover.png)
-- Phone (Landscape): ![Hover](screenshots/phone-landscape-844x390/07-game-card-hover.png)
-
-### Observations
-
-#### Interaction Feedback
-- [ ] **Hover Effect**: Clear visual change on hover (desktop)?
-- [ ] **Selected State**: Selected card visually distinct?
-- [ ] **Detail View**: Enlarged view shows all necessary info?
-- [ ] **Touch Behavior**: On mobile, tap behavior intuitive?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
-
----
-
-## 8. Game Board: Main Phase with Actions
-
-**Purpose**: Primary gameplay phase where most actions occur
-
-### Screenshots
-- Laptop: ![Main Phase](screenshots/laptop-1440x900/08-game-main-phase.png)
-- Tablet (Landscape): ![Main Phase](screenshots/tablet-landscape-1024x768/08-game-main-phase.png)
-- Tablet (Portrait): ![Main Phase](screenshots/tablet-portrait-768x1024/08-game-main-phase.png)
-- Phone (Portrait): ![Main Phase](screenshots/phone-portrait-390x844/08-game-main-phase.png)
-- Phone (Landscape): ![Main Phase](screenshots/phone-landscape-844x390/08-game-main-phase.png)
-
-### Observations
-
-#### Action Clarity
-- [ ] **Available Actions**: What can be done is obvious?
-- [ ] **Action Buttons**: Play, Tussle, End Phase buttons clear?
-- [ ] **Disabled States**: Unavailable actions grayed out/hidden?
-- [ ] **Tutorial/Help**: First-time users have guidance?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
-
----
-
-## 9. Game Board: Cards in Play
-
-**Purpose**: Board state with multiple cards deployed
-
-### Screenshots
-- Laptop: ![In Play](screenshots/laptop-1440x900/09-game-cards-in-play.png)
-- Tablet (Landscape): ![In Play](screenshots/tablet-landscape-1024x768/09-game-cards-in-play.png)
-- Tablet (Portrait): ![In Play](screenshots/tablet-portrait-768x1024/09-game-cards-in-play.png)
-- Phone (Portrait): ![In Play](screenshots/phone-portrait-390x844/09-game-cards-in-play.png)
-- Phone (Landscape): ![In Play](screenshots/phone-landscape-844x390/09-game-cards-in-play.png)
-
-### Observations
-
-#### Board State
-- [ ] **Card Organization**: Cards arranged clearly in play zones?
-- [ ] **Card Overlapping**: Multiple cards handled well?
-- [ ] **Stat Visibility**: Card stats (speed/strength/stamina) readable?
-- [ ] **Status Effects**: Buffs/debuffs clearly indicated?
-- [ ] **Targeting**: Can identify which cards can be targeted?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
-
----
-
-## 10. Game Board: Target Selection Modal
-
-**Purpose**: Selecting targets for card effects (Wake, Sun, Copy, etc.)
-
-### Screenshots
-- Laptop: ![Target Modal](screenshots/laptop-1440x900/10-game-target-selection.png)
-- Tablet (Landscape): ![Target Modal](screenshots/tablet-landscape-1024x768/10-game-target-selection.png)
-- Tablet (Portrait): ![Target Modal](screenshots/tablet-portrait-768x1024/10-game-target-selection.png)
-- Phone (Portrait): ![Target Modal](screenshots/phone-portrait-390x844/10-game-target-selection.png)
-- Phone (Landscape): ![Target Modal](screenshots/phone-landscape-844x390/10-game-target-selection.png)
-
-### Observations
-
-#### Modal UX
-- [ ] **Modal Presence**: Clear that modal is open?
-- [ ] **Instruction Text**: User knows what to select?
-- [ ] **Valid Targets**: Only valid targets selectable?
-- [ ] **Confirm/Cancel**: Actions clearly available?
-- [ ] **Backdrop**: Background appropriately dimmed?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
-
----
-
-## 11. Game Board: Mid-Game State
-
-**Purpose**: Board complexity after several turns
-
-### Screenshots
-- Laptop: ![Mid-Game](screenshots/laptop-1440x900/11-game-mid-game.png)
-- Tablet (Landscape): ![Mid-Game](screenshots/tablet-landscape-1024x768/11-game-mid-game.png)
-- Tablet (Portrait): ![Mid-Game](screenshots/tablet-portrait-768x1024/11-game-mid-game.png)
-- Phone (Portrait): ![Mid-Game](screenshots/phone-portrait-390x844/11-game-mid-game.png)
-- Phone (Landscape): ![Mid-Game](screenshots/phone-landscape-844x390/11-game-mid-game.png)
-
-### Observations
-
-#### Complexity Handling
-- [ ] **Information Overload**: Too much information at once?
-- [ ] **Scrolling**: Excessive scrolling required?
-- [ ] **Zone Organization**: Zones remain distinct with many cards?
-- [ ] **Performance**: UI remains responsive?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
-
----
-
-## 12. Game Board: Play-by-Play Log
-
-**Purpose**: Game history and AI reasoning display
-
-### Screenshots
-- Laptop: ![Log](screenshots/laptop-1440x900/12-game-play-by-play.png)
-- Tablet (Landscape): ![Log](screenshots/tablet-landscape-1024x768/12-game-play-by-play.png)
-- Tablet (Portrait): ![Log](screenshots/tablet-portrait-768x1024/12-game-play-by-play.png)
-- Phone (Portrait): ![Log](screenshots/phone-portrait-390x844/12-game-play-by-play.png)
-- Phone (Landscape): ![Log](screenshots/phone-landscape-844x390/12-game-play-by-play.png)
-
-### Observations
-
-#### Log Usability
-- [ ] **Visibility**: Log easily found?
-- [ ] **Readability**: Text size and contrast adequate?
-- [ ] **Scrolling**: Log scrolls independently?
-- [ ] **Content**: Recent actions clearly summarized?
-- [ ] **AI Reasoning**: AI thought process interesting/useful?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
-
----
-
-## 13. Victory Screen
-
-**Purpose**: End game experience, celebration, replay option
-
-### Screenshots
-- Laptop: ![Victory](screenshots/laptop-1440x900/13-victory-screen.png)
-- Tablet (Landscape): ![Victory](screenshots/tablet-landscape-1024x768/13-victory-screen.png)
-- Tablet (Portrait): ![Victory](screenshots/tablet-portrait-768x1024/13-victory-screen.png)
-- Phone (Portrait): ![Victory](screenshots/phone-portrait-390x844/13-victory-screen.png)
-- Phone (Landscape): ![Victory](screenshots/phone-landscape-844x390/13-victory-screen.png)
-
-### Observations
-
-#### Victory Experience
-- [ ] **Celebration**: Victory feels rewarding?
-- [ ] **Game Summary**: Stats/highlights shown?
-- [ ] **Play-by-Play**: Full game history accessible?
-- [ ] **Next Steps**: Replay/New Game options clear?
-
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
-
----
-
-## 14. Responsive Layout (Full Page)
-
-**Purpose**: Overall layout assessment at each viewport
-
-### Screenshots
 - Laptop: ![Full Page](screenshots/laptop-1440x900/14-full-page-layout.png)
 - Tablet (Landscape): ![Full Page](screenshots/tablet-landscape-1024x768/14-full-page-layout.png)
 - Tablet (Portrait): ![Full Page](screenshots/tablet-portrait-768x1024/14-full-page-layout.png)
 - Phone (Portrait): ![Full Page](screenshots/phone-portrait-390x844/14-full-page-layout.png)
 - Phone (Landscape): ![Full Page](screenshots/phone-landscape-844x390/14-full-page-layout.png)
 
-### Observations
+### Key Observations
 
-#### Overall Layout
-- [ ] **Viewport Utilization**: Good use of available space?
-- [ ] **Scrolling**: Scroll behavior appropriate?
-- [ ] **Fixed Elements**: Headers/footers behave correctly?
-- [ ] **Breakpoints**: Transitions between sizes graceful?
+**Information Hierarchy**:
 
-### Issues & Improvements
-- **Critical**: 
-- **Important**: 
-- **Nice to Have**: 
+- Phase indicator and turn information need more prominence
+- Player indicators (you vs opponent) could be clearer
+- CC (currency) display is small - may be hard to read on mobile
+
+**Responsive Behavior**:
+
+- Viewport utilization varies significantly across device sizes
+- Need to verify scrolling behavior on smaller devices
+- Breakpoint transitions should be tested more thoroughly
+
+**Overall Layout**:
+
+- Layout is functional but could benefit from more consistent spacing
+- Fixed elements behavior needs review (headers, action panel)
+- Consider whether full-page scrolling is optimal for all viewports
 
 ---
 
-## 15. High-Resolution Gameplay Screenshots (2880x1800)
+## 9. Game Board: Card Zones
 
-**Purpose**: Detailed examination of key gameplay UX elements at high resolution
+**Purpose**: Organization and display of cards in different zones (Hand, Play, Sleep)
 
-These screenshots were manually captured at 2880x1800 resolution to capture specific gameplay scenarios and UI interactions that require detailed review.
+### Hand Zone Screenshots
 
-### 15.1 Cards in Play and Sleep Zones
+- Laptop (Mid-game): ![Mid-Game](screenshots/laptop-1440x900/12-game-mid-game.png)
+- Phone (Landscape): ![Mid-Game](screenshots/phone-landscape-844x390/12-game-mid-game.png)
+
+### Play Zone and Sleep Zone Screenshots (High-Res)
 
 ![Cards in Play/Sleep - Turn 4](screenshots/laptop-2880x1800/01-cards-in-play-and-sleep-turn4.png)
 
-**Observations**:
-- [ ] **Zone Distinction**: Play zone vs sleep zone clearly separated?
-- [ ] **Card Layout**: Multiple cards displayed without overlap issues?
-- [ ] **Stat Visibility**: Card stats (speed/strength/stamina) easily readable?
-- [ ] **Visual Hierarchy**: Active cards vs sleeped cards clearly distinguished?
+### Game Board Key Observations
 
-### 15.2 Target Selection Modal - Twist (No Selection)
+**Hand Zone**:
 
-![Target Modal - Twist - No Selection](screenshots/laptop-2880x1800/02-target-modal-twist-no-selection.png)
+- Card size varies significantly across viewports
+- Card details (name, cost, effect) visibility varies - needs improvement on mobile
+- Multiple cards in hand: need to verify scrolling/overflow behavior
+- Selection affordances could be clearer
 
-**Observations**:
-- [ ] **Modal Clarity**: Clear that user needs to select a target?
-- [ ] **Instructions**: Text explains what Twist does?
-- [ ] **Valid Targets**: Only valid targets highlighted/selectable?
-- [ ] **Cancel Option**: Easy to back out of action?
+**Play Zone**:
 
-### 15.3 Target Selection Modal - Twist (Knight Selected)
+- Cards in play are laid out side-by-side without overlap - clear organization
+- Card stats (speed/strength/stamina) are readable at high resolution but may be problematic on smaller screens
+- Visual distinction between your cards and opponent's cards is adequate but could be stronger
 
-![Target Modal - Twist - Knight Selected](screenshots/laptop-2880x1800/03-target-modal-twist-knight-selected.png)
+**Sleep Zone**:
 
-**Observations**:
-- [ ] **Selection Feedback**: Selected card visually distinct?
-- [ ] **Confirm Action**: Clear how to confirm the selection?
-- [ ] **Preview**: Shows effect of selection before confirming?
+- Sleeped cards are visually distinct (appears grayed/faded)
+- Cards in sleep zone overlap/stack to save space - can make individual cards harder to identify
+- Zone label/header could be more prominent
 
-### 15.4 Cards with Tussle Available (Green Highlighting)
+**Zone Organization Overall**:
 
-![Cards - Tussle Available](screenshots/laptop-2880x1800/04-cards-green-tussle-available.png)
+- All three zones are distinct but could benefit from clearer visual separation
+- Spacing and layout could be optimized for different screen sizes
+- Consider fixed/sticky positioning for zone headers
 
-**Observations**:
-- [ ] **Action Indicators**: Green highlighting clearly indicates available actions?
-- [ ] **Color Choice**: Green is accessible (colorblind-friendly)?
-- [ ] **Clarity**: User understands which cards can tussle?
+---
 
-### 15.5 Target Selection Modal - Copy (No Selection)
+## 10. Game Board: Action Panel
 
-![Target Modal - Copy - No Selection](screenshots/laptop-2880x1800/05-target-modal-copy-no-selection.png)
+**Purpose**: Primary interface for player actions (Play Card, Tussle, Activated Abilities, End Phase)
 
-**Observations**:
-- [ ] **Copy Mechanics**: User understands they're copying an effect?
-- [ ] **Valid Targets**: Clear which cards can be copied?
+### Action Panel Screenshots
 
-### 15.6 Target Selection Modal - Copy (Archer Selected)
+Main phase with actions available:
 
-![Target Modal - Copy - Archer Selected](screenshots/laptop-2880x1800/06-target-modal-copy-archer-selected.png)
+- Laptop: ![Main Phase](screenshots/laptop-1440x900/10-game-main-phase.png)
+- Tablet (Landscape): ![Main Phase](screenshots/tablet-landscape-1024x768/10-game-main-phase.png)
+- Tablet (Portrait): ![Main Phase](screenshots/tablet-portrait-768x1024/10-game-main-phase.png)
+- Phone (Portrait): ![Main Phase](screenshots/phone-portrait-390x844/10-game-main-phase.png)
+- Phone (Landscape): ![Main Phase](screenshots/phone-landscape-844x390/10-game-main-phase.png)
 
-**Observations**:
-- [ ] **Selection Preview**: Shows what will happen when copying Archer?
-- [ ] **Confirmation**: Confirm button prominent and clear?
-
-### 15.7 Board State with Copied Archer Card
-
-![Board - Copied Archer](screenshots/laptop-2880x1800/07-cards-showing-copied-archer.png)
-
-**Observations**:
-- [ ] **Copy Indication**: Clear that card is a copy, not original?
-- [ ] **Effect Understanding**: User understands the copied card's abilities?
-- [ ] **Board Clarity**: Copied card doesn't create confusion?
-
-### 15.8 Green Action Indicators - Archer Activated Abilities
-
-![Cards - Archer Abilities Available](screenshots/laptop-2880x1800/08-cards-green-action-archer-abilities.png)
-
-**Observations**:
-- [ ] **Activated Abilities**: Clear that Archer has special actions available?
-- [ ] **Visual Differentiation**: Activated abilities vs regular actions distinct?
-- [ ] **User Guidance**: Player knows how to use Archer's ability?
-
-### 15.9 Tussle Target Selection (Knight as Attacker)
-
-![Tussle Selection - Knight](screenshots/laptop-2880x1800/09-target-selection-tussle-knight.png)
-
-**Observations**:
-- [ ] **Attacker Clarity**: Clear which card is attacking?
-- [ ] **Defender Selection**: Valid defenders appropriately indicated?
-- [ ] **Combat Preview**: Shows predicted outcome?
-
-### 15.10 Target Selection Modal - Wake (No Selection)
-
-![Target Modal - Wake - No Selection](screenshots/laptop-2880x1800/10-target-modal-wake-no-selection.png)
-
-**Observations**:
-- [ ] **Wake Mechanics**: User understands Wake brings cards back from sleep?
-- [ ] **Target Pool**: Only sleeped cards shown as valid targets?
-
-### 15.11 Target Selection Modal - Wake (Ka Selected)
-
-![Target Modal - Wake - Ka Selected](screenshots/laptop-2880x1800/11-target-modal-wake-ka-selected.png)
-
-**Observations**:
-- [ ] **Selection Clarity**: Ka is clearly highlighted as selected?
-- [ ] **Effect Preview**: Shows Ka will return to play?
-
-### 15.12 Complex Board State (Turn 6, Four Action Types)
+Complex board with four action types:
 
 ![Board - Turn 6 - Multiple Actions](screenshots/laptop-2880x1800/12-cards-turn6-four-action-types.png)
 
-**Observations**:
-- [ ] **Action Panel**: All 4 action types clearly presented?
-- [ ] **Information Density**: Not overwhelming with many options?
-- [ ] **Decision Making**: User can easily choose next action?
+### Action Panel Key Observations
 
-### 15.13 Activated Ability Target - Archer Targeting Dream
+**Action Types & Clarity**:
+
+- Four distinct action types: Play Card, Tussle, Activated Abilities, End Phase
+- Visual hierarchy of actions could be improved
+- Action availability indicators (enabled/disabled states) need better contrast
+
+**Action Panel Layout**:
+
+- Panel positioning varies across screen sizes - needs consistency
+- Button sizing appropriate for desktop but may need adjustment for touch targets (44x44px minimum)
+- Action descriptions/labels clear but could be more concise
+
+**Interaction Flow**:
+
+- Flow from selecting action → selecting target → confirming needs review
+- Cancel/back options should be more prominent
+- First-time user guidance missing (tutorial/hints)
+
+**Priority Issues**:
+
+- **CRITICAL**: Systemic typography/contrast issues throughout application
+  - Blue-on-blue text in action panel
+  - White-on-grey buttons with poor visibility
+  - Inconsistent text colors and sizes
+  - Requires comprehensive frontend typography audit
+- Ensure disabled actions are clearly distinguished from enabled
+- Add visual feedback for action selection
+- Consider grouping related actions (e.g., all card-based actions together)
+
+---
+
+## 11. Game Board: Target Selection Modals
+
+**Purpose**: Selecting targets for card effects (Wake, Sun, Copy, Twist) and combat (Tussle)
+
+### Target Selection Modal Examples
+
+**Twist Card Targeting**:
+
+- No selection: ![Target Modal - Twist - No Selection](screenshots/laptop-2880x1800/02-target-modal-twist-no-selection.png)
+- Knight selected: ![Target Modal - Twist - Knight Selected](screenshots/laptop-2880x1800/03-target-modal-twist-knight-selected.png)
+
+**Copy Card Targeting**:
+
+- No selection: ![Target Modal - Copy - No Selection](screenshots/laptop-2880x1800/05-target-modal-copy-no-selection.png)
+- Archer selected: ![Target Modal - Copy - Archer Selected](screenshots/laptop-2880x1800/06-target-modal-copy-archer-selected.png)
+
+**Wake Card Targeting**:
+
+- No selection: ![Target Modal - Wake - No Selection](screenshots/laptop-2880x1800/10-target-modal-wake-no-selection.png)
+- Ka selected: ![Target Modal - Wake - Ka Selected](screenshots/laptop-2880x1800/11-target-modal-wake-ka-selected.png)
+
+**Tussle Targeting**:
+
+![Tussle Selection - Knight](screenshots/laptop-2880x1800/09-target-selection-tussle-knight.png)
+
+**Activated Ability Targeting** (Archer):
 
 ![Target Modal - Archer - Dream Selected](screenshots/laptop-2880x1800/13-target-modal-archer-dream-selected.png)
 
-**Observations**:
-- [ ] **Ability Clarity**: Clear this is Archer's special ability?
-- [ ] **Target Selection**: Dream is valid target, clearly shown?
-- [ ] **Effect Description**: User knows what will happen?
+### Target Selection Key Observations
 
-### 15.14 Victory Screen - Factual Mode
+**Modal Design**:
+
+- Modal presence is clear with darkened backdrop
+- Instruction text explains what to select, but formatting could be improved
+- Valid targets are highlighted - good pattern
+- Confirm/Cancel buttons are present but could be more prominent
+
+**Selection Feedback**:
+
+- Selected cards have visual distinction (appears highlighted/bordered)
+- Selection state is clear once a target is chosen
+- Multi-step selection (if needed) should be better indicated
+
+**Target Validity**:
+
+- Only valid targets are selectable - excellent
+- Invalid targets appear grayed/disabled - good pattern
+- Target pools correctly filtered (e.g., Wake only shows sleeped cards)
+
+**Responsive Behavior**:
+
+- Need mobile screenshots to verify behavior on phone/tablet
+- Touch targets for card selection need real device testing
+- Modal sizing and layout on smaller screens needs verification
+
+**Priority Issues**:
+
+- Improve instruction text formatting and clarity
+- Verify modal behavior on mobile devices (need screenshots)
+- Ensure modal is accessible on all screen sizes
+
+---
+
+## 12. Game Board: Visual Feedback & Indicators
+
+**Purpose**: Visual cues for available actions, card states, buffs/debuffs, and special effects
+
+### Green Highlighting for Available Actions
+
+![Cards - Tussle Available](screenshots/laptop-2880x1800/04-cards-green-tussle-available.png)
+
+![Cards - Archer Abilities Available](screenshots/laptop-2880x1800/08-cards-green-action-archer-abilities.png)
+
+### Copied Card Indication
+
+![Board - Copied Archer](screenshots/laptop-2880x1800/07-cards-showing-copied-archer.png)
+
+### Visual feedback and indicators Key Observations
+
+**Action Availability Indicators**:
+
+- Green highlighting used to indicate cards with available actions
+- Clear visual pattern but may need accessibility review for colorblind users
+- Highlighting is prominent and effective
+
+**Card State Indicators**:
+
+- Copied cards need better visual distinction from originals
+- Buffed/modified stats should be more clearly indicated
+- Sleeped cards use graying/fading - effective
+
+**Accessibility Concerns**:
+
+- **Critical**: Green highlighting may not be accessible for red-green colorblind users
+- Consider adding additional visual cues (icons, borders, patterns) beyond color
+- Ensure sufficient contrast ratios (WCAG AA standard)
+
+**Consistency**:
+
+- Visual feedback patterns should be consistent across all interactions
+- Hover states, selection states, and disabled states need unified design language
+- Animation/transitions should be purposeful and consistent
+
+**Priority Issues**:
+
+- Add alternative visual indicators beyond color (icons, borders, patterns)
+- Test with colorblind simulation tools
+- Ensure all interactive elements have clear hover/focus states
+- Document visual design system for consistency
+
+---
+
+## 13. Game Board: Game Messages & Play-by-Play
+
+**Purpose**: Game history, AI reasoning, and real-time action feedback
+
+### Play-by-Play Log Screenshots
+
+- Laptop: ![Log](screenshots/laptop-1440x900/13-game-play-by-play.png)
+- Tablet (Landscape): ![Log](screenshots/tablet-landscape-1024x768/13-game-play-by-play.png)
+- Tablet (Portrait): ![Log](screenshots/tablet-portrait-768x1024/13-game-play-by-play.png)
+- Phone (Portrait): ![Log](screenshots/phone-portrait-390x844/13-game-play-by-play.png)
+- Phone (Landscape): ![Log](screenshots/phone-landscape-844x390/13-game-play-by-play.png)
+
+### Game Messages and Play-by-Play Key Observations
+
+**Log Visibility**:
+
+- Play-by-play log placement varies across screen sizes
+- Log competes with game board for space on smaller screens
+- Consider collapsible/expandable log panel
+
+**Content & Readability**:
+
+- Text size and contrast adequate on desktop but may be challenging on mobile
+- AI reasoning messages are interesting but verbose - consider summary mode
+- Recent actions are clearly summarized
+
+**Scrolling & Navigation**:
+
+- Log should scroll independently from game board
+- Auto-scroll to latest message behavior needs verification
+- Consider "jump to latest" button for long games
+
+**Information Density**:
+
+- Play-by-play provides valuable context but can be overwhelming
+- Consider filtering options (show all vs. major actions only)
+- Timestamps or turn indicators would improve context
+
+**Priority Issues**:
+
+- Optimize log layout for mobile devices
+- Add toggle to show/hide AI reasoning
+- Improve text contrast and sizing for mobile
+- Consider adding icons/colors to different action types for scannability
+
+---
+
+## 14. Victory Screen
+
+**Purpose**: End game experience, celebration, game summary, and replay options
+
+### Victory Screen Screenshots (Multiple Viewports)
+
+- Laptop: ![Victory](screenshots/laptop-1440x900/SPECIAL-victory-screen.png)
+- Phone (Landscape): ![Victory](screenshots/phone-landscape-844x390/SPECIAL-victory-screen.png)
+
+### Victory Screen Modes (High-Res)
+
+**Factual Mode**:
 
 ![Victory Screen - Factual](screenshots/laptop-2880x1800/14-victory-screen-factual.png)
 
-**Observations**:
-- [ ] **Victory Celebration**: Feels rewarding?
-- [ ] **Game Summary**: Key stats shown?
-- [ ] **Next Actions**: Replay/New Game options clear?
-
-### 15.15 Victory Screen - Story Mode Loading
+**Story Mode Loading**:
 
 ![Victory Screen - Story Loading](screenshots/laptop-2880x1800/15-victory-screen-story-loading.png)
 
-**Observations**:
-- [ ] **Loading State**: Clear that story is being generated?
-- [ ] **Progress Indicator**: User knows to wait?
-- [ ] **Visual Design**: Loading state polished?
-
-### 15.16 Victory Screen - Story Mode
+**Story Mode**:
 
 ![Victory Screen - Story Mode](screenshots/laptop-2880x1800/16-victory-screen-story-mode.png)
 
-**Observations**:
-- [ ] **Story Quality**: AI-generated story engaging?
-- [ ] **Readability**: Text readable and well-formatted?
-- [ ] **Replay Value**: Story mode adds to experience?
-- [ ] **Actions**: Can share, save, or dismiss story easily?
+### Victory Screen Key Observations
 
-### High-Resolution Screenshots: Overall Assessment
+**Victory Celebration**:
 
-**Strengths**:
-- 
+- Victory screen provides clear outcome but celebration could be more rewarding
+- Winner announcement is clear
+- Consider adding more visual flair (animations, confetti, etc.)
 
-**Areas for Improvement**:
-- 
+**Game Summary**:
 
-**Critical Issues**:
-- 
+- Key stats are shown but could be expanded (turns played, cards used, etc.)
+- Play-by-play history is accessible - excellent feature
+- Stats presentation could be more visual (charts, graphs)
+
+**Story Mode Feature**:
+
+- AI-generated story is engaging and unique feature
+- Loading state is clear with progress indicator
+- Story text is readable and well-formatted
+- Story mode adds significant replay value
+
+**Next Actions**:
+
+- Replay/New Game options are clear
+- Return to menu option present
+- Consider adding share/save options for story mode
+- Social sharing features could enhance engagement
+
+**Responsive Behavior**:
+
+- Victory screen adapts reasonably to different screen sizes
+- Story mode text readability needs verification on mobile
+- Modal sizing appropriate across viewports
+
+**Priority Issues**:
+
+- Enhance victory celebration with animations/effects
+- Add expanded game statistics
+- Implement story sharing/saving features
+- Optimize story text formatting for mobile devices
 
 ---
 
-## Cross-Cutting Concerns
+# SUMMARY & ACTION PLAN
+
+## Screenshot Coverage Status
+
+✅ **Complete Coverage**:
+
+- Loading screen
+- Landing screen
+- Lobby screens (create, join, wait)
+- Leaderboard and player stats
+- Deck selection
+- Game board layouts (all viewports)
+- Card zones (hand, play, sleep)
+- Action panel states (see screenshots 08, 12 in laptop-2880x1800)
+- Target selection modals (desktop + mobile phone portrait)
+- Visual feedback indicators
+- Victory screens (all modes)
+
+⚠️ **Partial Coverage** (lower priority):
+
+- Target selection on tablet viewports (not critical - phone and desktop covered)
+- Action panel on tablet viewports (can extrapolate from phone/desktop)
+
+## Critical Issues (Must Fix)
 
 ### Accessibility
-- [ ] Color contrast meets WCAG AA standards
-- [ ] Keyboard navigation functional
-- [ ] Screen reader friendly (semantic HTML)
-- [ ] Touch target sizes (minimum 44x44px)
 
-### Performance
-- [ ] Initial load time acceptable
-- [ ] Animations smooth (60fps)
-- [ ] No layout shifts (CLS)
-- [ ] Images optimized
+1. **Color Contrast & Colorblind Support**:
+   - Green highlighting for available actions not accessible for colorblind users
+   - Add icons, borders, or patterns in addition to color coding
+   - Test with colorblind simulation tools
+   - Ensure WCAG AA contrast standards met throughout
+
+2. **Touch Target Sizes**:
+   - Verify all interactive elements meet 44x44px minimum on mobile
+   - Action panel buttons may need sizing adjustments for touch
+   - Card selection on mobile needs verification
+
+3. **Keyboard Navigation**:
+   - Need to verify keyboard navigation works for all interactions
+   - Tab order should be logical
+   - Focus indicators should be clear
+
+### Typography & Contrast (CRITICAL - Systemic Issue)
+
+1. **Complete Typography/Contrast Audit Required**:
+   - **CRITICAL**: Multiple instances of poor text contrast throughout the application
+   - Blue-on-blue text in action panel buttons (mobile screenshots)
+   - White text on grey backgrounds (buttons, profile link)
+   - Profile link on landing screen barely visible (white on grey)
+   - "Back to Menu" button low contrast in multiple locations
+   - Likely violates WCAG AA standards in numerous places
+   - **Action Required**: Conduct comprehensive review of ALL text/background combinations across entire frontend
+   - **Action Required**: Document all font colors, sizes, and weights used
+   - **Action Required**: Test all combinations with contrast checker tools
+   - **Action Required**: Establish minimum contrast ratios (4.5:1 for normal text, 3:1 for large text)
+
+2. **Typography System Missing**:
+   - No consistent font sizing scale
+   - No documented color palette for text
+   - No clear hierarchy (heading levels, body text, labels, etc.)
+   - Button text styling inconsistent across components
+   - Need comprehensive typography design tokens
+
+### Visual Consistency
+
+1. **Button Labels & Styling**:
+   - "Back to Menu" buttons have different labels/styles across screens
+   - Inconsistent contrast across different button states
+   - Standardize button design system (primary, secondary, tertiary styles)
+   - Create consistent spacing and sizing
+   - Define hover, active, disabled, and focus states with proper contrast
+
+2. **Component Visual Hierarchy**:
+   - Phase indicator and turn information need more prominence
+   - CC (currency) display too small, especially on mobile
+   - Player indicators (you vs opponent) could be clearer
+
+3. **Zone Organization**:
+   - Hand, Play Zone, Sleep Zone need stronger visual separation
+   - Zone headers could be more prominent
+   - Card overlap in zones needs better handling
+
+### Mobile Optimization
+
+1. **Card Readability**:
+   - Card stats (speed/strength/stamina) may be too small on mobile
+   - Card effect text likely unreadable on phone screens
+   - Consider card detail modal/popover for mobile
+
+2. **Layout Adaptation**:
+   - Play-by-play log competes with game board on small screens
+   - Consider collapsible panels or tabs for mobile
+   - Verify scrolling behavior on all screen sizes
+
+3. **Target Selection**:
+   - No screenshots available for target selection on mobile
+   - Touch interaction needs verification
+   - Modal sizing and card selection on small screens
+
+## Important Issues (Should Fix)
+
+### User Experience
+
+1. **Onboarding & Help**:
+   - No tutorial or first-time user guidance
+   - No quick reference for game rules
+   - Add contextual hints for complex interactions
+
+2. **Visual Feedback**:
+   - Copied cards need better distinction from originals
+   - Buffed/modified stats should be more clearly indicated
+   - Add hover states and interaction feedback throughout
+
+3. **Play-by-Play Log**:
+   - AI reasoning is verbose - consider summary/detail modes
+   - Add filtering options (all actions vs major actions only)
+   - Improve mobile layout and readability
+
+4. **Action Panel**:
+   - Visual hierarchy of actions could be improved
+   - Disabled states need better contrast
+   - Consider grouping related actions
 
 ### Branding & Polish
-- [ ] Copyright notice present
-- [ ] Consistent color scheme
-- [ ] Professional appearance
-- [ ] Delightful details
 
----
+1. **Landing Screen**:
+   - Missing copyright notice
+   - Add "About" section with game info and repo link
+   - Profile link barely visible (white on grey)
+   - Icon choices may cheapen the overall aesthetic
 
-## Priority Issues Summary
+2. **Leaderboard & Stats**:
+   - Leaderboard transparency makes content hard to read
+   - Player Stats panel cramped on right side - consider floating modal
+   - Improve visual design and readability
 
-### Critical (Blocks Core Experience)
-1. 
-2. 
-3. 
+3. **Victory Screen**:
+   - Add more celebration/reward feel (animations, effects)
+   - Expand game statistics (turns, cards used, etc.)
+   - Add social sharing for story mode
 
-### Important (Degrades Experience)
-1. 
-2. 
-3. 
+## Nice to Have (Future Enhancements)
 
-### Nice to Have (Polish & Enhancement)
-1. 
-2. 
-3. 
+1. **Advanced Visual Features**:
+   - Combat outcome prediction display in tussle selection
+   - Animations for card movements and state changes
 
----
+2. **Enhanced Statistics**:
+   - Visual statistics (charts, graphs) in victory screen
+   - Historical game tracking
+   - Personal achievement system
 
-## Device Recommendations
+3. **Social Features**:
+   - Story mode sharing/saving
+   - Share victory screens
+   - Game replay sharing
 
-### Laptop (1440x900)
-**Recommendation**: ✅ Fully supported / ⚠️ Needs work / ❌ Not recommended
+4. **Responsive Enhancements**:
+   - Optimize each viewport independently
+   - Consider PWA features for mobile
+   - Offline mode support
 
-**Reasoning**: 
+## Code Quality Focus Areas
 
-### Tablet Landscape (1024x768)
-**Recommendation**: ✅ Fully supported / ⚠️ Needs work / ❌ Not recommended
+Based on the review goals, the frontend codebase should focus on:
 
-**Reasoning**: 
+1. **Design System**:
+   - **Create comprehensive typography system first** (fonts, sizes, weights, colors)
+   - **Establish WCAG-compliant color pairings** for all text/background combinations
+   - Create unified component library
+   - Document design tokens (colors, spacing, typography)
+   - Establish consistent patterns for buttons, modals, panels
 
-### Tablet Portrait (768x1024)
-**Recommendation**: ✅ Fully supported / ⚠️ Needs work / ❌ Not recommended
+2. **Responsive Patterns**:
+   - Implement consistent breakpoint strategy
+   - Use modern CSS layout (Grid, Flexbox) consistently
+   - Mobile-first approach
 
-**Reasoning**: 
+3. **Accessibility Infrastructure**:
+   - Semantic HTML throughout
+   - ARIA labels where needed
+   - Keyboard navigation support
+   - Screen reader testing
 
-### Phone Portrait (390x844)
-**Recommendation**: ✅ Fully supported / ⚠️ Needs work / ❌ Not recommended
-
-**Reasoning**: 
-
-### Phone Landscape (844x390)
-**Recommendation**: ✅ Fully supported / ⚠️ Needs work / ❌ Not recommended
-
-**Reasoning**: 
-
----
+4. **Component Architecture**:
+   - Separate presentation from logic
+   - Reusable, composable components
+   - Consistent prop interfaces
+   - TypeScript strict mode
 
 ## Next Steps
 
-1. [ ] Capture all screenshots using `npm run screenshots`
-2. [ ] Review screenshots and fill in observations
-3. [ ] Prioritize issues by severity
-4. [ ] Create GitHub issues for critical/important items
-5. [ ] Plan UX improvement sprint
+1. **PRIORITY 1: Complete Typography & Contrast Audit**
+   - Audit ALL text/background combinations across entire frontend
+   - Use WCAG contrast checker tools on every component
+   - Document all instances of insufficient contrast (< 4.5:1 for normal text, < 3:1 for large text)
+   - Create comprehensive report of violations
 
----
+2. **PRIORITY 2: Establish Typography Design System**
+   - Define font families, sizes, weights, and line heights
+   - Create color palette with WCAG-compliant pairings
+   - Document all button states with proper contrast ratios
+   - Create typography tokens/variables for consistent use
 
-## Appendix: Screenshot Capture Process
+3. **PRIORITY 3: Fix Critical Contrast Issues**
+   - Blue-on-blue action panel labels
+   - White-on-grey buttons (landing screen, lobby screens)
+   - Profile link visibility
+   - Any text below WCAG AA standards
 
-To regenerate screenshots:
-
-```bash
-cd frontend
-npm run screenshots          # Run all viewports headless
-npm run screenshots:headed   # Run with visible browser
-npm run screenshots:ui       # Run with Playwright UI for debugging
-```
-
-Screenshots are saved to `docs/ux-review/screenshots/{viewport}/` automatically.
+4. **Test on actual mobile devices** (not just browser simulation)
+5. **Conduct full accessibility audit** (WCAG AA compliance, keyboard navigation, screen readers)
+6. **Address colorblind support** (green highlighting needs alternative indicators)
+7. **Plan incremental improvements** (don't try to fix everything at once)
