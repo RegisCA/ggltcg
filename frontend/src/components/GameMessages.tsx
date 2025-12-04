@@ -5,7 +5,7 @@
  * Supports both desktop and compact (tablet) modes.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayByPlayEntry } from '../types/game';
 
@@ -24,6 +24,7 @@ export function GameMessages({
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [lastSeenCount, setLastSeenCount] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Default to collapsed on mobile (<768px)
   useEffect(() => {
@@ -43,6 +44,13 @@ export function GameMessages({
       setLastSeenCount(messages.length);
     }
   }, [isCollapsed, messages.length]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (!isCollapsed && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [playByPlay.length, messages.length, isCollapsed]);
 
   // In compact mode, show fewer messages by default
   const displayMessages = compact ? messages.slice(-5) : messages;
@@ -108,6 +116,7 @@ export function GameMessages({
             }}
           >
             <div
+              ref={scrollContainerRef}
               className={compact ? 'px-3 py-2 h-full' : 'px-4 py-3 h-full'}
               style={{ 
                 overflowY: 'auto' 
