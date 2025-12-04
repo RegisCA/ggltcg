@@ -287,7 +287,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         <LayoutGroup>
         {isDesktop ? (
           /* Desktop: 3-column layout */
-          <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 280px 350px' }}>
+          <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '1fr 280px 350px' }}>
             {/* Left Column - In Play Zones */}
             <div className="space-y-3">
               <InPlayZone
@@ -373,7 +373,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               <div className="border-t-2 border-game-highlight"></div>
               
               {/* Human's zones */}
-              <div className="flex gap-2">
+              <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
                 <div className="flex-1">
                   <InPlayZone
                     cards={humanPlayer.in_play}

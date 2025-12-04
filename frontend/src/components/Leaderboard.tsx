@@ -86,7 +86,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
         }}
       >
         {/* Header */}
-        <div className="p-4 border-b-4 border-game-accent bg-gray-800 flex-shrink-0">
+        <div className="border-b-4 border-game-accent bg-gray-800 flex-shrink-0" style={{ padding: 'var(--spacing-component-md)' }}>
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-game-highlight">🏆 Leaderboard</h2>
@@ -104,7 +104,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
             <div className="text-center py-8">
               <div className="text-4xl mb-4 animate-bounce">🎲</div>
@@ -184,7 +184,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
 
         {/* Footer */}
         {!loading && !error && leaderboard && (
-          <div className="p-4 border-t border-gray-700 text-center text-gray-500 text-sm">
+          <div className="border-t border-gray-700 text-center text-gray-500 text-sm" style={{ padding: 'var(--spacing-component-md)' }}>
             Minimum {leaderboard.min_games_required} game{leaderboard.min_games_required !== 1 ? 's' : ''} required to qualify
           </div>
         )}
