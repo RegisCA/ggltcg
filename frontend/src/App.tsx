@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/LoadingScreen';
 import LoginPage from './components/LoginPage';
+import { UserMenu } from './components/UserMenu';
 import { LobbyHome } from './components/LobbyHome';
 import { LobbyCreate } from './components/LobbyCreate';
 import { LobbyJoin } from './components/LobbyJoin';
@@ -242,48 +243,74 @@ function GameApp() {
 
   if (gamePhase === 'menu') {
     return (
-      <LobbyHome
-        onCreateLobby={handleCreateLobby}
-        onJoinLobby={handleJoinLobby}
-        onPlayVsAI={handlePlayVsAI}
-        onQuickPlay={handleQuickPlay}
-        onShowPrivacyPolicy={handleShowPrivacyPolicy}
-        onShowTermsOfService={handleShowTermsOfService}
-      />
+      <>
+        <UserMenu />
+        <LobbyHome
+          onCreateLobby={handleCreateLobby}
+          onJoinLobby={handleJoinLobby}
+          onPlayVsAI={handlePlayVsAI}
+          onQuickPlay={handleQuickPlay}
+          onShowPrivacyPolicy={handleShowPrivacyPolicy}
+          onShowTermsOfService={handleShowTermsOfService}
+        />
+      </>
     );
   }
 
   if (gamePhase === 'lobby-create') {
-    return <LobbyCreate onLobbyCreated={handleLobbyCreated} onBack={handleBackToMenu} />;
+    return (
+      <>
+        <UserMenu />
+        <LobbyCreate onLobbyCreated={handleLobbyCreated} onBack={handleBackToMenu} />
+      </>
+    );
   }
 
   if (gamePhase === 'lobby-join') {
-    return <LobbyJoin onLobbyJoined={handleLobbyJoined} onBack={handleBackToMenu} />;
+    return (
+      <>
+        <UserMenu />
+        <LobbyJoin onLobbyJoined={handleLobbyJoined} onBack={handleBackToMenu} />
+      </>
+    );
   }
 
   if (gamePhase === 'lobby-waiting' && gameId && gameCode && playerIds) {
     return (
-      <LobbyWaiting
-        gameId={gameId}
-        gameCode={gameCode}
-        actualPlayerId={playerIds.human}
-        currentPlayerId={currentPlayerId}
-        currentPlayerName={currentPlayerId === 'player1' ? player1Name : player2Name}
-        otherPlayerName={currentPlayerId === 'player1' ? player2Name : player1Name}
-        onGameStarted={handleMultiplayerGameStarted}
-        onBack={handleBackToMenu}
-      />
+      <>
+        <UserMenu />
+        <LobbyWaiting
+          gameId={gameId}
+          gameCode={gameCode}
+          actualPlayerId={playerIds.human}
+          currentPlayerId={currentPlayerId}
+          currentPlayerName={currentPlayerId === 'player1' ? player1Name : player2Name}
+          otherPlayerName={currentPlayerId === 'player1' ? player2Name : player1Name}
+          onGameStarted={handleMultiplayerGameStarted}
+          onBack={handleBackToMenu}
+        />
+      </>
     );
   }
 
   if (gamePhase === 'deck-selection-p1') {
-    return <DeckSelection onDeckSelected={handlePlayer1DeckSelected} hiddenMode={hiddenCardsMode} />;
+    return (
+      <>
+        <UserMenu />
+        <DeckSelection onDeckSelected={handlePlayer1DeckSelected} hiddenMode={hiddenCardsMode} />
+      </>
+    );
   }
 
   if (gamePhase === 'deck-selection-p2') {
     // For AI games (single-player), use "Gemiknight" as the AI's name
     const aiDefaultName = gameMode === 'single-player' ? 'Gemiknight' : undefined;
-    return <DeckSelection onDeckSelected={handlePlayer2DeckSelected} hiddenMode={hiddenCardsMode} defaultPlayerName={aiDefaultName} />;
+    return (
+      <>
+        <UserMenu />
+        <DeckSelection onDeckSelected={handlePlayer2DeckSelected} hiddenMode={hiddenCardsMode} defaultPlayerName={aiDefaultName} />
+      </>
+    );
   }
 
   if (gamePhase === 'playing' && gameId && playerIds) {
@@ -292,17 +319,25 @@ function GameApp() {
     const otherPlayerId = playerIds.other;
 
     return (
-      <GameBoard
-        gameId={gameId}
-        humanPlayerId={humanPlayerId}
-        aiPlayerId={gameMode === 'single-player' ? otherPlayerId : undefined}
-        onGameEnd={handleGameEnd}
-      />
+      <>
+        <UserMenu />
+        <GameBoard
+          gameId={gameId}
+          humanPlayerId={humanPlayerId}
+          aiPlayerId={gameMode === 'single-player' ? otherPlayerId : undefined}
+          onGameEnd={handleGameEnd}
+        />
+      </>
     );
   }
 
   if (gamePhase === 'game-over' && gameState) {
-    return <VictoryScreen gameState={gameState} onPlayAgain={handlePlayAgain} />;
+    return (
+      <>
+        <UserMenu />
+        <VictoryScreen gameState={gameState} onPlayAgain={handlePlayAgain} />
+      </>
+    );
   }
 
   return (
