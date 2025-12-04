@@ -72,24 +72,24 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
   };
 
   return (
-    <div className="min-h-screen bg-game-bg flex items-center justify-center p-4">
+    <div className="min-h-screen bg-game-bg flex items-center justify-center" style={{ padding: 'var(--spacing-component-md)' }}>
       <div className="max-w-md w-full">
         {/* Back Button */}
-        <div className="mb-8">
+        <div style={{ marginBottom: 'var(--spacing-component-xl)' }}>
           <Button variant="ghost" size="md" onClick={onBack}>
             ← Back to Main Menu
           </Button>
         </div>
 
         {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold mb-3 text-game-highlight">Join Game</h1>
-          <p className="text-xl text-gray-200 font-semibold">Joining as <span className="text-game-highlight">{playerName}</span></p>
+        <div className="text-center" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
+          <h1 className="text-5xl font-bold text-game-highlight" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Join Game</h1>
+          <p className="text-xl text-gray-200 font-semibold">Enter a game code to join as <span className="text-game-highlight">{playerName}</span></p>
         </div>
 
         {/* Form */}
-        <div className="bg-gray-800 rounded-lg p-8 border-2 border-gray-600">
-          <div className="space-y-6">
+        <div className="modal-padding bg-gray-800 rounded-lg border-2 border-gray-600">
+          <div className="content-spacing">
             {/* Game Code Input */}
             <div>
               <label className="block text-sm font-semibold mb-2 text-gray-300">
