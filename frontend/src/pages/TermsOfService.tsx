@@ -194,8 +194,8 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
             <h3 className="text-xl font-semibold mb-3 text-gray-200">By You</h3>
             <p className="mb-4">
               You may stop using GGLTCG at any time. To delete your account and data, contact us at{' '}
-              <a href="mailto:regis.caron@me.com" className="text-game-highlight hover:underline">
-                regis.caron@me.com
+              <a href="mailto:regiseloi+ggltcg@me.com" className="text-game-highlight hover:underline">
+                regiseloi+ggltcg@me.com
               </a>.
             </p>
 
@@ -252,10 +252,10 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
             </p>
             <p className="mb-2">
               <strong>Email:</strong> <a 
-                href="mailto:regis.caron@me.com" 
+                href="mailto:regiseloi+ggltcg@me.com" 
                 className="text-game-highlight hover:underline"
               >
-                regis.caron@me.com
+                regiseloi+ggltcg@me.com
               </a>
             </p>
             <p className="mb-2">
