@@ -40,13 +40,16 @@ export function HandZone({
       </div>
       
       {/* Cards Area */}
-      <div className={`flex-1 ${compact ? 'p-2 overflow-x-auto' : 'p-3'}`}>
+      <div className={`flex-1 ${compact ? 'overflow-x-auto' : ''}`} style={{ padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}>
         {cardList.length === 0 ? (
           <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             No cards in hand
           </div>
         ) : (
-          <div className={`flex ${compact ? 'gap-1' : 'gap-2'}`}>
+          <div 
+            className="flex flex-wrap"
+            style={{ gap: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-xs)' }}
+          >
             {cardList.map((card) => {
               // Card is playable if it's in the playable list OR it's not the player's turn (don't dim during opponent's turn)
               const isPlayable = !isPlayerTurn || playableCardIds.includes(card.id);
