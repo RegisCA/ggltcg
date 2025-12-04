@@ -163,7 +163,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
                   </div>
 
                   {/* Win Rate */}
-                  <div className="text-right">
+                  <div className="text-right" style={{ paddingRight: 'var(--spacing-component-sm)' }}>
                     <div className={`
                       text-xl font-bold
                       ${entry.win_rate >= 70 ? 'text-green-400' : ''}

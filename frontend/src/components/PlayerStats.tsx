@@ -167,7 +167,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
                         <div className="text-sm text-gray-300">
                           {card.games_won}W / {card.games_played - card.games_won}L
                         </div>
-                        <div className={`font-bold ${getWinRateColor(card.win_rate)}`}>
+                        <div className={`font-bold ${getWinRateColor(card.win_rate)}`} style={{ paddingRight: 'var(--spacing-component-sm)' }}>
                           {card.win_rate.toFixed(0)}%
                         </div>
                       </div>
