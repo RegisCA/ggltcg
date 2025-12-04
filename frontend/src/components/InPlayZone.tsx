@@ -32,7 +32,8 @@ export function InPlayZone({
   enableLayoutAnimation = false,
 }: InPlayZoneProps) {
   const cardList = cards || [];
-  const minHeight = cardSize === 'small' ? '170px' : '240px';
+  // Empty zones should collapse to minimal height
+  const minHeight = cardList.length === 0 ? '80px' : (cardSize === 'small' ? '170px' : '240px');
   
   return (
     <div className="bg-gray-800 rounded border border-gray-700 flex">

@@ -28,7 +28,8 @@ export function HandZone({
   enableLayoutAnimation = false,
 }: HandZoneProps) {
   const cardList = cards || [];
-  const minHeight = compact ? '130px' : (cardSize === 'small' ? '170px' : '240px');
+  // Reduce minHeight to allow more flexible vertical space distribution
+  const minHeight = compact ? '130px' : (cardSize === 'small' ? '140px' : '180px');
   
   return (
     <div className="bg-blue-950 rounded border-2 border-blue-700 flex">
