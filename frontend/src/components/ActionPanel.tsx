@@ -158,6 +158,42 @@ return (
       </div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)' }}>
+        {/* Turn Control - First */}
+        {endTurnAction && (
+          <button
+            onClick={() => onAction(endTurnAction)}
+            disabled={isProcessing}
+            className={`
+              w-full block rounded transition-all border-2 text-white
+              ${getActionColor('end_turn')}
+              ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
+              ${shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
+              focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
+            `}
+            style={{
+              padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+              fontSize: compact ? '0.75rem' : '0.875rem'
+            }}
+          >
+            <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
+              <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
+                0
+              </span>
+              <span className="font-bold text-left flex-1 text-white">
+                {endTurnAction.description.replace(/\s*\(Cost:.*?\)/, '')}
+              </span>
+            </div>
+          </button>
+        )}
+
+        {/* Separator between turn control and card actions */}
+        {endTurnAction && cardActions.length > 0 && (
+          <div 
+            className="border-t border-game-accent" 
+            style={{ margin: 'var(--spacing-component-xs) 0' }}
+          />
+        )}
+
         {/* Card Actions Group */}
         {cardActions.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)' }}>
@@ -212,42 +248,6 @@ return (
               );
             })}
           </div>
-        )}
-
-        {/* Separator between card actions and turn control */}
-        {cardActions.length > 0 && endTurnAction && (
-          <div 
-            className="border-t border-game-accent" 
-            style={{ margin: 'var(--spacing-component-xs) 0' }}
-          />
-        )}
-
-        {/* Turn Control */}
-        {endTurnAction && (
-          <button
-            onClick={() => onAction(endTurnAction)}
-            disabled={isProcessing}
-            className={`
-              w-full block rounded transition-all border-2 text-white
-              ${getActionColor('end_turn')}
-              ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
-              ${shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
-              focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
-            `}
-            style={{
-              padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
-              fontSize: compact ? '0.75rem' : '0.875rem'
-            }}
-          >
-            <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
-              <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
-                0
-              </span>
-              <span className="font-bold text-left flex-1 text-white">
-                {endTurnAction.description.replace(/\s*\(Cost:.*?\)/, '')}
-              </span>
-            </div>
-          </button>
         )}
       </div>
     )}
