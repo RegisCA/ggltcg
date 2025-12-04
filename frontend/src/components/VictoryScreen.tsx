@@ -51,8 +51,9 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
 
   return (
     <div 
-      className="min-h-screen bg-game-bg flex items-center justify-center p-4 sm:p-8 relative overflow-auto"
+      className="min-h-screen bg-game-bg flex items-center justify-center relative overflow-auto"
       style={{
+        padding: 'var(--spacing-component-lg)',
         backgroundImage: 'url(/ggltcg-logo.svg)',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -64,49 +65,55 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
       <div className="absolute inset-0 bg-game-bg bg-opacity-90 pointer-events-none" />
 
       {/* Play Again Button - Top Right Corner */}
-      <div className="absolute top-4 sm:top-8 right-4 sm:right-8 z-20">
+      <div className="absolute z-20" style={{ 
+        top: 'var(--spacing-component-lg)', 
+        right: 'var(--spacing-component-lg)' 
+      }}>
         <Button variant="primary" size="lg" onClick={onPlayAgain}>
           Play Again
         </Button>
       </div>
 
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6">
+      <div className="relative z-10 w-full max-w-5xl mx-auto">
         {/* Victory Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl sm:text-6xl font-bold mb-4 text-game-highlight">
+        <div className="text-center" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
+          <h1 className="text-4xl sm:text-6xl font-bold text-game-highlight" style={{ marginBottom: 'var(--spacing-component-md)' }}>
             Game Over!
           </h1>
-          <p className="text-2xl sm:text-4xl mb-6">
+          <p className="text-2xl sm:text-4xl" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
             {winnerPlayer?.name || gameState.winner} Wins!
           </p>
         </div>
 
         {/* Play-by-Play Summary */}
         {playByPlay.length > 0 && (
-          <div className="bg-gray-800 bg-opacity-95 rounded-lg p-6 sm:p-8 shadow-2xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-gray-700">
+          <div className="modal-padding bg-gray-800 bg-opacity-95 rounded-lg shadow-2xl">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-700" 
+                 style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-lg)', paddingBottom: 'var(--spacing-component-lg)' }}>
               <h2 className="text-2xl sm:text-3xl font-bold">Game Summary</h2>
               
               {/* Mode Toggle */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center" style={{ gap: 'var(--spacing-component-md)' }}>
                 <button
                   onClick={() => setNarrativeMode(false)}
-                  className={`px-4 py-2 rounded font-semibold transition-all ${
+                  className={`rounded font-semibold transition-all ${
                     !narrativeMode
                       ? 'bg-game-highlight text-white'
                       : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                   }`}
+                  style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
                 >
                   📋 Factual
                 </button>
                 <button
                   onClick={() => setNarrativeMode(true)}
                   disabled={isLoadingNarrative}
-                  className={`px-4 py-2 rounded font-semibold transition-all ${
+                  className={`rounded font-semibold transition-all ${
                     narrativeMode
                       ? 'bg-purple-600 text-white'
                       : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                   } ${isLoadingNarrative ? 'opacity-50 cursor-wait' : ''}`}
+                  style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
                 >
                   {isLoadingNarrative ? '⏳ Loading...' : '📖 Story Mode'}
                 </button>
@@ -117,12 +124,12 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
             {narrativeMode ? (
               <div className="prose prose-invert max-w-none">
                 {isLoadingNarrative ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <div className="text-4xl mb-4">⏳</div>
+                  <div className="text-center text-gray-400" style={{ paddingTop: 'var(--spacing-component-xl)', paddingBottom: 'var(--spacing-component-xl)' }}>
+                    <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>⏳</div>
                     <p>Generating your epic bedtime story...</p>
                   </div>
                 ) : narrative ? (
-                  <div className="text-gray-100 leading-loose space-y-4 text-base sm:text-lg px-2">
+                  <div className="content-spacing text-gray-100 leading-loose text-base sm:text-lg">
                     {narrative.split('\n\n').map((paragraph, idx) => (
                       <p key={idx} className="text-justify">
                         {paragraph}
@@ -130,14 +137,14 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center text-gray-400" style={{ paddingTop: 'var(--spacing-component-xl)', paddingBottom: 'var(--spacing-component-xl)' }}>
                     <p>No narrative available</p>
                   </div>
                 )}
               </div>
             ) : (
               /* Factual Mode */
-              <div className="space-y-4">
+              <div className="content-spacing">
               {Object.entries(groupedActions).map(([key, actions]) => {
                 const firstAction = actions[0];
                 const isAI = firstAction.reasoning !== undefined;
@@ -145,15 +152,15 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                 return (
                   <div
                     key={key}
-                    className={`rounded-lg p-4 sm:p-6 border-l-4 ${
+                    className={`card-padding rounded-lg border-l-4 ${
                       isAI 
                         ? 'bg-purple-900 bg-opacity-20 border-purple-500' 
                         : 'bg-gray-900 bg-opacity-70 border-game-highlight'
                     }`}
                   >
                     {/* Turn and Player Header */}
-                    <div className="flex items-center gap-3 mb-3 pb-2 border-b border-gray-700">
-                      <span className="bg-gray-700 text-gray-300 text-xs font-mono px-2 py-1 rounded">
+                    <div className="flex items-center border-b border-gray-700" style={{ gap: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)', paddingBottom: 'var(--spacing-component-xs)' }}>
+                      <span className="bg-gray-700 text-gray-300 text-xs font-mono rounded" style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-xs)' }}>
                         Turn {firstAction.turn}
                       </span>
                       <span className="font-bold text-white text-base sm:text-lg">
@@ -162,17 +169,18 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                     </div>
                     
                     {/* Actions for this turn/player */}
-                    <div className="space-y-2 px-2">
+                    <div className="content-spacing">
                       {actions.map((entry, index) => (
                         <div key={index}>
                           {/* Action Description */}
-                          <p className="text-gray-100 leading-relaxed pl-2">
+                          <p className="text-gray-100 leading-relaxed" style={{ paddingLeft: 'var(--spacing-component-xs)' }}>
                             • {entry.description}
                           </p>
 
                           {/* AI Reasoning */}
                           {entry.reasoning && (
-                            <div className="mt-2 ml-2 sm:ml-4 pt-2 border-t border-purple-700 bg-purple-900 bg-opacity-30 p-3 rounded">
+                            <div className="border-t border-purple-700 bg-purple-900 bg-opacity-30 rounded" 
+                                 style={{ marginTop: 'var(--spacing-component-xs)', marginLeft: 'var(--spacing-component-sm)', paddingTop: 'var(--spacing-component-xs)', padding: 'var(--spacing-component-sm)' }}>
                               <p className="text-sm text-purple-200 italic leading-relaxed">
                                 <span className="text-purple-300 font-semibold not-italic">💭 AI Strategy:</span> {entry.reasoning}
                               </p>
@@ -189,7 +197,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
 
             {/* AI Endpoint Summary - Only show in factual mode */}
             {!narrativeMode && playByPlay.some(entry => entry.ai_endpoint) && (
-              <div className="mt-8 pt-6 border-t border-gray-700 text-center">
+              <div className="border-t border-gray-700 text-center" style={{ marginTop: 'var(--spacing-component-xl)', paddingTop: 'var(--spacing-component-lg)' }}>
                 <p className="text-sm text-gray-400">
                   🤖 AI decisions powered by{' '}
                   <span className="text-purple-300 font-semibold">

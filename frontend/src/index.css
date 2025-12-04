@@ -62,6 +62,14 @@
   --scale-145: 1.45;
   --scale-200: 2.00;
   --scale-400: 4.00;
+  
+  /* Component Spacing Standards */
+  /* Use these for consistent padding/spacing across all UI components */
+  --spacing-component-xs: 8px;   /* 0.5rem - Tight spacing (buttons, small cards) */
+  --spacing-component-sm: 12px;  /* 0.75rem - Compact spacing (mobile cards) */
+  --spacing-component-md: 16px;  /* 1rem - Standard spacing (most components) */
+  --spacing-component-lg: 24px;  /* 1.5rem - Generous spacing (panels, modals) */
+  --spacing-component-xl: 32px;  /* 2rem - Large spacing (page sections) */
 }
 
 /* Additional CSS Custom Properties (non-Tailwind) */
@@ -69,6 +77,36 @@
   /* Typography */
   --font-card-name: 'Bangers', 'Impact', sans-serif;
   --font-body: 'Lato', 'Arial', sans-serif;
+}
+
+/* Standard Component Spacing Classes */
+/* Apply these to maintain consistent spacing throughout the app */
+.panel-padding {
+  padding: var(--spacing-component-lg);
+}
+
+.card-padding {
+  padding: var(--spacing-component-md);
+}
+
+.modal-padding {
+  padding: var(--spacing-component-lg);
+}
+
+.section-spacing {
+  margin-bottom: var(--spacing-component-xl);
+}
+
+.content-spacing > * + * {
+  margin-top: var(--spacing-component-md);
+}
+
+/* Responsive padding utility */
+@media (max-width: 640px) {
+  .panel-padding,
+  .modal-padding {
+    padding: var(--spacing-component-md);
+  }
 }
 
 * {
