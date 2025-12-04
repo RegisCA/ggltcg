@@ -140,9 +140,10 @@ export function ActionPanel({
 
 return (
   <div 
-    className="panel-padding bg-game-card rounded border-2 border-game-accent w-full"
+    className="bg-game-card rounded border-2 border-game-accent w-full"
+    style={{ padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}
   >
-    <div style={{ marginBottom: compact ? 'var(--spacing-component-sm)' : 'var(--spacing-component-md)' }}>
+    <div style={{ marginBottom: 'var(--spacing-component-xs)' }}>
       <h3 className={`font-bold ${compact ? 'text-sm mb-0.5' : 'text-lg mb-1'}`}>
         Available Actions
         {validActions.length > 0 && (
@@ -156,10 +157,10 @@ return (
         No actions available
       </div>
     ) : (
-      <div className="space-y-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)' }}>
         {/* Card Actions Group */}
         {cardActions.length > 0 && (
-          <div className={`grid grid-cols-1 w-full ${compact ? 'gap-1.5' : 'gap-2'}`}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)' }}>
             {cardActions.map((action, index) => {
               const cleanDescription = action.description.replace(/\s*\(Cost:.*?\)/, '');
               const shortcutKey = getShortcutKey(action);
@@ -217,7 +218,7 @@ return (
         {cardActions.length > 0 && endTurnAction && (
           <div 
             className="border-t border-game-accent" 
-            style={{ margin: 'var(--spacing-component-md) 0' }}
+            style={{ margin: 'var(--spacing-component-xs) 0' }}
           />
         )}
 

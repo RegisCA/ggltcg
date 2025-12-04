@@ -54,7 +54,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-xl border-4 border-purple-500 max-w-xl w-full max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+        <div className="border-b border-gray-700 flex justify-between items-center" style={{ padding: 'var(--spacing-component-lg)' }}>
           <div>
             <h2 className="text-3xl font-bold text-purple-400">📊 Player Stats</h2>
             {stats && (
@@ -72,7 +72,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
             <div className="text-center py-8">
               <div className="text-4xl mb-4 animate-bounce">📈</div>
