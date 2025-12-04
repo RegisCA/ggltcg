@@ -184,7 +184,7 @@ return (
                         {shortcutKey}
                       </span>
                     )}
-                    <span className={`font-bold text-left flex-1 text-white ${isUnaffordable ? 'line-through' : ''}`}>
+                    <span className="font-bold text-left flex-1 text-white">
                       {cleanDescription}
                     </span>
                     

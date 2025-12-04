@@ -152,7 +152,7 @@ export function GameMessages({
                                   `}
                                 >
                                   <div className={compact ? 'text-xs' : 'text-sm'}>
-                                    {entry.description}
+                                    <span className="font-semibold">{entry.player}:</span> {entry.description}
                                   </div>
                                 </div>
                               );

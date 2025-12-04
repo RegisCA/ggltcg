@@ -318,7 +318,6 @@ function GameApp() {
         humanPlayerId={humanPlayerId}
         aiPlayerId={gameMode === 'single-player' ? otherPlayerId : undefined}
         onGameEnd={handleGameEnd}
-        onConcede={handleBackToMenu}
       />
     );
   }

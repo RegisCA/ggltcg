@@ -22,17 +22,15 @@ import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
 import { TargetSelectionModal } from './TargetSelectionModal';
 import { GameMessages } from './GameMessages';
-import { Button } from './ui/Button';
 
 interface GameBoardProps {
   gameId: string;
   humanPlayerId: string;
   aiPlayerId?: string;
   onGameEnd: (winner: string, gameState: GameState) => void;
-  onConcede?: () => void;
 }
 
-export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd, onConcede }: GameBoardProps) {
+export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: GameBoardProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
   
@@ -255,53 +253,33 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd, onConc
     return allCards.filter(card => action.target_options?.includes(card.id));
   };
 
-  const handleConcede = () => {
-    if (confirm('Are you sure you want to concede this game? You will return to the main menu.')) {
-      onConcede?.();
-    }
-  };
-
   return (
     <div className="min-h-screen bg-game-bg p-3">
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
-        <div className="mb-3 p-3 bg-game-card rounded relative">
-          {/* Concede button in top-right corner */}
-          <div className="absolute top-2 right-2 z-10">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleConcede}
-              className="text-xs opacity-60 hover:opacity-100"
+        <div className="mb-3 p-3 bg-game-card rounded grid grid-cols-3 gap-4 items-center">
+          <PlayerInfoBar
+            player={humanPlayer}
+            isActive={gameState.active_player_id === humanPlayerId}
+          />
+          <div className="text-center">
+            <div 
+              className={`
+                text-lg font-bold px-4 py-1 rounded-lg transition-all duration-300
+                ${isHumanTurn 
+                  ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
+                  : 'bg-gray-700 text-gray-300'
+                }
+              `}
             >
-              Exit Game
-            </Button>
+              {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-3 gap-4 items-center">
+          <div className="flex justify-end">
             <PlayerInfoBar
-              player={humanPlayer}
-              isActive={gameState.active_player_id === humanPlayerId}
+              player={otherPlayer}
+              isActive={gameState.active_player_id === otherPlayerId}
             />
-            <div className="text-center">
-              <div 
-                className={`
-                  text-lg font-bold px-4 py-1 rounded-lg transition-all duration-300
-                  ${isHumanTurn 
-                    ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
-                    : 'bg-gray-700 text-gray-300'
-                  }
-                `}
-              >
-                {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <PlayerInfoBar
-                player={otherPlayer}
-                isActive={gameState.active_player_id === otherPlayerId}
-              />
-            </div>
           </div>
         </div>
 
