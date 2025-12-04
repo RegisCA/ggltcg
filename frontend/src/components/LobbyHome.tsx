@@ -52,11 +52,11 @@ export function LobbyHome({
               }
             `}
           >
-            <div className="text-3xl mb-2 font-bold text-gray-900">🎮 Create Game</div>
-            <div className="text-xl text-gray-800 font-semibold">
+            <div className="text-3xl mb-2 font-bold text-white">🎮 Create Game</div>
+            <div className="text-xl text-gray-100 font-semibold">
               Host a new game and invite a friend
             </div>
-            <div className="text-sm text-gray-700 mt-1">
+            <div className="text-sm text-gray-300 mt-1">
               Get a 6-character code to share
             </div>
           </button>
@@ -74,11 +74,11 @@ export function LobbyHome({
               }
             `}
           >
-            <div className="text-3xl mb-2 font-bold text-gray-900">🔗 Join Game</div>
-            <div className="text-xl text-gray-800 font-semibold">
+            <div className="text-3xl mb-2 font-bold text-white">🔗 Join Game</div>
+            <div className="text-xl text-gray-100 font-semibold">
               Enter a friend's game code
             </div>
-            <div className="text-sm text-gray-700 mt-1">
+            <div className="text-sm text-gray-300 mt-1">
               Connect to an existing lobby
             </div>
           </button>
@@ -96,11 +96,11 @@ export function LobbyHome({
               }
             `}
           >
-            <div className="text-3xl mb-2 font-bold text-gray-900">🤖 Play vs AI</div>
-            <div className="text-xl text-gray-800 font-semibold">
+            <div className="text-3xl mb-2 font-bold text-white">🤖 Play vs AI</div>
+            <div className="text-xl text-gray-100 font-semibold">
               Practice against computer opponent
             </div>
-            <div className="text-sm text-gray-700 mt-1">
+            <div className="text-sm text-gray-300 mt-1">
               Single-player mode
             </div>
           </button>
@@ -118,11 +118,11 @@ export function LobbyHome({
               }
             `}
           >
-            <div className="text-3xl mb-2 font-bold text-gray-900">⚡ Quick Play</div>
-            <div className="text-xl text-gray-800 font-semibold">
+            <div className="text-3xl mb-2 font-bold text-white">⚡ Quick Play</div>
+            <div className="text-xl text-gray-100 font-semibold">
               Jump straight into battle
             </div>
-            <div className="text-sm text-gray-700 mt-1">
+            <div className="text-sm text-gray-300 mt-1">
               Random decks, instant action!
             </div>
           </button>

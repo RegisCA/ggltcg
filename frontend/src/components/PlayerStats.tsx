@@ -98,56 +98,56 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
               {/* Overall Stats */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Win Rate */}
-                <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
                   <div className={`text-3xl font-bold ${getWinRateColor(stats.win_rate)}`}>
                     {stats.win_rate.toFixed(1)}%
                   </div>
-                  <div className="text-gray-400 text-sm">Win Rate</div>
+                  <div className="text-gray-300 text-sm">Win Rate</div>
                 </div>
 
                 {/* Games */}
-                <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
                   <div className="text-3xl font-bold text-blue-400">
                     {stats.games_played}
                   </div>
-                  <div className="text-gray-400 text-sm">Games Played</div>
+                  <div className="text-gray-300 text-sm">Games Played</div>
                 </div>
 
                 {/* Wins */}
-                <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
                   <div className="text-3xl font-bold text-green-400">
                     {stats.games_won}
                   </div>
-                  <div className="text-gray-400 text-sm">Wins</div>
+                  <div className="text-gray-300 text-sm">Wins</div>
                 </div>
 
                 {/* Losses */}
-                <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
                   <div className="text-3xl font-bold text-red-400">
                     {stats.games_played - stats.games_won}
                   </div>
-                  <div className="text-gray-400 text-sm">Losses</div>
+                  <div className="text-gray-300 text-sm">Losses</div>
                 </div>
               </div>
 
               {/* Tussle Stats */}
               {stats.total_tussles > 0 && (
-                <div className="bg-gray-700/30 rounded-lg p-4">
+                <div className="bg-gray-900/90 rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-3 text-orange-400">⚔️ Tussle Stats</h3>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold">{stats.total_tussles}</div>
-                      <div className="text-gray-400 text-sm">Initiated</div>
+                      <div className="text-2xl font-bold text-white">{stats.total_tussles}</div>
+                      <div className="text-gray-300 text-sm">Initiated</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-green-400">{stats.tussles_won}</div>
-                      <div className="text-gray-400 text-sm">Won</div>
+                      <div className="text-gray-300 text-sm">Won</div>
                     </div>
                     <div>
                       <div className={`text-2xl font-bold ${getWinRateColor(stats.tussle_win_rate)}`}>
                         {stats.tussle_win_rate.toFixed(1)}%
                       </div>
-                      <div className="text-gray-400 text-sm">Win Rate</div>
+                      <div className="text-gray-300 text-sm">Win Rate</div>
                     </div>
                   </div>
                 </div>
@@ -161,10 +161,10 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
                     {stats.card_stats.map((card: CardStats) => (
                       <div
                         key={card.card_name}
-                        className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg"
+                        className="flex items-center gap-3 p-3 bg-gray-900/90 rounded-lg"
                       >
-                        <div className="flex-1 font-medium">{card.card_name}</div>
-                        <div className="text-sm text-gray-400">
+                        <div className="flex-1 font-medium text-white">{card.card_name}</div>
+                        <div className="text-sm text-gray-300">
                           {card.games_won}W / {card.games_played - card.games_won}L
                         </div>
                         <div className={`font-bold ${getWinRateColor(card.win_rate)}`}>

@@ -76,9 +76,9 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
         {/* Back Button */}
         <button
           onClick={onBack}
-          className="mb-8 text-xl text-gray-400 hover:text-game-highlight transition-colors flex items-center gap-2 font-semibold"
+          className="mb-8 text-xl text-gray-300 hover:text-white transition-colors flex items-center gap-2 font-semibold"
         >
-          <span className="text-2xl">←</span> Back to Menu
+          <span className="text-2xl">←</span> Back to Main Menu
         </button>
 
         {/* Title */}

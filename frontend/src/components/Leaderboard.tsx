@@ -79,7 +79,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
       }}
     >
       <div 
-        className="bg-gray-900 rounded-xl border-4 border-game-highlight shadow-2xl flex flex-col"
+        className="bg-gray-900/95 rounded-xl border-4 border-game-highlight shadow-2xl flex flex-col"
         style={{ 
           width: '600px',
           maxHeight: '80vh',

@@ -174,7 +174,7 @@ return (
                     onClick={() => onAction(action)}
                     disabled={isProcessing}
                     className={`
-                      w-full block rounded transition-all border-2
+                      w-full block rounded transition-all border-2 text-white
                       ${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'}
                       ${getActionColor(action.action_type)}
                       ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
@@ -185,11 +185,11 @@ return (
                     <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
                       {/* Keyboard shortcut indicator */}
                       {shortcutKey && (
-                        <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
+                        <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
                           {shortcutKey}
                         </span>
                       )}
-                      <span className="font-bold text-left flex-1">{cleanDescription}</span>
+                      <span className="font-bold text-left flex-1 text-white">{cleanDescription}</span>
                       
                       {action.cost_cc !== undefined && action.action_type !== 'end_turn' && (
                         <span className={`
