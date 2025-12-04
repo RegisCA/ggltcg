@@ -286,10 +286,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         {/* Main Game Area - Responsive Layout */}
         <LayoutGroup>
         {isDesktop ? (
-          /* Desktop: Restructured layout with full-width hand at bottom */
+          /* Desktop: Game zones on top, Hand full-width at bottom */
           <>
-            {/* Top Section: Game zones */}
-            <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '1fr 280px', marginBottom: 'var(--spacing-component-sm)' }}>
+            {/* Top Section: 3-column game zones */}
+            <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '1fr 280px 350px', marginBottom: 'var(--spacing-component-sm)' }}>
               {/* Left Column - In Play Zones */}
               <div className="space-y-3">
                 <InPlayZone
@@ -313,7 +313,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 />
               </div>
 
-              {/* Right Column - Sleep Zones */}
+              {/* Center Column - Sleep Zones */}
               <div className="space-y-3">
                 <SleepZoneDisplay
                   cards={otherPlayer.sleep_zone}
@@ -327,11 +327,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   enableLayoutAnimation={true}
                 />
               </div>
-            </div>
 
-            {/* Bottom Section: Messages, Actions, and Hand */}
-            <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '350px 1fr' }}>
-              {/* Left: Messages + Actions */}
+              {/* Right Column - Messages + Actions */}
               <div className="space-y-3">
                 {/* Messages Area - Collapsible */}
                 <GameMessages
@@ -348,19 +345,19 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   currentCC={humanPlayer.cc}
                 />
               </div>
-
-              {/* Right: Hand Zone - Full Width */}
-              <HandZone
-                cards={humanPlayer.hand || []}
-                selectedCard={selectedCard || undefined}
-                onCardClick={handleHandCardClick}
-                playableCardIds={playableCardIds}
-                isPlayerTurn={isHumanTurn}
-                cardSize={cardSize}
-                compact={false}
-                enableLayoutAnimation={true}
-              />
             </div>
+
+            {/* Bottom Section: Hand Zone - Full Width */}
+            <HandZone
+              cards={humanPlayer.hand || []}
+              selectedCard={selectedCard || undefined}
+              onCardClick={handleHandCardClick}
+              playableCardIds={playableCardIds}
+              isPlayerTurn={isHumanTurn}
+              cardSize={cardSize}
+              compact={false}
+              enableLayoutAnimation={true}
+            />
           </>
         ) : (
           /* Tablet/Mobile: 2-column layout */
