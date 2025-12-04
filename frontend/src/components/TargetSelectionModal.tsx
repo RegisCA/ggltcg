@@ -156,6 +156,14 @@ export function TargetSelectionModal({
                     ? 'bg-red-600 hover:bg-red-700 cursor-pointer'
                     : 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                   : 'bg-gray-600 cursor-not-allowed opacity-50'
+                }
+              `}
+            >
+              {action.action_type === 'tussle' ? 'Attack!' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
           {/* Ballaber alternative cost: one-click selection */}
