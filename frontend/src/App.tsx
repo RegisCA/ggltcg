@@ -16,6 +16,8 @@ import { LobbyWaiting } from './components/LobbyWaiting';
 import { DeckSelection } from './components/DeckSelection';
 import { GameBoard } from './components/GameBoard';
 import { VictoryScreen } from './components/VictoryScreen';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfService } from './pages/TermsOfService';
 import { useCreateGame } from './hooks/useGame';
 import type { GameState } from './types/game';
 
@@ -37,7 +39,9 @@ type GamePhase =
   | 'deck-selection-p1' 
   | 'deck-selection-p2' 
   | 'playing' 
-  | 'game-over';
+  | 'game-over'
+  | 'privacy-policy'
+  | 'terms-of-service';
 
 type GameMode = 'single-player' | 'multiplayer';
 
@@ -213,6 +217,26 @@ function GameApp() {
     setPlayerIds(null);
   };
 
+  const handleShowPrivacyPolicy = () => {
+    setGamePhase('privacy-policy');
+  };
+
+  const handleShowTermsOfService = () => {
+    setGamePhase('terms-of-service');
+  };
+
+  const handleBackFromLegal = () => {
+    setGamePhase('menu');
+  };
+
+  if (gamePhase === 'privacy-policy') {
+    return <PrivacyPolicy onBack={handleBackFromLegal} />;
+  }
+
+  if (gamePhase === 'terms-of-service') {
+    return <TermsOfService onBack={handleBackFromLegal} />;
+  }
+
   if (gamePhase === 'loading') {
     return <LoadingScreen onReady={handleLoadingComplete} />;
   }
@@ -224,6 +248,8 @@ function GameApp() {
         onJoinLobby={handleJoinLobby}
         onPlayVsAI={handlePlayVsAI}
         onQuickPlay={handleQuickPlay}
+        onShowPrivacyPolicy={handleShowPrivacyPolicy}
+        onShowTermsOfService={handleShowTermsOfService}
       />
     );
   }
@@ -297,6 +323,7 @@ function App() {
 
 function AuthWrapper() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [authPhase, setAuthPhase] = useState<'login' | 'privacy-policy' | 'terms-of-service'>('login');
 
   // Show loading while checking auth state
   if (isLoading) {
@@ -309,7 +336,20 @@ function AuthWrapper() {
 
   // Show login page if not authenticated
   if (!isAuthenticated) {
-    return <LoginPage />;
+    if (authPhase === 'privacy-policy') {
+      return <PrivacyPolicy onBack={() => setAuthPhase('login')} />;
+    }
+    
+    if (authPhase === 'terms-of-service') {
+      return <TermsOfService onBack={() => setAuthPhase('login')} />;
+    }
+    
+    return (
+      <LoginPage 
+        onShowPrivacyPolicy={() => setAuthPhase('privacy-policy')}
+        onShowTermsOfService={() => setAuthPhase('terms-of-service')}
+      />
+    );
   }
 
   // Show game app if authenticated with UserMenu overlay

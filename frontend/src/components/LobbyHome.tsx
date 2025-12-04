@@ -12,9 +12,18 @@ interface LobbyHomeProps {
   onJoinLobby: () => void;
   onPlayVsAI: (hiddenMode: boolean) => void;
   onQuickPlay: () => void;
+  onShowPrivacyPolicy?: () => void;
+  onShowTermsOfService?: () => void;
 }
 
-export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI, onQuickPlay }: LobbyHomeProps) {
+export function LobbyHome({ 
+  onCreateLobby, 
+  onJoinLobby, 
+  onPlayVsAI, 
+  onQuickPlay,
+  onShowPrivacyPolicy,
+  onShowTermsOfService
+}: LobbyHomeProps) {
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
@@ -141,6 +150,21 @@ export function LobbyHome({ onCreateLobby, onJoinLobby, onPlayVsAI, onQuickPlay 
         {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
           <p>A trading card game where strategy meets imagination</p>
+          <p className="mt-2">
+            <button
+              onClick={onShowPrivacyPolicy}
+              className="text-blue-400 hover:underline mx-2"
+            >
+              Privacy Policy
+            </button>
+            •
+            <button
+              onClick={onShowTermsOfService}
+              className="text-blue-400 hover:underline mx-2"
+            >
+              Terms of Service
+            </button>
+          </p>
         </div>
       </div>
 

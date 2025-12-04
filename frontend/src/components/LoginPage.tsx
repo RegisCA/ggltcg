@@ -10,7 +10,15 @@ import type { CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../api/authService';
 
-const LoginPage: React.FC = () => {
+interface LoginPageProps {
+  onShowPrivacyPolicy?: () => void;
+  onShowTermsOfService?: () => void;
+}
+
+const LoginPage: React.FC<LoginPageProps> = ({ 
+  onShowPrivacyPolicy, 
+  onShowTermsOfService 
+}) => {
   const { login } = useAuth();
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -90,8 +98,24 @@ const LoginPage: React.FC = () => {
         )}
 
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>By signing in, you agree to our Terms of Service</p>
-          <p className="mt-1">and Privacy Policy</p>
+          <p>
+            By signing in, you agree to our{' '}
+            <button
+              onClick={onShowTermsOfService}
+              className="text-blue-600 hover:underline"
+            >
+              Terms of Service
+            </button>
+          </p>
+          <p className="mt-1">
+            and{' '}
+            <button
+              onClick={onShowPrivacyPolicy}
+              className="text-blue-600 hover:underline"
+            >
+              Privacy Policy
+            </button>
+          </p>
         </div>
       </div>
     </div>
