@@ -179,6 +179,7 @@ return (
                       ${getActionColor(action.action_type)}
                       ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}
                       ${action.action_type === 'end_turn' && shouldBlink ? 'animate-blink ring-4 ring-yellow-400' : 'border-transparent'}
+                      focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
                       disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                   >

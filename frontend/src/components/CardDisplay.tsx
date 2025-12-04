@@ -86,10 +86,22 @@ export function CardDisplay({
     borderWidth = '4px';  // Significantly thicker border for highlighted state
   }
 
+  // Keyboard event handler for accessibility
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Enter' || e.key === ' ') && isClickable && !effectivelyDisabled && onClick) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <motion.div
       layoutId={enableLayoutAnimation ? `card-${card.id}` : undefined}
       onClick={isClickable && !effectivelyDisabled ? onClick : undefined}
+      onKeyDown={handleKeyDown}
+      tabIndex={isClickable && !effectivelyDisabled ? 0 : undefined}
+      role={isClickable ? "button" : undefined}
+      aria-label={isClickable ? `${card.name} card` : undefined}
       className={`
         rounded
         ${isClickable && !effectivelyDisabled ? 'cursor-pointer' : ''}
