@@ -15,7 +15,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
     <div className="min-h-screen bg-gray-900 text-gray-100">
       {/* Header */}
       <header className="bg-gray-800 border-b-4 border-game-highlight py-6">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-6 md:px-8">
           <button
             onClick={onBack}
             className="text-2xl font-bold text-game-highlight hover:text-red-400 transition-colors"
@@ -26,7 +26,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-12 max-w-4xl">
+      <main className="container mx-auto px-6 md:px-8 py-8 md:py-12 max-w-5xl">
         <h1 className="text-4xl font-bold mb-8 text-game-highlight">Privacy Policy</h1>
         
         <div className="space-y-8 text-gray-300 leading-relaxed">
