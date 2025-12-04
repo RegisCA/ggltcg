@@ -35,7 +35,7 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
               <strong>Last Updated:</strong> December 4, 2025
             </p>
             <p className="mb-4">
-              Welcome to GGLTCG (Googoland Trading Card Game). By accessing or using our game, you agree 
+              Welcome to GGLTCG (Googooland Trading Card Game). By accessing or using our game, you agree 
               to be bound by these Terms of Service. If you do not agree to these terms, please do not use GGLTCG.
             </p>
           </section>

@@ -35,7 +35,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
               <strong>Last Updated:</strong> December 4, 2025
             </p>
             <p className="mb-4">
-              Welcome to GGLTCG (Googoland Trading Card Game). This Privacy Policy explains how we collect, 
+              Welcome to GGLTCG (Googooland Trading Card Game). This Privacy Policy explains how we collect, 
               use, and protect your information when you use our game.
             </p>
           </section>
