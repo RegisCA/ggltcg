@@ -170,7 +170,17 @@ class GameService:
             
         Returns:
             Tuple of (game_id, GameEngine instance)
+            
+        Raises:
+            ValueError: If player IDs are the same or deck composition is invalid
         """
+        # Validate that players have different IDs
+        if player1_id == player2_id:
+            raise ValueError(
+                "Both players cannot have the same player ID. "
+                "Please use different accounts for multiplayer games."
+            )
+        
         # Generate unique game ID
         game_id = str(uuid.uuid4())
         
@@ -623,6 +633,13 @@ class GameService:
             if game_model.player2_id is not None:
                 raise ValueError(f"Lobby {game_code} is already full")
             
+            # Validate that player2 is different from player1
+            if game_model.player1_id == player2_id:
+                raise ValueError(
+                    "You cannot join your own game. "
+                    "Please use a different Google account or ask a friend to join."
+                )
+            
             # Add player 2 with actual Google ID
             game_model.player2_id = player2_id
             game_model.player2_name = player2_name
@@ -712,6 +729,13 @@ class GameService:
             
             if game_model.status not in ("deck_selection", "active"):
                 raise ValueError(f"Lobby {game_code} is not in deck selection phase")
+            
+            # Validate that player2 is not the same as player1
+            if game_model.player2_id and game_model.player1_id == game_model.player2_id:
+                raise ValueError(
+                    "Both players cannot use the same account. "
+                    "Please join with a different Google account."
+                )
             
             # Store deck in game_state temporarily, keyed by actual player ID
             current_state = game_model.game_state or {}
