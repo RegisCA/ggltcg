@@ -191,8 +191,8 @@ export function CardDisplay({
             fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '0.875rem' : '1.25rem',
             lineHeight: '1.2',
             fontWeight: 700,
-            marginLeft: size === 'small' ? '4px' : size === 'medium' ? '6px' : '8px',
-            marginRight: size === 'small' ? '4px' : size === 'medium' ? '6px' : '8px',
+            marginLeft: size === 'small' ? '6px' : size === 'medium' ? '8px' : '12px',
+            marginRight: size === 'small' ? '6px' : size === 'medium' ? '8px' : '12px',
           }}
         >
           {card.name}
@@ -260,7 +260,7 @@ export function CardDisplay({
       {/* Effect Text - Only show on medium and large cards */}
       {size !== 'small' && card.effect_text && (
         <div 
-          className="text-gray-300 italic mt-2"
+          className="text-gray-300 italic"
           style={{
             fontSize: size === 'medium' ? '0.75rem' : '0.875rem',
             lineHeight: '1.3',
@@ -270,6 +270,7 @@ export function CardDisplay({
             WebkitLineClamp: size === 'medium' ? 3 : 8,
             position: 'relative',
             zIndex: 1,
+            marginTop: size === 'medium' ? '8px' : '12px',
           }}
         >
           {card.effect_text}

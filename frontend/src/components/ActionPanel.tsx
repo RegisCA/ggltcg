@@ -191,7 +191,7 @@ return (
                     {action.cost_cc !== undefined && (
                       <span className={`
                         rounded font-bold whitespace-nowrap
-                        ${compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'}
+                        ${compact ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'}
                         ${isUnaffordable ? 'bg-red-800 text-white' : 'bg-black/40 text-white'}
                       `}>
                         {isUnaffordable && '🔒 '}
@@ -207,7 +207,7 @@ return (
 
         {/* Separator between card actions and turn control */}
         {cardActions.length > 0 && endTurnAction && (
-          <div className="border-t border-game-accent pt-3" />
+          <div className="border-t border-game-accent my-4" />
         )}
 
         {/* Turn Control */}

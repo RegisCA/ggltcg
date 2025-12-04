@@ -123,7 +123,7 @@ export function GameMessages({
             className="overflow-hidden"
           >
             <div
-              className={compact ? 'p-2' : 'p-3'}
+              className={compact ? 'px-3 py-2' : 'px-4 py-3'}
               style={{ 
                 maxHeight: compact ? '150px' : '350px', 
                 overflowY: 'auto' 
@@ -137,48 +137,77 @@ export function GameMessages({
                 <div className={compact ? 'space-y-1' : 'space-y-2'}>
                   {/* If we have play-by-play data with reasoning, use it */}
                   {playByPlay.length > 0 ? (
-                    playByPlay.slice(compact ? -5 : undefined).map((entry, idx) => {
-                      const hasReasoning = !!entry.reasoning;
-                      const isReasoningExpanded = expandedReasoningIds.has(idx);
+                    (() => {
+                      // Group entries by turn for visual separation
+                      const entriesToShow = compact ? playByPlay.slice(-5) : playByPlay;
+                      const groupedByTurn: Record<number, typeof entriesToShow> = {};
                       
-                      return (
-                        <div 
-                          key={`${idx}-${entry.turn}-${entry.action_type}`}
-                          className={`
-                            bg-blue-900 rounded overflow-hidden
-                            ${compact ? 'p-1' : 'p-2'}
-                          `}
-                        >
-                          <div className={compact ? 'text-xs' : 'text-sm'}>
-                            {entry.description}
-                          </div>
-                          
-                          {/* AI Reasoning Toggle */}
-                          {hasReasoning && (
-                            <div className="mt-1">
-                              <button
-                                onClick={() => toggleReasoning(idx)}
-                                className={`
-                                  text-purple-300 hover:text-purple-200 underline
-                                  ${compact ? 'text-[10px]' : 'text-xs'}
-                                `}
-                              >
-                                {isReasoningExpanded ? '− Hide' : '+ Show'} AI reasoning
-                              </button>
-                              
-                              {isReasoningExpanded && (
-                                <div className={`
-                                  mt-1 p-1.5 bg-purple-900/50 rounded text-purple-200
-                                  ${compact ? 'text-[10px]' : 'text-xs'}
-                                `}>
-                                  {entry.reasoning}
-                                </div>
-                              )}
-                            </div>
+                      entriesToShow.forEach(entry => {
+                        if (!groupedByTurn[entry.turn]) {
+                          groupedByTurn[entry.turn] = [];
+                        }
+                        groupedByTurn[entry.turn].push(entry);
+                      });
+                      
+                      return Object.entries(groupedByTurn).map(([turn, entries], turnIdx) => (
+                        <div key={`turn-${turn}`}>
+                          {/* Turn separator */}
+                          {turnIdx > 0 && (
+                            <div className={`
+                              border-t border-gray-700 my-2
+                              ${compact ? 'pt-1' : 'pt-2'}
+                            `} />
                           )}
+                          
+                          {/* Turn entries */}
+                          <div className={compact ? 'space-y-1' : 'space-y-2'}>
+                            {entries.map((entry, idx) => {
+                              const hasReasoning = !!entry.reasoning;
+                              const entryKey = `${turn}-${idx}`;
+                              const isReasoningExpanded = expandedReasoningIds.has(parseInt(entryKey.replace('-', '')));
+                              
+                              return (
+                                <div 
+                                  key={entryKey}
+                                  className={`
+                                    bg-blue-900 rounded overflow-hidden
+                                    ${compact ? 'p-1.5' : 'p-2.5'}
+                                  `}
+                                >
+                                  <div className={compact ? 'text-xs' : 'text-sm'}>
+                                    {entry.description}
+                                  </div>
+                                  
+                                  {/* AI Reasoning Toggle */}
+                                  {hasReasoning && (
+                                    <div className="mt-1">
+                                      <button
+                                        onClick={() => toggleReasoning(parseInt(entryKey.replace('-', '')))}
+                                        className={`
+                                          text-purple-300 hover:text-purple-200 underline
+                                          ${compact ? 'text-[10px]' : 'text-xs'}
+                                        `}
+                                      >
+                                        {isReasoningExpanded ? '− Hide' : '+ Show'} AI reasoning
+                                      </button>
+                                      
+                                      {isReasoningExpanded && (
+                                        <div className={`
+                                          mt-1 p-1.5 bg-purple-900/50 rounded text-purple-200
+                                          ${compact ? 'text-[10px]' : 'text-xs'}
+                                        `}>
+                                          {entry.reasoning}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      );
-                    })
+                      ));
+                    })()
                   ) : (
                     /* Fallback to simple messages if no play-by-play data */
                     displayMessages.map((msg, idx) => (
