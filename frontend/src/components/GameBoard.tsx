@@ -22,15 +22,17 @@ import { SleepZoneDisplay } from './SleepZoneDisplay';
 import { ActionPanel } from './ActionPanel';
 import { TargetSelectionModal } from './TargetSelectionModal';
 import { GameMessages } from './GameMessages';
+import { Button } from './ui/Button';
 
 interface GameBoardProps {
   gameId: string;
   humanPlayerId: string;
   aiPlayerId?: string;
   onGameEnd: (winner: string, gameState: GameState) => void;
+  onConcede?: () => void;
 }
 
-export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: GameBoardProps) {
+export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd, onConcede }: GameBoardProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
   
@@ -253,6 +255,12 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     return allCards.filter(card => action.target_options?.includes(card.id));
   };
 
+  const handleConcede = () => {
+    if (confirm('Are you sure you want to concede this game? You will return to the main menu.')) {
+      onConcede?.();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-game-bg p-3">
       <div className="max-w-[1400px] mx-auto">
@@ -262,7 +270,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             player={humanPlayer}
             isActive={gameState.active_player_id === humanPlayerId}
           />
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <div 
               className={`
                 text-lg font-bold px-4 py-1 rounded-lg transition-all duration-300
@@ -274,6 +282,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             >
               {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleConcede}
+              className="text-xs"
+            >
+              Concede Game
+            </Button>
           </div>
           <div className="flex justify-end">
             <PlayerInfoBar
@@ -332,6 +348,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               <GameMessages
                 messages={messages}
                 isAIThinking={isAIThinking}
+                playByPlay={gameState?.play_by_play}
               />
 
               {/* Actions Panel */}
@@ -404,6 +421,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 messages={messages}
                 isAIThinking={isAIThinking}
                 compact={true}
+                playByPlay={gameState?.play_by_play}
               />
 
               {/* Actions Panel */}

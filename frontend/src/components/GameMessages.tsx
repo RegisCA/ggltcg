@@ -5,25 +5,62 @@
  * Supports both desktop and compact (tablet) modes.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { PlayByPlayEntry } from '../types/game';
 
 interface GameMessagesProps {
   messages: string[];
   isAIThinking?: boolean;
   compact?: boolean;  // Compact mode for tablet
+  playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
 }
 
 export function GameMessages({ 
   messages, 
   isAIThinking = false, 
-  compact = false 
+  compact = false,
+  playByPlay = []
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [lastSeenCount, setLastSeenCount] = useState(0);
+  const [expandedReasoningIds, setExpandedReasoningIds] = useState<Set<number>>(new Set());
+
+  // Default to collapsed on mobile (<768px)
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      setIsCollapsed(isMobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Update last seen count when expanded
+  useEffect(() => {
+    if (!isCollapsed) {
+      setLastSeenCount(messages.length);
+    }
+  }, [isCollapsed, messages.length]);
 
   // In compact mode, show fewer messages by default
   const displayMessages = compact ? messages.slice(-5) : messages;
   const messageCount = messages.length;
+  const newEventCount = Math.max(0, messageCount - lastSeenCount);
+
+  const toggleReasoning = (index: number) => {
+    setExpandedReasoningIds(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="bg-gray-800 rounded border border-gray-700 overflow-hidden">
@@ -48,6 +85,14 @@ export function GameMessages({
               ${compact ? 'text-[10px]' : 'text-xs'}
             `}>
               {messageCount}
+            </span>
+          )}
+          {isCollapsed && newEventCount > 0 && (
+            <span className={`
+              px-1.5 py-0.5 rounded-full bg-amber-900 text-amber-300 font-semibold
+              ${compact ? 'text-[10px]' : 'text-xs'}
+            `}>
+              {newEventCount} new
             </span>
           )}
         </div>
@@ -90,17 +135,65 @@ export function GameMessages({
                 </div>
               ) : (
                 <div className={compact ? 'space-y-1' : 'space-y-2'}>
-                  {displayMessages.map((msg, idx) => (
-                    <div 
-                      key={`${idx}-${msg.substring(0, 20)}`} 
-                      className={`
-                        bg-blue-900 rounded
-                        ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}
-                      `}
-                    >
-                      {msg}
-                    </div>
-                  ))}
+                  {/* If we have play-by-play data with reasoning, use it */}
+                  {playByPlay.length > 0 ? (
+                    playByPlay.slice(compact ? -5 : undefined).map((entry, idx) => {
+                      const hasReasoning = !!entry.reasoning;
+                      const isReasoningExpanded = expandedReasoningIds.has(idx);
+                      
+                      return (
+                        <div 
+                          key={`${idx}-${entry.turn}-${entry.action_type}`}
+                          className={`
+                            bg-blue-900 rounded overflow-hidden
+                            ${compact ? 'p-1' : 'p-2'}
+                          `}
+                        >
+                          <div className={compact ? 'text-xs' : 'text-sm'}>
+                            {entry.description}
+                          </div>
+                          
+                          {/* AI Reasoning Toggle */}
+                          {hasReasoning && (
+                            <div className="mt-1">
+                              <button
+                                onClick={() => toggleReasoning(idx)}
+                                className={`
+                                  text-purple-300 hover:text-purple-200 underline
+                                  ${compact ? 'text-[10px]' : 'text-xs'}
+                                `}
+                              >
+                                {isReasoningExpanded ? '− Hide' : '+ Show'} AI reasoning
+                              </button>
+                              
+                              {isReasoningExpanded && (
+                                <div className={`
+                                  mt-1 p-1.5 bg-purple-900/50 rounded text-purple-200
+                                  ${compact ? 'text-[10px]' : 'text-xs'}
+                                `}>
+                                  {entry.reasoning}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    /* Fallback to simple messages if no play-by-play data */
+                    displayMessages.map((msg, idx) => (
+                      <div 
+                        key={`${idx}-${msg.substring(0, 20)}`} 
+                        className={`
+                          bg-blue-900 rounded
+                          ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}
+                        `}
+                      >
+                        {msg}
+                      </div>
+                    ))
+                  )}
+                  
                   {isAIThinking && (
                     <div 
                       className={`

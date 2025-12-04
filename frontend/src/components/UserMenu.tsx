@@ -27,10 +27,10 @@ export const UserMenu: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-4 left-4 z-50">
+    <div className="fixed top-4 right-4 z-50">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors backdrop-blur-sm"
+        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors backdrop-blur-sm border border-white/20"
       >
         <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center font-bold">
           {user.first_name.charAt(0).toUpperCase()}
@@ -54,8 +54,8 @@ export const UserMenu: React.FC = () => {
             onClick={() => setIsOpen(false)}
           />
           
-          {/* Dropdown menu */}
-          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl overflow-hidden z-50">
+          {/* Dropdown menu - positioned to the right */}
+          <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl overflow-hidden z-50">
             <div className="p-4 bg-gradient-to-br from-purple-500 to-blue-500 text-white">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-bold text-xl">

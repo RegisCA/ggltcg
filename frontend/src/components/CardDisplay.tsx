@@ -103,7 +103,7 @@ export function CardDisplay({
       role={isClickable ? "button" : undefined}
       aria-label={isClickable ? `${card.name} card` : undefined}
       className={`
-        rounded
+        rounded relative
         ${isClickable && !effectivelyDisabled ? 'cursor-pointer' : ''}
         ${effectivelyDisabled ? 'opacity-50 cursor-not-allowed' : ''}
       `}
