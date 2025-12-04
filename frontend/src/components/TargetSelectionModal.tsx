@@ -122,7 +122,7 @@ export function TargetSelectionModal({
         }}
       >
         {/* Header */}
-        <div className="p-4 border-b-4 border-game-accent bg-gray-800 flex-shrink-0">
+        <div className="p-6 border-b-4 border-game-accent bg-gray-800 flex-shrink-0">
           <h2 className="text-2xl font-bold mb-1 text-game-highlight">
             {action.action_type === 'tussle' 
               ? `Tussle with ${action.card_name}` 
@@ -165,7 +165,7 @@ export function TargetSelectionModal({
         <div className="flex-1 overflow-y-auto">
           {/* Ballaber alternative cost: one-click selection */}
           {hasAlternativeCost && (
-            <div className="p-4 bg-gray-900">
+            <div className="p-6 bg-gray-900">
               <h3 className="text-lg font-bold mb-3">Pay cost to play Ballaber:</h3>
               <button
                 style={
@@ -224,7 +224,7 @@ export function TargetSelectionModal({
 
           {/* Target Selection (for other cards) */}
           {!useAlternativeCost && availableTargets.length > 0 && (
-            <div className="p-4">
+            <div className="p-6">
             <h3 className="text-lg font-bold mb-3">
               {maxTargets > 1
                 ? `Select up to ${maxTargets} target${maxTargets !== 1 ? 's' : ''}`
@@ -262,7 +262,7 @@ export function TargetSelectionModal({
           )}
 
           {!useAlternativeCost && availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
-            <div className="p-4 text-center text-gray-400">
+            <div className="p-6 text-center text-gray-400">
               No targets available, but you can still play this card.
             </div>
           )}

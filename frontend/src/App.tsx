@@ -8,7 +8,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/LoadingScreen';
 import LoginPage from './components/LoginPage';
-import { UserMenu } from './components/UserMenu';
 import { LobbyHome } from './components/LobbyHome';
 import { LobbyCreate } from './components/LobbyCreate';
 import { LobbyJoin } from './components/LobbyJoin';
@@ -352,13 +351,8 @@ function AuthWrapper() {
     );
   }
 
-  // Show game app if authenticated with UserMenu overlay
-  return (
-    <>
-      <UserMenu />
-      <GameApp />
-    </>
-  );
+  // Show game app if authenticated
+  return <GameApp />;
 }
 
 export default App;
