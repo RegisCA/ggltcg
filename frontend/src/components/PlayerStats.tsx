@@ -163,7 +163,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
                         key={card.card_name}
                         className="flex items-center gap-3 p-3 bg-gray-900/90 rounded-lg"
                       >
-                        <div className="flex-1 font-medium text-white">{card.card_name}</div>
+                        <div className="flex-1 font-medium text-white" style={{ paddingLeft: 'var(--spacing-component-sm)' }}>{card.card_name}</div>
                         <div className="text-sm text-gray-300">
                           {card.games_won}W / {card.games_played - card.games_won}L
                         </div>
