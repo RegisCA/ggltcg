@@ -14,7 +14,7 @@ interface ProfileEditModalProps {
 }
 
 export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ isOpen, onClose }) => {
-  const { user, token, updateUser } = useAuth();
+  const { user, token, updateUser, logout } = useAuth();
   const [displayName, setDisplayName] = useState(user?.custom_display_name || '');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +46,19 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ isOpen, onCl
     } catch (err: unknown) {
       console.error('Failed to update display name:', err);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setError((err as any).response?.data?.detail || 'Failed to update display name. Please try again.');
+      const errorResponse = (err as any).response;
+      
+      // Handle expired token (401 Unauthorized)
+      if (errorResponse?.status === 401) {
+        // Token has expired - log user out and show friendly message
+        logout();
+        setError('Your session has expired. Please log in again to edit your profile.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Handle other errors
+      setError(errorResponse?.data?.detail || 'Failed to update display name. Please try again.');
     } finally {
       setIsLoading(false);
     }
