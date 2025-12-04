@@ -214,9 +214,19 @@ def extract_metadata(game_state: GameState) -> Dict[str, Any]:
         
     Returns:
         Dictionary with metadata fields
+        
+    Raises:
+        ValueError: If game state has invalid player configuration
     """
     # Get player information
     player_ids = list(game_state.players.keys())
+    
+    if len(player_ids) < 2:
+        raise ValueError(
+            f"Invalid game state: Expected 2 players, found {len(player_ids)}. "
+            "Both players cannot have the same player ID."
+        )
+    
     player1_id = player_ids[0]
     player2_id = player_ids[1]
     
