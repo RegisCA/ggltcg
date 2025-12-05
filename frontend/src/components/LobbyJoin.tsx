@@ -105,10 +105,11 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
                 disabled={isJoining}
                 autoFocus
                 className={`
-                  w-full px-4 py-3 rounded bg-gray-700 border-2 text-2xl font-mono text-center tracking-widest
+                  w-full rounded bg-gray-700 border-2 text-2xl font-mono text-center tracking-widest
                   focus:outline-none focus:border-game-highlight transition-colors uppercase
                   ${isJoining ? 'opacity-50 cursor-not-allowed' : 'border-gray-600'}
                 `}
+                style={{ padding: 'var(--spacing-component-md) var(--spacing-component-md)' }}
               />
               <p className="text-xs text-gray-400 text-center" style={{ marginTop: '4px' }}>
                 Example: 9P47XA
@@ -127,12 +128,13 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
               onClick={handleJoin}
               disabled={!gameCode.trim() || isJoining}
               className={`
-                w-full py-4 rounded-lg font-bold text-xl transition-all
+                w-full rounded-lg font-bold text-xl transition-all
                 ${!gameCode.trim() || isJoining
                   ? 'bg-gray-600 cursor-not-allowed opacity-50'
                   : 'bg-game-highlight hover:bg-red-600 cursor-pointer'
                 }
               `}
+              style={{ padding: 'var(--spacing-component-md) 0' }}
             >
               {isJoining ? 'Joining Game...' : 'Join Game 🔗'}
             </button>

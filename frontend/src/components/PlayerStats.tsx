@@ -74,14 +74,14 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
         {/* Content */}
         <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
-            <div className="text-center py-8">
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
               <div className="text-4xl animate-bounce" style={{ marginBottom: 'var(--spacing-component-md)' }}>📈</div>
               <p className="text-gray-400">Loading stats...</p>
             </div>
           )}
 
           {error && (
-            <div className="text-center py-8">
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
               <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>😢</div>
               <p className="text-red-400">{error}</p>
               <button

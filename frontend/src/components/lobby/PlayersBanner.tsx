@@ -28,7 +28,7 @@ export function PlayersBanner({
         </div>
         
         {/* VS divider */}
-        <div className="text-2xl font-bold text-gray-500 px-4">VS</div>
+        <div className="text-2xl font-bold text-gray-500" style={{ paddingLeft: 'var(--spacing-component-md)', paddingRight: 'var(--spacing-component-md)' }}>VS</div>
         
         {/* Player 2 - Left aligned */}
         <div className="text-left">

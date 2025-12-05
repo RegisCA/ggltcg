@@ -69,7 +69,7 @@ export function GameMessages({
           borderBottom: !isCollapsed ? '1px solid rgb(55 65 81)' : 'none'
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center" style={{ gap: 'var(--spacing-component-xs)' }}>
           <span className={`text-gray-400 font-medium ${compact ? 'text-xs' : 'text-sm'}`}>
             Game Log
           </span>
@@ -149,14 +149,18 @@ export function GameMessages({
                         <div key={`turn-${turn}`}>
                           {/* Turn separator */}
                           {turnIdx > 0 && (
-                            <div className={`
-                              border-t border-gray-700 my-2
-                              ${compact ? 'pt-1' : 'pt-2'}
-                            `} />
+                            <div 
+                              className="border-t border-gray-700"
+                              style={{ 
+                                marginTop: 'var(--spacing-component-xs)', 
+                                marginBottom: 'var(--spacing-component-xs)',
+                                paddingTop: compact ? '4px' : 'var(--spacing-component-xs)'
+                              }}
+                            />
                           )}
                           
                           {/* Turn entries */}
-                          <div className={compact ? 'space-y-1' : 'space-y-2'}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? '4px' : 'var(--spacing-component-xs)' }}>
                             {entries.map((entry, idx) => {
                               const entryKey = `${turn}-${idx}`;
                               

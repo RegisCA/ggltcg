@@ -265,12 +265,13 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           <div className="text-center">
             <div 
               className={`
-                text-lg font-bold px-4 py-1 rounded-lg transition-all duration-300
+                text-lg font-bold rounded-lg transition-all duration-300
                 ${isHumanTurn 
                   ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
                   : 'bg-gray-700 text-gray-300'
                 }
               `}
+              style={{ padding: '4px var(--spacing-component-md)' }}
             >
               {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
             </div>

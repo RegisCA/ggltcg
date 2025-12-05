@@ -106,14 +106,14 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
         {/* Content */}
         <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
-            <div className="text-center py-8">
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
               <div className="text-4xl animate-bounce" style={{ marginBottom: 'var(--spacing-component-md)' }}>🎲</div>
               <p className="text-gray-400">Loading leaderboard...</p>
             </div>
           )}
 
           {error && (
-            <div className="text-center py-8">
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
               <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>😢</div>
               <p className="text-red-400">{error}</p>
               <button
@@ -126,7 +126,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
           )}
 
           {!loading && !error && leaderboard && leaderboard.entries.length === 0 && (
-            <div className="text-center py-8">
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
               <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>🎮</div>
               <p className="text-gray-400">No players on the leaderboard yet!</p>
               <p className="text-gray-500 text-sm" style={{ marginTop: 'var(--spacing-component-xs)' }}>

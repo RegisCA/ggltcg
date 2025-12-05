@@ -158,14 +158,16 @@ export function LobbyHome({
           <p style={{ marginTop: 'var(--spacing-component-xs)' }}>
             <button
               onClick={onShowPrivacyPolicy}
-              className="text-blue-400 hover:underline mx-2"
+              className="text-blue-400 hover:underline"
+              style={{ marginLeft: 'var(--spacing-component-xs)', marginRight: 'var(--spacing-component-xs)' }}
             >
               Privacy Policy
             </button>
             •
             <button
               onClick={onShowTermsOfService}
-              className="text-blue-400 hover:underline mx-2"
+              className="text-blue-400 hover:underline"
+              style={{ marginLeft: 'var(--spacing-component-xs)', marginRight: 'var(--spacing-component-xs)' }}
             >
               Terms of Service
             </button>
