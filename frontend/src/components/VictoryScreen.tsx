@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Button } from './ui/Button';
 import type { GameState } from '../types/game';
 import { generateNarrative } from '../api/gameService';
 
@@ -73,10 +72,17 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
           <p className="text-2xl sm:text-4xl" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
             {winnerPlayer?.name || gameState.winner} Wins!
           </p>
-          {/* Back to Main Menu Button */}
-          <Button variant="primary" size="lg" onClick={onPlayAgain}>
-            Back to Main Menu
-          </Button>
+          {/* Back to Main Menu Button - styled prominently to match the header scale */}
+          <button
+            onClick={onPlayAgain}
+            className="bg-game-highlight hover:bg-red-600 text-white font-bold text-xl sm:text-2xl rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 shadow-lg hover:shadow-xl"
+            style={{ 
+              padding: 'var(--spacing-component-md) var(--spacing-component-xl)',
+              minWidth: '250px'
+            }}
+          >
+            🏠 Back to Main Menu
+          </button>
         </div>
 
         {/* Play-by-Play Summary */}
