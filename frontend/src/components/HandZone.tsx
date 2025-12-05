@@ -12,8 +12,8 @@ interface HandZoneProps {
   onCardClick?: (cardId: string) => void;
   playableCardIds?: string[];  // IDs of cards that can be played this turn
   isPlayerTurn?: boolean;  // Whether it's the player's turn
-  cardSize?: 'small' | 'medium';  // Responsive card size
-  compact?: boolean;  // Compact mode for landscape tablets - scrollable horizontal
+  size?: 'small' | 'medium';  // Responsive card size (matches CardDisplay)
+  isCompact?: boolean;  // Compact mode for landscape tablets - scrollable horizontal
   enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
@@ -23,13 +23,17 @@ export function HandZone({
   onCardClick, 
   playableCardIds = [],
   isPlayerTurn = false,
-  cardSize = 'medium',
-  compact = false,
+  size = 'medium',
+  isCompact = false,
   enableLayoutAnimation = false,
 }: HandZoneProps) {
   const cardList = cards || [];
-  // Reduce minHeight to allow more flexible vertical space distribution
-  const minHeight = compact ? '130px' : (cardSize === 'small' ? '140px' : '180px');
+  
+  // Zone height optimized for card display (from design system):
+  // - isCompact (landscape tablet): reduced 130px for horizontal scrolling
+  // - small cards: 164px card height, ~140px zone allows slight overlap with controls
+  // - medium cards: 225px card height, ~180px zone for comfortable display
+  const minHeight = isCompact ? '130px' : (size === 'small' ? '140px' : '180px');
   
   return (
     <div className="bg-blue-950 rounded border-2 border-blue-700 flex">
@@ -44,7 +48,7 @@ export function HandZone({
       </div>
       
       {/* Cards Area */}
-      <div className={`flex-1 ${compact ? 'overflow-x-auto' : ''}`} style={{ padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}>
+      <div className={`flex-1 ${isCompact ? 'overflow-x-auto' : ''}`} style={{ padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}>
         {cardList.length === 0 ? (
           <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             No cards in hand
@@ -61,7 +65,7 @@ export function HandZone({
                 <CardDisplay
                   key={card.id}
                   card={card}
-                  size={cardSize}
+                  size={size}
                   isSelected={selectedCard === card.id}
                   isClickable={!!onCardClick}
                   isUnplayable={isPlayerTurn && !isPlayable}

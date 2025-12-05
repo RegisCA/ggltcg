@@ -9,22 +9,28 @@ import type { Card } from '../types/game';
 interface SleepZoneDisplayProps {
   cards: Card[];
   playerName: string;
-  compact?: boolean;  // Reduce spacing in tablet mode
+  isCompact?: boolean;  // Reduce spacing in tablet mode
   enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
 export function SleepZoneDisplay({ 
   cards, 
   playerName, 
-  compact = false,
+  isCompact = false,
   enableLayoutAnimation = false,
 }: SleepZoneDisplayProps) {
   const cardList = cards || [];
-  // Calculate height: base card height (164px for small) + offset for each additional card
-  const stackOffset = compact ? 22 : 28;
-  const horizontalOffset = compact ? 18 : 25;
-  const stackHeight = cardList.length > 0 ? 164 + (cardList.length - 1) * stackOffset : 160;
-  const minHeight = compact ? '180px' : '200px';
+  
+  // Card layout constants from design system (CSS variables)
+  // Small card height: 164px (from --spacing-card-small-h)
+  const CARD_SMALL_HEIGHT = 164;
+  // Stack offsets from CSS: --card-stack-offset-vertical(-compact), --card-stack-offset-horizontal(-compact)
+  const stackOffset = isCompact ? 22 : 28;  // Matches CSS variables
+  const horizontalOffset = isCompact ? 18 : 25;  // Matches CSS variables
+  
+  // Calculate total stack height: first card full height + additional cards at offset
+  const stackHeight = cardList.length > 0 ? CARD_SMALL_HEIGHT + (cardList.length - 1) * stackOffset : CARD_SMALL_HEIGHT;
+  const minHeight = isCompact ? '180px' : '200px';
   
   return (
     <div className="bg-gray-800 rounded border border-gray-700" style={{ minHeight, padding: 'var(--spacing-component-sm)' }}>

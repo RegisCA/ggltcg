@@ -48,7 +48,7 @@
   --font-family-bangers: 'Bangers', 'Impact', sans-serif;
   --font-family-lato: 'Lato', 'Arial', sans-serif;
   
-  /* Spacing tokens for card dimensions */
+  /* Spacing tokens for card dimensions (from UX spec) */
   --spacing-card-base-w: 825px;
   --spacing-card-base-h: 1125px;
   --spacing-card-small-w: 120px;
@@ -57,6 +57,14 @@
   --spacing-card-medium-h: 225px;
   --spacing-card-large-w: 330px;
   --spacing-card-large-h: 450px;
+  
+  /* Card stacking offsets for sleep zone display */
+  /* These create the visual "fanned stack" effect when cards overlap */
+  /* Calculated to show ~15% of each covered card for readability */
+  --card-stack-offset-vertical: 28px;         /* Vertical spacing between stacked cards (desktop) */
+  --card-stack-offset-horizontal: 25px;       /* Horizontal offset for cascading effect (desktop) */
+  --card-stack-offset-vertical-compact: 22px; /* Vertical spacing (tablet/compact) */
+  --card-stack-offset-horizontal-compact: 18px; /* Horizontal offset (tablet/compact) */
   
   /* Scale transformations */
   --scale-145: 1.45;

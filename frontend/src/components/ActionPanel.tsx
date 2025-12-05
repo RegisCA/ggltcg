@@ -12,7 +12,7 @@ interface ActionPanelProps {
   onAction: (action: ValidAction) => void;
   isProcessing: boolean;
   currentCC: number;
-  compact?: boolean;  // Smaller buttons for tablet
+  isCompact?: boolean;  // Smaller buttons for tablet
 }
 
 export function ActionPanel({
@@ -20,7 +20,7 @@ export function ActionPanel({
   onAction,
   isProcessing,
   currentCC,
-  compact = false,
+  isCompact = false,
 }: ActionPanelProps) {
   const [shouldBlink, setShouldBlink] = useState(false);
   const [lastActionTime, setLastActionTime] = useState(Date.now());
@@ -141,14 +141,14 @@ export function ActionPanel({
 return (
   <div 
     className="bg-game-card rounded border-2 border-game-accent w-full"
-    style={{ padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}
+    style={{ padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}
   >
     <div style={{ marginBottom: 'var(--spacing-component-xs)' }}>
       <h3 
         className="font-bold"
         style={{ 
-          fontSize: compact ? '0.875rem' : '1.125rem', 
-          marginBottom: compact ? '2px' : '4px' 
+          fontSize: isCompact ? '0.875rem' : '1.125rem', 
+          marginBottom: isCompact ? '2px' : '4px' 
         }}
       >
         Available Actions
@@ -162,8 +162,8 @@ return (
       <div 
         className="text-gray-500 italic text-center"
         style={{ 
-          padding: compact ? 'var(--spacing-component-xs) 0' : 'var(--spacing-component-md) 0', 
-          fontSize: compact ? '0.75rem' : undefined 
+          padding: isCompact ? 'var(--spacing-component-xs) 0' : 'var(--spacing-component-md) 0', 
+          fontSize: isCompact ? '0.75rem' : undefined 
         }}
       >
         No actions available
@@ -183,18 +183,18 @@ return (
               focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
             `}
             style={{
-              padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
-              fontSize: compact ? '0.75rem' : '0.875rem'
+              padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+              fontSize: isCompact ? '0.75rem' : '0.875rem'
             }}
           >
             <div className="flex justify-between items-center w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
               <span 
                 className="flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white"
                 style={{ 
-                  width: compact ? '20px' : '24px', 
-                  height: compact ? '20px' : '24px', 
-                  fontSize: compact ? '10px' : '0.75rem',
-                  marginRight: compact ? '4px' : '0'
+                  width: isCompact ? '20px' : '24px', 
+                  height: isCompact ? '20px' : '24px', 
+                  fontSize: isCompact ? '10px' : '0.75rem',
+                  marginRight: isCompact ? '4px' : '0'
                 }}
               >
                 0
@@ -234,8 +234,8 @@ return (
                     focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-game-card
                   `}
                   style={{
-                    padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
-                    fontSize: compact ? '0.75rem' : '0.875rem'
+                    padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+                    fontSize: isCompact ? '0.75rem' : '0.875rem'
                   }}
                 >
                   <div className="flex justify-between items-center w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
@@ -244,10 +244,10 @@ return (
                       <span 
                         className="flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white"
                         style={{ 
-                          width: compact ? '20px' : '24px', 
-                          height: compact ? '20px' : '24px', 
-                          fontSize: compact ? '10px' : '0.75rem',
-                          marginRight: compact ? '4px' : '0'
+                          width: isCompact ? '20px' : '24px', 
+                          height: isCompact ? '20px' : '24px', 
+                          fontSize: isCompact ? '10px' : '0.75rem',
+                          marginRight: isCompact ? '4px' : '0'
                         }}
                       >
                         {shortcutKey}
@@ -262,7 +262,7 @@ return (
                         className="rounded font-bold whitespace-nowrap"
                         style={{
                           padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
-                          fontSize: compact ? '10px' : '0.75rem',
+                          fontSize: isCompact ? '10px' : '0.75rem',
                           backgroundColor: isUnaffordable ? 'rgb(153 27 27)' : 'rgba(0,0,0,0.4)',
                           color: 'white'
                         }}

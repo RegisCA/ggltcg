@@ -297,7 +297,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   cards={otherPlayer.in_play}
                   playerName={otherPlayer.name}
                   isHuman={false}
-                  cardSize={cardSize}
+                  size={cardSize}
                   enableLayoutAnimation={true}
                 />
                 <SleepZoneDisplay
@@ -320,7 +320,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   onCardClick={handleInPlayCardClick}
                   actionableCardIds={actionableInPlayCardIds}
                   isPlayerTurn={isHumanTurn}
-                  cardSize={cardSize}
+                  size={cardSize}
                   enableLayoutAnimation={true}
                 />
                 <SleepZoneDisplay
@@ -337,8 +337,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 onCardClick={handleHandCardClick}
                 playableCardIds={playableCardIds}
                 isPlayerTurn={isHumanTurn}
-                cardSize={cardSize}
-                compact={false}
+                size={cardSize}
+                isCompact={false}
                 enableLayoutAnimation={true}
               />
             </div>
@@ -374,7 +374,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     cards={otherPlayer.in_play}
                     playerName={otherPlayer.name}
                     isHuman={false}
-                    cardSize={cardSize}
+                    size={cardSize}
                     enableLayoutAnimation={true}
                   />
                 </div>
@@ -382,7 +382,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   <SleepZoneDisplay
                     cards={otherPlayer.sleep_zone}
                     playerName={otherPlayer.name}
-                    compact={true}
+                    isCompact={true}
                     enableLayoutAnimation={true}
                   />
                 </div>
@@ -401,7 +401,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                     onCardClick={handleInPlayCardClick}
                     actionableCardIds={actionableInPlayCardIds}
                     isPlayerTurn={isHumanTurn}
-                    cardSize={cardSize}
+                    size={cardSize}
                     enableLayoutAnimation={true}
                   />
                 </div>
@@ -409,7 +409,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   <SleepZoneDisplay
                     cards={humanPlayer.sleep_zone}
                     playerName={humanPlayer.name}
-                    compact={true}
+                    isCompact={true}
                     enableLayoutAnimation={true}
                   />
                 </div>
@@ -422,7 +422,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               <GameMessages
                 messages={messages}
                 isAIThinking={isAIThinking}
-                compact={true}
+                isCompact={true}
                 playByPlay={gameState?.play_by_play}
               />
 
@@ -432,7 +432,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 onAction={handleAction}
                 isProcessing={isProcessing}
                 currentCC={humanPlayer.cc}
-                compact={true}
+                isCompact={true}
               />
             </div>
           </div>
@@ -445,8 +445,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               onCardClick={handleHandCardClick}
               playableCardIds={playableCardIds}
               isPlayerTurn={isHumanTurn}
-              cardSize={cardSize}
-              compact={isLandscapeTablet}
+              size={cardSize}
+              isCompact={isLandscapeTablet}
               enableLayoutAnimation={true}
             />
           </div>

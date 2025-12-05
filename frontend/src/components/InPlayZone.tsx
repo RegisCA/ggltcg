@@ -17,7 +17,7 @@ interface InPlayZoneProps {
   onCardClick?: (cardId: string) => void;
   actionableCardIds?: string[];  // IDs of cards that can perform actions (tussle/ability)
   isPlayerTurn?: boolean;  // Whether it's the player's turn
-  cardSize?: 'small' | 'medium';  // Responsive card size
+  size?: 'small' | 'medium';  // Responsive card size (matches CardDisplay)
   enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
@@ -28,12 +28,16 @@ export function InPlayZone({
   onCardClick, 
   actionableCardIds = [],
   isPlayerTurn = false,
-  cardSize = 'medium',
+  size = 'medium',
   enableLayoutAnimation = false,
 }: InPlayZoneProps) {
   const cardList = cards || [];
-  // Empty zones should collapse to minimal height
-  const minHeight = cardList.length === 0 ? '80px' : (cardSize === 'small' ? '170px' : '240px');
+  
+  // Zone height based on card size (from design system):
+  // - small cards: 164px height + padding = ~170px
+  // - medium cards: 225px height + padding = ~240px
+  // - empty zone: collapses to minimal 80px
+  const minHeight = cardList.length === 0 ? '80px' : (size === 'small' ? '170px' : '240px');
   
   return (
     <div className="bg-gray-800 rounded border border-gray-700 flex">
@@ -66,7 +70,7 @@ export function InPlayZone({
                 <CardDisplay
                   key={card.id}
                   card={card}
-                  size={cardSize}
+                  size={size}
                   isSelected={selectedCard === card.id}
                   isClickable={isClickable}
                   isHighlighted={isActionable}

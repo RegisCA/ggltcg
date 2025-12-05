@@ -12,14 +12,14 @@ import type { PlayByPlayEntry } from '../types/game';
 interface GameMessagesProps {
   messages: string[];
   isAIThinking?: boolean;
-  compact?: boolean;  // Compact mode for tablet
+  isCompact?: boolean;  // Compact mode for tablet
   playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
 }
 
 export function GameMessages({ 
   messages, 
   isAIThinking = false, 
-  compact = false,
+  isCompact = false,
   playByPlay = []
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -53,7 +53,7 @@ export function GameMessages({
   }, [playByPlay.length, messages.length, isCollapsed]);
 
   // In compact mode, show fewer messages by default
-  const displayMessages = compact ? messages.slice(-5) : messages;
+  const displayMessages = isCompact ? messages.slice(-5) : messages;
   const messageCount = messages.length;
   const newEventCount = Math.max(0, messageCount - lastSeenCount);
 
@@ -65,12 +65,12 @@ export function GameMessages({
         aria-label={isCollapsed ? "Expand game log" : "Collapse game log"}
         className="w-full flex items-center justify-between bg-gray-900 hover:bg-gray-800 transition-colors"
         style={{
-          padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
+          padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
           borderBottom: !isCollapsed ? '1px solid rgb(55 65 81)' : 'none'
         }}
       >
         <div className="flex items-center" style={{ gap: 'var(--spacing-component-xs)' }}>
-          <span className={`text-gray-400 font-medium ${compact ? 'text-xs' : 'text-sm'}`}>
+          <span className={`text-gray-400 font-medium ${isCompact ? 'text-xs' : 'text-sm'}`}>
             Game Log
           </span>
           {isCollapsed && newEventCount > 0 && (
@@ -78,7 +78,7 @@ export function GameMessages({
               className="rounded-full bg-amber-900 text-amber-300 font-semibold"
               style={{
                 padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
-                fontSize: compact ? '10px' : '0.75rem'
+                fontSize: isCompact ? '10px' : '0.75rem'
               }}
             >
               {newEventCount} new
@@ -89,8 +89,8 @@ export function GameMessages({
           aria-hidden="true"
           className="text-gray-400 flex-shrink-0 transition-transform duration-200"
           style={{
-            width: compact ? '12px' : '16px',
-            height: compact ? '12px' : '16px',
+            width: isCompact ? '12px' : '16px',
+            height: isCompact ? '12px' : '16px',
             transform: isCollapsed ? 'none' : 'rotate(180deg)'
           }}
           fill="none"
@@ -107,14 +107,14 @@ export function GameMessages({
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ 
-              height: compact ? '150px' : '350px',
+              height: isCompact ? '150px' : '350px',
               opacity: 1 
             }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
             style={{
-              maxHeight: compact ? '150px' : '350px'
+              maxHeight: isCompact ? '150px' : '350px'
             }}
           >
             <div
@@ -122,20 +122,20 @@ export function GameMessages({
               className="h-full"
               style={{ 
                 overflowY: 'auto',
-                padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-md)'
+                padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-md)'
               }}
             >
               {displayMessages.length === 0 && !isAIThinking ? (
-                <div className={`text-gray-500 italic ${compact ? 'text-xs' : 'text-sm'}`}>
+                <div className={`text-gray-500 italic ${isCompact ? 'text-xs' : 'text-sm'}`}>
                   No messages yet
                 </div>
               ) : (
-                <div className={compact ? 'space-y-1' : 'space-y-2'}>
+                <div className={isCompact ? 'space-y-1' : 'space-y-2'}>
                   {/* If we have play-by-play data with reasoning, use it */}
                   {playByPlay.length > 0 ? (
                     (() => {
                       // Group entries by turn for visual separation
-                      const entriesToShow = compact ? playByPlay.slice(-5) : playByPlay;
+                      const entriesToShow = isCompact ? playByPlay.slice(-5) : playByPlay;
                       const groupedByTurn: Record<number, typeof entriesToShow> = {};
                       
                       entriesToShow.forEach(entry => {
@@ -154,13 +154,13 @@ export function GameMessages({
                               style={{ 
                                 marginTop: 'var(--spacing-component-xs)', 
                                 marginBottom: 'var(--spacing-component-xs)',
-                                paddingTop: compact ? '4px' : 'var(--spacing-component-xs)'
+                                paddingTop: isCompact ? '4px' : 'var(--spacing-component-xs)'
                               }}
                             />
                           )}
                           
                           {/* Turn entries */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? '4px' : 'var(--spacing-component-xs)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : 'var(--spacing-component-xs)' }}>
                             {entries.map((entry, idx) => {
                               const entryKey = `${turn}-${idx}`;
                               
@@ -169,10 +169,10 @@ export function GameMessages({
                                   key={entryKey}
                                   className="bg-blue-900 rounded overflow-hidden"
                                   style={{
-                                    padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)'
+                                    padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)'
                                   }}
                                 >
-                                  <div className={compact ? 'text-xs' : 'text-sm'}>
+                                  <div className={isCompact ? 'text-xs' : 'text-sm'}>
                                     <span className="font-semibold">{entry.player}:</span> {entry.description}
                                   </div>
                                 </div>
@@ -189,8 +189,8 @@ export function GameMessages({
                         key={`${idx}-${msg.substring(0, 20)}`} 
                         className="bg-blue-900 rounded"
                         style={{
-                          padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
-                          fontSize: compact ? '0.75rem' : '0.875rem'
+                          padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                          fontSize: isCompact ? '0.75rem' : '0.875rem'
                         }}
                       >
                         {msg}
@@ -202,15 +202,15 @@ export function GameMessages({
                     <div 
                       className="bg-purple-900 rounded inline-flex items-center"
                       style={{
-                        padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
-                        gap: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
-                        fontSize: compact ? '0.75rem' : '0.875rem'
+                        padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                        gap: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                        fontSize: isCompact ? '0.75rem' : '0.875rem'
                       }}
                     >
                       <svg 
                         style={{ 
-                          width: compact ? '12px' : '14px', 
-                          height: compact ? '12px' : '14px', 
+                          width: isCompact ? '12px' : '14px', 
+                          height: isCompact ? '12px' : '14px', 
                           flexShrink: 0 
                         }}
                         className="animate-spin text-purple-300" 
@@ -230,7 +230,7 @@ export function GameMessages({
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      <span>{compact ? 'Opponent thinking...' : 'Opponent is thinking...'}</span>
+                      <span>{isCompact ? 'Opponent thinking...' : 'Opponent is thinking...'}</span>
                     </div>
                   )}
                 </div>
