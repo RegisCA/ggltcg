@@ -27,13 +27,13 @@ export function SleepZoneDisplay({
   const minHeight = compact ? '180px' : '200px';
   
   return (
-    <div className="bg-gray-800 rounded p-3 border border-gray-700" style={{ minHeight }}>
-      <div className="text-sm text-gray-400 mb-2">
+    <div className="bg-gray-800 rounded border border-gray-700" style={{ minHeight, padding: 'var(--spacing-component-sm)' }}>
+      <div className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
         {playerName} - SLEEP ZONE ({cardList.length})
       </div>
       
       {cardList.length === 0 ? (
-        <div className="text-center text-gray-600 py-4 italic text-sm">
+        <div className="text-center text-gray-600 italic text-sm" style={{ padding: 'var(--spacing-component-md) 0' }}>
           No sleeping cards
         </div>
       ) : (

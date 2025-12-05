@@ -91,7 +91,7 @@ export function LobbyWaiting({
         />
 
         {error && (
-          <div className="bg-red-900/30 border-2 border-red-500 rounded p-4 max-w-2xl mx-auto mt-4">
+          <div className="bg-red-900/30 border-2 border-red-500 rounded max-w-2xl mx-auto" style={{ padding: 'var(--spacing-component-md)', marginTop: 'var(--spacing-component-md)' }}>
             <div className="text-red-200">{error}</div>
           </div>
         )}

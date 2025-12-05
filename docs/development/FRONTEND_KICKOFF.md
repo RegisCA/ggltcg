@@ -456,4 +456,78 @@ export interface GameState {
 
 ---
 
+## Design System Standards
+
+> **Important:** All frontend code must follow the established design systems.
+
+### Spacing System
+
+**NEVER use hardcoded pixel values or Tailwind spacing utilities for component spacing.**
+
+Use CSS design tokens defined in `frontend/src/index.css`:
+
+```tsx
+// ✅ CORRECT
+<div style={{ padding: 'var(--spacing-component-md)' }}>
+<div style={{ gap: 'var(--spacing-component-sm)' }}>
+
+// ❌ WRONG
+<div style={{ padding: '16px' }}>
+<div className="p-4 gap-2">
+```
+
+**Tokens:**
+
+- `--spacing-component-xs`: 8px
+- `--spacing-component-sm`: 12px
+- `--spacing-component-md`: 16px
+- `--spacing-component-lg`: 24px
+- `--spacing-component-xl`: 32px
+
+See: `.github/instructions/coding.instructions.md` for complete standards.
+
+### Typography System
+
+All text must meet WCAG AA contrast standards. Use established color pairings:
+
+```tsx
+// Primary text
+<h1 className="text-2xl font-bold text-white">
+
+// Secondary text
+<p className="text-base text-gray-300">
+
+// Muted/metadata
+<span className="text-sm text-gray-400">
+```
+
+**Fonts:**
+
+- **Bangers:** Headings, card names, branding
+- **Lato:** Body text, labels, UI
+
+See: `docs/development/TYPOGRAPHY_DESIGN_SYSTEM.md` for complete documentation.
+
+### Component Patterns
+
+Use the unified component library:
+
+- **Button component** (`components/ui/Button.tsx`) - Consistent button variants
+- **Modal component** (`components/ui/Modal.tsx`) - Accessible modal wrapper with focus trap
+
+### Responsive Design
+
+Use the `useResponsive` hook for breakpoint detection:
+
+```tsx
+const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
+
+// Apply compact spacing on smaller screens
+const padding = isMobile 
+  ? 'var(--spacing-component-sm)' 
+  : 'var(--spacing-component-md)';
+```
+
+---
+
 **Ready to build!** The backend is solid, tested, and waiting for a beautiful React UI. 🚀

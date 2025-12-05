@@ -254,10 +254,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   };
 
   return (
-    <div className="min-h-screen bg-game-bg p-3">
+    <div className="min-h-screen bg-game-bg" style={{ padding: 'var(--spacing-component-sm)' }}>
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
-        <div className="mb-3 p-3 bg-game-card rounded grid grid-cols-3 gap-4 items-center">
+        <div className="bg-game-card rounded grid grid-cols-3 items-center" style={{ marginBottom: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)', gap: 'var(--spacing-component-md)' }}>
           <PlayerInfoBar
             player={humanPlayer}
             isActive={gameState.active_player_id === humanPlayerId}
@@ -289,7 +289,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           /* Desktop: Left side = game zones stacked, Right side = messages + actions */
           <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '1fr 350px' }}>
             {/* Left Side - All Game Zones */}
-            <div className="space-y-3">
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
               {/* Opponent's Zones - Side by Side */}
               <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
                 <InPlayZone
@@ -343,7 +343,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             </div>
 
             {/* Right Side - Messages + Actions (Full Height) */}
-            <div className="space-y-3">
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
               {/* Messages Area */}
               <GameMessages
                 messages={messages}
@@ -365,7 +365,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           <>
           <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: '1fr 280px' }}>
             {/* Left Column - Game Zones (In Play + Sleep stacked) */}
-            <div className="space-y-2">
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
               {/* Opponent's zones */}
               <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
                 <div className="flex-1">
@@ -416,7 +416,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             </div>
 
             {/* Right Column - Messages + Actions */}
-            <div className="space-y-2">
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
               {/* Messages Area - Compact & Collapsible */}
               <GameMessages
                 messages={messages}

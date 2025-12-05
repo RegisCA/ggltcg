@@ -45,13 +45,13 @@ export function InPlayZone({
       </div>
       
       {/* Cards Area */}
-      <div className="flex-1 p-3">
+      <div className="flex-1" style={{ padding: 'var(--spacing-component-sm)' }}>
         {cardList.length === 0 ? (
           <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             No cards in play
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap" style={{ gap: 'var(--spacing-component-xs)' }}>
             {cardList.map((card) => {
               // Card is actionable if it's in the actionable list (can tussle or use ability)
               const isActionable = isPlayerTurn && actionableCardIds.includes(card.id);

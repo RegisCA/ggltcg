@@ -51,21 +51,21 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" style={{ padding: 'var(--spacing-component-md)' }}>
       <div className="bg-gray-800 rounded-xl border-4 border-purple-500 max-w-xl w-full max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-700 flex justify-between items-center" style={{ padding: 'var(--spacing-component-lg)' }}>
           <div>
             <h2 className="text-3xl font-bold text-purple-400">📊 Player Stats</h2>
             {stats && (
-              <p className="text-xl text-gray-200 mt-1 font-semibold">
+              <p className="text-xl text-gray-200 font-semibold" style={{ marginTop: '4px' }}>
                 {stats.display_name}
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl font-bold p-2"
+            className="text-gray-400 hover:text-white text-2xl font-bold" style={{ padding: 'var(--spacing-component-xs)' }}
           >
             ✕
           </button>
@@ -75,18 +75,18 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
         <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
             <div className="text-center py-8">
-              <div className="text-4xl mb-4 animate-bounce">📈</div>
+              <div className="text-4xl animate-bounce" style={{ marginBottom: 'var(--spacing-component-md)' }}>📈</div>
               <p className="text-gray-400">Loading stats...</p>
             </div>
           )}
 
           {error && (
             <div className="text-center py-8">
-              <div className="text-4xl mb-4">😢</div>
+              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>😢</div>
               <p className="text-red-400">{error}</p>
               <button
                 onClick={onClose}
-                className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                className="bg-gray-700 hover:bg-gray-600 rounded-lg" style={{ marginTop: 'var(--spacing-component-md)', padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
               >
                 Close
               </button>
@@ -94,11 +94,11 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
           )}
 
           {!loading && !error && stats && (
-            <div className="space-y-6">
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-lg)' }}>
               {/* Overall Stats */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-md)' }}>
                 {/* Win Rate */}
-                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
                   <div className={`text-3xl font-bold ${getWinRateColor(stats.win_rate)}`}>
                     {stats.win_rate.toFixed(1)}%
                   </div>
@@ -106,7 +106,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
                 </div>
 
                 {/* Games */}
-                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
                   <div className="text-3xl font-bold text-blue-400">
                     {stats.games_played}
                   </div>
@@ -114,7 +114,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
                 </div>
 
                 {/* Wins */}
-                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
                   <div className="text-3xl font-bold text-green-400">
                     {stats.games_won}
                   </div>
@@ -122,7 +122,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
                 </div>
 
                 {/* Losses */}
-                <div className="bg-gray-900/90 rounded-lg p-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
                   <div className="text-3xl font-bold text-red-400">
                     {stats.games_played - stats.games_won}
                   </div>
@@ -132,9 +132,9 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
 
               {/* Tussle Stats */}
               {stats.total_tussles > 0 && (
-                <div className="bg-gray-900/90 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3 text-orange-400">⚔️ Tussle Stats</h3>
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="bg-gray-900/90 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
+                  <h3 className="text-lg font-semibold text-orange-400" style={{ marginBottom: 'var(--spacing-component-sm)' }}>⚔️ Tussle Stats</h3>
+                  <div className="grid grid-cols-3 text-center" style={{ gap: 'var(--spacing-component-md)' }}>
                     <div>
                       <div className="text-2xl font-bold text-white">{stats.total_tussles}</div>
                       <div className="text-gray-300 text-sm">Initiated</div>
@@ -156,12 +156,13 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
               {/* Card Stats */}
               {stats.card_stats && stats.card_stats.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-3 text-cyan-400">🃏 Card Usage</h3>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                  <h3 className="text-lg font-semibold text-cyan-400" style={{ marginBottom: 'var(--spacing-component-sm)' }}>🃏 Card Usage</h3>
+                  <div className="flex flex-col max-h-48 overflow-y-auto" style={{ gap: 'var(--spacing-component-xs)' }}>
                     {stats.card_stats.map((card: CardStats) => (
                       <div
                         key={card.card_name}
-                        className="flex items-center gap-3 p-3 bg-gray-900/90 rounded-lg"
+                        className="flex items-center bg-gray-900/90 rounded-lg"
+                        style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)' }}
                       >
                         <div className="flex-1 font-medium text-white" style={{ paddingLeft: 'var(--spacing-component-sm)' }}>{card.card_name}</div>
                         <div className="text-sm text-gray-300">
@@ -180,10 +181,11 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-700">
+        <div className="border-t border-gray-700" style={{ padding: 'var(--spacing-component-md)' }}>
           <button
             onClick={onClose}
-            className="w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+            className="w-full bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+            style={{ padding: 'var(--spacing-component-sm)' }}
           >
             Close
           </button>

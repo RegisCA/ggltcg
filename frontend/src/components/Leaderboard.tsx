@@ -90,13 +90,13 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-game-highlight">🏆 Leaderboard</h2>
-              <p className="text-gray-300 mt-1">
+              <p className="text-gray-300" style={{ marginTop: '4px' }}>
                 Top players by win rate
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl font-bold p-1"
+              className="text-gray-400 hover:text-white text-2xl font-bold" style={{ padding: '4px' }}
             >
               ✕
             </button>
@@ -107,18 +107,18 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
         <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
             <div className="text-center py-8">
-              <div className="text-4xl mb-4 animate-bounce">🎲</div>
+              <div className="text-4xl animate-bounce" style={{ marginBottom: 'var(--spacing-component-md)' }}>🎲</div>
               <p className="text-gray-400">Loading leaderboard...</p>
             </div>
           )}
 
           {error && (
             <div className="text-center py-8">
-              <div className="text-4xl mb-4">😢</div>
+              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>😢</div>
               <p className="text-red-400">{error}</p>
               <button
                 onClick={fetchLeaderboard}
-                className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                className="bg-gray-700 hover:bg-gray-600 rounded-lg" style={{ marginTop: 'var(--spacing-component-md)', padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
               >
                 Retry
               </button>
@@ -127,25 +127,26 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
 
           {!loading && !error && leaderboard && leaderboard.entries.length === 0 && (
             <div className="text-center py-8">
-              <div className="text-4xl mb-4">🎮</div>
+              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>🎮</div>
               <p className="text-gray-400">No players on the leaderboard yet!</p>
-              <p className="text-gray-500 text-sm mt-2">
+              <p className="text-gray-500 text-sm" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                 Play some games to be the first!
               </p>
             </div>
           )}
 
           {!loading && !error && leaderboard && leaderboard.entries.length > 0 && (
-            <div className="space-y-3">
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
               {leaderboard.entries.map((entry: LeaderboardEntry) => (
                 <div
                   key={entry.player_id}
                   onClick={() => onViewPlayer?.(entry.player_id)}
                   className={`
-                    flex items-center gap-4 p-4 rounded-lg bg-gray-700/50 
+                    flex items-center rounded-lg bg-gray-700/50 
                     ${onViewPlayer ? 'cursor-pointer hover:bg-gray-700' : ''}
                     transition-colors
                   `}
+                  style={{ gap: 'var(--spacing-component-md)', padding: 'var(--spacing-component-md)' }}
                 >
                   {/* Rank */}
                   <div className={`text-2xl font-bold w-12 text-center ${getRankColor(entry.rank)}`}>

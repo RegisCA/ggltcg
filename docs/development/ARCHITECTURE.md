@@ -21,8 +21,9 @@
 6. [Target Selection System](#target-selection-system)
 7. [API Layer](#api-layer)
 8. [Frontend Architecture](#frontend-architecture)
-9. [Known Issues & Technical Debt](#known-issues--technical-debt)
-10. [Migration Considerations](#migration-considerations)
+9. [Frontend Design System](#frontend-design-system)
+10. [Known Issues & Technical Debt](#known-issues--technical-debt)
+11. [Migration Considerations](#migration-considerations)
 
 ---
 
@@ -937,6 +938,82 @@ App
 ```
 
 **⚠️ Issue:** Card selection uses `card.name` for matching (should use ID)
+
+---
+
+## Frontend Design System
+
+The GGLTCG frontend uses a comprehensive design system to ensure visual consistency and maintainability.
+
+### Spacing Design System
+
+All spacing uses CSS custom properties (design tokens) defined in `frontend/src/index.css`:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--spacing-component-xs` | 8px | Tight spacing (buttons, compact cards) |
+| `--spacing-component-sm` | 12px | Compact spacing (mobile, card padding) |
+| `--spacing-component-md` | 16px | Standard spacing (most components) |
+| `--spacing-component-lg` | 24px | Generous spacing (panels, modals) |
+| `--spacing-component-xl` | 32px | Large spacing (page sections) |
+
+**Usage:**
+```tsx
+<div style={{ padding: 'var(--spacing-component-md)' }}>
+<div style={{ gap: 'var(--spacing-component-sm)' }}>
+```
+
+**Rule:** NEVER use hardcoded pixel values or Tailwind spacing utilities (`p-4`, `gap-2`) for component spacing.
+
+See: `.github/instructions/coding.instructions.md` for complete standards.
+
+### Typography Design System
+
+Typography follows WCAG AA accessibility standards:
+
+| Element | Classes | Example |
+|---------|---------|---------|
+| H1 | `text-4xl font-bold text-white` | Victory screen |
+| H2 | `text-2xl font-bold text-game-highlight` | Panel titles |
+| Body | `text-base text-white` | Content |
+| Secondary | `text-sm text-gray-300` | Descriptions |
+| Muted | `text-xs text-gray-400` | Metadata |
+
+**Fonts:**
+- **Bangers:** Headings, card names, game branding
+- **Lato:** Body text, labels, UI text
+
+See: `docs/development/TYPOGRAPHY_DESIGN_SYSTEM.md` for complete documentation.
+
+### Responsive Strategy
+
+The `useResponsive` hook provides consistent breakpoint detection:
+
+```tsx
+const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
+```
+
+**Breakpoints:**
+- **Desktop:** ≥1024px - Full 2-column layout
+- **Tablet:** 768-1023px - Compact spacing, side-by-side zones
+- **Mobile:** <768px - Stacked layout, scrollable
+
+### Component Patterns
+
+**Unified Components:**
+- `Button` - Consistent button variants (primary, secondary, danger)
+- `Modal` - Accessible modal wrapper with focus trap
+
+**Zone Layout (Desktop):**
+```
+┌─────────────────────────────────────┬──────────────┐
+│  Opponent InPlay  │  Opponent Sleep │              │
+│─────────────────────────────────────│   Messages   │
+│  My InPlay        │  My Sleep       │   + Actions  │
+│─────────────────────────────────────│   (350px)    │
+│            My Hand (full-width)     │              │
+└─────────────────────────────────────┴──────────────┘
+```
 
 ---
 

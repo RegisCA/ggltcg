@@ -208,9 +208,10 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
                 >
                   <div
                     className={`
-                      w-[165px] h-[225px] rounded border-2 flex items-center justify-center p-4
+                      w-[165px] h-[225px] rounded border-2 flex items-center justify-center
                       ${isSelected ? 'border-yellow-400 bg-gray-600 shadow-lg shadow-yellow-400/30' : 'border-gray-600 bg-gray-700'}
                     `}
+                    style={{ padding: 'var(--spacing-component-md)' }}
                   >
                     <img 
                       src="/ggltcg-logo.svg" 

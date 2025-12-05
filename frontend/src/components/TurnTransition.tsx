@@ -108,8 +108,9 @@ export function TurnTransition({ isPlayerTurn, turnNumber }: TurnTransitionProps
             }
           >
             <div
-              className="px-12 py-6 rounded-lg"
+              className="rounded-lg"
               style={{
+                padding: 'var(--spacing-component-lg) var(--spacing-component-xl)',
                 background: isPlayerTurn 
                   ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
                   : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
@@ -119,7 +120,7 @@ export function TurnTransition({ isPlayerTurn, turnNumber }: TurnTransitionProps
               }}
             >
               <div className="text-white text-center">
-                <div className="text-4xl font-bold mb-1">
+                <div className="text-4xl font-bold\" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
                   {isPlayerTurn ? "Your Turn" : "Opponent's Turn"}
                 </div>
                 <div className="text-xl opacity-80">

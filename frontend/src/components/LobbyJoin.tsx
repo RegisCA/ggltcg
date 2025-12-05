@@ -92,7 +92,7 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
           <div className="content-spacing">
             {/* Game Code Input */}
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-300">
+              <label className="block text-sm font-semibold text-gray-300" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
                 Game Code
               </label>
               <input
@@ -110,14 +110,14 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
                   ${isJoining ? 'opacity-50 cursor-not-allowed' : 'border-gray-600'}
                 `}
               />
-              <p className="text-xs text-gray-400 mt-1 text-center">
+              <p className="text-xs text-gray-400 text-center" style={{ marginTop: '4px' }}>
                 Example: 9P47XA
               </p>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-900/30 border-2 border-red-500 rounded p-3 text-red-200 text-sm">
+              <div className="bg-red-900/30 border-2 border-red-500 rounded text-red-200 text-sm" style={{ padding: 'var(--spacing-component-sm)' }}>
                 {error}
               </div>
             )}
@@ -140,11 +140,11 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
         </div>
 
         {/* Info Box */}
-        <div className="mt-6 bg-purple-900/20 border-2 border-purple-500/50 rounded-lg p-4">
-          <div className="flex items-start gap-3">
+        <div className="bg-purple-900/20 border-2 border-purple-500/50 rounded-lg" style={{ marginTop: 'var(--spacing-component-lg)', padding: 'var(--spacing-component-md)' }}>
+          <div className="flex items-start" style={{ gap: 'var(--spacing-component-sm)' }}>
             <div className="text-2xl">💡</div>
             <div className="text-sm text-gray-300">
-              <p className="font-semibold mb-1">Need a game code?</p>
+              <p className="font-semibold" style={{ marginBottom: '4px' }}>Need a game code?</p>
               <p className="text-gray-400">
                 Ask your friend to create a game and share the 6-character code with you.
               </p>

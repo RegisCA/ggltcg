@@ -16,13 +16,13 @@ export function PlayerInfoBar({ player, isActive }: PlayerInfoBarProps) {
   
   return (
     // We keep the parent flex container and items-center for vertical alignment
-    <div className={`flex items-center gap-4 ${isActive ? 'font-extrabold' : ''}`}>
+    <div className={`flex items-center ${isActive ? 'font-extrabold' : ''}`} style={{ gap: 'var(--spacing-component-md)' }}>
       
       {/* 1. Player Name (Standard Size) */}
       <span className="text-lg">{player.name}</span>
 
       {/* 2. Hand Count (Bigger Number, Smaller Label) */}
-      <div className="flex items-end leading-none gap-1">
+      <div className="flex items-end leading-none" style={{ gap: 'var(--spacing-component-xs)' }}>
         <span className="text-2xl font-bold">({handCount})</span>
         <span className="text-sm text-gray-400">Hand</span>
       </div>
@@ -30,7 +30,7 @@ export function PlayerInfoBar({ player, isActive }: PlayerInfoBarProps) {
       <span className="text-sm text-gray-400">|</span>
       
       {/* 3. CC Count (Bigger Number, Smaller Label) */}
-      <div className="flex items-end leading-none gap-1">
+      <div className="flex items-end leading-none" style={{ gap: 'var(--spacing-component-xs)' }}>
         <span className="text-2xl font-bold">{player.cc}</span>
         <span className="text-sm text-gray-400">CC</span>
       </div>
