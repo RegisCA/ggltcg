@@ -149,9 +149,9 @@ class GameEngine:
                 else:
                     return False, "Alternative cost card not found"
         
-        # Calculate cost (pass target_name for Copy if available)
-        target_name = kwargs.get("target_name")
-        cost = self.calculate_card_cost(card, player, target_name=target_name)
+        # Calculate cost (pass target_id for Copy if available)
+        target_id = kwargs.get("target_id")
+        cost = self.calculate_card_cost(card, player, target_id=target_id)
         
         # Check if player has enough CC
         if not player.has_cc(cost):
@@ -178,14 +178,14 @@ class GameEngine:
                 return card
         return None
     
-    def calculate_card_cost(self, card: Card, player: Player, target_name: Optional[str] = None) -> int:
+    def calculate_card_cost(self, card: Card, player: Player, target_id: Optional[str] = None) -> int:
         """
         Calculate the actual cost to play a card after modifications.
         
         Args:
             card: Card being played
             player: Player playing the card
-            target_name: Optional target card name (for Copy)
+            target_id: Optional target card ID (for Copy)
             
         Returns:
             Final cost in CC
@@ -198,9 +198,9 @@ class GameEngine:
             # For Copy, the cost equals the cost of the card being copied
             target_card = None
             
-            # If a specific target is named, use that
-            if target_name:
-                target_card = next((c for c in player.in_play if c.name == target_name), None)
+            # If a specific target ID is provided, use that
+            if target_id:
+                target_card = self.game_state.find_card_by_id(target_id)
             
             # Otherwise, use the lowest cost card in play (most conservative estimate)
             if target_card is None and player.in_play:
@@ -279,8 +279,8 @@ class GameEngine:
             )
         else:
             # Calculate and pay normal cost
-            target_name = kwargs.get("target_name")
-            cost = self.calculate_card_cost(card, player, target_name=target_name)
+            target_id = kwargs.get("target_id")
+            cost = self.calculate_card_cost(card, player, target_id=target_id)
             if not player.spend_cc(cost):
                 return False
             
@@ -572,8 +572,8 @@ class GameEngine:
         Calculate the cost to initiate a tussle.
         
         Base cost is 2 CC, modified by:
-        - Wizard: Tussles cost 1
-        - Raggy: This card's tussles cost 0
+        - Wizard: Tussles cost 1 (SetTussleCostEffect - applies to all tussles)
+        - Raggy: This card's tussles cost 0 (SetSelfTussleCostEffect - only this card)
         
         Args:
             attacker: Card initiating tussle
@@ -582,22 +582,25 @@ class GameEngine:
         Returns:
             Final tussle cost
         """
+        from .rules.effects.continuous_effects import SetTussleCostEffect, SetSelfTussleCostEffect
+        
         base_cost = 2
         costs = [base_cost]
         
-        # Apply cost modifications
+        # Apply cost modifications from all cards in play
         for card_in_play in player.in_play:
             effects = EffectRegistry.get_effects(card_in_play)
             for effect in effects:
                 if isinstance(effect, CostModificationEffect):
-                    # Check if this is the attacker for Raggy
-                    if card_in_play == attacker:
-                        modified_cost = effect.modify_tussle_cost(
-                            base_cost, self.game_state, player
-                        )
-                        costs.append(modified_cost)
-                    # Wizard affects all tussles
-                    elif card_in_play.name == "Wizard":
+                    # SetSelfTussleCostEffect only applies to the source card (e.g., Raggy)
+                    if isinstance(effect, SetSelfTussleCostEffect):
+                        if card_in_play == attacker:
+                            modified_cost = effect.modify_tussle_cost(
+                                base_cost, self.game_state, player
+                            )
+                            costs.append(modified_cost)
+                    # SetTussleCostEffect applies to all tussles (e.g., Wizard)
+                    elif isinstance(effect, SetTussleCostEffect):
                         modified_cost = effect.modify_tussle_cost(
                             base_cost, self.game_state, player
                         )
