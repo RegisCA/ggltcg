@@ -1,7 +1,7 @@
 /**
  * ActionPanel Component
  * Displays available actions and handles player inputs
- * Supports keyboard shortcuts: 1-9 for actions, 0 for end turn
+ * Supports keyboard shortcuts: 0 for end turn, 1-9 for card actions
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -175,7 +175,7 @@ return (
               fontSize: compact ? '0.75rem' : '0.875rem'
             }}
           >
-            <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
+            <div className="flex justify-between items-center w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
               <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
                 0
               </span>
@@ -218,7 +218,7 @@ return (
                     fontSize: compact ? '0.75rem' : '0.875rem'
                   }}
                 >
-                  <div className={`flex justify-between items-center w-full ${compact ? 'gap-2' : 'gap-2'}`}>
+                  <div className="flex justify-between items-center w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
                     {/* Keyboard shortcut indicator */}
                     {shortcutKey && (
                       <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
@@ -233,7 +233,7 @@ return (
                       <span 
                         className="rounded font-bold whitespace-nowrap"
                         style={{
-                          padding: compact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                          padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
                           fontSize: compact ? '10px' : '0.75rem',
                           backgroundColor: isUnaffordable ? 'rgb(153 27 27)' : 'rgba(0,0,0,0.4)',
                           color: 'white'

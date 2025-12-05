@@ -49,7 +49,7 @@ export function HandZone({
         ) : (
           <div 
             className="flex flex-wrap"
-            style={{ gap: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-xs)' }}
+            style={{ gap: 'var(--spacing-component-xs)' }}
           >
             {cardList.map((card) => {
               // Card is playable if it's in the playable list OR it's not the player's turn (don't dim during opponent's turn)

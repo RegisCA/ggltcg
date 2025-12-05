@@ -222,7 +222,7 @@ export function TargetSelectionModal({
             <div>
               <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
                 {maxTargets > 1
-                  ? `Select up to ${maxTargets} target${maxTargets !== 1 ? 's' : ''}`
+                  ? `Select up to ${maxTargets} targets`
                   : 'Select a target '
                 }
                 {minTargets === 0 && ' (optional)'}
