@@ -275,12 +275,12 @@ class StatsService:
     # Data Retention Cleanup
     # ========================================
     
-    def cleanup_old_ai_logs(self, max_age_hours: int = 1) -> int:
+    def cleanup_old_ai_logs(self, max_age_hours: int = 6) -> int:
         """
         Delete AI decision logs older than the specified age.
         
         Args:
-            max_age_hours: Maximum age in hours (default: 1)
+            max_age_hours: Maximum age in hours (default: 6)
             
         Returns:
             Number of records deleted
