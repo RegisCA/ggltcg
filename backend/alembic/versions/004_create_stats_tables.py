@@ -5,7 +5,7 @@ Revises: 003
 Create Date: 2025-12-01 12:00:00.000000
 
 This migration creates tables for:
-- ai_decision_logs: Stores AI prompts/responses (1 hour retention)
+- ai_decision_logs: Stores AI prompts/responses (6 hour retention)
 - game_playback: Stores completed game summaries (24 hour retention)
 - player_stats: Stores aggregate player statistics (permanent)
 
@@ -27,7 +27,7 @@ def upgrade() -> None:
     """Create AI decision logs, game playback, and player stats tables."""
     
     # ========================================
-    # AI Decision Logs (1 hour retention)
+    # AI Decision Logs (6 hour retention)
     # ========================================
     op.create_table(
         'ai_decision_logs',

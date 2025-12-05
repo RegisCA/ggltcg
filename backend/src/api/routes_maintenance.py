@@ -3,7 +3,7 @@ Maintenance routes for database cleanup tasks.
 
 These endpoints are called by GitHub Actions on a schedule to:
 1. Mark abandoned games (active > 24 hours)
-2. Delete old AI decision logs (> 1 hour)
+2. Delete old AI decision logs (> 6 hours)
 3. Delete old game playback data (> 24 hours)
 """
 
@@ -42,7 +42,7 @@ class CleanupStats(BaseModel):
     active_games_total: int
     active_games_stale: int  # Active but not updated in 24h
     ai_logs_total: int
-    ai_logs_stale: int  # Older than 1 hour
+    ai_logs_stale: int  # Older than 6 hours
     playback_total: int
     playback_stale: int  # Older than 24 hours
 
@@ -66,7 +66,7 @@ async def get_cleanup_stats(x_api_key: Optional[str] = Header(None)):
     verify_api_key(x_api_key)
     
     now = datetime.now(timezone.utc)
-    one_hour_ago = now - timedelta(hours=1)
+    six_hours_ago = now - timedelta(hours=6)
     twenty_four_hours_ago = now - timedelta(hours=24)
     
     db = SessionLocal()
@@ -84,7 +84,7 @@ async def get_cleanup_stats(x_api_key: Optional[str] = Header(None)):
         # AI decision logs stats
         ai_logs_total = db.query(AIDecisionLogModel).count()
         ai_logs_stale = db.query(AIDecisionLogModel).filter(
-            AIDecisionLogModel.created_at < one_hour_ago
+            AIDecisionLogModel.created_at < six_hours_ago
         ).count()
         
         # Game playback stats
@@ -115,14 +115,14 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
     
     Tasks:
     1. Mark games as 'abandoned' if active for > 24 hours
-    2. Delete AI decision logs older than 1 hour
+    2. Delete AI decision logs older than 6 hours
     3. Delete game playback data older than 24 hours
     """
     verify_api_key(x_api_key)
     
     start_time = datetime.now(timezone.utc)
     now = start_time
-    one_hour_ago = now - timedelta(hours=1)
+    six_hours_ago = now - timedelta(hours=6)
     twenty_four_hours_ago = now - timedelta(hours=24)
     
     games_abandoned = 0
@@ -150,7 +150,7 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
                 DELETE FROM ai_decision_logs 
                 WHERE created_at < :cutoff
             """),
-            {"cutoff": one_hour_ago}
+            {"cutoff": six_hours_ago}
         )
         ai_logs_deleted = result.rowcount
         logger.info(f"Deleted {ai_logs_deleted} AI decision logs")

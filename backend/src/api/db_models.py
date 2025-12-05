@@ -239,7 +239,7 @@ class AIDecisionLogModel(Base):
     Database model for AI decision logs.
     
     Stores Gemini prompts and responses for debugging AI behavior.
-    Retention: 1 hour (cleaned up by scheduled task).
+    Retention: 6 hours (cleaned up by scheduled task).
     """
     __tablename__ = "ai_decision_logs"
     
