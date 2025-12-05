@@ -189,7 +189,14 @@ export function TargetSelectionModal({
               {hasCardsToSleep ? (
                 <>
                   <h4 className="text-md font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Or select a card to sleep:</h4>
-                  <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
+                  <div 
+                    className="grid grid-cols-2" 
+                    style={{ 
+                      gap: 'var(--spacing-component-md)', 
+                      padding: 'var(--spacing-component-sm)',
+                      paddingBottom: 'var(--spacing-component-lg)'
+                    }}
+                  >
                     {filteredAlternativeCostOptions.map((card) => {
                       const isSelected = alternativeCostCard === card.id;
                       return (
@@ -232,7 +239,15 @@ export function TargetSelectionModal({
                   </span>
                 )}
               </h3>
-              <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
+              {/* Add padding to accommodate card hover scale effect */}
+              <div 
+                className="grid grid-cols-2" 
+                style={{ 
+                  gap: 'var(--spacing-component-md)', 
+                  padding: 'var(--spacing-component-sm)',
+                  paddingBottom: 'var(--spacing-component-lg)'
+                }}
+              >
                 {availableTargets.map((card) => {
                   const isSelected = selectedTargets.includes(card.id);
                   const isDisabled = !isSelected && selectedTargets.length >= maxTargets;

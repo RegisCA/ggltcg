@@ -64,16 +64,6 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
       {/* Semi-transparent overlay for readability */}
       <div className="absolute inset-0 bg-game-bg bg-opacity-90 pointer-events-none" />
 
-      {/* Play Again Button - Top Right Corner */}
-      <div className="absolute z-20" style={{ 
-        top: 'var(--spacing-component-lg)', 
-        right: 'var(--spacing-component-lg)' 
-      }}>
-        <Button variant="primary" size="lg" onClick={onPlayAgain}>
-          Play Again
-        </Button>
-      </div>
-
       <div className="relative z-10 w-full max-w-5xl mx-auto">
         {/* Victory Header */}
         <div className="text-center" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
@@ -83,6 +73,10 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
           <p className="text-2xl sm:text-4xl" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
             {winnerPlayer?.name || gameState.winner} Wins!
           </p>
+          {/* Back to Main Menu Button */}
+          <Button variant="primary" size="lg" onClick={onPlayAgain}>
+            Back to Main Menu
+          </Button>
         </div>
 
         {/* Play-by-Play Summary */}
