@@ -42,9 +42,9 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
     
     - **game_id**: The game ID
     - **player_id**: ID of player playing the card
-    - **card_name**: Name of card to play
-    - **target_card_name**: Optional target for effects
-    - **target_card_names**: Optional multiple targets (e.g., Sun)
+    - **card_id**: ID of card to play
+    - **target_card_id**: Optional target for single-target effects
+    - **target_card_ids**: Optional multiple targets (e.g., Sun)
     """
     service = get_game_service()
     engine = service.get_game(game_id)

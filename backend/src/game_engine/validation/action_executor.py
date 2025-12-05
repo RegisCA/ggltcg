@@ -305,7 +305,8 @@ class ActionExecutor:
                     f"Card may have been moved or removed."
                 )
             kwargs["target"] = target
-            kwargs["target_name"] = target.name  # For Copy card
+            kwargs["target_id"] = target.id  # For Copy card cost calculation
+            kwargs["target_name"] = target.name  # For display purposes
             # Also provide as single-element list for effects that expect 'targets'
             kwargs["targets"] = [target]
         
