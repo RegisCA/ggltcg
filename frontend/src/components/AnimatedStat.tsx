@@ -138,7 +138,7 @@ export function AnimatedStat({
         >
           {displayValue}
           {isBuffed && buffAmount > 0 && (
-            <span className="text-xs ml-0.5" title={`Buffed from ${baseValue} (+${buffAmount})`}>
+            <span className="text-xs" style={{ marginLeft: '2px' }} title={`Buffed from ${baseValue} (+${buffAmount})`}>
               ↑
             </span>
           )}

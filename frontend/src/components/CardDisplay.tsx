@@ -162,7 +162,7 @@ export function CardDisplay({
       )}
 
       {/* Card Header: Cost + Name + Type Badge */}
-      <div className="flex justify-between items-start mb-2" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="flex justify-between items-start" style={{ marginBottom: 'var(--spacing-component-xs)', position: 'relative', zIndex: 1 }}>
         {/* Cost Indicator */}
         <div 
           className="font-bold"
@@ -231,7 +231,7 @@ export function CardDisplay({
 
       {/* Toy Stats */}
       {isToy && (
-        <div className="flex gap-1 mb-1" style={{ fontSize: config.fontSize, position: 'relative', zIndex: 1 }}>
+        <div className="flex" style={{ gap: '4px', marginBottom: '4px', fontSize: config.fontSize, position: 'relative', zIndex: 1 }}>
           <AnimatedStat
             value={card.speed}
             baseValue={card.base_speed}
@@ -280,8 +280,8 @@ export function CardDisplay({
       {/* Sleeped Indicator */}
       {card.is_sleeped && (
         <div 
-          className="mt-2 text-center font-bold text-red-400"
-          style={{ fontSize: size === 'small' ? '0.625rem' : '0.75rem', position: 'relative', zIndex: 1 }}
+          className="text-center font-bold text-red-400"
+          style={{ marginTop: 'var(--spacing-component-xs)', fontSize: size === 'small' ? '0.625rem' : '0.75rem', position: 'relative', zIndex: 1 }}
         >
           SLEEPED
         </div>

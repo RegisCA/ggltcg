@@ -22,12 +22,15 @@ export function PlayerZone({
   selectedCard,
 }: PlayerZoneProps) {
   return (
-    <div className={`
-      p-3 rounded transition-all
-      ${isActive ? 'bg-game-accent border-2 border-game-highlight' : 'bg-game-card border border-gray-700'}
-    `}>
+    <div 
+      className={`
+        rounded transition-all
+        ${isActive ? 'bg-game-accent border-2 border-game-highlight' : 'bg-game-card border border-gray-700'}
+      `}
+      style={{ padding: 'var(--spacing-component-sm)' }}
+    >
       {/* Player Header */}
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
         <div>
           <h2 className="text-xl font-bold">{player.name}</h2>
           {isActive && (
@@ -41,9 +44,9 @@ export function PlayerZone({
       </div>
 
       {/* Content Grid - Zones on left, Sleep on right */}
-      <div className="flex gap-3">
+      <div className="flex" style={{ gap: 'var(--spacing-component-sm)' }}>
         {/* Left side - Main zones (80% width) */}
-        <div className="flex-1 space-y-3" style={{ minWidth: 0 }}>
+        <div className="flex-1 flex flex-col" style={{ minWidth: 0, gap: 'var(--spacing-component-sm)' }}>
           {/* For AI: Hand first, then In Play */}
           {/* For Human: In Play first, then Hand */}
           
@@ -51,10 +54,13 @@ export function PlayerZone({
             <>
               {/* In Play Zone */}
               <div>
-                <h3 className="text-sm font-bold text-gray-400 mb-2">
+                <h3 className="text-sm font-bold text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
                   IN PLAY ({player.in_play.length})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[180px] p-2 bg-black bg-opacity-20 rounded">
+                <div 
+                  className="flex flex-wrap min-h-[180px] bg-black bg-opacity-20 rounded"
+                  style={{ gap: 'var(--spacing-component-xs)', padding: 'var(--spacing-component-xs)' }}
+                >
                   {player.in_play.length === 0 ? (
                     <div className="text-gray-500 italic text-sm m-auto">No cards in play</div>
                   ) : (
@@ -74,10 +80,13 @@ export function PlayerZone({
 
               {/* Hand Zone */}
               <div>
-                <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
+                <h3 className="text-sm font-bold text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)', paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}>
                   HAND ({player.hand ? player.hand.length : player.hand_count})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[230px] p-4 bg-black bg-opacity-20 rounded">
+                <div 
+                  className="flex flex-wrap min-h-[230px] bg-black bg-opacity-20 rounded"
+                  style={{ gap: 'var(--spacing-component-xs)', padding: 'var(--spacing-component-md)' }}
+                >
                   {player.hand ? (
                     player.hand.length === 0 ? (
                       <div className="text-gray-500 italic text-sm m-auto">No cards in hand</div>
@@ -94,11 +103,12 @@ export function PlayerZone({
                       ))
                     )
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
                       {Array.from({ length: player.hand_count }).map((_, i) => (
                         <div
                           key={i}
-                          className="w-32 h-40 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center p-2"
+                          className="w-32 h-40 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center"
+                          style={{ padding: 'var(--spacing-component-xs)' }}
                         >
                           <img 
                             src="/ggltcg-logo.svg" 
@@ -116,10 +126,13 @@ export function PlayerZone({
             <>
               {/* Hand Zone (AI shows first) */}
               <div>
-                <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
+                <h3 className="text-sm font-bold text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)', paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}>
                   HAND ({player.hand ? player.hand.length : player.hand_count})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[140px] p-4 bg-black bg-opacity-20 rounded">
+                <div 
+                  className="flex flex-wrap min-h-[140px] bg-black bg-opacity-20 rounded"
+                  style={{ gap: 'var(--spacing-component-xs)', padding: 'var(--spacing-component-md)' }}
+                >
                   {player.hand ? (
                     player.hand.length === 0 ? (
                       <div className="text-gray-500 italic text-sm m-auto">No cards in hand</div>
@@ -133,11 +146,12 @@ export function PlayerZone({
                       ))
                     )
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
                       {Array.from({ length: player.hand_count }).map((_, i) => (
                         <div
                           key={i}
-                          className="w-32 h-40 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center p-2"
+                          className="w-32 h-40 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center"
+                          style={{ padding: 'var(--spacing-component-xs)' }}
                         >
                           <img 
                             src="/ggltcg-logo.svg" 
@@ -153,10 +167,13 @@ export function PlayerZone({
 
               {/* In Play Zone */}
               <div>
-                <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
+                <h3 className="text-sm font-bold text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)', paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}>
                   IN PLAY ({player.in_play.length})
                 </h3>
-                <div className="flex gap-2 flex-wrap min-h-[180px] p-4 bg-black bg-opacity-20 rounded">
+                <div 
+                  className="flex flex-wrap min-h-[180px] bg-black bg-opacity-20 rounded"
+                  style={{ gap: 'var(--spacing-component-xs)', padding: 'var(--spacing-component-md)' }}
+                >
                   {player.in_play.length === 0 ? (
                     <div className="text-gray-500 italic text-sm m-auto">No cards in play</div>
                   ) : (
@@ -176,10 +193,13 @@ export function PlayerZone({
 
         {/* Right side - Sleep Zone (fixed width) */}
         <div className="w-40 flex-shrink-0">
-          <h3 className="text-sm font-bold text-gray-400 mb-2 px-2">
+          <h3 className="text-sm font-bold text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)', paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}>
             SLEEP ZONE ({player.sleep_zone.length})
           </h3>
-          <div className="flex flex-col gap-2 min-h-[340px] p-4 bg-black bg-opacity-20 rounded">
+          <div 
+            className="flex flex-col min-h-[340px] bg-black bg-opacity-20 rounded"
+            style={{ gap: 'var(--spacing-component-xs)', padding: 'var(--spacing-component-md)' }}
+          >
             {player.sleep_zone.length === 0 ? (
               <div className="text-gray-500 italic text-sm m-auto text-center">No sleeping cards</div>
             ) : (

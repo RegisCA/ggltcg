@@ -137,12 +137,12 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ isOpen, onCl
 
             <div className="bg-blue-900/30 border-2 border-blue-500/50 rounded-lg" style={{ marginBottom: 'var(--spacing-component-lg)', padding: 'var(--spacing-component-md)' }}>
               <div className="flex items-start" style={{ gap: 'var(--spacing-component-sm)' }}>
-                <svg className="w-6 h-6 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-blue-400 flex-shrink-0" style={{ marginTop: '2px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="text-gray-300">
                   <p className="font-bold text-lg" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Display name rules:</p>
-                  <ul className="list-disc list-inside space-y-1">
+                  <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <li>1-50 characters</li>
                     <li>No inappropriate language</li>
                     <li>Be respectful to other players</li>

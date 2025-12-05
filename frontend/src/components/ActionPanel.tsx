@@ -144,7 +144,13 @@ return (
     style={{ padding: compact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}
   >
     <div style={{ marginBottom: 'var(--spacing-component-xs)' }}>
-      <h3 className={`font-bold ${compact ? 'text-sm mb-0.5' : 'text-lg mb-1'}`}>
+      <h3 
+        className="font-bold"
+        style={{ 
+          fontSize: compact ? '0.875rem' : '1.125rem', 
+          marginBottom: compact ? '2px' : '4px' 
+        }}
+      >
         Available Actions
         {validActions.length > 0 && (
           <span> for {currentCC} CC</span>
@@ -153,7 +159,13 @@ return (
     </div>
 
     {validActions.length === 0 ? (
-      <div className={`text-gray-500 italic text-center ${compact ? 'py-2 text-xs' : 'py-4'}`}>
+      <div 
+        className="text-gray-500 italic text-center"
+        style={{ 
+          padding: compact ? 'var(--spacing-component-xs) 0' : 'var(--spacing-component-md) 0', 
+          fontSize: compact ? '0.75rem' : undefined 
+        }}
+      >
         No actions available
       </div>
     ) : (
@@ -176,7 +188,15 @@ return (
             }}
           >
             <div className="flex justify-between items-center w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
-              <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
+              <span 
+                className="flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white"
+                style={{ 
+                  width: compact ? '20px' : '24px', 
+                  height: compact ? '20px' : '24px', 
+                  fontSize: compact ? '10px' : '0.75rem',
+                  marginRight: compact ? '4px' : '0'
+                }}
+              >
                 0
               </span>
               <span className="font-bold text-left flex-1 text-white">
@@ -221,7 +241,15 @@ return (
                   <div className="flex justify-between items-center w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
                     {/* Keyboard shortcut indicator */}
                     {shortcutKey && (
-                      <span className={`flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white ${compact ? 'w-5 h-5 text-[10px] mr-1' : 'w-6 h-6 text-xs'}`}>
+                      <span 
+                        className="flex items-center justify-center bg-black/30 rounded font-mono font-bold flex-shrink-0 text-white"
+                        style={{ 
+                          width: compact ? '20px' : '24px', 
+                          height: compact ? '20px' : '24px', 
+                          fontSize: compact ? '10px' : '0.75rem',
+                          marginRight: compact ? '4px' : '0'
+                        }}
+                      >
                         {shortcutKey}
                       </span>
                     )}

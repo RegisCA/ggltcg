@@ -27,24 +27,24 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
 
       {/* Content */}
       <main className="container mx-auto max-w-4xl" style={{ padding: 'var(--spacing-component-xl) var(--spacing-component-md)' }}>
-        <h1 className="text-4xl font-bold mb-8 text-game-highlight">Privacy Policy</h1>
+        <h1 className="text-4xl font-bold text-game-highlight" style={{ marginBottom: 'var(--spacing-component-xl)' }}>Privacy Policy</h1>
         
-        <div className="space-y-8 text-gray-300 leading-relaxed">
+        <div className="text-gray-300 leading-relaxed" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xl)' }}>
           <section>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
               <strong>Last Updated:</strong> December 4, 2025
             </p>
-            <p className="mb-4">
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               Welcome to GGLTCG (Googooland Trading Card Game). This Privacy Policy explains how we collect, 
               use, and protect your information when you use our game.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Information We Collect</h2>
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Information We Collect</h2>
             
-            <h3 className="text-xl font-semibold mb-3 text-gray-200">Google OAuth Information</h3>
-            <p className="mb-4">
+            <h3 className="text-xl font-semibold text-gray-200" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Google OAuth Information</h3>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               When you sign in with Google, we collect:
             </p>
             <ul className="list-disc list-inside space-y-2 mb-4 ml-4">
@@ -53,11 +53,11 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
               <li>Your email address (for account verification only)</li>
             </ul>
 
-            <h3 className="text-xl font-semibold mb-3 text-gray-200">Game Data</h3>
-            <p className="mb-4">
+            <h3 className="text-xl font-semibold text-gray-200" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Game Data</h3>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               While playing GGLTCG, we store:
             </p>
-            <ul className="list-disc list-inside space-y-2 mb-4 ml-4">
+            <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)', marginBottom: 'var(--spacing-component-md)', marginLeft: 'var(--spacing-component-md)' }}>
               <li>Your custom display name (if you set one)</li>
               <li>Your game statistics (wins, losses, games played)</li>
               <li>Your game history and match results</li>
@@ -66,9 +66,9 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">How We Use Your Information</h2>
-            <p className="mb-4">We use your information to:</p>
-            <ul className="list-disc list-inside space-y-2 ml-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>How We Use Your Information</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>We use your information to:</p>
+            <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)', marginLeft: 'var(--spacing-component-md)' }}>
               <li>Authenticate your account and maintain your session</li>
               <li>Display your name to other players during games</li>
               <li>Track your game statistics and leaderboard rankings</li>
@@ -78,11 +78,11 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Data Storage and Security</h2>
-            <p className="mb-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Data Storage and Security</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               Your data is stored securely in our database and protected using industry-standard practices:
             </p>
-            <ul className="list-disc list-inside space-y-2 mb-4 ml-4">
+            <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)', marginBottom: 'var(--spacing-component-md)', marginLeft: 'var(--spacing-component-md)' }}>
               <li>All connections use HTTPS encryption</li>
               <li>Authentication tokens are securely generated and validated</li>
               <li>We do not store your Google password</li>
@@ -91,18 +91,18 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Data Sharing</h2>
-            <p className="mb-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Data Sharing</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               <strong>We do not sell, rent, or share your personal information with third parties.</strong>
             </p>
-            <p className="mb-4">
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               The only information visible to other players is:
             </p>
-            <ul className="list-disc list-inside space-y-2 ml-4">
+            <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)', marginLeft: 'var(--spacing-component-md)' }}>
               <li>Your display name (either your first name or custom display name)</li>
               <li>Your game statistics on the leaderboard</li>
             </ul>
-            <p className="mt-4">
+            <p style={{ marginTop: 'var(--spacing-component-md)' }}>
               See our{' '}
               <button
                 onClick={() => window.open('https://github.com/RegisCA/ggltcg', '_blank')}
@@ -115,11 +115,11 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Third-Party Services</h2>
-            <p className="mb-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Third-Party Services</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               GGLTCG uses the following third-party services:
             </p>
-            <ul className="list-disc list-inside space-y-2 mb-4 ml-4">
+            <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)', marginBottom: 'var(--spacing-component-md)', marginLeft: 'var(--spacing-component-md)' }}>
               <li>
                 <strong>Google OAuth 2.0:</strong> For secure authentication. Google's privacy policy 
                 applies to their service: <a 
@@ -155,15 +155,15 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Your Rights</h2>
-            <p className="mb-4">You have the right to:</p>
-            <ul className="list-disc list-inside space-y-2 mb-4 ml-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Your Rights</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>You have the right to:</p>
+            <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)', marginBottom: 'var(--spacing-component-md)', marginLeft: 'var(--spacing-component-md)' }}>
               <li>Update your display name at any time</li>
               <li>Request deletion of your account and associated data</li>
               <li>Revoke GGLTCG's access to your Google account at any time through your Google Account settings</li>
               <li>Request a copy of your data</li>
             </ul>
-            <p className="mb-4">
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               To exercise these rights, please contact us at: <a 
                 href="mailto:regiseloi+ggltcg@me.com" 
                 className="text-game-highlight hover:underline"
@@ -174,8 +174,8 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Children's Privacy</h2>
-            <p className="mb-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Children's Privacy</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               GGLTCG is intended for general audiences. We do not knowingly collect personal information 
               from children under 13. If you are a parent or guardian and believe your child has provided 
               us with personal information, please contact us.
@@ -183,22 +183,22 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Cookies and Local Storage</h2>
-            <p className="mb-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Cookies and Local Storage</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               GGLTCG uses browser local storage to:
             </p>
-            <ul className="list-disc list-inside space-y-2 ml-4">
+            <ul className="list-disc list-inside" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xs)', marginLeft: 'var(--spacing-component-md)' }}>
               <li>Store your authentication token (keeps you logged in)</li>
               <li>Remember your user preferences</li>
             </ul>
-            <p className="mt-4">
+            <p style={{ marginTop: 'var(--spacing-component-md)' }}>
               You can clear this data at any time through your browser settings, but you will be logged out.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Changes to This Policy</h2>
-            <p className="mb-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Changes to This Policy</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               We may update this Privacy Policy from time to time. We will notify you of any changes by 
               updating the "Last Updated" date at the top of this policy. Your continued use of GGLTCG 
               after any changes constitutes acceptance of the updated policy.
@@ -206,11 +206,11 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-white">Contact Us</h2>
-            <p className="mb-4">
+            <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Contact Us</h2>
+            <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               If you have any questions about this Privacy Policy or our data practices, please contact us:
             </p>
-            <p className="mb-2">
+            <p style={{ marginBottom: 'var(--spacing-component-xs)' }}>
               <strong>Email:</strong> <a 
                 href="mailto:regiseloi+ggltcg@me.com" 
                 className="text-game-highlight hover:underline"
@@ -218,7 +218,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
                 regiseloi+ggltcg@me.com
               </a>
             </p>
-            <p className="mb-2">
+            <p style={{ marginBottom: 'var(--spacing-component-xs)' }}>
               <strong>Project:</strong> <a 
                 href="https://github.com/RegisCA/ggltcg" 
                 target="_blank" 
@@ -232,10 +232,11 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
         </div>
 
         {/* Footer Navigation */}
-        <div className="mt-12 pt-8 border-t-2 border-gray-700">
+        <div className="border-t-2 border-gray-700" style={{ marginTop: 'calc(var(--spacing-component-xl) * 1.5)', paddingTop: 'var(--spacing-component-xl)' }}>
           <button
             onClick={onBack}
-            className="inline-block px-6 py-3 bg-game-highlight hover:bg-red-600 text-white font-bold rounded-lg transition-all"
+            className="inline-block bg-game-highlight hover:bg-red-600 text-white font-bold rounded-lg transition-all"
+            style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
           >
             Return to Game
           </button>

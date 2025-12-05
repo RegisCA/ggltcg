@@ -34,7 +34,10 @@ export function HandZone({
   return (
     <div className="bg-blue-950 rounded border-2 border-blue-700 flex">
       {/* Vertical Label */}
-      <div className="flex items-center justify-center bg-blue-900 px-2 rounded-l border-r border-blue-700">
+      <div 
+        className="flex items-center justify-center bg-blue-900 rounded-l border-r border-blue-700"
+        style={{ paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}
+      >
         <div className="text-xs text-gray-400 font-bold" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
           HAND ({cardList.length})
         </div>

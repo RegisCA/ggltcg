@@ -38,7 +38,10 @@ export function InPlayZone({
   return (
     <div className="bg-gray-800 rounded border border-gray-700 flex">
       {/* Vertical Label */}
-      <div className="flex items-center justify-center bg-gray-900 px-2 rounded-l border-r border-gray-700">
+      <div 
+        className="flex items-center justify-center bg-gray-900 rounded-l border-r border-gray-700"
+        style={{ paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}
+      >
         <div className="text-xs text-gray-400 font-bold" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
           IN PLAY ({cardList.length})
         </div>
