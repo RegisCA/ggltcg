@@ -17,11 +17,11 @@ export function PlayersBanner({
   currentPlayerId 
 }: PlayersBannerProps) {
   return (
-    <div className="bg-purple-900/20 border-b-2 border-purple-500/50 p-3 mb-4">
-      <div className="max-w-7xl mx-auto grid grid-cols-[1fr_auto_1fr] gap-6 items-center">
+    <div className="bg-purple-900/20 border-b-2 border-purple-500/50" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-md)' }}>
+      <div className="max-w-7xl mx-auto grid grid-cols-[1fr_auto_1fr] items-center" style={{ gap: 'var(--spacing-component-lg)' }}>
         {/* Player 1 - Right aligned */}
         <div className="text-right">
-          <div className="text-sm text-gray-400 mb-1">Player 1</div>
+          <div className="text-sm text-gray-400" style={{ marginBottom: '4px' }}>Player 1</div>
           <div className="font-bold text-lg">
             {player1Name} {currentPlayerId === 'player1' && <span className="text-game-highlight">(You)</span>}
           </div>
@@ -32,7 +32,7 @@ export function PlayersBanner({
         
         {/* Player 2 - Left aligned */}
         <div className="text-left">
-          <div className="text-sm text-gray-400 mb-1">Player 2</div>
+          <div className="text-sm text-gray-400" style={{ marginBottom: '4px' }}>Player 2</div>
           <div className="font-bold text-lg">
             {player2Name} {currentPlayerId === 'player2' && <span className="text-game-highlight">(You)</span>}
           </div>

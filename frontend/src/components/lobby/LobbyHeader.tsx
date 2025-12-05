@@ -21,17 +21,18 @@ export function LobbyHeader({
   backLabel = 'Leave Lobby' 
 }: LobbyHeaderProps) {
   return (
-    <div className="bg-gray-800 border-b-2 border-gray-600 p-4">
+    <div className="bg-gray-800 border-b-2 border-gray-600" style={{ padding: 'var(--spacing-component-md)' }}>
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <button
           onClick={onBack}
-          className="text-gray-400 hover:text-game-highlight transition-colors flex items-center gap-2"
+          className="text-gray-400 hover:text-game-highlight transition-colors flex items-center"
+          style={{ gap: 'var(--spacing-component-xs)' }}
         >
           <span>←</span> {backLabel}
         </button>
 
         <div className="text-center">
-          <div className="text-sm text-gray-400 mb-1">Game Code</div>
+          <div className="text-sm text-gray-400" style={{ marginBottom: '4px' }}>Game Code</div>
           <GameCodeDisplay code={gameCode} size="small" showLabel={false} />
         </div>
 

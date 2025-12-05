@@ -40,7 +40,7 @@ export function GameCodeDisplay({
   return (
     <div className="text-center">
       {showLabel && (
-        <div className="text-lg text-gray-300 mb-3 font-semibold">
+        <div className="text-lg text-gray-300 font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
           {label}
         </div>
       )}
@@ -56,7 +56,7 @@ export function GameCodeDisplay({
         {code} {size === 'small' && feedbackText}
       </button>
       {size === 'large' && (
-        <div className="text-lg text-gray-300 mt-3 font-semibold">
+        <div className="text-lg text-gray-300 font-semibold" style={{ marginTop: 'var(--spacing-component-sm)' }}>
           {feedbackText}
         </div>
       )}

@@ -20,8 +20,8 @@ interface PlayersStatusCardProps {
 
 function PlayerRow({ player, label }: { player: PlayerInfo; label: string }) {
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between bg-gray-700 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
+      <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
         <div className="text-3xl">🎮</div>
         <div>
           <div className="font-bold text-lg">
@@ -29,7 +29,7 @@ function PlayerRow({ player, label }: { player: PlayerInfo; label: string }) {
               <>
                 {player.name}
                 {player.isCurrentPlayer && (
-                  <span className="text-game-highlight ml-2">(You)</span>
+                  <span className="text-game-highlight" style={{ marginLeft: 'var(--spacing-component-xs)' }}>(You)</span>
                 )}
               </>
             ) : (
@@ -50,10 +50,10 @@ function PlayerRow({ player, label }: { player: PlayerInfo; label: string }) {
 
 export function PlayersStatusCard({ player1, player2 }: PlayersStatusCardProps) {
   return (
-    <div className="bg-gray-800 rounded-lg p-8 border-2 border-gray-600">
-      <h2 className="text-2xl font-bold mb-6 text-center">Players</h2>
+    <div className="bg-gray-800 rounded-lg border-2 border-gray-600" style={{ padding: 'var(--spacing-component-xl)' }}>
+      <h2 className="text-2xl font-bold text-center" style={{ marginBottom: 'var(--spacing-component-lg)' }}>Players</h2>
       
-      <div className="space-y-4">
+      <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
         <PlayerRow player={player1} label="Player 1" />
         
         {/* VS Divider */}
