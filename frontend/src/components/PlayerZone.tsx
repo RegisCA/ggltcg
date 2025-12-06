@@ -5,6 +5,7 @@
 
 import type { Player } from '../types/game';
 import { CardDisplay } from './CardDisplay';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface PlayerZoneProps {
   player: Player;
@@ -21,6 +22,11 @@ export function PlayerZone({
   onCardClick,
   selectedCard,
 }: PlayerZoneProps) {
+  const { isMobile } = useResponsive();
+  
+  // Use small cards on mobile for better fit
+  const cardSize = isMobile ? 'small' : 'medium';
+  
   return (
     <div 
       className={`
@@ -30,15 +36,22 @@ export function PlayerZone({
       style={{ padding: 'var(--spacing-component-sm)' }}
     >
       {/* Player Header */}
-      <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-        <div>
-          <h2 className="text-xl font-bold">{player.name}</h2>
+      <div 
+        className="flex justify-between items-center" 
+        style={{ 
+          marginBottom: 'var(--spacing-component-sm)',
+          flexWrap: isMobile ? 'wrap' : 'nowrap',
+          gap: isMobile ? 'var(--spacing-component-xs)' : '0',
+        }}
+      >
+        <div style={{ flexShrink: 0 }}>
+          <h2 style={{ fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: 'bold' }}>{player.name}</h2>
           {isActive && (
             <span className="text-xs text-game-highlight font-bold">ACTIVE TURN</span>
           )}
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold">{player.cc} CC</div>
+        <div className="text-right" style={{ flexShrink: 0 }}>
+          <div style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 'bold' }}>{player.cc} CC</div>
           <div className="text-xs text-gray-400">Command Counters</div>
         </div>
       </div>
@@ -68,7 +81,7 @@ export function PlayerZone({
                       <CardDisplay
                         key={card.id}
                         card={card}
-                        size="medium"
+                        size={cardSize}
                         isClickable={isHuman && isActive}
                         isSelected={selectedCard === card.id}
                         onClick={() => onCardClick?.(card.id, 'in_play')}
@@ -95,7 +108,7 @@ export function PlayerZone({
                         <CardDisplay
                           key={card.id}
                           card={card}
-                          size="medium"
+                          size={cardSize}
                           isClickable={isHuman && isActive}
                           isSelected={selectedCard === card.id}
                           onClick={() => onCardClick?.(card.id, 'hand')}
@@ -141,7 +154,7 @@ export function PlayerZone({
                         <CardDisplay
                           key={card.id}
                           card={card}
-                          size="small"
+                          size={cardSize}
                         />
                       ))
                     )
@@ -181,7 +194,7 @@ export function PlayerZone({
                       <CardDisplay
                         key={card.id}
                         card={card}
-                        size="medium"
+                        size={cardSize}
                       />
                     ))
                   )}

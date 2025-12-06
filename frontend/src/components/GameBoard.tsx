@@ -257,31 +257,72 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     <div className="min-h-screen bg-game-bg" style={{ padding: 'var(--spacing-component-sm)' }}>
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
-        <div className="bg-game-card rounded grid grid-cols-3 items-center" style={{ marginBottom: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)', gap: 'var(--spacing-component-md)' }}>
-          <PlayerInfoBar
-            player={humanPlayer}
-            isActive={gameState.active_player_id === humanPlayerId}
-          />
-          <div className="text-center">
-            <div 
-              className={`
-                text-lg font-bold rounded-lg transition-all duration-300
-                ${isHumanTurn 
-                  ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
-                  : 'bg-gray-700 text-gray-300'
-                }
-              `}
-              style={{ padding: '4px var(--spacing-component-md)' }}
-            >
-              {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <PlayerInfoBar
-              player={otherPlayer}
-              isActive={gameState.active_player_id === otherPlayerId}
-            />
-          </div>
+        <div 
+          className={`bg-game-card rounded ${isMobile ? 'flex flex-col' : 'grid grid-cols-3'} items-center`}
+          style={{ 
+            marginBottom: 'var(--spacing-component-sm)', 
+            padding: 'var(--spacing-component-sm)', 
+            gap: isMobile ? 'var(--spacing-component-xs)' : 'var(--spacing-component-md)' 
+          }}
+        >
+          {isMobile ? (
+            <>
+              {/* Mobile: Turn indicator first */}
+              <div className="text-center">
+                <div 
+                  className={`
+                    text-base font-bold rounded-lg transition-all duration-300
+                    ${isHumanTurn 
+                      ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
+                      : 'bg-gray-700 text-gray-300'
+                    }
+                  `}
+                  style={{ padding: '4px var(--spacing-component-sm)' }}
+                >
+                  {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
+                </div>
+              </div>
+              {/* Mobile: Players side by side */}
+              <div className="flex justify-between w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
+                <PlayerInfoBar
+                  player={humanPlayer}
+                  isActive={gameState.active_player_id === humanPlayerId}
+                />
+                <PlayerInfoBar
+                  player={otherPlayer}
+                  isActive={gameState.active_player_id === otherPlayerId}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Desktop/Tablet: 3 columns */}
+              <PlayerInfoBar
+                player={humanPlayer}
+                isActive={gameState.active_player_id === humanPlayerId}
+              />
+              <div className="text-center">
+                <div 
+                  className={`
+                    text-lg font-bold rounded-lg transition-all duration-300
+                    ${isHumanTurn 
+                      ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
+                      : 'bg-gray-700 text-gray-300'
+                    }
+                  `}
+                  style={{ padding: '4px var(--spacing-component-md)' }}
+                >
+                  {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <PlayerInfoBar
+                  player={otherPlayer}
+                  isActive={gameState.active_player_id === otherPlayerId}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main Game Area - Responsive Layout */}
@@ -361,8 +402,88 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               />
             </div>
           </div>
+        ) : isMobile ? (
+          /* Mobile: Single-column stack for small screens */
+          <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
+            {/* Opponent's zones */}
+            <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
+              <div className="flex-1" style={{ minWidth: 0 }}>
+                <InPlayZone
+                  cards={otherPlayer.in_play}
+                  playerName={otherPlayer.name}
+                  isHuman={false}
+                  size={cardSize}
+                  enableLayoutAnimation={true}
+                />
+              </div>
+              <div style={{ width: '140px', flexShrink: 0 }}>
+                <SleepZoneDisplay
+                  cards={otherPlayer.sleep_zone}
+                  playerName={otherPlayer.name}
+                  isCompact={true}
+                  enableLayoutAnimation={true}
+                />
+              </div>
+            </div>
+            
+            <div className="border-t-2 border-game-highlight"></div>
+            
+            {/* Human's zones */}
+            <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
+              <div className="flex-1" style={{ minWidth: 0 }}>
+                <InPlayZone
+                  cards={humanPlayer.in_play}
+                  playerName={humanPlayer.name}
+                  isHuman={true}
+                  selectedCard={selectedCard || undefined}
+                  onCardClick={handleInPlayCardClick}
+                  actionableCardIds={actionableInPlayCardIds}
+                  isPlayerTurn={isHumanTurn}
+                  size={cardSize}
+                  enableLayoutAnimation={true}
+                />
+              </div>
+              <div style={{ width: '140px', flexShrink: 0 }}>
+                <SleepZoneDisplay
+                  cards={humanPlayer.sleep_zone}
+                  playerName={humanPlayer.name}
+                  isCompact={true}
+                  enableLayoutAnimation={true}
+                />
+              </div>
+            </div>
+            
+            {/* Human Hand */}
+            <HandZone
+              cards={humanPlayer.hand || []}
+              selectedCard={selectedCard || undefined}
+              onCardClick={handleHandCardClick}
+              playableCardIds={playableCardIds}
+              isPlayerTurn={isHumanTurn}
+              size={cardSize}
+              isCompact={true}
+              enableLayoutAnimation={true}
+            />
+            
+            {/* Messages */}
+            <GameMessages
+              messages={messages}
+              isAIThinking={isAIThinking}
+              isCompact={true}
+              playByPlay={gameState?.play_by_play}
+            />
+            
+            {/* Actions Panel */}
+            <ActionPanel
+              validActions={validActionsData?.valid_actions || []}
+              onAction={handleAction}
+              isProcessing={isProcessing}
+              currentCC={humanPlayer.cc}
+              isCompact={true}
+            />
+          </div>
         ) : (
-          /* Tablet/Mobile: 2-column layout */
+          /* Tablet: 2-column layout */
           <>
           <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: '1fr 280px' }}>
             {/* Left Column - Game Zones (In Play + Sleep stacked) */}
