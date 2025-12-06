@@ -94,64 +94,55 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
           )}
 
           {!loading && !error && stats && (
-            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-lg)' }}>
-              {/* Overall Stats */}
-              <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-md)' }}>
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
+              {/* Overall Stats - top row: 3 columns */}
+              <div className="grid grid-cols-3" style={{ gap: 'var(--spacing-component-sm)' }}>
                 {/* Win Rate */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
-                  <div className={`text-3xl font-bold ${getWinRateColor(stats.win_rate)}`}>
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
+                  <div className={`text-2xl font-bold ${getWinRateColor(stats.win_rate)}`}>
                     {stats.win_rate.toFixed(1)}%
                   </div>
-                  <div className="text-gray-300 text-sm">Win Rate</div>
+                  <div className="text-gray-300 text-xs">Win Rate</div>
                 </div>
 
                 {/* Games */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
-                  <div className="text-3xl font-bold text-blue-400">
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
+                  <div className="text-2xl font-bold text-blue-400">
                     {stats.games_played}
                   </div>
-                  <div className="text-gray-300 text-sm">Games Played</div>
+                  <div className="text-gray-300 text-xs">Games</div>
                 </div>
 
-                {/* Wins */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
-                  <div className="text-3xl font-bold text-green-400">
-                    {stats.games_won}
+                {/* Record */}
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
+                  <div className="text-2xl font-bold text-green-400">
+                    {stats.games_won}W / {stats.games_played - stats.games_won}L
                   </div>
-                  <div className="text-gray-300 text-sm">Wins</div>
-                </div>
-
-                {/* Losses */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-md)' }}>
-                  <div className="text-3xl font-bold text-red-400">
-                    {stats.games_played - stats.games_won}
-                  </div>
-                  <div className="text-gray-300 text-sm">Losses</div>
+                  <div className="text-gray-300 text-xs">Record</div>
                 </div>
               </div>
 
-              {/* Tussle Stats */}
-              {stats.total_tussles > 0 && (
-                <div className="bg-gray-900/90 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
-                  <h3 className="text-lg font-semibold text-orange-400" style={{ marginBottom: 'var(--spacing-component-sm)' }}>⚔️ Tussle Stats</h3>
-                  <div className="grid grid-cols-3 text-center" style={{ gap: 'var(--spacing-component-md)' }}>
-                    <div>
-                      <div className="text-2xl font-bold text-white">{stats.total_tussles}</div>
-                      <div className="text-gray-300 text-sm">Initiated</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-400">{stats.tussles_won}</div>
-                      <div className="text-gray-300 text-sm">Won</div>
-                    </div>
-                    <div>
-                      <div className={`text-2xl font-bold ${getWinRateColor(stats.tussle_win_rate)}`}>
-                        {stats.tussle_win_rate.toFixed(1)}%
-                      </div>
-                      <div className="text-gray-300 text-sm">Win Rate</div>
-                    </div>
+              {/* Second row: 2 columns for avg stats */}
+              <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
+                {/* Avg Turns */}
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
+                  <div className="text-2xl font-bold text-orange-400">
+                    {stats.avg_turns.toFixed(1)}
                   </div>
+                  <div className="text-gray-300 text-xs">Avg Turns</div>
                 </div>
-              )}
+
+                {/* Avg Duration */}
+                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
+                  <div className="text-2xl font-bold text-cyan-400">
+                    {stats.avg_game_duration_seconds < 60 
+                      ? `${Math.round(stats.avg_game_duration_seconds)}s`
+                      : `${Math.floor(stats.avg_game_duration_seconds / 60)}m ${Math.round(stats.avg_game_duration_seconds % 60)}s`
+                    }
+                  </div>
+                  <div className="text-gray-300 text-xs">Avg Game</div>
+                </div>
+              </div>
 
               {/* Card Stats */}
               {stats.card_stats && stats.card_stats.length > 0 && (

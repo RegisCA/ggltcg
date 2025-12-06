@@ -371,6 +371,8 @@ async def get_users(
             "games_played": player_stats.games_played if player_stats else 0,
             "games_won": player_stats.games_won if player_stats else 0,
             "win_rate": player_stats.win_rate if player_stats else 0.0,
+            "avg_turns": player_stats.avg_turns if player_stats else 0.0,
+            "avg_game_duration_seconds": player_stats.avg_game_duration_seconds if player_stats else 0.0,
             "last_game_at": last_game.updated_at.isoformat() if last_game else None,
             "last_game_status": last_game.status if last_game else None,
         })

@@ -225,6 +225,8 @@ class PlayerStatsResponse(BaseModel):
     total_tussles: int = Field(..., description="Total tussles initiated")
     tussles_won: int = Field(..., description="Total tussles won")
     tussle_win_rate: float = Field(..., description="Tussle win percentage")
+    avg_turns: float = Field(..., description="Average turns per game")
+    avg_game_duration_seconds: float = Field(..., description="Average game duration in seconds")
     card_stats: List[CardStatsResponse] = Field(
         default_factory=list,
         description="Per-card statistics sorted by usage"

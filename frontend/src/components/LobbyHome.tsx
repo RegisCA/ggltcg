@@ -190,7 +190,10 @@ export function LobbyHome({
       {viewingPlayerId && (
         <PlayerStats
           playerId={viewingPlayerId}
-          onClose={() => setViewingPlayerId(null)}
+          onClose={() => {
+            setViewingPlayerId(null);
+            setShowLeaderboard(true);
+          }}
         />
       )}
     </div>

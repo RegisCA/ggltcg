@@ -90,6 +90,8 @@ interface User {
   games_played: number;
   games_won: number;
   win_rate: number;
+  avg_turns: number;
+  avg_game_duration_seconds: number;
   last_game_at: string | null;
   last_game_status: string | null;
 }
@@ -569,6 +571,8 @@ const AdminDataViewer: React.FC = () => {
                     <th className="px-4 py-3 text-right">Games</th>
                     <th className="px-4 py-3 text-right">Wins</th>
                     <th className="px-4 py-3 text-right">Win Rate</th>
+                    <th className="px-4 py-3 text-right">Avg Turns</th>
+                    <th className="px-4 py-3 text-right">Avg Game</th>
                     <th className="px-4 py-3 text-left">Last Game</th>
                     <th className="px-4 py-3 text-left">Joined</th>
                   </tr>
@@ -584,6 +588,25 @@ const AdminDataViewer: React.FC = () => {
                         {user.games_played > 0 ? (
                           <span className={user.win_rate >= 50 ? 'text-green-400' : 'text-gray-300'}>
                             {user.win_rate.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {user.games_played > 0 && user.avg_turns ? (
+                          <span className="text-orange-400">{user.avg_turns.toFixed(1)}</span>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {user.games_played > 0 && user.avg_game_duration_seconds ? (
+                          <span className="text-cyan-400">
+                            {user.avg_game_duration_seconds < 60 
+                              ? `${Math.round(user.avg_game_duration_seconds)}s`
+                              : `${Math.floor(user.avg_game_duration_seconds / 60)}m ${Math.round(user.avg_game_duration_seconds % 60)}s`
+                            }
                           </span>
                         ) : (
                           <span className="text-gray-500">-</span>
