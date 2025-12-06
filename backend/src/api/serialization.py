@@ -171,6 +171,7 @@ def serialize_game_state(game_state: GameState) -> Dict[str, Any]:
         "winner_id": game_state.winner_id,
         "game_log": game_state.game_log,
         "play_by_play": game_state.play_by_play,
+        "starting_decks": game_state.starting_decks,
     }
 
 
@@ -199,6 +200,7 @@ def deserialize_game_state(data: Dict[str, Any]) -> GameState:
         winner_id=data.get("winner_id"),
         game_log=data.get("game_log", []),
         play_by_play=data.get("play_by_play", []),
+        starting_decks=data.get("starting_decks", {}),
     )
 
 

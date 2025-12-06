@@ -28,6 +28,7 @@ class GameState:
         winner_id: ID of the winning player (None if game ongoing)
         game_log: List of game events for history
         play_by_play: List of detailed action records for end-game summary
+        starting_decks: Dict mapping player_id to list of card names at game start
     """
     game_id: str
     players: Dict[str, Player]
@@ -38,6 +39,7 @@ class GameState:
     winner_id: Optional[str] = None
     game_log: List[str] = field(default_factory=list)
     play_by_play: List[Dict[str, Any]] = field(default_factory=list)
+    starting_decks: Dict[str, List[str]] = field(default_factory=dict)
     
     def get_active_player(self) -> Player:
         """Get the active player object."""
