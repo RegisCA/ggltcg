@@ -78,6 +78,25 @@
   --spacing-component-md: 16px;  /* 1rem - Standard spacing (most components) */
   --spacing-component-lg: 24px;  /* 1.5rem - Generous spacing (panels, modals) */
   --spacing-component-xl: 32px;  /* 2rem - Large spacing (page sections) */
+  
+  /* Typography Scale */
+  /* Mobile-first font sizes optimized for readability (WCAG AAA) */
+  --font-size-xs: 0.75rem;    /* 12px - Tiny text, metadata */
+  --font-size-sm: 0.875rem;   /* 14px - Small labels, secondary text */
+  --font-size-base: 1rem;     /* 16px - Body text, minimum readable size */
+  --font-size-lg: 1.125rem;   /* 18px - Large body text */
+  --font-size-xl: 1.25rem;    /* 20px - Emphasized text, mobile primary */
+  --font-size-2xl: 1.5rem;    /* 24px - Mobile headings, large text */
+  --font-size-3xl: 1.875rem;  /* 30px - Major headings */
+  --font-size-4xl: 2.25rem;   /* 36px - Hero text */
+  
+  /* Mobile Detail Modal Typography (larger for readability) */
+  --font-size-mobile-detail-title: 2rem;      /* 32px - Card name in detail view */
+  --font-size-mobile-detail-heading: 1.375rem; /* 22px - Section headings */
+  --font-size-mobile-detail-label: 1.25rem;    /* 20px - Stat labels */
+  --font-size-mobile-detail-value: 1.75rem;    /* 28px - Stat values */
+  --font-size-mobile-detail-text: 1.375rem;    /* 22px - Effect text (primary readability) */
+  --font-size-mobile-detail-meta: 1rem;        /* 16px - Metadata, base values */
 }
 
 /* Additional CSS Custom Properties (non-Tailwind) */
