@@ -97,6 +97,19 @@
   --font-size-mobile-detail-value: 1.75rem;    /* 28px - Stat values */
   --font-size-mobile-detail-text: 1.375rem;    /* 22px - Effect text (primary readability) */
   --font-size-mobile-detail-meta: 1rem;        /* 16px - Metadata, base values */
+  
+  /* Touch Target Sizes (WCAG minimum guidelines) */
+  --size-touch-target-min: 44px;      /* WCAG minimum touch target size */
+  --size-touch-target-button: 48px;   /* Standard button height for touch interfaces */
+  --size-touch-target-lg: 60px;       /* Large touch target for primary actions */
+  
+  /* Semantic Stat Colors */
+  --color-stat-buffed: #FFD700;       /* Gold for buffed/modified stats */
+  --color-stat-damaged: #FF6B6B;      /* Red for damaged/reduced stats */
+  
+  /* Component Widths */
+  --width-sleep-zone-mobile: 140px;   /* Sleep zone width on mobile layout */
+  --width-sidebar-tablet: 280px;      /* Sidebar width on tablet layout */
 }
 
 /* Additional CSS Custom Properties (non-Tailwind) */

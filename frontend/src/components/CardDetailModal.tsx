@@ -62,8 +62,8 @@ export function CardDetailModal({
             onClick={onClose}
             className="flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white font-bold rounded"
             style={{
-              minWidth: '44px',
-              minHeight: '44px',
+              minWidth: 'var(--size-touch-target-min)',
+              minHeight: 'var(--size-touch-target-min)',
               fontSize: 'var(--font-size-2xl)',
             }}
             aria-label="Close"
@@ -77,10 +77,10 @@ export function CardDetailModal({
           <div
             className="flex items-center justify-center font-bold text-white rounded"
             style={{
-              width: '60px',
-              height: '60px',
+              width: 'var(--size-touch-target-lg)',
+              height: 'var(--size-touch-target-lg)',
               backgroundColor: accentColor,
-              fontSize: '2rem',
+              fontSize: 'var(--font-size-mobile-detail-title)',
               boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
             }}
           >
@@ -108,19 +108,17 @@ export function CardDetailModal({
         </div>
 
         {/* Badges (Copy, Sleeped) */}
-        {(card.is_sleeped) && (
+        {card.is_sleeped && (
           <div className="flex flex-wrap" style={{ gap: 'var(--spacing-component-xs)' }}>
-            {card.is_sleeped && (
-              <span
-                className="rounded font-bold text-white bg-red-600"
-                style={{
-                  fontSize: 'var(--font-size-lg)',
-                  padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
-                }}
-              >
-                SLEEPED
-              </span>
-            )}
+            <span
+              className="rounded font-bold text-white bg-red-600"
+              style={{
+                fontSize: 'var(--font-size-lg)',
+                padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+              }}
+            >
+              SLEEPED
+            </span>
           </div>
         )}
 
@@ -146,7 +144,7 @@ export function CardDetailModal({
                   className="font-bold text-right"
                   style={{
                     fontSize: 'var(--font-size-2xl)',
-                    color: card.speed !== card.base_speed ? '#FFD700' : 'white',
+                    color: card.speed !== card.base_speed ? 'var(--color-stat-buffed)' : 'white',
                   }}
                 >
                   {card.speed}
@@ -167,7 +165,7 @@ export function CardDetailModal({
                   className="font-bold text-right"
                   style={{
                     fontSize: 'var(--font-size-2xl)',
-                    color: card.strength !== card.base_strength ? '#FFD700' : 'white',
+                    color: card.strength !== card.base_strength ? 'var(--color-stat-buffed)' : 'white',
                   }}
                 >
                   {card.strength}
@@ -188,7 +186,11 @@ export function CardDetailModal({
                   className="font-bold text-right"
                   style={{
                     fontSize: 'var(--font-size-2xl)',
-                    color: card.current_stamina !== card.stamina ? '#FF6B6B' : (card.stamina !== card.base_stamina ? '#FFD700' : 'white'),
+                    color: (card.current_stamina ?? 0) < (card.stamina ?? 0)
+                      ? 'var(--color-stat-damaged)' // Damaged (current < max)
+                      : card.stamina !== card.base_stamina
+                      ? 'var(--color-stat-buffed)' // Buffed/debuffed (max ≠ base)
+                      : 'white', // Normal
                   }}
                 >
                   {card.current_stamina} / {card.stamina}
@@ -235,7 +237,7 @@ export function CardDetailModal({
               onClick={handleAction}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold rounded"
               style={{
-                minHeight: '48px',
+                minHeight: 'var(--size-touch-target-button)',
                 fontSize: 'var(--font-size-lg)',
                 padding: 'var(--spacing-component-sm)',
               }}
@@ -247,7 +249,7 @@ export function CardDetailModal({
             onClick={onClose}
             className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded"
             style={{
-              minHeight: '48px',
+              minHeight: 'var(--size-touch-target-button)',
               fontSize: 'var(--font-size-lg)',
               padding: 'var(--spacing-component-sm)',
             }}

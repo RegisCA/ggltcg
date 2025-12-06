@@ -146,13 +146,13 @@ export function CardDisplay({
     <>
       <motion.div
         layoutId={enableLayoutAnimation ? `card-${card.id}` : undefined}
-        onClick={!shouldEnableMobileDetail && (isClickable && !effectivelyDisabled) ? onClick : undefined}
+        onClick={shouldEnableMobileDetail ? handleInteraction : (isClickable && !effectivelyDisabled ? onClick : undefined)}
         onTouchStart={shouldEnableMobileDetail ? handleTouchStart : undefined}
         onTouchEnd={shouldEnableMobileDetail ? handleTouchEnd : undefined}
         onKeyDown={handleKeyDown}
         tabIndex={shouldEnableMobileDetail || (isClickable && !effectivelyDisabled) ? 0 : undefined}
-        role="button"
-        aria-label={isClickable ? `${card.name} card` : undefined}
+        role={shouldEnableMobileDetail || (isClickable && !effectivelyDisabled) ? "button" : undefined}
+        aria-label={shouldEnableMobileDetail || isClickable ? `${card.name} card` : undefined}
         className={`
           rounded relative
           ${shouldEnableMobileDetail || (isClickable && !effectivelyDisabled) ? 'cursor-pointer' : ''}

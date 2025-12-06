@@ -416,7 +416,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   enableLayoutAnimation={true}
                 />
               </div>
-              <div style={{ width: '140px', flexShrink: 0 }}>
+              <div style={{ width: 'var(--width-sleep-zone-mobile)', flexShrink: 0 }}>
                 <SleepZoneDisplay
                   cards={otherPlayer.sleep_zone}
                   playerName={otherPlayer.name}
@@ -443,7 +443,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   enableLayoutAnimation={true}
                 />
               </div>
-              <div style={{ width: '140px', flexShrink: 0 }}>
+              <div style={{ width: 'var(--width-sleep-zone-mobile)', flexShrink: 0 }}>
                 <SleepZoneDisplay
                   cards={humanPlayer.sleep_zone}
                   playerName={humanPlayer.name}
@@ -485,7 +485,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         ) : (
           /* Tablet: 2-column layout */
           <>
-          <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: '1fr 280px' }}>
+          <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: '1fr var(--width-sidebar-tablet)' }}>
             {/* Left Column - Game Zones (In Play + Sleep stacked) */}
             <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
               {/* Opponent's zones */}

@@ -45,13 +45,13 @@ export function PlayerZone({
         }}
       >
         <div style={{ flexShrink: 0 }}>
-          <h2 style={{ fontSize: isMobile ? '1rem' : '1.25rem', fontWeight: 'bold' }}>{player.name}</h2>
+          <h2 style={{ fontSize: isMobile ? 'var(--font-size-base)' : 'var(--font-size-xl)', fontWeight: 'bold' }}>{player.name}</h2>
           {isActive && (
             <span className="text-xs text-game-highlight font-bold">ACTIVE TURN</span>
           )}
         </div>
         <div className="text-right" style={{ flexShrink: 0 }}>
-          <div style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 'bold' }}>{player.cc} CC</div>
+          <div style={{ fontSize: isMobile ? 'var(--font-size-xl)' : 'var(--font-size-2xl)', fontWeight: 'bold' }}>{player.cc} CC</div>
           <div className="text-xs text-gray-400">Command Counters</div>
         </div>
       </div>
