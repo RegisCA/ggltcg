@@ -45,15 +45,7 @@ export function CardDetailModal({
       closeOnBackdropClick={true}
       closeOnEscape={true}
     >
-      <div
-        className="flex flex-col"
-        style={{
-          gap: 'var(--spacing-component-md)',
-          padding: 'var(--spacing-component-md)',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-        }}
-      >
+      <div className="content-spacing max-h-[85vh] overflow-y-auto">
         {/* Header: Close Button */}
         <div className="flex justify-between items-start">
           <h2
@@ -70,8 +62,8 @@ export function CardDetailModal({
             onClick={onClose}
             className="flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white font-bold rounded"
             style={{
-              minWidth: '44px',
-              minHeight: '44px',
+              minWidth: 'var(--size-touch-target-min)',
+              minHeight: 'var(--size-touch-target-min)',
               fontSize: 'var(--font-size-2xl)',
             }}
             aria-label="Close"
@@ -85,10 +77,10 @@ export function CardDetailModal({
           <div
             className="flex items-center justify-center font-bold text-white rounded"
             style={{
-              width: '60px',
-              height: '60px',
+              width: 'var(--size-touch-target-lg)',
+              height: 'var(--size-touch-target-lg)',
               backgroundColor: accentColor,
-              fontSize: '2rem',
+              fontSize: 'var(--font-size-mobile-detail-title)',
               boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
             }}
           >
@@ -102,11 +94,12 @@ export function CardDetailModal({
               Type
             </div>
             <div
-              className="font-bold text-white px-3 py-1 rounded inline-block"
+              className="font-bold text-white rounded inline-block"
               style={{
                 fontSize: 'var(--font-size-xl)',
                 backgroundColor: isToy ? 'var(--ui-toy-badge)' : 'var(--ui-action-badge)',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
               }}
             >
               {card.card_type}
@@ -115,25 +108,29 @@ export function CardDetailModal({
         </div>
 
         {/* Badges (Copy, Sleeped) */}
-        {(card.is_sleeped) && (
+        {card.is_sleeped && (
           <div className="flex flex-wrap" style={{ gap: 'var(--spacing-component-xs)' }}>
-            {card.is_sleeped && (
-              <span
-                className="px-3 py-1 rounded font-bold text-white bg-red-600"
-                style={{ fontSize: 'var(--font-size-lg)' }}
-              >
-                SLEEPED
-              </span>
-            )}
+            <span
+              className="rounded font-bold text-white bg-red-600"
+              style={{
+                fontSize: 'var(--font-size-lg)',
+                padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+              }}
+            >
+              SLEEPED
+            </span>
           </div>
         )}
 
         {/* Toy Stats - Large and Readable */}
         {isToy && (
-          <div className="bg-gray-800 rounded p-4">
+          <div className="card-padding bg-gray-800 rounded">
             <h3
-              className="text-gray-300 font-bold mb-3"
-              style={{ fontSize: 'var(--font-size-mobile-detail-heading)' }}
+              className="text-gray-300 font-bold"
+              style={{
+                fontSize: 'var(--font-size-mobile-detail-heading)',
+                marginBottom: 'var(--spacing-component-sm)',
+              }}
             >
               Stats
             </h3>
@@ -147,12 +144,12 @@ export function CardDetailModal({
                   className="font-bold text-right"
                   style={{
                     fontSize: 'var(--font-size-2xl)',
-                    color: card.speed !== card.base_speed ? '#FFD700' : 'white',
+                    color: card.speed !== card.base_speed ? 'var(--color-stat-buffed)' : 'white',
                   }}
                 >
                   {card.speed}
                   {card.speed !== card.base_speed && (
-                    <span className="text-gray-400 ml-2" style={{ fontSize: 'var(--font-size-sm)' }}>
+                    <span className="text-gray-400" style={{ fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-component-xs)' }}>
                       (Base: {card.base_speed})
                     </span>
                   )}
@@ -168,12 +165,12 @@ export function CardDetailModal({
                   className="font-bold text-right"
                   style={{
                     fontSize: 'var(--font-size-2xl)',
-                    color: card.strength !== card.base_strength ? '#FFD700' : 'white',
+                    color: card.strength !== card.base_strength ? 'var(--color-stat-buffed)' : 'white',
                   }}
                 >
                   {card.strength}
                   {card.strength !== card.base_strength && (
-                    <span className="text-gray-400 ml-2" style={{ fontSize: 'var(--font-size-sm)' }}>
+                    <span className="text-gray-400" style={{ fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-component-xs)' }}>
                       (Base: {card.base_strength})
                     </span>
                   )}
@@ -189,12 +186,16 @@ export function CardDetailModal({
                   className="font-bold text-right"
                   style={{
                     fontSize: 'var(--font-size-2xl)',
-                    color: card.current_stamina !== card.stamina ? '#FF6B6B' : (card.stamina !== card.base_stamina ? '#FFD700' : 'white'),
+                    color: (card.current_stamina ?? 0) < (card.stamina ?? 0)
+                      ? 'var(--color-stat-damaged)' // Damaged (current < max)
+                      : card.stamina !== card.base_stamina
+                      ? 'var(--color-stat-buffed)' // Buffed/debuffed (max ≠ base)
+                      : 'white', // Normal
                   }}
                 >
                   {card.current_stamina} / {card.stamina}
                   {card.stamina !== card.base_stamina && (
-                    <span className="text-gray-400 ml-2" style={{ fontSize: 'var(--font-size-sm)' }}>
+                    <span className="text-gray-400" style={{ fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-component-xs)' }}>
                       (Base: {card.base_stamina})
                     </span>
                   )}
@@ -206,10 +207,13 @@ export function CardDetailModal({
 
         {/* Effect Text - Large and Readable */}
         {card.effect_text && (
-          <div className="bg-gray-800 rounded p-4">
+          <div className="card-padding bg-gray-800 rounded">
             <h3
-              className="text-gray-300 font-bold mb-2"
-              style={{ fontSize: 'var(--font-size-mobile-detail-heading)' }}
+              className="text-gray-300 font-bold"
+              style={{
+                fontSize: 'var(--font-size-mobile-detail-heading)',
+                marginBottom: 'var(--spacing-component-xs)',
+              }}
             >
               Effect
             </h3>
@@ -233,7 +237,7 @@ export function CardDetailModal({
               onClick={handleAction}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold rounded"
               style={{
-                minHeight: '48px',
+                minHeight: 'var(--size-touch-target-button)',
                 fontSize: 'var(--font-size-lg)',
                 padding: 'var(--spacing-component-sm)',
               }}
@@ -245,7 +249,7 @@ export function CardDetailModal({
             onClick={onClose}
             className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded"
             style={{
-              minHeight: '48px',
+              minHeight: 'var(--size-touch-target-button)',
               fontSize: 'var(--font-size-lg)',
               padding: 'var(--spacing-component-sm)',
             }}
