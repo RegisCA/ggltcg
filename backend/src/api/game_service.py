@@ -465,6 +465,7 @@ class GameService:
         try:
             # Get game start time from database for accurate duration
             game_started_at = None
+            game_duration_seconds = 0
             if self.use_database:
                 SessionLocal = get_session_local()
                 db = SessionLocal()
@@ -472,6 +473,11 @@ class GameService:
                     game_model = db.query(GameModel).filter(GameModel.id == game_id).first()
                     if game_model:
                         game_started_at = game_model.created_at
+                        # Calculate duration
+                        from datetime import datetime, timezone
+                        now = datetime.now(timezone.utc)
+                        if game_started_at:
+                            game_duration_seconds = int((now - game_started_at).total_seconds())
                 finally:
                     db.close()
             
@@ -494,6 +500,7 @@ class GameService:
         
         # Update player stats for both players
         winner_id = game_state.winner_id
+        turn_count = game_state.turn_number
         try:
             stats_service.update_player_stats(
                 player_id=player1_id,
@@ -502,6 +509,8 @@ class GameService:
                 cards_used=starting_deck_p1,
                 tussles_initiated=p1_tussles,
                 tussles_won=p1_tussles_won,
+                turn_count=turn_count,
+                game_duration_seconds=game_duration_seconds,
             )
             stats_service.update_player_stats(
                 player_id=player2_id,
@@ -510,6 +519,8 @@ class GameService:
                 cards_used=starting_deck_p2,
                 tussles_initiated=p2_tussles,
                 tussles_won=p2_tussles_won,
+                turn_count=turn_count,
+                game_duration_seconds=game_duration_seconds,
             )
         except Exception as e:
             logger.error(f"Failed to update player stats: {e}")

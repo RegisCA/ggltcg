@@ -73,6 +73,8 @@ async def get_player_stats(player_id: str) -> PlayerStatsResponse:
             if stats["total_tussles"] > 0 else 0.0,
             1
         ),
+        avg_turns=round(stats.get("avg_turns", 0.0), 1),
+        avg_game_duration_seconds=round(stats.get("avg_game_duration_seconds", 0.0), 1),
         card_stats=card_stats_list,
     )
 

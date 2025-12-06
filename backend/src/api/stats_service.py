@@ -203,6 +203,8 @@ class StatsService:
         cards_used: list[str],
         tussles_initiated: int = 0,
         tussles_won: int = 0,
+        turn_count: int = 0,
+        game_duration_seconds: int = 0,
     ) -> None:
         """
         Update a player's statistics after a game.
@@ -214,6 +216,8 @@ class StatsService:
             cards_used: List of card names used in the game
             tussles_initiated: Number of tussles the player initiated
             tussles_won: Number of tussles the player won
+            turn_count: Number of turns in the game
+            game_duration_seconds: Duration of the game in seconds
         """
         if not self.use_database:
             logger.debug(f"Player stats updated (no-db): player={player_id}")
@@ -237,6 +241,8 @@ class StatsService:
                     games_won=0,
                     total_tussles=0,
                     tussles_won=0,
+                    total_turns=0,
+                    total_game_duration_seconds=0,
                     card_stats={},
                 )
                 db.add(stats)
@@ -247,6 +253,8 @@ class StatsService:
                 stats.games_won += 1
             stats.total_tussles += tussles_initiated
             stats.tussles_won += tussles_won
+            stats.total_turns += turn_count
+            stats.total_game_duration_seconds += game_duration_seconds
             stats.display_name = display_name  # Update display name in case it changed
             
             # Update card-specific stats
@@ -378,6 +386,8 @@ class StatsService:
                 "win_rate": stats.win_rate,
                 "total_tussles": stats.total_tussles,
                 "tussles_won": stats.tussles_won,
+                "avg_turns": stats.avg_turns,
+                "avg_game_duration_seconds": stats.avg_game_duration_seconds,
                 "card_stats": stats.card_stats,
             }
         except Exception as e:

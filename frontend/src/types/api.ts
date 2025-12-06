@@ -152,6 +152,8 @@ export interface PlayerStats {
   total_tussles: number;
   tussles_won: number;
   tussle_win_rate: number;
+  avg_turns: number;
+  avg_game_duration_seconds: number;
   card_stats: CardStats[];
 }
 

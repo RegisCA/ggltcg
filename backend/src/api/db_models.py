@@ -343,6 +343,10 @@ class PlayerStatsModel(Base):
     total_tussles = Column(Integer, nullable=False, default=0)
     tussles_won = Column(Integer, nullable=False, default=0)
     
+    # Game duration stats (for calculating averages)
+    total_turns = Column(Integer, nullable=False, default=0)
+    total_game_duration_seconds = Column(Integer, nullable=False, default=0)
+    
     # Card-specific stats (JSONB for flexibility)
     # Structure: {
     #   "Ka": {"games_played": 50, "games_won": 28, "tussles_initiated": 30, "tussles_won": 22},
@@ -378,3 +382,17 @@ class PlayerStatsModel(Base):
         if self.games_played == 0:
             return 0.0
         return (self.games_won / self.games_played) * 100
+    
+    @property
+    def avg_turns(self) -> float:
+        """Calculate average turns per game."""
+        if self.games_played == 0:
+            return 0.0
+        return self.total_turns / self.games_played
+    
+    @property
+    def avg_game_duration_seconds(self) -> float:
+        """Calculate average game duration in seconds."""
+        if self.games_played == 0:
+            return 0.0
+        return self.total_game_duration_seconds / self.games_played
