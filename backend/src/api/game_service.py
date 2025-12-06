@@ -208,7 +208,7 @@ class GameService:
             import random
             first_player_id = random.choice([player1_id, player2_id])
         
-        # Create game state
+        # Create game state with starting decks captured
         game_state = GameState(
             game_id=game_id,
             players={player1_id: player1, player2_id: player2},
@@ -216,6 +216,10 @@ class GameService:
             first_player_id=first_player_id,
             turn_number=1,
             phase=Phase.START,
+            starting_decks={
+                player1_id: list(player1_deck),  # Copy the original deck names
+                player2_id: list(player2_deck),
+            },
         )
         
         # Create game engine
@@ -411,22 +415,27 @@ class GameService:
         player1 = game_state.players[player1_id]
         player2 = game_state.players[player2_id]
         
-        # Reconstruct starting decks from current state
-        # (hand + in_play + sleep_zone = all cards the player has)
-        def get_deck_names(player: Player) -> list[str]:
-            all_cards = player.hand + player.in_play + player.sleep_zone
-            # Normalize Copy cards back to "Copy" for deck reconstruction
-            # Copy cards change their name to "Copy of [Target]" when played
-            deck_names = []
-            for card in all_cards:
-                if card.name.startswith("Copy of "):
-                    deck_names.append("Copy")
-                else:
-                    deck_names.append(card.name)
-            return deck_names
-        
-        starting_deck_p1 = get_deck_names(player1)
-        starting_deck_p2 = get_deck_names(player2)
+        # Use stored starting decks (captured at game creation)
+        # Fall back to reconstruction only for games created before this fix
+        if game_state.starting_decks:
+            starting_deck_p1 = game_state.starting_decks.get(player1_id, [])
+            starting_deck_p2 = game_state.starting_decks.get(player2_id, [])
+            logger.info(f"Game {game_id}: Using stored starting decks - P1: {starting_deck_p1}, P2: {starting_deck_p2}")
+        else:
+            # Legacy fallback: reconstruct from current state (may be inaccurate)
+            logger.warning(f"Game {game_id} missing starting_decks, using fallback reconstruction")
+            def get_deck_names(player: Player) -> list[str]:
+                all_cards = player.hand + player.in_play + player.sleep_zone
+                deck_names = []
+                for card in all_cards:
+                    if card.name.startswith("Copy of "):
+                        deck_names.append("Copy")
+                    else:
+                        deck_names.append(card.name)
+                return deck_names
+            starting_deck_p1 = get_deck_names(player1)
+            starting_deck_p2 = get_deck_names(player2)
+            logger.info(f"Game {game_id}: Reconstructed decks - P1: {starting_deck_p1}, P2: {starting_deck_p2}")
         
         # Calculate tussle stats from play-by-play
         # Note: The game engine logs tussles as "{player}'s {card} tussles {opponent}'s {card}"

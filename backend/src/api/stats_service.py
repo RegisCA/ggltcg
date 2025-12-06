@@ -8,6 +8,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from sqlalchemy.orm.attributes import flag_modified
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +262,7 @@ class StatsService:
                     card_stats[card_name]["games_won"] += 1
             
             stats.card_stats = card_stats
+            flag_modified(stats, 'card_stats')  # Ensure SQLAlchemy detects JSON change
             
             db.commit()
             logger.info(f"Player stats updated: player={player_id}, total_games={stats.games_played}")
