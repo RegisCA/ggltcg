@@ -45,15 +45,7 @@ export function CardDetailModal({
       closeOnBackdropClick={true}
       closeOnEscape={true}
     >
-      <div
-        className="flex flex-col"
-        style={{
-          gap: 'var(--spacing-component-md)',
-          padding: 'var(--spacing-component-md)',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-        }}
-      >
+      <div className="content-spacing max-h-[85vh] overflow-y-auto">
         {/* Header: Close Button */}
         <div className="flex justify-between items-start">
           <h2
@@ -102,11 +94,12 @@ export function CardDetailModal({
               Type
             </div>
             <div
-              className="font-bold text-white px-3 py-1 rounded inline-block"
+              className="font-bold text-white rounded inline-block"
               style={{
                 fontSize: 'var(--font-size-xl)',
                 backgroundColor: isToy ? 'var(--ui-toy-badge)' : 'var(--ui-action-badge)',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
               }}
             >
               {card.card_type}
@@ -119,8 +112,11 @@ export function CardDetailModal({
           <div className="flex flex-wrap" style={{ gap: 'var(--spacing-component-xs)' }}>
             {card.is_sleeped && (
               <span
-                className="px-3 py-1 rounded font-bold text-white bg-red-600"
-                style={{ fontSize: 'var(--font-size-lg)' }}
+                className="rounded font-bold text-white bg-red-600"
+                style={{
+                  fontSize: 'var(--font-size-lg)',
+                  padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                }}
               >
                 SLEEPED
               </span>
@@ -130,10 +126,13 @@ export function CardDetailModal({
 
         {/* Toy Stats - Large and Readable */}
         {isToy && (
-          <div className="bg-gray-800 rounded p-4">
+          <div className="card-padding bg-gray-800 rounded">
             <h3
-              className="text-gray-300 font-bold mb-3"
-              style={{ fontSize: 'var(--font-size-mobile-detail-heading)' }}
+              className="text-gray-300 font-bold"
+              style={{
+                fontSize: 'var(--font-size-mobile-detail-heading)',
+                marginBottom: 'var(--spacing-component-sm)',
+              }}
             >
               Stats
             </h3>
@@ -152,7 +151,7 @@ export function CardDetailModal({
                 >
                   {card.speed}
                   {card.speed !== card.base_speed && (
-                    <span className="text-gray-400 ml-2" style={{ fontSize: 'var(--font-size-sm)' }}>
+                    <span className="text-gray-400" style={{ fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-component-xs)' }}>
                       (Base: {card.base_speed})
                     </span>
                   )}
@@ -173,7 +172,7 @@ export function CardDetailModal({
                 >
                   {card.strength}
                   {card.strength !== card.base_strength && (
-                    <span className="text-gray-400 ml-2" style={{ fontSize: 'var(--font-size-sm)' }}>
+                    <span className="text-gray-400" style={{ fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-component-xs)' }}>
                       (Base: {card.base_strength})
                     </span>
                   )}
@@ -194,7 +193,7 @@ export function CardDetailModal({
                 >
                   {card.current_stamina} / {card.stamina}
                   {card.stamina !== card.base_stamina && (
-                    <span className="text-gray-400 ml-2" style={{ fontSize: 'var(--font-size-sm)' }}>
+                    <span className="text-gray-400" style={{ fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-component-xs)' }}>
                       (Base: {card.base_stamina})
                     </span>
                   )}
@@ -206,10 +205,13 @@ export function CardDetailModal({
 
         {/* Effect Text - Large and Readable */}
         {card.effect_text && (
-          <div className="bg-gray-800 rounded p-4">
+          <div className="card-padding bg-gray-800 rounded">
             <h3
-              className="text-gray-300 font-bold mb-2"
-              style={{ fontSize: 'var(--font-size-mobile-detail-heading)' }}
+              className="text-gray-300 font-bold"
+              style={{
+                fontSize: 'var(--font-size-mobile-detail-heading)',
+                marginBottom: 'var(--spacing-component-xs)',
+              }}
             >
               Effect
             </h3>
