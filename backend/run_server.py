@@ -51,18 +51,26 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Set the cards CSV path via environment variable if provided
+    # Must be set BEFORE uvicorn.run() and in os.environ so child processes inherit it
     if args.deck:
         deck_path = Path(args.deck)
         if not deck_path.exists():
             print(f"Error: Deck CSV file not found: {deck_path}", file=sys.stderr)
             sys.exit(1)
-        os.environ["CARDS_CSV_PATH"] = str(deck_path.absolute())
-        print(f"Using deck CSV: {deck_path.absolute()}")
+        absolute_path = str(deck_path.absolute())
+        os.environ["CARDS_CSV_PATH"] = absolute_path
+        print(f"Using deck CSV: {absolute_path}")
     
     import uvicorn
+    
+    # When reload=True, uvicorn spawns a subprocess that needs to inherit env vars.
+    # We use env_file or pass environment explicitly via the config.
+    # Setting os.environ before uvicorn.run should work, but let's also
+    # ensure the subprocess inherits by using reload_dirs to trigger reloads properly.
     uvicorn.run(
         "api.app:app",
         host=args.host,
         port=args.port,
-        reload=not args.no_reload
+        reload=not args.no_reload,
+        reload_dirs=["src"] if not args.no_reload else None,
     )

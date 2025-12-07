@@ -1,0 +1,27 @@
+name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accent_color,effects
+Beary,18,1,Your opponent's cards' effects don't affect this card.,5,3,3,,,#C74444,#C74444,opponent_immunity
+Knight,18,1,"On your turn, this card wins all tussles it enters.",4,4,3,,,#C74444,#C74444,auto_win_tussle_on_own_turn
+Wizard,18,2,Your cards' tussles cost 1.,1,3,3,,,#C74444,#C74444,set_tussle_cost:1
+Archer,18,0,This card can't start tussles. You may spend CC to remove stamina from cards.,0,0,5,,,#C74444,#C74444,cannot_tussle;remove_stamina_ability:1
+Umbruh,18,1,"When sleeped, gain 1 CC.",4,4,4,,,#C74444,#C74444,gain_cc_when_sleeped:1
+Ka,18,2,Your cards have + 2 strength.,5,9,1,,,#C74444,#C74444,stat_boost:strength:2
+Demideca,18,1,Your cards have + 1 of all stats.,3,2,3,,,#C74444,#C74444,stat_boost:all:1
+Raggy,18,3,This card's tussles cost 0. This card may not tussle on the first turn of the game.,2,3,2,,,#C74444,#C74444,set_self_tussle_cost:0:not_turn_1
+Ballaber,18,3,You may sleep 1 of your cards to play this card for free.,4,6,4,,,#C74444,#C74444,alternative_cost_sleep_card
+Dream,18,4,This card costs 1 less for each of your sleeping cards.,4,5,4,,,#C74444,#C74444,reduce_cost_by_sleeping
+Copy,18,-1,This card acts as an exact copy of a card you have in play.,,,,,,#8B5FA8,#8B5FA8,copy_card
+Twist,18,3,"Put a card your opponent has in play in play, but under your control.",,,,,,#8B5FA8,#8B5FA8,take_control
+Rush,18,0,Gain 2 CC. This card may not be played on your first turn.,,,,,,#8B5FA8,#8B5FA8,gain_cc:2:not_first_turn
+Toynado,18,2,Put all cards that are in play into their owner's hands.,,,,,,#8B5FA8,#8B5FA8,return_all_to_hand
+Clean,18,3,Sleep all cards that are in play.,,,,,,#8B5FA8,#8B5FA8,sleep_all
+Wake,18,1,Unsleep 1 of your cards.,,,,,,#8B5FA8,#8B5FA8,unsleep:1
+Sun,18,3,Unsleep 2 of your cards.,,,,,,#8B5FA8,#8B5FA8,unsleep:2
+Surge,Beta,0,Gain 1 CC.,,,,,,#e612d0,#e612d0,gain_cc:1
+Sock Sorcerer,Beta,3,Your opponent's cards' effects don't affect your cards.,3,3,5,,,#eb9113,#eb9113,team_opponent_immunity
+Drop,Beta,1,Sleep a card that is in play.,,,,,,#e612d0,#e612d0,sleep_target:1
+Jumpscare,Beta,0,Put a card that is in play into their owner's hand.,,,,,,#e612d0,#e612d0,return_target_to_hand:1
+VeryVeryAppleJuice,Beta,0,"This turn, your cards have 1 more of each stat.",,,,,,#e612d0,#e612d0,stat_boost:all:1:this_turn
+Belchaletta,Beta,1,"At the start of your turn, gain 2 charge.",3,3,4,,,#eb9113,#eb9113,start_of_turn_gain_cc:2
+Hind Leg Kicker,Beta,1,"When you play a card (not this one), gain 1 charge.",3,3,1,,,#eb9113,#eb9113,on_card_played_gain_cc:1
+Dwumm,Beta,1,Your cards have 2 more speed.,2,2,2,,,#eb9113,#eb9113,stat_boost:speed:2
+Twombon,Beta,1,Your cards have 2 more strength.,2,2,2,,,#eb9113,#eb9113,stat_boost:strength:2
