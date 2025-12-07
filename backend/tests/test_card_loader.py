@@ -16,8 +16,8 @@ def test_load_cards():
     cards = load_all_cards()
     print(f"✓ Loaded {len(cards)} cards")
     
-    # Verify we have 17 cards
-    assert len(cards) == 17, f"Expected 17 cards, got {len(cards)}"
+    # Verify we have 26 cards (17 original + 9 new cards from Issue #204)
+    assert len(cards) == 26, f"Expected 26 cards, got {len(cards)}"
     
     # Check some specific cards
     cards_dict = load_cards_dict()

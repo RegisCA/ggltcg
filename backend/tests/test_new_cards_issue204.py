@@ -4,7 +4,7 @@ Tests for new cards from Issue #204.
 This file tests the new cards added in the Beta release.
 Cards are tested in phases based on implementation complexity.
 
-Phase 1: Surge, Dwumm, Twombon (use existing effect patterns)
+Phase 1: Surge, Drum, Violin (use existing effect patterns)
 Phase 2: Drop, Jumpscare (new targeted effects)
 Phase 3: Sock Sorcerer (team protection)
 Phase 4: VeryVeryAppleJuice (turn-scoped effects)
@@ -73,7 +73,7 @@ from conftest import create_game_with_cards, create_card, GameSetup
 
 
 # ============================================================================
-# PHASE 1: SURGE, DWUMM, TWOMBON
+# PHASE 1: SURGE, DRUM, VIOLIN
 # These cards use existing effect patterns and should work immediately.
 # ============================================================================
 
@@ -147,17 +147,17 @@ class TestSurge:
         assert surge.zone == Zone.SLEEP
 
 
-class TestDwumm:
+class TestDrum:
     """
-    Dwumm: "Your cards have 2 more speed."
+    Drum: "Your cards have 2 more speed."
     
     Continuous stat boost effect, similar to Ka but for speed.
     Uses existing StatBoostEffect class.
     """
     
-    def test_dwumm_effect_parses_correctly(self):
-        """Dwumm's effect definition should parse to StatBoostEffect for speed."""
-        card = create_card("Dwumm", owner="p1")
+    def test_drum_effect_parses_correctly(self):
+        """Drum's effect definition should parse to StatBoostEffect for speed."""
+        card = create_card("Drum", owner="p1")
         
         effects = EffectFactory.parse_effects(card.effect_definitions, card)
         
@@ -166,42 +166,42 @@ class TestDwumm:
         assert effects[0].stat_name == "speed"
         assert effects[0].amount == 2
     
-    def test_dwumm_boosts_own_speed(self):
-        """Dwumm should boost its own speed by 2."""
+    def test_drum_boosts_own_speed(self):
+        """Drum should boost its own speed by 2."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Dwumm"],
+            player1_in_play=["Drum"],
             active_player="player1",
         )
         
-        dwumm = cards["p1_inplay_Dwumm"]
+        drum = cards["p1_inplay_Drum"]
         
-        # Base speed is 2, with effect should be 4
-        base_speed = 2
-        effective_speed = setup.engine.get_card_stat(dwumm, "speed")
+        # Base speed is 1, with effect should be 3
+        base_speed = 1
+        effective_speed = setup.engine.get_card_stat(drum, "speed")
         
         assert effective_speed == base_speed + 2, \
-            f"Dwumm should have {base_speed + 2} speed, got {effective_speed}"
+            f"Drum should have {base_speed + 2} speed, got {effective_speed}"
     
-    def test_dwumm_boosts_other_toys_speed(self):
-        """Dwumm should boost other friendly toys' speed by 2."""
+    def test_drum_boosts_other_toys_speed(self):
+        """Drum should boost other friendly toys' speed by 2."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Dwumm", "Knight"],
+            player1_in_play=["Drum", "Knight"],
             active_player="player1",
         )
         
         knight = cards["p1_inplay_Knight"]
         
-        # Knight base speed is 4, with Dwumm should be 6
+        # Knight base speed is 4, with Drum should be 6
         knight_base_speed = 4
         effective_speed = setup.engine.get_card_stat(knight, "speed")
         
         assert effective_speed == knight_base_speed + 2, \
-            f"Knight should have {knight_base_speed + 2} speed with Dwumm, got {effective_speed}"
+            f"Knight should have {knight_base_speed + 2} speed with Drum, got {effective_speed}"
     
-    def test_dwumm_does_not_affect_opponent(self):
-        """Dwumm should not boost opponent's cards."""
+    def test_drum_does_not_affect_opponent(self):
+        """Drum should not boost opponent's cards."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Dwumm"],
+            player1_in_play=["Drum"],
             player2_in_play=["Knight"],
             active_player="player1",
         )
@@ -214,10 +214,10 @@ class TestDwumm:
         assert effective_speed == 4, \
             f"Opponent's Knight should have base speed 4, got {effective_speed}"
     
-    def test_dwumm_does_not_affect_strength_or_stamina(self):
-        """Dwumm only boosts speed, not other stats."""
+    def test_drum_does_not_affect_strength_or_stamina(self):
+        """Drum only boosts speed, not other stats."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Dwumm", "Knight"],
+            player1_in_play=["Drum", "Knight"],
             active_player="player1",
         )
         
@@ -228,17 +228,17 @@ class TestDwumm:
         assert setup.engine.get_effective_stamina(knight) == 3  # Base stamina
 
 
-class TestTwombon:
+class TestViolin:
     """
-    Twombon: "Your cards have 2 more strength."
+    Violin: "Your cards have 2 more strength."
     
     Continuous stat boost effect, identical to Ka.
     Uses existing StatBoostEffect class.
     """
     
-    def test_twombon_effect_parses_correctly(self):
-        """Twombon's effect definition should parse to StatBoostEffect for strength."""
-        card = create_card("Twombon", owner="p1")
+    def test_violin_effect_parses_correctly(self):
+        """Violin's effect definition should parse to StatBoostEffect for strength."""
+        card = create_card("Violin", owner="p1")
         
         effects = EffectFactory.parse_effects(card.effect_definitions, card)
         
@@ -247,86 +247,86 @@ class TestTwombon:
         assert effects[0].stat_name == "strength"
         assert effects[0].amount == 2
     
-    def test_twombon_boosts_own_strength(self):
-        """Twombon should boost its own strength by 2."""
+    def test_violin_boosts_own_strength(self):
+        """Violin should boost its own strength by 2."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Twombon"],
+            player1_in_play=["Violin"],
             active_player="player1",
         )
         
-        twombon = cards["p1_inplay_Twombon"]
+        violin = cards["p1_inplay_Violin"]
         
-        # Base strength is 2, with effect should be 4
-        base_strength = 2
-        effective_strength = setup.engine.get_card_stat(twombon, "strength")
+        # Base strength is 1, with effect should be 3
+        base_strength = 1
+        effective_strength = setup.engine.get_card_stat(violin, "strength")
         
         assert effective_strength == base_strength + 2, \
-            f"Twombon should have {base_strength + 2} strength, got {effective_strength}"
+            f"Violin should have {base_strength + 2} strength, got {effective_strength}"
     
-    def test_twombon_boosts_other_toys_strength(self):
-        """Twombon should boost other friendly toys' strength by 2."""
+    def test_violin_boosts_other_toys_strength(self):
+        """Violin should boost other friendly toys' strength by 2."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Twombon", "Knight"],
+            player1_in_play=["Violin", "Knight"],
             active_player="player1",
         )
         
         knight = cards["p1_inplay_Knight"]
         
-        # Knight base strength is 4, with Twombon should be 6
+        # Knight base strength is 4, with Violin should be 6
         knight_base_strength = 4
         effective_strength = setup.engine.get_card_stat(knight, "strength")
         
         assert effective_strength == knight_base_strength + 2, \
-            f"Knight should have {knight_base_strength + 2} strength with Twombon, got {effective_strength}"
+            f"Knight should have {knight_base_strength + 2} strength with Violin, got {effective_strength}"
     
-    def test_twombon_stacks_with_ka(self):
-        """Twombon and Ka both boost strength, they should stack."""
+    def test_violin_stacks_with_ka(self):
+        """Violin and Ka both boost strength, they should stack."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Twombon", "Ka", "Knight"],
+            player1_in_play=["Violin", "Ka", "Knight"],
             active_player="player1",
         )
         
         knight = cards["p1_inplay_Knight"]
         
-        # Knight base strength is 4, with Twombon (+2) and Ka (+2) should be 8
+        # Knight base strength is 4, with Violin (+2) and Ka (+2) should be 8
         knight_base_strength = 4
         effective_strength = setup.engine.get_card_stat(knight, "strength")
         
         assert effective_strength == knight_base_strength + 4, \
-            f"Knight should have {knight_base_strength + 4} strength with Twombon + Ka, got {effective_strength}"
+            f"Knight should have {knight_base_strength + 4} strength with Violin + Ka, got {effective_strength}"
 
 
-class TestDwummAndTwombonCombined:
-    """Test Dwumm and Twombon working together."""
+class TestDrumAndViolinCombined:
+    """Test Drum and Violin working together."""
     
-    def test_dwumm_and_twombon_both_apply(self):
-        """Both Dwumm (+2 speed) and Twombon (+2 strength) should apply."""
+    def test_drum_and_violin_both_apply(self):
+        """Both Drum (+2 speed) and Violin (+2 strength) should apply."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Dwumm", "Twombon", "Knight"],
+            player1_in_play=["Drum", "Violin", "Knight"],
             active_player="player1",
         )
         
         knight = cards["p1_inplay_Knight"]
         
-        # Knight should have +2 speed from Dwumm and +2 strength from Twombon
+        # Knight should have +2 speed from Drum and +2 strength from Violin
         assert setup.engine.get_card_stat(knight, "speed") == 4 + 2  # 6
         assert setup.engine.get_card_stat(knight, "strength") == 4 + 2  # 6
         assert setup.engine.get_effective_stamina(knight) == 3  # Unchanged
     
-    def test_multiple_dwumm_stack(self):
-        """Multiple Dwumm cards should stack their speed bonus."""
+    def test_multiple_drum_stack(self):
+        """Multiple Drum cards should stack their speed bonus."""
         setup, cards = create_game_with_cards(
-            player1_in_play=["Dwumm", "Knight"],
+            player1_in_play=["Drum", "Knight"],
             active_player="player1",
         )
         
-        # Create second Dwumm in play
-        dwumm2 = create_card("Dwumm", owner="player1", controller="player1", zone=Zone.IN_PLAY)
-        setup.player1.in_play.append(dwumm2)
+        # Create second Drum in play
+        drum2 = create_card("Drum", owner="player1", controller="player1", zone=Zone.IN_PLAY)
+        setup.player1.in_play.append(drum2)
         
         knight = cards["p1_inplay_Knight"]
         
-        # Knight should have +4 speed from two Dwumms
+        # Knight should have +4 speed from two Drums
         assert setup.engine.get_card_stat(knight, "speed") == 4 + 4  # 8
 
 
@@ -366,7 +366,7 @@ class TestDrop:
             player1_hand=["Drop"],
             player2_in_play=["Knight"],
             active_player="player1",
-            player1_cc=1,  # Drop costs 1
+            player1_cc=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]
@@ -388,7 +388,7 @@ class TestDrop:
             player1_hand=["Drop"],
             player1_in_play=["Ka"],
             active_player="player1",
-            player1_cc=1,
+            player1_cc=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]
@@ -409,7 +409,7 @@ class TestDrop:
             player1_sleep=["Demideca"],  # Not a valid target
             player2_in_play=["Knight", "Beary"],
             active_player="player1",
-            player1_cc=1,
+            player1_cc=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]
@@ -438,7 +438,7 @@ class TestDrop:
             player1_hand=["Drop"],
             player2_in_play=["Beary"],
             active_player="player1",
-            player1_cc=1,
+            player1_cc=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]

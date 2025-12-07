@@ -130,16 +130,16 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "FREE CC - Use when you need 1 more CC for a key play. Lower value than Rush but playable on turn 1.",
         "threat_level": "LOW - Small CC advantage for opponent"
     },
-    "Dwumm": {
+    "Drum": {
         "type": "Toy",
         "effect": "Continuous: All your Toys get +2 Speed",
-        "strategic_use": "SPEED ADVANTAGE - Makes your cards strike first in tussles. Combine with strong attackers for one-shot kills.",
+        "strategic_use": "SPEED ADVANTAGE - Makes your cards strike first in tussles. Weak stats (1/3/2) but the speed boost is huge.",
         "threat_level": "HIGH - Opponent's cards will strike first against yours"
     },
-    "Twombon": {
+    "Violin": {
         "type": "Toy",
         "effect": "Continuous: All your Toys get +2 Strength",
-        "strategic_use": "FORCE MULTIPLIER - Like Ka but cheaper with weaker stats (2/2/2). Good budget option for strength boost.",
+        "strategic_use": "FORCE MULTIPLIER - Like Ka but cheaper with weaker stats (3/1/2). Good budget option for strength boost.",
         "threat_level": "HIGH - Boosts opponent's entire board"
     },
     "Drop": {
