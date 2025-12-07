@@ -76,6 +76,49 @@ class GainCCEffect(PlayEffect):
             player.gain_cc(self.amount)
 
 
+class TurnStatBoostEffect(PlayEffect):
+    """
+    VeryVeryAppleJuice: "This turn, your cards have 1 more of each stat."
+    
+    Turn-scoped stat boost effect - boosts stats only for the current turn.
+    The boost is applied to all of the player's toys currently in play.
+    
+    Unlike continuous effects (Ka, Demideca), this:
+    - Is applied once when the action is played
+    - Only lasts until end of turn
+    - Does NOT affect cards played later in the turn
+    
+    Examples:
+    - VeryVeryAppleJuice: TurnStatBoostEffect(source_card, "all", 1)
+    """
+    
+    def __init__(self, source_card: "Card", stat_name: str = "all", amount: int = 1):
+        """
+        Initialize turn-scoped stat boost effect.
+        
+        Args:
+            source_card: The card providing this effect
+            stat_name: Stat to boost ("speed", "strength", "stamina", or "all")
+            amount: Amount to boost (default 1)
+        """
+        super().__init__(source_card)
+        self.stat_name = stat_name
+        self.amount = amount
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Apply turn-scoped stat boost to all player's toys in play."""
+        player: Optional["Player"] = kwargs.get("player")
+        if not player:
+            return
+        
+        current_turn = game_state.turn_number
+        
+        # Apply to all toys currently in play for this player
+        for card in player.in_play:
+            if card.is_toy():
+                card.add_turn_modification(current_turn, self.stat_name, self.amount)
+
+
 class UnsleepEffect(PlayEffect):
     """
     Generic unsleep effect for data-driven cards.

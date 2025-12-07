@@ -57,6 +57,7 @@ class Card:
     zone: Zone = Zone.HAND
     current_stamina: Optional[int] = None
     modifications: Dict[str, int] = field(default_factory=dict)
+    turn_modifications: Dict[str, Any] = field(default_factory=dict)  # Turn-scoped boosts {turn_num: {stat: amount}}
     
     def __post_init__(self):
         """Initialize current_stamina to base stamina."""
@@ -74,8 +75,52 @@ class Card:
     def reset_modifications(self):
         """Remove all modifications when card changes zones."""
         self.modifications = {}
+        self.turn_modifications = {}  # Clear turn-scoped modifications too
         if self.stamina is not None:
             self.current_stamina = self.stamina
+    
+    def get_turn_modification(self, stat_name: str, current_turn: int) -> int:
+        """
+        Get the turn-scoped modification for a stat.
+        
+        Turn modifications only apply for the turn they were applied.
+        
+        Args:
+            stat_name: Stat name ("speed", "strength", "stamina", or "all")
+            current_turn: Current turn number
+            
+        Returns:
+            Modification amount (0 if no modification for current turn)
+        """
+        if not self.turn_modifications:
+            return 0
+        
+        total = 0
+        for turn_num, mods in self.turn_modifications.items():
+            if int(turn_num) == current_turn:
+                # Check for specific stat or "all"
+                if stat_name in mods:
+                    total += mods[stat_name]
+                if "all" in mods and stat_name in ("speed", "strength", "stamina"):
+                    total += mods["all"]
+        return total
+    
+    def add_turn_modification(self, turn_num: int, stat_name: str, amount: int):
+        """
+        Add a turn-scoped modification.
+        
+        Args:
+            turn_num: Turn number when this modification was applied
+            stat_name: Stat name or "all"
+            amount: Amount to modify
+        """
+        turn_key = str(turn_num)
+        if turn_key not in self.turn_modifications:
+            self.turn_modifications[turn_key] = {}
+        
+        # Stack modifications
+        current = self.turn_modifications[turn_key].get(stat_name, 0)
+        self.turn_modifications[turn_key][stat_name] = current + amount
     
     def get_effective_speed(self) -> int:
         """Get speed including modifications."""

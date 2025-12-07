@@ -660,17 +660,166 @@ class TestSockSorcerer:
 
 
 # ============================================================================
-# PHASE 4-5 PLACEHOLDERS
+# PHASE 4: VERYVERYAPPLEJUICE (TURN-SCOPED STAT BOOST)
 # ============================================================================
 
 
-class TestPhase4Placeholder:
-    """Placeholder for VeryVeryAppleJuice tests."""
+class TestVeryVeryAppleJuice:
+    """
+    VeryVeryAppleJuice: "This turn, your cards have 1 more of each stat."
     
-    @pytest.mark.skip(reason="VeryVeryAppleJuice effect not yet implemented")
-    def test_vvaj_boosts_stats_this_turn(self):
-        """VeryVeryAppleJuice should boost all stats but only for the current turn."""
-        pass
+    Turn-scoped stat boost effect. Boosts ALL stats (speed, strength, stamina)
+    for all of the player's toys currently in play, but only for the current turn.
+    """
+    
+    def test_vvaj_effect_parses_correctly(self):
+        """VeryVeryAppleJuice's effect definition should parse to TurnStatBoostEffect."""
+        from game_engine.rules.effects.action_effects import TurnStatBoostEffect
+        
+        card = create_card("VeryVeryAppleJuice", owner="p1")
+        
+        effects = EffectFactory.parse_effects(card.effect_definitions, card)
+        
+        assert len(effects) == 1
+        assert isinstance(effects[0], TurnStatBoostEffect)
+        assert effects[0].stat_name == "all"
+        assert effects[0].amount == 1
+    
+    def test_vvaj_boosts_all_stats(self):
+        """VeryVeryAppleJuice should boost speed, strength, and stamina by 1."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["VeryVeryAppleJuice"],
+            player1_in_play=["Knight"],
+            active_player="player1",
+            player1_cc=0,  # VVAJ costs 0
+        )
+        
+        vvaj = cards["p1_hand_VeryVeryAppleJuice"]
+        knight = cards["p1_inplay_Knight"]
+        
+        # Knight base stats: 4/4/3 (speed/strength/stamina)
+        base_speed = setup.engine.get_card_stat(knight, "speed")
+        base_strength = setup.engine.get_card_stat(knight, "strength")
+        base_stamina = setup.engine.get_effective_stamina(knight)
+        
+        # Play VeryVeryAppleJuice
+        setup.engine.play_card(setup.player1, vvaj)
+        
+        # All stats should be +1
+        assert setup.engine.get_card_stat(knight, "speed") == base_speed + 1, \
+            "Speed should be boosted by 1"
+        assert setup.engine.get_card_stat(knight, "strength") == base_strength + 1, \
+            "Strength should be boosted by 1"
+        assert setup.engine.get_effective_stamina(knight) == base_stamina + 1, \
+            "Stamina should be boosted by 1"
+    
+    def test_vvaj_boost_expires_next_turn(self):
+        """VeryVeryAppleJuice boost should expire at the start of the next turn."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["VeryVeryAppleJuice"],
+            player1_in_play=["Knight"],
+            active_player="player1",
+            player1_cc=0,
+        )
+        
+        vvaj = cards["p1_hand_VeryVeryAppleJuice"]
+        knight = cards["p1_inplay_Knight"]
+        
+        # Knight base stats: 4/4/3
+        base_strength = 4
+        
+        # Play VeryVeryAppleJuice
+        setup.engine.play_card(setup.player1, vvaj)
+        
+        # Strength should be boosted this turn
+        assert setup.engine.get_card_stat(knight, "strength") == base_strength + 1
+        
+        # End turn (goes to end phase, then opponent's turn)
+        setup.engine.end_turn()  # Goes to player2's turn
+        setup.engine.end_turn()  # Back to player1's turn (turn 3)
+        
+        # Now the boost should be expired
+        assert setup.engine.get_card_stat(knight, "strength") == base_strength, \
+            "VVAJ boost should expire on next turn"
+    
+    def test_vvaj_affects_all_friendly_toys(self):
+        """VeryVeryAppleJuice should boost ALL friendly toys in play."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["VeryVeryAppleJuice"],
+            player1_in_play=["Knight", "Ka", "Demideca"],
+            active_player="player1",
+            player1_cc=0,
+        )
+        
+        vvaj = cards["p1_hand_VeryVeryAppleJuice"]
+        knight = cards["p1_inplay_Knight"]
+        ka = cards["p1_inplay_Ka"]
+        demideca = cards["p1_inplay_Demideca"]
+        
+        # Get base speeds (before VVAJ)
+        knight_speed_before = setup.engine.get_card_stat(knight, "speed")
+        ka_speed_before = setup.engine.get_card_stat(ka, "speed")
+        demideca_speed_before = setup.engine.get_card_stat(demideca, "speed")
+        
+        # Play VeryVeryAppleJuice
+        setup.engine.play_card(setup.player1, vvaj)
+        
+        # All three should have +1 speed
+        assert setup.engine.get_card_stat(knight, "speed") == knight_speed_before + 1
+        assert setup.engine.get_card_stat(ka, "speed") == ka_speed_before + 1
+        assert setup.engine.get_card_stat(demideca, "speed") == demideca_speed_before + 1
+    
+    def test_vvaj_does_not_affect_opponent_cards(self):
+        """VeryVeryAppleJuice should NOT boost opponent's toys."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["VeryVeryAppleJuice"],
+            player2_in_play=["Knight"],
+            active_player="player1",
+            player1_cc=0,
+        )
+        
+        vvaj = cards["p1_hand_VeryVeryAppleJuice"]
+        opponent_knight = cards["p2_inplay_Knight"]
+        
+        # Get opponent's knight speed before
+        knight_speed_before = setup.engine.get_card_stat(opponent_knight, "speed")
+        
+        # Play VeryVeryAppleJuice
+        setup.engine.play_card(setup.player1, vvaj)
+        
+        # Opponent's knight should NOT be boosted
+        assert setup.engine.get_card_stat(opponent_knight, "speed") == knight_speed_before, \
+            "VVAJ should not boost opponent's cards"
+    
+    def test_vvaj_stacks_with_continuous_effects(self):
+        """VeryVeryAppleJuice boost should stack with continuous effects like Ka."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["VeryVeryAppleJuice"],
+            player1_in_play=["Ka", "Knight"],
+            active_player="player1",
+            player1_cc=0,
+        )
+        
+        vvaj = cards["p1_hand_VeryVeryAppleJuice"]
+        knight = cards["p1_inplay_Knight"]
+        
+        # Knight base strength: 4
+        # Ka gives: +2 strength
+        # So before VVAJ: 4 + 2 = 6
+        strength_with_ka = setup.engine.get_card_stat(knight, "strength")
+        assert strength_with_ka == 6, "Ka should provide +2 strength"
+        
+        # Play VeryVeryAppleJuice (+1 all stats)
+        setup.engine.play_card(setup.player1, vvaj)
+        
+        # Now: 4 (base) + 2 (Ka) + 1 (VVAJ) = 7
+        assert setup.engine.get_card_stat(knight, "strength") == 7, \
+            "VVAJ should stack with Ka's continuous effect"
+
+
+# ============================================================================
+# PHASE 5 PLACEHOLDER
+# ============================================================================
 
 
 class TestPhase5Placeholder:

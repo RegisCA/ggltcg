@@ -379,6 +379,10 @@ class GameEngine:
                         card, stat_name, modified_value, self.game_state
                     )
         
+        # Apply turn-scoped modifications (e.g., VeryVeryAppleJuice)
+        turn_mod = card.get_turn_modification(stat_name, self.game_state.turn_number)
+        modified_value += turn_mod
+        
         return modified_value
     
     def get_effective_stamina(self, card: Card) -> int:
@@ -388,6 +392,7 @@ class GameEngine:
         This is the correct way to check stamina - it combines:
         1. current_stamina (base stamina minus damage taken)
         2. stamina modifications from continuous effects (like Demideca's +1)
+        3. turn-scoped modifications (like VeryVeryAppleJuice)
         
         Args:
             card: Card to get effective stamina for
@@ -410,6 +415,10 @@ class GameEngine:
                     # This gives us just the bonus/penalty
                     modification = effect.modify_stat(card, "stamina", 0, self.game_state)
                     effective += modification
+        
+        # Add turn-scoped modifications (e.g., VeryVeryAppleJuice)
+        turn_mod = card.get_turn_modification("stamina", self.game_state.turn_number)
+        effective += turn_mod
         
         return effective
     

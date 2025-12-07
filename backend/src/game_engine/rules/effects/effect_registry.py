@@ -111,6 +111,9 @@ class EffectFactory:
             elif effect_type == "team_opponent_immunity":
                 effect = cls._parse_team_opponent_immunity(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "turn_stat_boost":
+                effect = cls._parse_turn_stat_boost(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -826,6 +829,51 @@ class EffectFactory:
         
         from .continuous_effects import TeamOpponentImmunityEffect
         return TeamOpponentImmunityEffect(source_card)
+
+    @classmethod
+    def _parse_turn_stat_boost(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a turn_stat_boost effect definition.
+        
+        Format: "turn_stat_boost:stat_name:amount"
+        - stat_name: "speed", "strength", "stamina", or "all"
+        - amount: Integer amount to boost
+        
+        VeryVeryAppleJuice: Boost all stats by 1 for the current turn only.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            TurnStatBoostEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 3:
+            raise ValueError(
+                f"turn_stat_boost effect requires exactly 2 parameters: stat_name and amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        stat_name = parts[1].strip().lower()
+        valid_stats = ("speed", "strength", "stamina", "all")
+        if stat_name not in valid_stats:
+            raise ValueError(
+                f"Invalid stat name '{stat_name}' for turn_stat_boost. "
+                f"Must be one of: {valid_stats}"
+            )
+        
+        try:
+            amount = int(parts[2].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[2]}' for turn_stat_boost. Must be an integer."
+            )
+        
+        from .action_effects import TurnStatBoostEffect
+        return TurnStatBoostEffect(source_card, stat_name=stat_name, amount=amount)
 
 
 class EffectRegistry:
