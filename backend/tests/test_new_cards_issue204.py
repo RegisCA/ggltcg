@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from conftest import create_game_with_cards, create_card, GameSetup
 from game_engine.rules.effects.effect_registry import EffectFactory, EffectRegistry
-from game_engine.rules.effects.action_effects import GainCCEffect
+from game_engine.rules.effects.action_effects import GainCCEffect, SleepTargetEffect, ReturnTargetToHandEffect
 from game_engine.rules.effects.continuous_effects import StatBoostEffect
 from game_engine.models.card import Zone
 
@@ -284,21 +284,224 @@ class TestDwummAndTwombonCombined:
 
 
 # ============================================================================
-# PHASE 2-5 TESTS WILL BE ADDED AS EFFECTS ARE IMPLEMENTED
+# PHASE 2: DROP AND JUMPSCARE (TARGETED EFFECTS)
 # ============================================================================
 
-class TestPhase2Placeholder:
-    """Placeholder for Drop and Jumpscare tests."""
+class TestDrop:
+    """
+    Drop: Action card - "Sleep an in play card."
     
-    @pytest.mark.skip(reason="Drop effect not yet implemented")
-    def test_drop_effect_parses(self):
-        """Drop should parse to SleepTargetEffect."""
-        pass
+    Targeted effect that sleeps one card in play.
+    Can target any card in play (own or opponent's).
+    """
     
-    @pytest.mark.skip(reason="Jumpscare effect not yet implemented")
-    def test_jumpscare_effect_parses(self):
-        """Jumpscare should parse to ReturnTargetToHandEffect."""
-        pass
+    def test_drop_effect_parses_correctly(self):
+        """Drop's effect definition should parse to SleepTargetEffect."""
+        card = create_card("Drop", owner="p1")
+        
+        effects = EffectFactory.parse_effects(card.effect_definitions, card)
+        
+        assert len(effects) == 1
+        assert isinstance(effects[0], SleepTargetEffect)
+        assert effects[0].count == 1
+    
+    def test_drop_requires_target(self):
+        """Drop should require a target to be played."""
+        card = create_card("Drop", owner="p1")
+        effects = EffectFactory.parse_effects(card.effect_definitions, card)
+        
+        assert len(effects) == 1
+        assert effects[0].requires_targets() is True
+    
+    def test_drop_sleeps_opponent_card(self):
+        """Drop should sleep an opponent's card when played."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player2_in_play=["Knight"],
+            active_player="player1",
+            player1_cc=1,  # Drop costs 1
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        knight = cards["p2_inplay_Knight"]
+        
+        # Play Drop targeting opponent's Knight
+        setup.engine.play_card(setup.player1, drop, target_ids=[knight.id])
+        
+        # Knight should be sleeped
+        assert knight in setup.player2.sleep_zone, "Knight should be in opponent's sleep zone"
+        assert knight not in setup.player2.in_play, "Knight should not be in play"
+        
+        # Drop should be in player1's sleep zone (action card)
+        assert drop in setup.player1.sleep_zone, "Drop should be in player1's sleep zone"
+    
+    def test_drop_sleeps_own_card(self):
+        """Drop can target player's own cards (useful with Wake combo)."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player1_in_play=["Ka"],
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        ka = cards["p1_inplay_Ka"]
+        
+        # Play Drop targeting own Ka
+        setup.engine.play_card(setup.player1, drop, target_ids=[ka.id])
+        
+        # Ka should be sleeped
+        assert ka in setup.player1.sleep_zone, "Ka should be in own sleep zone"
+        assert ka not in setup.player1.in_play, "Ka should not be in play"
+    
+    def test_drop_valid_targets_are_cards_in_play(self):
+        """Drop's valid targets should be cards in play (except protected cards)."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player1_in_play=["Ka"],
+            player1_sleep=["Demideca"],  # Not a valid target
+            player2_in_play=["Knight", "Beary"],
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        ka = cards["p1_inplay_Ka"]
+        knight = cards["p2_inplay_Knight"]
+        beary = cards["p2_inplay_Beary"]
+        
+        effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
+        
+        # Valid targets are cards in play from either player (except protected)
+        valid_ids = [t.id for t in valid_targets]
+        assert ka.id in valid_ids, "Own cards in play should be valid targets"
+        assert knight.id in valid_ids, "Opponent cards in play should be valid targets"
+        
+        # Beary has opponent_immunity - should NOT be a valid target when Drop is played by opponent
+        assert beary.id not in valid_ids, "Beary should be protected from opponent's Drop"
+        
+        # Sleep zone cards should NOT be valid targets
+        demideca = cards["p1_sleep_Demideca"]
+        assert demideca.id not in valid_ids, "Sleep zone cards should not be valid targets"
+    
+    def test_drop_cannot_target_protected_beary(self):
+        """Drop cannot target Beary when played by opponent due to opponent_immunity."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player2_in_play=["Beary"],
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        beary = cards["p2_inplay_Beary"]
+        
+        effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
+        
+        # Beary should not be a valid target
+        assert beary not in valid_targets, "Beary should be immune to opponent's Drop"
+
+
+class TestJumpscare:
+    """
+    Jumpscare: Action card - "Return an in play card to owner's hand."
+    
+    Targeted effect that bounces a card back to hand.
+    Card returns to OWNER's hand (important for stolen cards).
+    """
+    
+    def test_jumpscare_effect_parses_correctly(self):
+        """Jumpscare's effect definition should parse to ReturnTargetToHandEffect."""
+        card = create_card("Jumpscare", owner="p1")
+        
+        effects = EffectFactory.parse_effects(card.effect_definitions, card)
+        
+        assert len(effects) == 1
+        assert isinstance(effects[0], ReturnTargetToHandEffect)
+        assert effects[0].count == 1
+    
+    def test_jumpscare_requires_target(self):
+        """Jumpscare should require a target to be played."""
+        card = create_card("Jumpscare", owner="p1")
+        effects = EffectFactory.parse_effects(card.effect_definitions, card)
+        
+        assert len(effects) == 1
+        assert effects[0].requires_targets() is True
+    
+    def test_jumpscare_returns_opponent_card_to_hand(self):
+        """Jumpscare should return opponent's card to their hand."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Jumpscare"],
+            player2_in_play=["Knight"],
+            active_player="player1",
+            player1_cc=1,  # Jumpscare costs 1
+        )
+        
+        jumpscare = cards["p1_hand_Jumpscare"]
+        knight = cards["p2_inplay_Knight"]
+        
+        # Play Jumpscare targeting opponent's Knight
+        setup.engine.play_card(setup.player1, jumpscare, target_ids=[knight.id])
+        
+        # Knight should be in opponent's hand
+        assert knight in setup.player2.hand, "Knight should be in opponent's hand"
+        assert knight not in setup.player2.in_play, "Knight should not be in play"
+        
+        # Jumpscare should be in player1's sleep zone (action card)
+        assert jumpscare in setup.player1.sleep_zone, "Jumpscare should be in player1's sleep zone"
+    
+    def test_jumpscare_returns_own_card_to_hand(self):
+        """Jumpscare can target player's own cards (to re-play for effects)."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Jumpscare"],
+            player1_in_play=["Ka"],
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        jumpscare = cards["p1_hand_Jumpscare"]
+        ka = cards["p1_inplay_Ka"]
+        
+        # Play Jumpscare targeting own Ka
+        setup.engine.play_card(setup.player1, jumpscare, target_ids=[ka.id])
+        
+        # Ka should be in own hand
+        assert ka in setup.player1.hand, "Ka should be in own hand"
+        assert ka not in setup.player1.in_play, "Ka should not be in play"
+    
+    def test_jumpscare_valid_targets_are_cards_in_play(self):
+        """Jumpscare's valid targets should be cards in play."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Jumpscare"],
+            player1_in_play=["Ka"],
+            player1_sleep=["Demideca"],  # Not a valid target
+            player2_in_play=["Knight"],
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        jumpscare = cards["p1_hand_Jumpscare"]
+        ka = cards["p1_inplay_Ka"]
+        knight = cards["p2_inplay_Knight"]
+        
+        effects = EffectFactory.parse_effects(jumpscare.effect_definitions, jumpscare)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
+        
+        # Valid targets are cards in play from either player
+        valid_ids = [t.id for t in valid_targets]
+        assert ka.id in valid_ids, "Own cards in play should be valid targets"
+        assert knight.id in valid_ids, "Opponent cards in play should be valid targets"
+        
+        # Sleep zone cards should NOT be valid targets
+        demideca = cards["p1_sleep_Demideca"]
+        assert demideca.id not in valid_ids, "Sleep zone cards should not be valid targets"
+
+
+# ============================================================================
+# PHASE 3-5 TESTS WILL BE ADDED AS EFFECTS ARE IMPLEMENTED
+# ============================================================================
 
 
 class TestPhase3Placeholder:

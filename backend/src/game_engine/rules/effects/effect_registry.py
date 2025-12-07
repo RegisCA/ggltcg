@@ -102,6 +102,12 @@ class EffectFactory:
             elif effect_type == "remove_stamina_ability":
                 effect = cls._parse_remove_stamina_ability(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "sleep_target":
+                effect = cls._parse_sleep_target(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "return_target_to_hand":
+                effect = cls._parse_return_target_to_hand(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -706,6 +712,88 @@ class EffectFactory:
         # Note: ArcherActivatedAbility currently only uses cc_cost in __init__
         # The amount parameter would need to be added if we want variable damage
         return ArcherActivatedAbility(source_card)
+
+    @classmethod
+    def _parse_sleep_target(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a sleep_target effect definition.
+        
+        Format: "sleep_target:count"
+        - count: Number of targets to sleep (typically 1)
+        
+        Targeted action: Sleep a card in play.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            SleepTargetEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"sleep_target effect requires exactly 1 parameter: count. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            count = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid count '{parts[1]}' for sleep_target. Must be an integer."
+            )
+        
+        if count < 1:
+            raise ValueError(
+                f"Invalid count {count} for sleep_target. Must be at least 1."
+            )
+        
+        from .action_effects import SleepTargetEffect
+        return SleepTargetEffect(source_card, count=count)
+
+    @classmethod
+    def _parse_return_target_to_hand(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a return_target_to_hand effect definition.
+        
+        Format: "return_target_to_hand:count"
+        - count: Number of targets to return to hand (typically 1)
+        
+        Targeted action: Return a card in play to its owner's hand.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            ReturnTargetToHandEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"return_target_to_hand effect requires exactly 1 parameter: count. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            count = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid count '{parts[1]}' for return_target_to_hand. Must be an integer."
+            )
+        
+        if count < 1:
+            raise ValueError(
+                f"Invalid count {count} for return_target_to_hand. Must be at least 1."
+            )
+        
+        from .action_effects import ReturnTargetToHandEffect
+        return ReturnTargetToHandEffect(source_card, count=count)
 
 
 class EffectRegistry:
