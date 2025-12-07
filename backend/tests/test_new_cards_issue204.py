@@ -9,20 +9,67 @@ Phase 2: Drop, Jumpscare (new targeted effects)
 Phase 3: Sock Sorcerer (team protection)
 Phase 4: VeryVeryAppleJuice (turn-scoped effects)
 Phase 5: Belchaletta, Hind Leg Kicker (triggered effects)
+
+IMPORTANT: This test file uses the beta CSV (cards_beta_20251206.csv) which
+contains the new cards. The fixture ensures the correct CSV is loaded.
 """
 
 import pytest
 import sys
+import os
 from pathlib import Path
 
 # Add backend/src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from conftest import create_game_with_cards, create_card, GameSetup
+from conftest import clear_card_template_cache
 from game_engine.rules.effects.effect_registry import EffectFactory, EffectRegistry
 from game_engine.rules.effects.action_effects import GainCCEffect, SleepTargetEffect, ReturnTargetToHandEffect
 from game_engine.rules.effects.continuous_effects import StatBoostEffect
 from game_engine.models.card import Zone
+
+
+# Path to the beta CSV with new cards
+BETA_CSV_PATH = Path(__file__).parent.parent / "data" / "cards_beta_20251206.csv"
+
+
+@pytest.fixture(autouse=True)
+def use_beta_csv():
+    """
+    Fixture that sets up the beta CSV for all tests in this module.
+    
+    This fixture:
+    1. Saves the original CARDS_CSV_PATH (if any)
+    2. Sets CARDS_CSV_PATH to the beta CSV
+    3. Clears the card template cache
+    4. Yields to run the test
+    5. Restores the original CARDS_CSV_PATH
+    6. Clears the cache again for other tests
+    """
+    # Save original value
+    original_path = os.environ.get("CARDS_CSV_PATH")
+    
+    # Set beta CSV path
+    os.environ["CARDS_CSV_PATH"] = str(BETA_CSV_PATH)
+    
+    # Clear cache to force reload with beta CSV
+    clear_card_template_cache()
+    
+    yield
+    
+    # Restore original value
+    if original_path is not None:
+        os.environ["CARDS_CSV_PATH"] = original_path
+    else:
+        os.environ.pop("CARDS_CSV_PATH", None)
+    
+    # Clear cache again for other tests
+    clear_card_template_cache()
+
+
+# Import create_game_with_cards and related helpers AFTER setting up the path machinery
+# These will use the fixture-controlled CSV path
+from conftest import create_game_with_cards, create_card, GameSetup
 
 
 # ============================================================================
@@ -818,22 +865,217 @@ class TestVeryVeryAppleJuice:
 
 
 # ============================================================================
-# PHASE 5 PLACEHOLDER
+# PHASE 5: BELCHALETTA & HIND LEG KICKER (Triggered Effects)
 # ============================================================================
 
 
-class TestPhase5Placeholder:
-    """Placeholder for Belchaletta and Hind Leg Kicker tests."""
+class TestBelchaletta:
+    """Tests for Belchaletta - Toy that grants 2 CC at start of turn."""
     
-    @pytest.mark.skip(reason="Belchaletta effect not yet implemented")
-    def test_belchaletta_gains_cc_at_turn_start(self):
-        """Belchaletta should gain 2 CC at the start of its controller's turn."""
-        pass
+    def test_effect_parses_correctly(self):
+        """Belchaletta should have start_of_turn_gain_cc effect parsed."""
+        from game_engine.rules.effects.effect_registry import EffectRegistry
+        from game_engine.rules.effects.continuous_effects import StartOfTurnGainCCEffect
+        
+        # Get Belchaletta from card data
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Belchaletta"],
+            active_player="player1",
+        )
+        
+        belchaletta = cards["p1_inplay_Belchaletta"]
+        effects = EffectRegistry.get_effects(belchaletta)
+        
+        # Should have exactly one StartOfTurnGainCCEffect
+        start_turn_effects = [e for e in effects if isinstance(e, StartOfTurnGainCCEffect)]
+        assert len(start_turn_effects) == 1, "Belchaletta should have one start_of_turn_gain_cc effect"
+        assert start_turn_effects[0].amount == 2, "Should gain 2 CC"
     
-    @pytest.mark.skip(reason="Hind Leg Kicker effect not yet implemented")
-    def test_hind_leg_kicker_gains_cc_on_play(self):
-        """Hind Leg Kicker should gain 1 CC when another card is played."""
-        pass
+    def test_gains_cc_at_start_of_turn(self):
+        """Belchaletta should grant 2 CC when its controller's turn starts.
+        
+        Note: CC is capped at 7. Turn start normally grants +4 CC.
+        We start player1 at 1 CC so they have room for both turn gain (+4) and Belchaletta (+2).
+        After turn cycle: 1 + 4 (turn) + 2 (Belchaletta) = 7 (capped)
+        
+        To isolate Belchaletta's contribution, we check CC before and after the effect would trigger.
+        """
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Belchaletta"],
+            active_player="player1",
+            player1_cc=1,  # Start low to have room for gains
+        )
+        
+        # End turn (goes to player2)
+        setup.engine.end_turn()
+        cc_after_p1_end = setup.player1.cc
+        assert cc_after_p1_end == 1, "P1 CC shouldn't change when ending their turn"
+        
+        # End player2's turn to come back to player1
+        # Player1 will gain: +4 (turn gain) + 2 (Belchaletta) = 7 total (from 1)
+        setup.engine.end_turn()
+        
+        # 1 + 4 + 2 = 7, which is exactly the cap
+        assert setup.player1.cc == 7, "Should have 7 CC (1 + 4 turn gain + 2 Belchaletta)"
+    
+    def test_belchaletta_adds_cc_beyond_turn_gain(self):
+        """Verify Belchaletta actually adds CC beyond the normal turn gain.
+        
+        Compare a game with Belchaletta vs theoretical without.
+        Start at 0 CC: turn gain would give 4, Belchaletta adds 2 more = 6.
+        """
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Belchaletta"],
+            active_player="player1",
+            player1_cc=0,  # Start at 0
+        )
+        
+        # Go through a full turn cycle
+        setup.engine.end_turn()  # Player2's turn
+        setup.engine.end_turn()  # Back to Player1's turn
+        
+        # Without Belchaletta: 0 + 4 = 4 CC
+        # With Belchaletta: 0 + 4 + 2 = 6 CC
+        assert setup.player1.cc == 6, "Belchaletta should add 2 CC beyond turn gain (0+4+2=6)"
+    
+    def test_does_not_trigger_on_opponent_turn(self):
+        """Belchaletta should NOT trigger at start of opponent's turn.
+        
+        Player2's CC should only increase from turn gain, not from P1's Belchaletta.
+        """
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Belchaletta"],
+            active_player="player1",
+            player1_cc=3,
+            player2_cc=0,  # Start at 0 to clearly see the gain
+        )
+        
+        # End player1's turn, now player2's turn starts
+        # Player2 gains turn CC (+4) but NOT Belchaletta bonus
+        setup.engine.end_turn()
+        
+        # Player2 should have exactly 4 CC (turn gain only, no Belchaletta)
+        assert setup.player2.cc == 4, "Opponent gains only turn CC, not Belchaletta bonus"
+    
+    def test_multiple_belchalettas_trigger_separately(self):
+        """Multiple Belchalettas should each trigger for 2 CC (up to cap)."""
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Belchaletta", "Belchaletta"],
+            active_player="player1",
+            player1_cc=0,  # Start at 0
+        )
+        
+        # End turn twice to come back to player1's turn
+        setup.engine.end_turn()  # Player2's turn
+        setup.engine.end_turn()  # Player1's turn
+        
+        # Without Belchalettas: 0 + 4 = 4 CC
+        # With 2 Belchalettas: 0 + 4 + 2 + 2 = 8, but capped at 7
+        assert setup.player1.cc == 7, "Two Belchalettas should max out CC at 7 cap"
+
+
+class TestHindLegKicker:
+    """Tests for Hind Leg Kicker - Toy that grants 1 CC when another card is played."""
+    
+    def test_effect_parses_correctly(self):
+        """Hind Leg Kicker should have on_card_played_gain_cc effect parsed."""
+        from game_engine.rules.effects.effect_registry import EffectRegistry
+        from game_engine.rules.effects.continuous_effects import OnCardPlayedGainCCEffect
+        
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Hind Leg Kicker"],
+            active_player="player1",
+        )
+        
+        hlk = cards["p1_inplay_Hind Leg Kicker"]
+        effects = EffectRegistry.get_effects(hlk)
+        
+        # Should have exactly one OnCardPlayedGainCCEffect
+        on_play_effects = [e for e in effects if isinstance(e, OnCardPlayedGainCCEffect)]
+        assert len(on_play_effects) == 1, "Hind Leg Kicker should have one on_card_played_gain_cc effect"
+        assert on_play_effects[0].amount == 1, "Should gain 1 CC"
+    
+    def test_gains_cc_when_controller_plays_another_card(self):
+        """Hind Leg Kicker should grant 1 CC when controller plays another card.
+        
+        Ka costs 2 CC. With HLK in play, playing Ka should cost 2 but gain 1 back.
+        Net change: -2 + 1 = -1 CC
+        """
+        setup, cards = create_game_with_cards(
+            player1_hand=["Ka"],
+            player1_in_play=["Hind Leg Kicker"],
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        ka = cards["p1_hand_Ka"]
+        ka_cost = ka.cost  # Should be 2
+        initial_cc = setup.player1.cc
+        
+        setup.engine.play_card(setup.player1, ka)
+        
+        # Net: -cost + 1 (HLK trigger)
+        expected_cc = initial_cc - ka_cost + 1
+        assert setup.player1.cc == expected_cc, f"Expected {expected_cc} CC (5 - {ka_cost} + 1), got {setup.player1.cc}"
+    
+    def test_does_not_trigger_for_itself(self):
+        """Hind Leg Kicker should NOT trigger when it is played."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Hind Leg Kicker"],
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        hlk = cards["p1_hand_Hind Leg Kicker"]
+        initial_cc = setup.player1.cc
+        hlk_cost = hlk.cost
+        
+        setup.engine.play_card(setup.player1, hlk)
+        
+        # Should only subtract the cost, not gain CC from itself
+        expected_cc = initial_cc - hlk_cost
+        assert setup.player1.cc == expected_cc, "HLK should not trigger for itself"
+    
+    def test_does_not_trigger_for_opponent_plays(self):
+        """Hind Leg Kicker should NOT trigger when opponent plays a card."""
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Hind Leg Kicker"],
+            player2_hand=["Ka"],
+            active_player="player2",
+            player1_cc=5,
+            player2_cc=5,
+        )
+        
+        ka = cards["p2_hand_Ka"]
+        initial_p1_cc = setup.player1.cc
+        
+        setup.engine.play_card(setup.player2, ka)
+        
+        # Player1 should NOT gain CC from opponent's play
+        assert setup.player1.cc == initial_p1_cc, "HLK should not trigger for opponent's plays"
+    
+    def test_multiple_hind_leg_kickers_trigger_separately(self):
+        """Multiple Hind Leg Kickers should each trigger for 1 CC.
+        
+        Ka costs 2. With 2 HLKs, playing Ka costs 2 but gains 2 back (1 each).
+        Net change: -2 + 2 = 0 CC
+        """
+        setup, cards = create_game_with_cards(
+            player1_hand=["Ka"],
+            player1_in_play=["Hind Leg Kicker", "Hind Leg Kicker"],
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        ka = cards["p1_hand_Ka"]
+        ka_cost = ka.cost  # Should be 2
+        initial_cc = setup.player1.cc
+        
+        setup.engine.play_card(setup.player1, ka)
+        
+        # Net: -cost + 1 (HLK1) + 1 (HLK2) = -2 + 2 = 0
+        expected_cc = initial_cc - ka_cost + 2
+        assert setup.player1.cc == expected_cc, f"Two HLKs should offset Ka cost (5 - {ka_cost} + 2 = {expected_cc})"
 
 
 if __name__ == "__main__":

@@ -114,6 +114,12 @@ class EffectFactory:
             elif effect_type == "turn_stat_boost":
                 effect = cls._parse_turn_stat_boost(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "start_of_turn_gain_cc":
+                effect = cls._parse_start_of_turn_gain_cc(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "on_card_played_gain_cc":
+                effect = cls._parse_on_card_played_gain_cc(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -874,6 +880,88 @@ class EffectFactory:
         
         from .action_effects import TurnStatBoostEffect
         return TurnStatBoostEffect(source_card, stat_name=stat_name, amount=amount)
+
+    @classmethod
+    def _parse_start_of_turn_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a start_of_turn_gain_cc effect definition.
+        
+        Format: "start_of_turn_gain_cc:amount"
+        - amount: Integer amount of CC to gain
+        
+        Belchaletta: Gain 2 CC at the start of your turn.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            StartOfTurnGainCCEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"start_of_turn_gain_cc effect requires exactly 1 parameter: amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            amount = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[1]}' for start_of_turn_gain_cc. Must be an integer."
+            )
+        
+        if amount < 1:
+            raise ValueError(
+                f"Invalid amount {amount} for start_of_turn_gain_cc. Must be at least 1."
+            )
+        
+        from .continuous_effects import StartOfTurnGainCCEffect
+        return StartOfTurnGainCCEffect(source_card, amount=amount)
+
+    @classmethod
+    def _parse_on_card_played_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an on_card_played_gain_cc effect definition.
+        
+        Format: "on_card_played_gain_cc:amount"
+        - amount: Integer amount of CC to gain
+        
+        Hind Leg Kicker: When you play a card (not this one), gain 1 CC.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            OnCardPlayedGainCCEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"on_card_played_gain_cc effect requires exactly 1 parameter: amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            amount = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[1]}' for on_card_played_gain_cc. Must be an integer."
+            )
+        
+        if amount < 1:
+            raise ValueError(
+                f"Invalid amount {amount} for on_card_played_gain_cc. Must be at least 1."
+            )
+        
+        from .continuous_effects import OnCardPlayedGainCCEffect
+        return OnCardPlayedGainCCEffect(source_card, amount=amount)
 
 
 class EffectRegistry:

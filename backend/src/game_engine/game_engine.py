@@ -61,7 +61,7 @@ class GameEngine:
         
         Phase 1 - Start of Turn:
         1. Gain 4 CC (or 2 CC on Turn 1 for starting player)
-        2. Resolve "at start of turn" effects (none in current card set)
+        2. Resolve "at start of turn" effects (e.g., Belchaletta)
         """
         player = self.game_state.get_active_player()
         self.game_state.phase = Phase.START
@@ -80,8 +80,36 @@ class GameEngine:
             f"{player.name} gains {cc_gain} CC (now has {player.cc} CC)"
         )
         
+        # Trigger start-of-turn effects (e.g., Belchaletta)
+        self._trigger_start_of_turn_effects()
+        
         # Move to main phase
         self.game_state.phase = Phase.MAIN
+    
+    def _trigger_start_of_turn_effects(self) -> None:
+        """
+        Trigger all START_OF_TURN effects for the active player's cards.
+        
+        This includes effects like Belchaletta's "At the start of your turn, gain 2 CC."
+        """
+        from .rules.effects.base_effect import TriggeredEffect
+        
+        player = self.game_state.get_active_player()
+        if not player:
+            return
+        
+        # Check all cards in play for the active player
+        for card in list(player.in_play):  # Copy to avoid modification during iteration
+            effects = EffectRegistry.get_effects(card)
+            for effect in effects:
+                if isinstance(effect, TriggeredEffect):
+                    if effect.trigger == TriggerTiming.START_OF_TURN:
+                        if effect.should_trigger(self.game_state):
+                            effect.apply(self.game_state, player=player, game_engine=self)
+                            # Log the trigger
+                            self.game_state.log_event(
+                                f"{card.name}'s start-of-turn effect triggered"
+                            )
     
     def end_turn(self) -> None:
         """
@@ -319,6 +347,9 @@ class GameEngine:
         # Check state-based actions
         self.check_state_based_actions()
         
+        # Trigger "when other card played" effects (e.g., Hind Leg Kicker)
+        self._trigger_when_other_card_played_effects(card, player)
+        
         return True
     
     def _trigger_when_played_effects(self, card: Card, player: Player, **kwargs: Any) -> None:
@@ -330,6 +361,46 @@ class GameEngine:
                     if effect.should_trigger(self.game_state, played_card=card):
                         effect.apply(self.game_state, player=player, **kwargs)
     
+    def _trigger_when_other_card_played_effects(self, played_card: Card, player: Player) -> None:
+        """
+        Trigger WHEN_OTHER_CARD_PLAYED effects for all cards in play.
+        
+        This is called after a card is successfully played to trigger effects
+        like Hind Leg Kicker's "When you play a card (not this one), gain 1 CC."
+        
+        Args:
+            played_card: The card that was just played
+            player: The player who played the card
+        """
+        from .rules.effects.base_effect import TriggeredEffect
+        
+        # Check all cards in play (from both players, effects check their own conditions)
+        for p in self.game_state.players.values():
+            for card in list(p.in_play):  # Copy to avoid modification during iteration
+                # Skip the played card itself (effects handle this too, but optimization)
+                if card == played_card:
+                    continue
+                    
+                effects = EffectRegistry.get_effects(card)
+                for effect in effects:
+                    if isinstance(effect, TriggeredEffect):
+                        if effect.trigger == TriggerTiming.WHEN_OTHER_CARD_PLAYED:
+                            if effect.should_trigger(
+                                self.game_state, 
+                                played_card=played_card, 
+                                player=player
+                            ):
+                                effect.apply(
+                                    self.game_state, 
+                                    played_card=played_card, 
+                                    player=player, 
+                                    game_engine=self
+                                )
+                                # Log the trigger
+                                self.game_state.log_event(
+                                    f"{card.name} triggered: gained CC from card being played"
+                                )
+
     def _resolve_action_card(self, card: Card, player: Player, **kwargs: Any) -> None:
         """Resolve an Action card's effect."""
         # Convert target_ids to targets if needed

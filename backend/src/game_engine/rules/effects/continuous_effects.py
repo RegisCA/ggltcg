@@ -61,6 +61,124 @@ class GainCCWhenSleepedEffect(TriggeredEffect):
         return base_value
 
 
+class StartOfTurnGainCCEffect(TriggeredEffect):
+    """
+    Belchaletta: "At the start of your turn, gain 2 charge."
+    
+    Triggered effect that grants CC at the start of the controller's turn.
+    Only triggers while the card is in play.
+    
+    Examples:
+    - Belchaletta: StartOfTurnGainCCEffect(source_card, amount=2)
+    """
+    
+    def __init__(self, source_card: "Card", amount: int):
+        """
+        Initialize start of turn CC gain effect.
+        
+        Args:
+            source_card: The card providing this effect
+            amount: How much CC to gain at start of turn
+        """
+        super().__init__(source_card, TriggerTiming.START_OF_TURN, is_optional=False)
+        self.amount = amount
+    
+    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """
+        Check if this effect should trigger.
+        
+        Only triggers if:
+        1. Source card is in play
+        2. It's the controller's turn
+        """
+        from ...models.card import Zone
+        
+        # Must be in play
+        if self.source_card.zone != Zone.IN_PLAY:
+            return False
+        
+        # Only trigger on controller's turn
+        controller = game_state.get_card_controller(self.source_card)
+        active_player = game_state.get_active_player()
+        
+        return controller == active_player
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Grant CC to the card's controller at start of turn."""
+        controller = game_state.get_card_controller(self.source_card)
+        if controller:
+            controller.gain_cc(self.amount)
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Triggered effects don't modify stats."""
+        return base_value
+
+
+class OnCardPlayedGainCCEffect(TriggeredEffect):
+    """
+    Hind Leg Kicker: "When you play a card (not this one), gain 1 charge."
+    
+    Triggered effect that grants CC whenever the controller plays another card.
+    Does NOT trigger when Hind Leg Kicker itself is played.
+    Only triggers while the card is in play.
+    
+    Examples:
+    - Hind Leg Kicker: OnCardPlayedGainCCEffect(source_card, amount=1)
+    """
+    
+    def __init__(self, source_card: "Card", amount: int):
+        """
+        Initialize on card played CC gain effect.
+        
+        Args:
+            source_card: The card providing this effect
+            amount: How much CC to gain when another card is played
+        """
+        super().__init__(source_card, TriggerTiming.WHEN_OTHER_CARD_PLAYED, is_optional=False)
+        self.amount = amount
+    
+    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """
+        Check if this effect should trigger.
+        
+        Only triggers if:
+        1. Source card is in play
+        2. A card was played (not this one)
+        3. The card was played by this card's controller
+        """
+        from ...models.card import Zone
+        
+        # Must be in play
+        if self.source_card.zone != Zone.IN_PLAY:
+            return False
+        
+        played_card = kwargs.get("played_card")
+        player = kwargs.get("player")
+        
+        if not played_card or not player:
+            return False
+        
+        # Don't trigger for itself being played
+        if played_card == self.source_card:
+            return False
+        
+        # Only trigger for controller's plays
+        controller = game_state.get_card_controller(self.source_card)
+        return controller == player
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Grant CC to the card's controller when another card is played."""
+        controller = game_state.get_card_controller(self.source_card)
+        if controller:
+            controller.gain_cc(self.amount)
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Triggered effects don't modify stats."""
+        return base_value
+
+
 class StatBoostEffect(ContinuousEffect):
     """
     Generic stat boost effect for data-driven cards.
