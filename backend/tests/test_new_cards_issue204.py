@@ -500,17 +500,168 @@ class TestJumpscare:
 
 
 # ============================================================================
-# PHASE 3-5 TESTS WILL BE ADDED AS EFFECTS ARE IMPLEMENTED
+# PHASE 3: SOCK SORCERER (TEAM PROTECTION)
 # ============================================================================
 
 
-class TestPhase3Placeholder:
-    """Placeholder for Sock Sorcerer tests."""
+class TestSockSorcerer:
+    """
+    Sock Sorcerer: "Your opponent's cards' effects don't affect your cards."
     
-    @pytest.mark.skip(reason="Sock Sorcerer effect not yet implemented")
-    def test_sock_sorcerer_protects_team(self):
-        """Sock Sorcerer should protect all friendly cards from opponent effects."""
-        pass
+    Team-wide protection effect. While Sock Sorcerer is in play, all of your
+    cards are protected from opponent's card effects.
+    """
+    
+    def test_sock_sorcerer_effect_parses_correctly(self):
+        """Sock Sorcerer's effect definition should parse to TeamOpponentImmunityEffect."""
+        from game_engine.rules.effects.continuous_effects import TeamOpponentImmunityEffect
+        
+        card = create_card("Sock Sorcerer", owner="p1")
+        
+        effects = EffectFactory.parse_effects(card.effect_definitions, card)
+        
+        assert len(effects) == 1
+        assert isinstance(effects[0], TeamOpponentImmunityEffect)
+    
+    def test_sock_sorcerer_protects_itself_from_drop(self):
+        """Sock Sorcerer should be protected from opponent's Drop."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player2_in_play=["Sock Sorcerer"],
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        sock_sorcerer = cards["p2_inplay_Sock Sorcerer"]
+        
+        effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
+        
+        # Sock Sorcerer should NOT be a valid target
+        assert sock_sorcerer not in valid_targets, \
+            "Sock Sorcerer should be protected from opponent's Drop"
+    
+    def test_sock_sorcerer_protects_teammates_from_drop(self):
+        """Sock Sorcerer should protect all friendly cards from opponent's Drop."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player2_in_play=["Sock Sorcerer", "Knight"],
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        sock_sorcerer = cards["p2_inplay_Sock Sorcerer"]
+        knight = cards["p2_inplay_Knight"]
+        
+        effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
+        
+        # Neither Sock Sorcerer nor Knight should be valid targets
+        assert sock_sorcerer not in valid_targets, \
+            "Sock Sorcerer should be protected from opponent's Drop"
+        assert knight not in valid_targets, \
+            "Knight should be protected by Sock Sorcerer from opponent's Drop"
+    
+    def test_sock_sorcerer_protects_from_clean(self):
+        """Sock Sorcerer should protect all friendly cards from opponent's Clean."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Clean"],
+            player1_in_play=["Ka"],
+            player2_in_play=["Sock Sorcerer", "Knight", "Demideca"],
+            active_player="player1",
+            player1_cc=3,  # Clean costs 3
+        )
+        
+        clean = cards["p1_hand_Clean"]
+        sock_sorcerer = cards["p2_inplay_Sock Sorcerer"]
+        knight = cards["p2_inplay_Knight"]
+        demideca = cards["p2_inplay_Demideca"]
+        ka = cards["p1_inplay_Ka"]
+        
+        # Play Clean
+        setup.engine.play_card(setup.player1, clean)
+        
+        # All of player2's cards should still be in play (protected)
+        assert sock_sorcerer in setup.player2.in_play, \
+            "Sock Sorcerer should be protected from Clean"
+        assert knight in setup.player2.in_play, \
+            "Knight should be protected by Sock Sorcerer from Clean"
+        assert demideca in setup.player2.in_play, \
+            "Demideca should be protected by Sock Sorcerer from Clean"
+        
+        # Player1's Ka should be sleeped (not protected)
+        assert ka in setup.player1.sleep_zone, \
+            "Ka should be sleeped (not protected by opponent's Sock Sorcerer)"
+    
+    def test_sock_sorcerer_does_not_protect_opponent(self):
+        """Sock Sorcerer should NOT protect opponent's cards."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player1_in_play=["Sock Sorcerer"],  # P1 has Sock Sorcerer
+            player2_in_play=["Knight"],  # P2's Knight is NOT protected
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        knight = cards["p2_inplay_Knight"]
+        
+        effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
+        
+        # Knight should BE a valid target (not protected by P1's Sock Sorcerer)
+        assert knight in valid_targets, \
+            "Opponent's Knight should not be protected by player's Sock Sorcerer"
+    
+    def test_sock_sorcerer_owner_can_target_own_cards(self):
+        """Sock Sorcerer's controller CAN target their own cards."""
+        setup, cards = create_game_with_cards(
+            player2_hand=["Drop"],
+            player2_in_play=["Sock Sorcerer", "Knight"],
+            active_player="player2",
+            player2_cc=1,
+        )
+        
+        drop = cards["p2_hand_Drop"]
+        sock_sorcerer = cards["p2_inplay_Sock Sorcerer"]
+        knight = cards["p2_inplay_Knight"]
+        
+        effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player2)
+        
+        # Player2's own cards SHOULD be valid targets for their own Drop
+        # (Sock Sorcerer only protects from OPPONENT's effects)
+        assert sock_sorcerer in valid_targets, \
+            "Own Sock Sorcerer should be targetable by own effects"
+        assert knight in valid_targets, \
+            "Own Knight should be targetable by own effects (not protected from self)"
+    
+    def test_sock_sorcerer_not_in_play_does_not_protect(self):
+        """Sock Sorcerer in sleep zone does not provide protection."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Drop"],
+            player2_in_play=["Knight"],
+            player2_sleep=["Sock Sorcerer"],  # Asleep, not protecting
+            active_player="player1",
+            player1_cc=1,
+        )
+        
+        drop = cards["p1_hand_Drop"]
+        knight = cards["p2_inplay_Knight"]
+        
+        effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
+        valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
+        
+        # Knight should be a valid target (Sock Sorcerer is asleep)
+        assert knight in valid_targets, \
+            "Knight should be targetable when Sock Sorcerer is asleep"
+
+
+# ============================================================================
+# PHASE 4-5 PLACEHOLDERS
+# ============================================================================
 
 
 class TestPhase4Placeholder:

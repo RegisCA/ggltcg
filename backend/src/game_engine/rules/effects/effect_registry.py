@@ -108,6 +108,9 @@ class EffectFactory:
             elif effect_type == "return_target_to_hand":
                 effect = cls._parse_return_target_to_hand(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "team_opponent_immunity":
+                effect = cls._parse_team_opponent_immunity(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -794,6 +797,35 @@ class EffectFactory:
         
         from .action_effects import ReturnTargetToHandEffect
         return ReturnTargetToHandEffect(source_card, count=count)
+
+    @classmethod
+    def _parse_team_opponent_immunity(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a team_opponent_immunity effect definition.
+        
+        Format: "team_opponent_immunity" (no parameters)
+        
+        Sock Sorcerer: All cards controlled by this card's controller
+        are immune to effects from opponent-controlled cards.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            TeamOpponentImmunityEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"team_opponent_immunity effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        from .continuous_effects import TeamOpponentImmunityEffect
+        return TeamOpponentImmunityEffect(source_card)
 
 
 class EffectRegistry:

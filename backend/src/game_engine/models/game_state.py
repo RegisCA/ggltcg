@@ -270,6 +270,10 @@ class GameState:
         """
         Check if a card is protected from an effect.
         
+        Protection can come from:
+        1. The card's own protection effects (e.g., Beary's opponent_immunity)
+        2. Team-wide protection from other cards (e.g., Sock Sorcerer)
+        
         Args:
             card: Card being targeted
             effect: Effect trying to affect the card
@@ -279,13 +283,23 @@ class GameState:
         """
         from ..rules.effects import EffectRegistry
         from ..rules.effects.base_effect import ProtectionEffect
+        from ..rules.effects.continuous_effects import TeamOpponentImmunityEffect
         
         # Check card's own protection effects
-        effects = EffectRegistry.get_effects(card)
-        for card_effect in effects:
+        card_effects = EffectRegistry.get_effects(card)
+        for card_effect in card_effects:
             if isinstance(card_effect, ProtectionEffect):
                 if card_effect.is_protected_from(effect, self):
                     return True
+        
+        # Check team-wide protection from other cards in play
+        for player in self.players.values():
+            for protector in player.in_play:
+                protector_effects = EffectRegistry.get_effects(protector)
+                for protector_effect in protector_effects:
+                    if isinstance(protector_effect, TeamOpponentImmunityEffect):
+                        if protector_effect.is_card_protected(card, effect, self):
+                            return True
         
         return False
     

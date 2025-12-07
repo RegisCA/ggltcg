@@ -420,6 +420,71 @@ class OpponentImmunityEffect(ProtectionEffect):
         return card_controller != effect_controller
 
 
+class TeamOpponentImmunityEffect(ProtectionEffect):
+    """
+    Sock Sorcerer: "Your opponent's cards' effects don't affect your cards."
+    
+    Team-wide protection effect. While Sock Sorcerer is in play, ALL cards
+    controlled by Sock Sorcerer's controller are protected from opponent's effects.
+    
+    This is like Beary's effect, but applied to the entire team.
+    
+    Note: This effect must be checked in is_protected_from_effect() for ALL cards,
+    not just the target card's own effects.
+    """
+    
+    def __init__(self, source_card: "Card"):
+        super().__init__(source_card, protects_from="opponent_team")
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Team immunity doesn't modify stats."""
+        return base_value
+    
+    def is_card_protected(self, target_card: "Card", effect: "BaseEffect", 
+                         game_state: "GameState") -> bool:
+        """
+        Check if a target card is protected by Sock Sorcerer.
+        
+        Args:
+            target_card: The card being targeted by an effect
+            effect: The effect trying to affect the target
+            game_state: The current game state
+            
+        Returns:
+            True if target is protected by this Sock Sorcerer
+        """
+        from ...models.card import Zone
+        
+        # Sock Sorcerer must be in play to provide protection
+        if self.source_card.zone != Zone.IN_PLAY:
+            return False
+        
+        # Get controllers
+        sorcerer_controller = game_state.get_card_controller(self.source_card)
+        target_controller = game_state.get_card_controller(target_card)
+        effect_controller = game_state.get_card_controller(effect.source_card)
+        
+        if not sorcerer_controller or not target_controller or not effect_controller:
+            return False
+        
+        # Protect all cards controlled by Sock Sorcerer's controller
+        # from effects controlled by opponents
+        if target_controller == sorcerer_controller:
+            if effect_controller != sorcerer_controller:
+                return True
+        
+        return False
+    
+    def is_protected_from(self, effect: "BaseEffect", game_state: "GameState") -> bool:
+        """
+        Check if Sock Sorcerer ITSELF is protected from the effect.
+        
+        Sock Sorcerer protects itself too (since it's part of "your cards").
+        """
+        return self.is_card_protected(self.source_card, effect, game_state)
+
+
 class KnightWinConditionEffect(ContinuousEffect):
     """
     Knight: "On your turn, this card wins all tussles it enters."
