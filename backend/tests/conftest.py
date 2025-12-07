@@ -41,16 +41,29 @@ def get_card_templates() -> Dict[str, Card]:
     """
     Load all card templates from CSV (cached).
     
+    Respects CARDS_CSV_PATH environment variable for custom deck testing.
+    
     Returns:
         Dictionary mapping card name to Card template
     """
     global _card_templates
     if _card_templates is None:
-        csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
+        import os
+        csv_path_str = os.environ.get("CARDS_CSV_PATH")
+        if csv_path_str:
+            csv_path = Path(csv_path_str)
+        else:
+            csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
         loader = CardLoader(str(csv_path))
         all_cards = loader.load_cards()
         _card_templates = {card.name: card for card in all_cards}
     return _card_templates
+
+
+def clear_card_template_cache() -> None:
+    """Clear the card template cache. Use when switching CSV files in tests."""
+    global _card_templates
+    _card_templates = None
 
 
 def get_card_template(name: str) -> Card:

@@ -76,6 +76,49 @@ class GainCCEffect(PlayEffect):
             player.gain_cc(self.amount)
 
 
+class TurnStatBoostEffect(PlayEffect):
+    """
+    VeryVeryAppleJuice: "This turn, your cards have 1 more of each stat."
+    
+    Turn-scoped stat boost effect - boosts stats only for the current turn.
+    The boost is applied to all of the player's toys currently in play.
+    
+    Unlike continuous effects (Ka, Demideca), this:
+    - Is applied once when the action is played
+    - Only lasts until end of turn
+    - Does NOT affect cards played later in the turn
+    
+    Examples:
+    - VeryVeryAppleJuice: TurnStatBoostEffect(source_card, "all", 1)
+    """
+    
+    def __init__(self, source_card: "Card", stat_name: str = "all", amount: int = 1):
+        """
+        Initialize turn-scoped stat boost effect.
+        
+        Args:
+            source_card: The card providing this effect
+            stat_name: Stat to boost ("speed", "strength", "stamina", or "all")
+            amount: Amount to boost (default 1)
+        """
+        super().__init__(source_card)
+        self.stat_name = stat_name
+        self.amount = amount
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Apply turn-scoped stat boost to all player's toys in play."""
+        player: Optional["Player"] = kwargs.get("player")
+        if not player:
+            return
+        
+        current_turn = game_state.turn_number
+        
+        # Apply to all toys currently in play for this player
+        for card in player.in_play:
+            if card.is_toy():
+                card.add_turn_modification(current_turn, self.stat_name, self.amount)
+
+
 class UnsleepEffect(PlayEffect):
     """
     Generic unsleep effect for data-driven cards.
@@ -179,6 +222,128 @@ class SleepAllEffect(PlayEffect):
             owner = game_state.get_card_owner(card)
             if owner:
                 game_engine._sleep_card(card, owner, was_in_play=True)
+
+
+class SleepTargetEffect(PlayEffect):
+    """
+    Drop: "Sleep a card that is in play."
+    
+    Targeted sleep effect - player chooses one card from either player's
+    in-play zone to sleep. Triggers "when sleeped" effects.
+    Respects protection effects (e.g., Beary, Sock Sorcerer).
+    """
+    
+    def __init__(self, source_card: "Card", count: int = 1):
+        """
+        Initialize targeted sleep effect.
+        
+        Args:
+            source_card: The card providing this effect
+            count: Number of targets to sleep (default 1)
+        """
+        super().__init__(source_card)
+        self.count = count
+    
+    def requires_targets(self) -> bool:
+        """Sleep target effect requires choosing cards to sleep."""
+        return True
+    
+    def get_max_targets(self) -> int:
+        """Return the maximum number of cards that can be targeted."""
+        return self.count
+    
+    def get_min_targets(self) -> int:
+        """At least 1 target required if any valid targets exist."""
+        return 1
+    
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
+        """Get all cards in play from both players (except protected ones)."""
+        all_cards = game_state.get_all_cards_in_play()
+        return [c for c in all_cards if not game_state.is_protected_from_effect(c, self)]
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Sleep target cards."""
+        targets: Optional[List["Card"]] = kwargs.get("targets")
+        game_engine = kwargs.get("game_engine")
+        
+        if not targets:
+            return
+        
+        for target in targets[:self.count]:
+            # Double-check protection (in case state changed)
+            if game_state.is_protected_from_effect(target, self):
+                continue
+            
+            owner = game_state.get_card_owner(target)
+            if owner:
+                if game_engine:
+                    game_engine._sleep_card(target, owner, was_in_play=True)
+                else:
+                    game_state.sleep_card(target, was_in_play=True)
+
+
+class ReturnTargetToHandEffect(PlayEffect):
+    """
+    Jumpscare: "Put a card that is in play into their owner's hand."
+    
+    Targeted bounce effect - player chooses one card from either player's
+    in-play zone to return to its OWNER's hand (not controller's).
+    Does NOT trigger "when sleeped" effects (card is bounced, not sleeped).
+    Respects protection effects.
+    """
+    
+    def __init__(self, source_card: "Card", count: int = 1):
+        """
+        Initialize targeted return-to-hand effect.
+        
+        Args:
+            source_card: The card providing this effect
+            count: Number of targets to bounce (default 1)
+        """
+        super().__init__(source_card)
+        self.count = count
+    
+    def requires_targets(self) -> bool:
+        """Return target effect requires choosing cards to bounce."""
+        return True
+    
+    def get_max_targets(self) -> int:
+        """Return the maximum number of cards that can be targeted."""
+        return self.count
+    
+    def get_min_targets(self) -> int:
+        """At least 1 target required if any valid targets exist."""
+        return 1
+    
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
+        """Get all cards in play from both players (except protected ones)."""
+        all_cards = game_state.get_all_cards_in_play()
+        return [c for c in all_cards if not game_state.is_protected_from_effect(c, self)]
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Return target cards to their owners' hands."""
+        targets: Optional[List["Card"]] = kwargs.get("targets")
+        
+        if not targets:
+            return
+        
+        for target in targets[:self.count]:
+            # Double-check protection
+            if game_state.is_protected_from_effect(target, self):
+                continue
+            
+            owner = game_state.get_card_owner(target)
+            if not owner:
+                continue
+            
+            # Remove from current controller's in_play
+            for p in game_state.players.values():
+                if target in p.in_play:
+                    p.in_play.remove(target)
+                    break
+            
+            # Return to owner's hand (not controller's)
+            game_state.return_card_to_hand(target, owner)
 
 
 # ============================================================================

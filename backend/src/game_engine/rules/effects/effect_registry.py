@@ -102,6 +102,24 @@ class EffectFactory:
             elif effect_type == "remove_stamina_ability":
                 effect = cls._parse_remove_stamina_ability(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "sleep_target":
+                effect = cls._parse_sleep_target(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "return_target_to_hand":
+                effect = cls._parse_return_target_to_hand(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "team_opponent_immunity":
+                effect = cls._parse_team_opponent_immunity(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "turn_stat_boost":
+                effect = cls._parse_turn_stat_boost(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "start_of_turn_gain_cc":
+                effect = cls._parse_start_of_turn_gain_cc(parts, source_card)
+                effects.append(effect)
+            elif effect_type == "on_card_played_gain_cc":
+                effect = cls._parse_on_card_played_gain_cc(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -706,6 +724,244 @@ class EffectFactory:
         # Note: ArcherActivatedAbility currently only uses cc_cost in __init__
         # The amount parameter would need to be added if we want variable damage
         return ArcherActivatedAbility(source_card)
+
+    @classmethod
+    def _parse_sleep_target(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a sleep_target effect definition.
+        
+        Format: "sleep_target:count"
+        - count: Number of targets to sleep (typically 1)
+        
+        Targeted action: Sleep a card in play.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            SleepTargetEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"sleep_target effect requires exactly 1 parameter: count. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            count = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid count '{parts[1]}' for sleep_target. Must be an integer."
+            )
+        
+        if count < 1:
+            raise ValueError(
+                f"Invalid count {count} for sleep_target. Must be at least 1."
+            )
+        
+        from .action_effects import SleepTargetEffect
+        return SleepTargetEffect(source_card, count=count)
+
+    @classmethod
+    def _parse_return_target_to_hand(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a return_target_to_hand effect definition.
+        
+        Format: "return_target_to_hand:count"
+        - count: Number of targets to return to hand (typically 1)
+        
+        Targeted action: Return a card in play to its owner's hand.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            ReturnTargetToHandEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"return_target_to_hand effect requires exactly 1 parameter: count. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            count = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid count '{parts[1]}' for return_target_to_hand. Must be an integer."
+            )
+        
+        if count < 1:
+            raise ValueError(
+                f"Invalid count {count} for return_target_to_hand. Must be at least 1."
+            )
+        
+        from .action_effects import ReturnTargetToHandEffect
+        return ReturnTargetToHandEffect(source_card, count=count)
+
+    @classmethod
+    def _parse_team_opponent_immunity(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a team_opponent_immunity effect definition.
+        
+        Format: "team_opponent_immunity" (no parameters)
+        
+        Sock Sorcerer: All cards controlled by this card's controller
+        are immune to effects from opponent-controlled cards.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            TeamOpponentImmunityEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"team_opponent_immunity effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        from .continuous_effects import TeamOpponentImmunityEffect
+        return TeamOpponentImmunityEffect(source_card)
+
+    @classmethod
+    def _parse_turn_stat_boost(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a turn_stat_boost effect definition.
+        
+        Format: "turn_stat_boost:stat_name:amount"
+        - stat_name: "speed", "strength", "stamina", or "all"
+        - amount: Integer amount to boost
+        
+        VeryVeryAppleJuice: Boost all stats by 1 for the current turn only.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            TurnStatBoostEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 3:
+            raise ValueError(
+                f"turn_stat_boost effect requires exactly 2 parameters: stat_name and amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        stat_name = parts[1].strip().lower()
+        valid_stats = ("speed", "strength", "stamina", "all")
+        if stat_name not in valid_stats:
+            raise ValueError(
+                f"Invalid stat name '{stat_name}' for turn_stat_boost. "
+                f"Must be one of: {valid_stats}"
+            )
+        
+        try:
+            amount = int(parts[2].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[2]}' for turn_stat_boost. Must be an integer."
+            )
+        
+        from .action_effects import TurnStatBoostEffect
+        return TurnStatBoostEffect(source_card, stat_name=stat_name, amount=amount)
+
+    @classmethod
+    def _parse_start_of_turn_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a start_of_turn_gain_cc effect definition.
+        
+        Format: "start_of_turn_gain_cc:amount"
+        - amount: Integer amount of CC to gain
+        
+        Belchaletta: Gain 2 CC at the start of your turn.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            StartOfTurnGainCCEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"start_of_turn_gain_cc effect requires exactly 1 parameter: amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            amount = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[1]}' for start_of_turn_gain_cc. Must be an integer."
+            )
+        
+        if amount < 1:
+            raise ValueError(
+                f"Invalid amount {amount} for start_of_turn_gain_cc. Must be at least 1."
+            )
+        
+        from .continuous_effects import StartOfTurnGainCCEffect
+        return StartOfTurnGainCCEffect(source_card, amount=amount)
+
+    @classmethod
+    def _parse_on_card_played_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an on_card_played_gain_cc effect definition.
+        
+        Format: "on_card_played_gain_cc:amount"
+        - amount: Integer amount of CC to gain
+        
+        Hind Leg Kicker: When you play a card (not this one), gain 1 CC.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            OnCardPlayedGainCCEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"on_card_played_gain_cc effect requires exactly 1 parameter: amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            amount = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[1]}' for on_card_played_gain_cc. Must be an integer."
+            )
+        
+        if amount < 1:
+            raise ValueError(
+                f"Invalid amount {amount} for on_card_played_gain_cc. Must be at least 1."
+            )
+        
+        from .continuous_effects import OnCardPlayedGainCCEffect
+        return OnCardPlayedGainCCEffect(source_card, amount=amount)
 
 
 class EffectRegistry:

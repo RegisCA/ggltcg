@@ -122,6 +122,62 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "RESET - Bounces everything back to hand. Use when opponent has stronger board.",
         "threat_level": "HIGH - Can reset your board advantage"
     },
+    
+    # NEW CARDS (Beta)
+    "Surge": {
+        "type": "Action",
+        "effect": "Gain 1 CC",
+        "strategic_use": "FREE CC - Use when you need 1 more CC for a key play. Lower value than Rush but playable on turn 1.",
+        "threat_level": "LOW - Small CC advantage for opponent"
+    },
+    "Drum": {
+        "type": "Toy",
+        "effect": "Continuous: All your Toys get +2 Speed",
+        "strategic_use": "SPEED ADVANTAGE - Makes your cards strike first in tussles. Weak stats (1/3/2) but the speed boost is huge.",
+        "threat_level": "HIGH - Opponent's cards will strike first against yours"
+    },
+    "Violin": {
+        "type": "Toy",
+        "effect": "Continuous: All your Toys get +2 Strength",
+        "strategic_use": "FORCE MULTIPLIER - Like Ka but cheaper with weaker stats (3/1/2). Good budget option for strength boost.",
+        "threat_level": "HIGH - Boosts opponent's entire board"
+    },
+    "Drop": {
+        "type": "Action",
+        "effect": "Target: Sleep any card in play (yours or opponent's)",
+        "strategic_use": "PRECISION REMOVAL - Sleep a specific threat. Cheaper than Clean but only one target. Triggers when-sleeped effects!",
+        "threat_level": "HIGH - Can sleep your best card"
+    },
+    "Jumpscare": {
+        "type": "Action",
+        "effect": "Target: Return any card in play to owner's hand (no sleep trigger)",
+        "strategic_use": "TEMPO BOUNCE - Return a threat without triggering when-sleeped. Great vs Umbruh! Opponent must replay the card.",
+        "threat_level": "MEDIUM - Can bounce your key card back to hand"
+    },
+    "Sock Sorcerer": {
+        "type": "Toy",
+        "effect": "Continuous: All your Toys are immune to opponent's card effects",
+        "strategic_use": "TEAM PROTECTION - Protects ALL your cards from Twist, Clean, Copy, Drop, etc. Very powerful defensive anchor!",
+        "threat_level": "CRITICAL - Your Action cards won't affect opponent's board while in play"
+    },
+    "VeryVeryAppleJuice": {
+        "type": "Action",
+        "effect": "This turn only: All your Toys get +1 Speed, +1 Strength, +1 Stamina",
+        "strategic_use": "COMBAT BUFF - Use BEFORE tussling to win fights you'd otherwise lose. One turn only - use it or lose it!",
+        "threat_level": "MEDIUM - Temporary boost makes opponent's tussles stronger this turn"
+    },
+    "Belchaletta": {
+        "type": "Toy",
+        "effect": "Triggered: At start of your turn, gain 2 CC",
+        "strategic_use": "CC ENGINE - Generates 2 extra CC every turn (6 total per turn!). Huge value if it survives. Priority removal target.",
+        "threat_level": "HIGH - Opponent gains +2 CC per turn on top of normal 4"
+    },
+    "Hind Leg Kicker": {
+        "type": "Toy",
+        "effect": "Triggered: When you play another card, gain 1 CC",
+        "strategic_use": "CC REFUND - Each card you play refunds 1 CC. Great for combo turns with many plays. Weak stats (3/3/1) - protect it!",
+        "threat_level": "MEDIUM - Opponent gets partial CC refund on plays"
+    },
 }
 
 SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) player. Your goal is to WIN by putting all of your opponent's cards in their Sleep Zone.

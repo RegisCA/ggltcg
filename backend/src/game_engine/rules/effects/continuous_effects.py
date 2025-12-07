@@ -61,6 +61,124 @@ class GainCCWhenSleepedEffect(TriggeredEffect):
         return base_value
 
 
+class StartOfTurnGainCCEffect(TriggeredEffect):
+    """
+    Belchaletta: "At the start of your turn, gain 2 charge."
+    
+    Triggered effect that grants CC at the start of the controller's turn.
+    Only triggers while the card is in play.
+    
+    Examples:
+    - Belchaletta: StartOfTurnGainCCEffect(source_card, amount=2)
+    """
+    
+    def __init__(self, source_card: "Card", amount: int):
+        """
+        Initialize start of turn CC gain effect.
+        
+        Args:
+            source_card: The card providing this effect
+            amount: How much CC to gain at start of turn
+        """
+        super().__init__(source_card, TriggerTiming.START_OF_TURN, is_optional=False)
+        self.amount = amount
+    
+    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """
+        Check if this effect should trigger.
+        
+        Only triggers if:
+        1. Source card is in play
+        2. It's the controller's turn
+        """
+        from ...models.card import Zone
+        
+        # Must be in play
+        if self.source_card.zone != Zone.IN_PLAY:
+            return False
+        
+        # Only trigger on controller's turn
+        controller = game_state.get_card_controller(self.source_card)
+        active_player = game_state.get_active_player()
+        
+        return controller == active_player
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Grant CC to the card's controller at start of turn."""
+        controller = game_state.get_card_controller(self.source_card)
+        if controller:
+            controller.gain_cc(self.amount)
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Triggered effects don't modify stats."""
+        return base_value
+
+
+class OnCardPlayedGainCCEffect(TriggeredEffect):
+    """
+    Hind Leg Kicker: "When you play a card (not this one), gain 1 charge."
+    
+    Triggered effect that grants CC whenever the controller plays another card.
+    Does NOT trigger when Hind Leg Kicker itself is played.
+    Only triggers while the card is in play.
+    
+    Examples:
+    - Hind Leg Kicker: OnCardPlayedGainCCEffect(source_card, amount=1)
+    """
+    
+    def __init__(self, source_card: "Card", amount: int):
+        """
+        Initialize on card played CC gain effect.
+        
+        Args:
+            source_card: The card providing this effect
+            amount: How much CC to gain when another card is played
+        """
+        super().__init__(source_card, TriggerTiming.WHEN_OTHER_CARD_PLAYED, is_optional=False)
+        self.amount = amount
+    
+    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """
+        Check if this effect should trigger.
+        
+        Only triggers if:
+        1. Source card is in play
+        2. A card was played (not this one)
+        3. The card was played by this card's controller
+        """
+        from ...models.card import Zone
+        
+        # Must be in play
+        if self.source_card.zone != Zone.IN_PLAY:
+            return False
+        
+        played_card = kwargs.get("played_card")
+        player = kwargs.get("player")
+        
+        if not played_card or not player:
+            return False
+        
+        # Don't trigger for itself being played
+        if played_card == self.source_card:
+            return False
+        
+        # Only trigger for controller's plays
+        controller = game_state.get_card_controller(self.source_card)
+        return controller == player
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Grant CC to the card's controller when another card is played."""
+        controller = game_state.get_card_controller(self.source_card)
+        if controller:
+            controller.gain_cc(self.amount)
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Triggered effects don't modify stats."""
+        return base_value
+
+
 class StatBoostEffect(ContinuousEffect):
     """
     Generic stat boost effect for data-driven cards.
@@ -418,6 +536,71 @@ class OpponentImmunityEffect(ProtectionEffect):
         
         # Protected from opponent's effects
         return card_controller != effect_controller
+
+
+class TeamOpponentImmunityEffect(ProtectionEffect):
+    """
+    Sock Sorcerer: "Your opponent's cards' effects don't affect your cards."
+    
+    Team-wide protection effect. While Sock Sorcerer is in play, ALL cards
+    controlled by Sock Sorcerer's controller are protected from opponent's effects.
+    
+    This is like Beary's effect, but applied to the entire team.
+    
+    Note: This effect must be checked in is_protected_from_effect() for ALL cards,
+    not just the target card's own effects.
+    """
+    
+    def __init__(self, source_card: "Card"):
+        super().__init__(source_card, protects_from="opponent_team")
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Team immunity doesn't modify stats."""
+        return base_value
+    
+    def is_card_protected(self, target_card: "Card", effect: "BaseEffect", 
+                         game_state: "GameState") -> bool:
+        """
+        Check if a target card is protected by Sock Sorcerer.
+        
+        Args:
+            target_card: The card being targeted by an effect
+            effect: The effect trying to affect the target
+            game_state: The current game state
+            
+        Returns:
+            True if target is protected by this Sock Sorcerer
+        """
+        from ...models.card import Zone
+        
+        # Sock Sorcerer must be in play to provide protection
+        if self.source_card.zone != Zone.IN_PLAY:
+            return False
+        
+        # Get controllers
+        sorcerer_controller = game_state.get_card_controller(self.source_card)
+        target_controller = game_state.get_card_controller(target_card)
+        effect_controller = game_state.get_card_controller(effect.source_card)
+        
+        if not sorcerer_controller or not target_controller or not effect_controller:
+            return False
+        
+        # Protect all cards controlled by Sock Sorcerer's controller
+        # from effects controlled by opponents
+        if target_controller == sorcerer_controller:
+            if effect_controller != sorcerer_controller:
+                return True
+        
+        return False
+    
+    def is_protected_from(self, effect: "BaseEffect", game_state: "GameState") -> bool:
+        """
+        Check if Sock Sorcerer ITSELF is protected from the effect.
+        
+        Sock Sorcerer protects itself too (since it's part of "your cards").
+        """
+        return self.is_card_protected(self.source_card, effect, game_state)
 
 
 class KnightWinConditionEffect(ContinuousEffect):
