@@ -9,19 +9,66 @@ A tactical two-player card game with no randomness in draws—only skill and str
 
 ## Project Overview
 
-GGLTCG is a web application that allows players to play the Googooland TCG against an AI opponent or play with friends online. The game features 18 unique cards with diverse mechanics and strategic depth, backed by a persistent database for stats and history.
+GGLTCG is a web application for playing the Googooland Trading Card Game,
+either against an AI opponent or with friends online. The rules and cards
+are fully implemented in the backend game engine, with a React frontend
+for lobby, gameplay, and stats.
+
+### Who is this for?
+
+- **TCG Enthusiasts**: Explore a deterministic, skill-based card game engine.
+- **AI Developers**: See how LLMs (Google Gemini) can be integrated as game agents.
+- **Full-Stack Engineers**: A reference for modern Python/React apps with enterprise-grade practices.
+
+## 5-Minute Quickstart
+
+1. **Clone & Setup Backend**:
+
+   ```bash
+   git clone https://github.com/RegisCA/ggltcg.git
+   cd ggltcg/backend
+   python3.13 -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   cp .env.example .env  # Add your GOOGLE_API_KEY
+   python run_server.py
+   ```
+
+2. **Setup Frontend**:
+
+   ```bash
+   cd ../frontend
+   npm install
+   cp .env.example .env.local  # Add VITE_GOOGLE_CLIENT_ID
+   npm run dev
+   ```
+
+3. **Play**: Open <http://localhost:5173>
 
 ## Key Features
 
-- **1v1 Online Multiplayer**: Real-time lobby system to create private games and invite friends via code.
-- **⚡ Quick Play**: Jump straight into action with random decks for instant battles against the AI.
-- **Google OAuth Authentication**: Secure sign-in with Google to protect your account and stats.
-- **Strategic AI Opponent**: Powered by Google Gemini (LLM) to provide a challenging and thematic opponent.
-- **Persistent Stats & Leaderboards**: Track your win rates, match history, and card usage statistics.
-- **No-RNG Gameplay**: A deterministic combat system ("Tussles") where speed and strategy determine the winner.
-- **Reactive UI**: Built with React 19 and React Query for optimistic updates and smooth game state synchronization.
-- **Data-Driven Design**: Card attributes and effects are defined in CSV, making balancing and expansion easy.
-- **Type-Safe Architecture**: Full TypeScript frontend and Pydantic-validated backend.
+- **1v1 Online Multiplayer**: Lobby system to create and join private games by code.
+- **Quick Play vs AI**: Start a game against the AI with a single click.
+- **Google OAuth Authentication**: Secure sign-in with Google, user profiles, and display names.
+- **LLM-Powered AI Opponent**: Uses Google Gemini for strategic, rules-aware play.
+- **Persistent Stats**: PostgreSQL-backed tracking of game results and high-level stats.
+- **Deterministic Gameplay**: No random draws – only visible information and player decisions.
+- **Data-Driven Cards**: Card stats and effects defined in CSV, parsed by a generic effect system.
+- **Type-Safe Architecture**: TypeScript frontend and Pydantic-validated FastAPI backend.
+
+## Documentation
+
+For detailed documentation, see the **[Documentation Index](docs/README.md)**. Key guides include:
+
+- [Architecture](docs/development/ARCHITECTURE.md)
+- [Effect System](docs/development/EFFECT_SYSTEM_ARCHITECTURE.md)
+- [Authentication](docs/development/AUTH_IMPLEMENTATION.md)
+
+## Security
+
+- **Authentication**: Google OAuth only (no passwords stored).
+- **Secrets**: Managed via environment variables.
+- **Reporting**: See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+- **Guidelines**: See [Security Instructions](.github/instructions/security-and-owasp.instructions.md).
 
 ## Production Engineering
 
@@ -116,8 +163,8 @@ ggltcg/
 │   └── package.json
 ├── docs/
 │   ├── rules/                   # Game rules documentation
-│   └── development/             # Development guides, MVP progress
-├── COPILOT_CONTEXT.md           # GitHub Copilot seed prompt
+│   └── development/             # Architecture, effects, auth, deployment
+├── .github/instructions/        # Coding, security, and testing guidelines
 └── README.md
 ```
 
@@ -133,17 +180,23 @@ ggltcg/
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # On macOS/Linux; use venv\Scripts\activate on Windows
+python -m venv .venv
+source .venv/bin/activate  # On macOS/Linux; use .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 
-# Copy .env.example to .env and add your API key
-cp .env.example .env
-# Edit .env and add: GOOGLE_API_KEY=your_key_here
-# Get your free API key at: https://aistudio.google.com/api-keys
-# Optional: If you experience 429 capacity errors with gemini-2.0-flash-lite,
-# add GEMINI_MODEL=gemini-2.5-flash to use a newer, more stable model
+# Copy example env files if present, then configure auth and DB
+cp .env.example .env 2>/dev/null || true
 ```
+
+Then set at minimum:
+
+- `DATABASE_URL` – PostgreSQL connection string
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` – OAuth credentials
+- `JWT_SECRET_KEY` – random secret for JWTs
+- `ALLOWED_ORIGINS` – allowed frontend origins
+
+For details, see `docs/development/ENV_VARS_AUTH.md` and
+`docs/development/DATABASE_SCHEMA.md`.
 
 ### Frontend Setup
 
@@ -152,23 +205,26 @@ cd frontend
 npm install
 ```
 
+Create a `.env` file in `frontend/` with at least:
+
+- `VITE_API_URL` – URL of the backend (e.g. `http://localhost:8000`)
+- `VITE_GOOGLE_CLIENT_ID` – OAuth client ID
+
+See `docs/development/AUTH_IMPLEMENTATION.md` and
+`docs/development/FRONTEND_OVERVIEW.md` for more context.
+
 ### Running the Application
 
 **Backend:**
 
 ```bash
-# Make sure virtual environment is activated
-source .venv/bin/activate  # Run from project root
+source .venv/bin/activate  # From project root, if not already active
 
-# Start the server
 cd backend
 python run_server.py
 
 # Server runs at http://localhost:8000
 # API docs at http://localhost:8000/docs
-
-# Optional: Use an alternate deck CSV file (should have at least 6 cards)
-python run_server.py --deck /path/to/your/custom_cards.csv
 ```
 
 **Command Line Options:**
@@ -194,41 +250,28 @@ npm run dev
 # App runs at http://localhost:5173
 ```
 
-Open <http://localhost:5173> in your browser to play!
+Open <http://localhost:5173> in your browser to play.
 
-## Custom Deck CSV Format
+## Card Data
 
-You can create your own custom deck by providing a CSV file with the following format:
+Card definitions live in `backend/data/cards.csv` and are the single
+source of truth for card stats, colors, and effect strings. The effect
+system is data-driven and parses the `effects` column into runtime
+effect objects.
 
-```csv
-name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accent_color
-Beary,18,1,"Knight's effects don't affect this card...",3,3,5,,,#C74444,#C74444
-Rush,18,0,A Toy you choose gets +2 speed until end of turn.,,,,,#8B5FA8,#8B5FA8
-```
+For details on adding or modifying cards, see:
 
-**Required columns:**
+- `docs/development/ADDING_NEW_CARDS.md`
+- `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md`
 
-- `name`: Card name (must be unique)
-- `cost`: Card cost (use `?` for variable cost cards like Copy)
-- `effect`: Card effect text
-- `speed`, `strength`, `stamina`: For Toy cards (leave empty for Action cards)
-- `primary_color`, `accent_color`: Hex color codes for card appearance
+## Game Rules
 
-**Card Types:**
+- **Objective:** Put all opponent's cards into their Sleep Zone.
+- **Turn Start:** Gain 4 CC (Player 1 on Turn 1 gains only 2).
+- **CC Cap:** Maximum 7 CC per player at any time.
+- **Tussle:** Pay CC to have two Toys fight. Higher speed strikes first.
 
-- **Toy cards**: Must have speed, strength, and stamina values
-- **Action cards**: Leave speed, strength, and stamina columns empty
-
-See `backend/data/cards.csv` for the complete reference implementation with all 18 cards.
-
-## Game Rules Quick Reference
-
-- **Objective:** Put all opponent's cards into their Sleep Zone
-- **Turn Start:** Gain 4 CC (Player 1 on Turn 1 gains only 2)
-- **CC Cap:** Maximum 7 CC per player at any time
-- **Tussle:** Pay CC to have two Toys fight. Higher speed strikes first
-
-See `docs/rules/GGLTCG-Rules-v1_1.md` for complete rules.
+See `docs/rules/GGLTCG Rules v1_1.md` for complete rules.
 
 ## Deployment
 
@@ -239,26 +282,17 @@ The application is deployed and live:
 
 For deployment instructions, see:
 
-- **`docs/deployment/DEPLOYMENT.md`** - Complete step-by-step deployment guide
-- **`docs/deployment/DEPLOYMENT_QUICKSTART.md`** - Quick reference for common tasks
+- `docs/deployment/DEPLOYMENT.md` – Complete step-by-step deployment guide
+- `docs/deployment/DEPLOYMENT_QUICKSTART.md` – Quick reference for common tasks
 
 Both services run on free tiers. Note that the Render backend may take ~50 seconds to wake up from inactivity.
 
 ## Troubleshooting
 
-### AI Player Issues
-
-**429 Resource Exhausted Errors:**
-
-- This is a Google infrastructure capacity issue, not your API rate limit
-- The free tier `gemini-2.0-flash-lite` can be overloaded during peak times
-- **Solution 1:** Wait a few minutes and try again
-- **Solution 2:** Switch to `gemini-2.5-flash` (newer, more stable):
-
-  ```bash
-  # Add to backend/.env:
-  GEMINI_MODEL=gemini-2.5-flash
-  ```
+- Backend/API: check `http://localhost:8000/health` and the FastAPI docs at `/docs`.
+- Frontend: inspect browser console and verify `VITE_API_URL` points to the backend.
+- Auth: confirm Google OAuth credentials and env vars as per
+    `docs/development/GOOGLE_OAUTH_SETUP.md` and `AUTH_IMPLEMENTATION.md`.
 
 - The code automatically retries with exponential backoff (1s, 2s, 4s)
 

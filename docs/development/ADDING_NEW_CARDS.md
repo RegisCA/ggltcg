@@ -19,10 +19,10 @@ Use this checklist when adding new cards:
 
 **File**: `backend/data/cards.csv`
 
-Add a new row with all required fields:
+Add a new row with all required fields. The canonical header (as of December 2025) is:
 
 ```csv
-name,status,cost,effect_text,speed,strength,stamina,primary_color,accent_color,effect_definitions
+name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accent_color,effects
 ```
 
 ### Field Descriptions
@@ -31,14 +31,16 @@ name,status,cost,effect_text,speed,strength,stamina,primary_color,accent_color,e
 |-------|----------|-------------|
 | `name` | ✅ | Unique card name |
 | `status` | ✅ | Status code (18 = active) |
-| `cost` | ✅ | CC cost to play (0-5 typical) |
-| `effect_text` | ✅ | Human-readable effect description |
+| `cost` | ✅ | CC cost to play (0–5 typical) |
+| `effect` | ✅ | Human-readable effect description (shown in UI) |
 | `speed` | Toys only | Speed stat for tussles |
 | `strength` | Toys only | Strength stat for tussles |
 | `stamina` | Toys only | Base stamina (health) |
+| `faction` | Optional | Reserved for future set/faction metadata |
+| `quote` | Optional | Flavor text |
 | `primary_color` | ✅ | Hex color for card display |
 | `accent_color` | ✅ | Hex color for card accent |
-| `effect_definitions` | ✅ | Machine-readable effect code(s) |
+| `effects` | ✅ | Machine-readable effect code(s) used by the effect system |
 
 ### Effect Definitions Syntax
 
@@ -49,7 +51,7 @@ single_effect:param1:param2
 effect1;effect2;effect3
 ```
 
-### Available Effect Types
+### Available Effect Types (from `EffectFactory`)
 
 #### Stat Boosts (Continuous)
 - `stat_boost:strength:N` - Your Toys get +N strength
@@ -57,40 +59,59 @@ effect1;effect2;effect3
 - `stat_boost:stamina:N` - Your Toys get +N stamina
 - `stat_boost:all:N` - Your Toys get +N to all stats
 
+The effect system is data-driven. Supported effect strings must match the
+parsers implemented in `backend/src/game_engine/rules/effects/effect_registry.py`
+(`EffectFactory.parse_effects`). As of December 2025, the core effect types are:
+
+#### Stat Boosts (Continuous)
+- `stat_boost:strength:N` – Your Toys get +N strength
+- `stat_boost:speed:N` – Your Toys get +N speed
+- `stat_boost:stamina:N` – Your Toys get +N stamina
+- `stat_boost:all:N` – Your Toys get +N to all stats
+
 #### Temporary Boosts
-- `turn_stat_boost:all:N` - This turn only, +N to all stats
+- `turn_stat_boost:all:N` – This turn only, +N to all stats
 
 #### CC Effects
-- `gain_cc:N` - Gain N CC when played
-- `gain_cc:N:not_first_turn` - Gain N CC (cannot play on turn 1)
-- `start_of_turn_gain_cc:N` - Gain N CC at start of your turn
-- `on_card_played_gain_cc:N` - Gain N CC when you play another card
-- `gain_cc_when_sleeped:N` - Gain N CC when this card is sleeped
+- `gain_cc:N` – Gain N CC when played
+- `gain_cc:N:not_first_turn` – Gain N CC (cannot play on your first turn)
+- `start_of_turn_gain_cc:N` – Gain N CC at start of your turn
+- `on_card_played_gain_cc:N` – Gain N CC when you play another card
+- `gain_cc_when_sleeped:N` – Gain N CC when this card is sleeped from play
 
 #### Targeting Effects
-- `sleep_target:N` - Sleep N target card(s) in play
-- `return_target_to_hand:N` - Return N target card(s) to owner's hand
-- `unsleep_target:N` - Return N card(s) from sleep zone to hand
+- `sleep_target:N` – Sleep N target card(s) in play
+- `return_target_to_hand:N` – Return N target card(s) to owner's hand
 
 #### Protection Effects
-- `opponent_immunity` - This card immune to opponent's effects
-- `team_opponent_immunity` - All your cards immune to opponent's effects
+- `opponent_immunity` – This card is immune to opponent's effects
+- `team_opponent_immunity` – All your cards are immune to opponent's effects
 
 #### Combat Modifiers
-- `auto_win_tussle_on_own_turn` - Win all tussles on your turn
-- `set_tussle_cost:N` - Your tussles cost N CC
-- `cannot_tussle` - This card cannot initiate tussles
-- `free_tussle;no_tussle_turn_1` - Tussles cost 0, but not on turn 1
+- `auto_win_tussle_on_own_turn` – This card wins all tussles it enters on your turn
+- `set_tussle_cost:N` – Your tussles cost N CC
+- `set_self_tussle_cost:N:not_turn_1` – This card's tussles cost N CC, but not on turn 1
+- `cannot_tussle` – This card cannot initiate tussles
 
 #### Special Effects
-- `sleep_all` - Sleep all Toys in play
-- `return_all_to_hand` - Return all cards in play to owners' hands
-- `cascade_sleep:N` - When sleeped, sleep N other cards
-- `remove_stamina_ability:N` - Activated ability: spend N CC to remove 1 stamina
+- `sleep_all` – Sleep all Toys in play
+- `return_all_to_hand` – Return all cards in play to owners' hands
+- `copy_card` – Action: copy the effects of another card
+- `take_control` – Action: take control of an opponent's Toy
+- `return_all_to_hand` – Return all cards in play to owners' hands
+- `sleep_target:N` – Sleep N target card(s) in play
+- `return_target_to_hand:N` – Return N target card(s) to owner's hand
+- `start_of_turn_gain_cc:N` – Gain N CC at start of your turn
+- `on_card_played_gain_cc:N` – Gain N CC when you play another card
+- `turn_stat_boost:all:N` – This turn only, +N to all stats
 
 #### Cost Modifiers
-- `cost_reduction_per_sleep:N` - Cost reduced by N per card in your sleep zone
-- `alternative_cost_sleep_toy` - Can sleep a Toy instead of paying CC
+- `reduce_cost_by_sleeping` – Cost reduced by 1 per card in your sleep zone
+- `alternative_cost_sleep_card` – May sleep one of your cards instead of paying CC
+
+> If you introduce a new effect string that is not yet parsed in
+> `EffectFactory.parse_effects`, you **must** add a parser there as part of
+> the same change.
 
 ### Example Cards
 
@@ -113,18 +134,20 @@ Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,#eb9113,#eb91
 
 ## Step 2: Add Effect Handler (If Needed)
 
-If your card uses a **new effect type** not listed above, you need to implement it.
+If your card uses a **new effect type** not listed above, you need to
+implement it in the existing data-driven effect system.
 
-### 2a. Create Effect Handler
+### 2a. Extend `EffectFactory`
 
-**File**: `backend/src/game_engine/rules/effects/data_driven_effects.py`
+**File**: `backend/src/game_engine/rules/effects/effect_registry.py`
 
-Add parsing logic in `EffectFactory.create_effects_from_definition()`:
+Add a new branch in `EffectFactory.parse_effects` that recognizes your
+effect string and dispatches to a dedicated parser, e.g.:
 
 ```python
 elif effect_type == "my_new_effect":
-    param = int(parts[1]) if len(parts) > 1 else 1
-    effects.append(MyNewEffect(param))
+    effect = cls._parse_my_new_effect(parts, source_card)
+    effects.append(effect)
 ```
 
 ### 2b. Create Effect Class
@@ -141,18 +164,19 @@ Choose the appropriate base class:
 ```python
 class MyNewEffect(PlayEffect):
     """Description of what this effect does."""
-    
-    def __init__(self, param: int):
+
+    def __init__(self, source_card: Card, param: int):
+        super().__init__(source_card)
         self.param = param
-    
-    def apply(self, game_state: GameState, card: Card, player: Player, **kwargs) -> None:
+
+    def apply(self, game_state: GameState, **kwargs: Any) -> None:
         # Implementation here
-        pass
-    
+        ...
+
     def requires_targets(self) -> bool:
         return False  # or True if targeting
-    
-    def get_valid_targets(self, game_state: GameState, card: Card, player: Player) -> List[Card]:
+
+    def get_valid_targets(self, game_state: GameState, **kwargs: Any) -> List[Card]:
         return []  # Return valid target cards if requires_targets is True
 ```
 

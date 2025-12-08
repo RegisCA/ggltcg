@@ -1,3 +1,5 @@
+> **Historical Document**: This plan has been executed. See `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md` for the current system.
+
 # Effect System Migration Plan
 
 ## Overview
