@@ -276,10 +276,10 @@ class GameState:
 ```
 
 **Key Methods:**
+
 - `get_active_player()` - Returns Player object for current turn
 - `get_opponent(player_id)` - Returns opponent Player object
-- `get_card_controller(card)` - **⚠️ Searches in_play lists, doesn't use card.controller field**
-- `find_card_by_name(name)` - **⚠️ Returns first match across all zones (problematic)**
+- `get_card_controller(card)` - Searches in_play lists first, then uses card.controller field
 - `change_control(card, new_controller)` - Used by Twist effect
 
 ### State Persistence
@@ -400,16 +400,14 @@ class Card:
     stamina: Optional[int]
     
     # Ownership & Control
-    owner: str = ""           # ⚠️ Player ID who owns card (original deck)
-    controller: str = ""      # ⚠️ Player ID who controls card (can change via Twist)
+    owner: str = ""           # Player ID who owns card (original deck)
+    controller: str = ""      # Player ID who controls card (can change via Twist)
     
     # Current state
     zone: Zone = Zone.HAND
     current_stamina: Optional[int] = None
     modifications: Dict[str, int] = field(default_factory=dict)
 ```
-
-**⚠️ Critical Issue:** `controller` field is not always kept in sync with `in_play` lists!
 
 ### Card Movement
 
@@ -433,7 +431,7 @@ card = Card(
 ```python
 # game_engine.py -> play_card()
 card.zone = Zone.IN_PLAY
-card.controller = player.player_id  # ✅ FIX: Set controller when entering play
+card.controller = player.player_id
 player.in_play.append(card)
 ```
 
@@ -474,10 +472,10 @@ card.controller = new_controller.player_id
 new_controller.in_play.append(card)
 ```
 
-**⚠️ Key Issue:** Ownership vs Control
+**Key Concepts:** Ownership vs Control
 - `card.owner` never changes (used when card leaves play)
 - `card.controller` changes with Twist
-- **Problem:** Some code uses `card.controller`, some uses `get_card_controller()` which searches lists
+- `get_card_controller()` searches `in_play` lists, then falls back to `card.controller` field
 
 ---
 
@@ -510,7 +508,7 @@ const getAvailableTargets = (actionName: string): Card[] => {
 };
 ```
 
-**⚠️ Issue:** Zone filtering logic duplicated in backend and frontend.
+**Note:** Zone filtering logic exists in both backend and frontend for validation.
 
 ### Backend Target Resolution
 
@@ -528,18 +526,9 @@ if request.target_card_name:
     # ... etc
 ```
 
-**⚠️ Critical Problem:** Matching by `name` fails when multiple cards have same name in different zones!
+**Card Identification:**
 
-**Example Bug Scenario:**
-- Player has Ka in hand
-- Opponent has Ka in play
-- Player plays Twist targeting opponent's Ka
-- `find_card_by_name("Ka")` returns player's Ka from hand (wrong!)
-- Twist effect fails because target.controller is player, not opponent
-
-**Current Workaround:** Zone-specific searching (implemented Nov 20, 2025)
-
-**Proper Solution:** Use unique card IDs instead of names
+Cards are identified by unique IDs (`card.id`) to prevent ambiguity when multiple cards have the same name. Target selection uses zone-specific searching combined with ID-based lookups.
 
 ### Effect Target Validation
 
