@@ -124,20 +124,29 @@ graph TD
 - Dark theme UI with responsive design
 - **Deployed on Vercel** (free tier)
 
-## Live Demo
+## Game Rules
 
-**Play now:** <https://ggltcg.vercel.app>
+- **Objective:** Put all opponent's cards into their Sleep Zone.
+- **Turn Start:** Gain 4 CC (Player 1 on Turn 1 gains only 2).
+- **CC Cap:** Maximum 7 CC per player at any time.
+- **Tussle:** Pay CC to have two Toys fight. Higher speed strikes first.
+
+See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for complete rules.
+
+## Play Now
+
+**Live Game:** <https://ggltcg.vercel.app>
+
+*Note: The backend may take up to 50 seconds to wake up on first load (free tier hosting).*
 
 **Backend API:** <https://ggltcg.onrender.com>
 
 - API docs: <https://ggltcg.onrender.com/docs>
 - Health check: <https://ggltcg.onrender.com/health>
 
-*Note: Backend on Render's free tier may take 50 seconds to wake up from inactivity.*
-
 ## Project Structure
 
-```mermaid
+```text
 ggltcg/
 ├── backend/
 │   ├── src/
@@ -264,101 +273,26 @@ For details on adding or modifying cards, see:
 - `docs/development/ADDING_NEW_CARDS.md`
 - `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md`
 
-## Game Rules
-
-- **Objective:** Put all opponent's cards into their Sleep Zone.
-- **Turn Start:** Gain 4 CC (Player 1 on Turn 1 gains only 2).
-- **CC Cap:** Maximum 7 CC per player at any time.
-- **Tussle:** Pay CC to have two Toys fight. Higher speed strikes first.
-
-See `docs/rules/GGLTCG Rules v1_1.md` for complete rules.
-
 ## Deployment
 
-The application is deployed and live:
+For deploying your own instance:
 
-- **Frontend:** <https://ggltcg.vercel.app> (Vercel)
-- **Backend:** <https://ggltcg.onrender.com> (Render.com)
+- [DEPLOYMENT.md](docs/deployment/DEPLOYMENT.md) – Complete deployment guide
+- [DEPLOYMENT_QUICKSTART.md](docs/deployment/DEPLOYMENT_QUICKSTART.md) – Quick reference
 
-For deployment instructions, see:
+The live instance runs on:
 
-- `docs/deployment/DEPLOYMENT.md` – Complete step-by-step deployment guide
-- `docs/deployment/DEPLOYMENT_QUICKSTART.md` – Quick reference for common tasks
-
-Both services run on free tiers. Note that the Render backend may take ~50 seconds to wake up from inactivity.
-
-## Troubleshooting
-
-- Backend/API: check `http://localhost:8000/health` and the FastAPI docs at `/docs`.
-- Frontend: inspect browser console and verify `VITE_API_URL` points to the backend.
-- Auth: confirm Google OAuth credentials and env vars as per
-    `docs/development/GOOGLE_OAUTH_SETUP.md` and `AUTH_IMPLEMENTATION.md`.
-
-- The code automatically retries with exponential backoff (1s, 2s, 4s)
-
-**Rate Limit Exceeded:**
-
-- Check your usage at <https://aistudio.google.com/usage>
-- Free tier limits: 15 requests per minute (RPM) for most models
-- Wait 1 minute and try again, or slow down gameplay
-
-**AI Not Making Decisions:**
-
-- Check backend terminal for detailed logs showing Gemini API calls
-- Logs include prompts, responses, and error details
-- Look for ERROR or WARNING messages in the output
-
-**Using Alternative LLM Providers:**
-
-- This project supports multiple LLM providers (Gemini, Claude, etc.)
-- See `backend/AI_SETUP.md` for detailed setup instructions for each provider
-- Gemini is recommended for development due to its generous free tier
-
-## Development Roadmap
-
-### Phase 1: MVP Foundation ✅ COMPLETE
-
-- [x] Project setup and structure
-- [x] Core game engine (card loading, game state)
-- [x] Turn management and CC system
-- [x] Tussle resolution
-- [x] Card effect system (all 18 cards)
-- [x] FastAPI REST API (9 endpoints)
-- [x] React + TypeScript UI
-- [x] AI player integration (Gemini)
-- [x] **First complete game played: November 10, 2025** 🎉
-
-### Phase 2: Production Polish ✅ COMPLETE
-
-- [x] Automated deck picker with slider (Issue #19)
-- [x] Victory screen with play-by-play and AI reasoning (Issue #20)
-- [x] Medium-sized hand cards showing effects (Issue #22)
-- [x] Player name customization (Issue #23)
-- [x] Narrative "bedtime story" mode (Issue #21)
-- [x] Backend CSV as single source of truth
-- [x] Production-ready code cleanup
-- [x] **Deployed to production** (Render + Vercel)
-
-### Phase 3: Deployment & Documentation ✅ COMPLETE
-
-- [x] Backend deployment to Render.com
-- [x] Frontend deployment to Vercel
-- [x] Environment variable configuration
-- [x] CORS security setup
-- [x] Comprehensive deployment documentation
-- [x] Live at <https://ggltcg.vercel.app>
-
-### Phase 4: Future Enhancements
-
-- [ ] Card animations and visual effects
-- [ ] Sound effects
-- [ ] Game replay system
-- [ ] Statistics and match history
-- [ ] Additional card sets
+- **Frontend:** Vercel (free tier)
+- **Backend:** Render.com (free tier)
 
 ## Contributing
 
-This project is developed using GitHub Copilot. See `docs/dev-notes/COPILOT_CONTEXT.md` for development guidelines and context.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+
+- Development setup instructions
+- Coding standards and guidelines
+- Pull request process
+- Security best practices
 
 ## License
 
