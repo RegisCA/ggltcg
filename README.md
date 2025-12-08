@@ -92,10 +92,10 @@ This project demonstrates professional software engineering practices:
 graph TD
     User[User Browser] <-->|HTTPS/JSON| Frontend[React Frontend]
     Frontend <-->|REST API| Backend[FastAPI Backend]
-    Frontend <-->|OAuth| Google[Google Identity Services]
     Backend <-->|Read| CSV[Card Data CSV]
     Backend <-->|Prompt/Response| LLM[Google Gemini API]
     Backend <-->|Read/Write| DB[(PostgreSQL DB)]
+    Frontend <-->|OAuth| Google[Google Identity Services]
     
     subgraph "Backend Services"
         Backend
@@ -150,6 +150,13 @@ See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for complete rul
 
 - API docs: <https://ggltcg.onrender.com/docs>
 - Health check: <https://ggltcg.onrender.com/health>
+
+**Screenshots:**
+<img width="1440" height="900" alt="GGLTCG Game Modes" src="https://github.com/user-attachments/assets/18c38998-77d2-4e56-822e-a8f0e5412a25" />
+<img width="1440" height="900" alt="GGLCTC Deck Selected" src="https://github.com/user-attachments/assets/5aeafad3-fdbc-4c49-a997-15b5591ad325" />
+<img width="1440" height="900" alt="GGLTCG Game Board" src="https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49" />
+<img width="1440" height="900" alt="GGLTCG Game Summary Story" src="https://github.com/user-attachments/assets/5a2feb10-6041-426a-9cec-536259e61d17" />
+
 
 ## Project Structure
 
