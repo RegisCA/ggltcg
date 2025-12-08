@@ -167,17 +167,17 @@ ggltcg/
 │   │   ├── game_engine/
 │   │   │   ├── models/          # Card, Player, GameState classes
 │   │   │   ├── rules/           # Game logic, turn management, tussles
-│   │   │   │   └── effects/     # Card effect system (18 cards)
-│   │   │   ├── ai/              # LLM player integration (Gemini/Claude)
+│   │   │   │   └── effects/     # Card effect system (27 cards)
+│   │   │   ├── ai/              # LLM player integration (Gemini)
 │   │   │   └── data/            # Card loader, CSV handling
-│   │   └── api/                 # FastAPI routes (9 endpoints)
+│   │   └── api/                 # FastAPI routes (37 endpoints)
 │   ├── data/
-│   │   └── cards.csv            # 18-card starter pack (SINGLE SOURCE OF TRUTH)
+│   │   └── cards.csv            # 27-card set (SINGLE SOURCE OF TRUTH)
 │   ├── tests/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/          # React UI components (6 components)
+│   │   ├── components/          # React UI components (34 components)
 │   │   ├── hooks/               # React Query hooks
 │   │   ├── api/                 # API client
 │   │   ├── types/               # TypeScript definitions
