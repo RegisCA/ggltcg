@@ -1,10 +1,10 @@
 # GGLTCG Architecture Documentation
 
 **Version:** 3.0  
-**Date:** December 8, 2025  
-**Status:** Current production implementation
+**Date:** December 8, 2025
 
 **Major Changes:**
+
 - Added ActionValidator and ActionExecutor classes
 - Eliminated ~457 lines of code duplication
 - Unified validation and execution logic for human and AI players
@@ -23,7 +23,8 @@
 8. [Frontend Architecture](#frontend-architecture)
 9. [Frontend Design System](#frontend-design-system)
 10. [Known Issues & Technical Debt](#known-issues--technical-debt)
-11. [Migration Considerations](#migration-considerations)
+11. [Database & Persistence](#database--persistence)
+12. [Recommendations](#recommendations)
 
 ---
 
@@ -124,9 +125,9 @@ backend/
 
 ## Effects System
 
-The effects system is the core of card behavior. It uses inheritance and polymorphism to handle different effect types, with support for both **legacy card-specific effects** and **modern data-driven generic effects**.
+The effects system is the core of card behavior. It uses inheritance and polymorphism to handle different effect types.
 
-### Data-Driven Effects (New Approach)
+### Data-Driven Effects
 
 **Goal:** Enable adding new cards via CSV without writing Python code.
 
@@ -154,20 +155,21 @@ Wake,Action,1,unsleep:1,...
   - `unsleep:2` - Sun unsleeps 2 cards
   - `sleep_all` - Clean sleeps all cards in play
 
-**Current Status:**
-- ✅ Data-driven effects implemented for 10+ cards
-- ✅ StatBoostEffect, GainCCEffect, UnsleepEffect, SleepAllEffect
-- ✅ Complex cards use custom effects (Knight, Beary, Copy, Twist, Archer)
-- 📊 27 cards total in production
+**Implementation:**
+
+- Data-driven effects implemented for 10+ cards
+- Generic effects: StatBoostEffect, GainCCEffect, UnsleepEffect, SleepAllEffect
+- Complex cards use custom effects: Knight, Beary, Copy, Twist, Archer
+- 27 cards total in production
 
 ### Effect Type Hierarchy
 
 ```
 BaseEffect (abstract)
 ├── ContinuousEffect
-│   ├── StatBoostEffect (GENERIC - data-driven)
-│   ├── KaEffect (LEGACY - to be deprecated)
-│   ├── DemidecaEffect (LEGACY - to be deprecated)
+│   ├── StatBoostEffect (generic, data-driven)
+│   ├── KaEffect (card-specific)
+│   ├── DemidecaEffect (card-specific)
 │   └── CostModificationEffect
 │       ├── DreamCostEffect
 │       └── WizardCostEffect
@@ -176,13 +178,13 @@ BaseEffect (abstract)
 │   ├── SnugglesWhenSleepedEffect
 │   └── UmbruhEffect
 ├── PlayEffect
-│   ├── GainCCEffect (GENERIC - data-driven)
-│   ├── UnsleepEffect (GENERIC - data-driven)
-│   ├── SleepAllEffect (GENERIC - data-driven)
-│   ├── WakeEffect (LEGACY - to be deprecated)
-│   ├── SunEffect (LEGACY - to be deprecated)
-│   ├── RushEffect (LEGACY - to be deprecated)
-│   ├── CleanEffect (LEGACY - to be deprecated)
+│   ├── GainCCEffect (generic, data-driven)
+│   ├── UnsleepEffect (generic, data-driven)
+│   ├── SleepAllEffect (generic, data-driven)
+│   ├── WakeEffect (card-specific)
+│   ├── SunEffect (card-specific)
+│   ├── RushEffect (card-specific)
+│   ├── CleanEffect (card-specific)
 │   ├── TwistEffect
 │   └── CopyEffect
 └── ActivatedEffect
@@ -282,7 +284,7 @@ class GameState:
 
 ### State Persistence
 
-**Current:** PostgreSQL with in-memory caching
+PostgreSQL with in-memory caching:
 
 ```python
 # game_service.py
@@ -790,112 +792,71 @@ const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
      - `/backend/src/game_engine/validation/action_executor.py` (420 lines)
    - **Files Refactored:**
      - `/backend/src/api/routes_actions.py` (880 → 523 lines, -357 lines)
-   - **Status:** Complete and validated with full game playthrough
 
-2. ~~**Complex and Ambiguous Function Arguments**~~ ✅ PARTIALLY RESOLVED (Nov 21, 2025)
-   - **Solution Implemented:** 
-     - Created structured action types in `/backend/src/game_engine/models/actions.py`
-     - ActionExecutor uses explicit parameters instead of kwargs
-     - All target and cost handling consolidated in executor
-   - **Remaining Work:**
-     - Consider updating `game_engine.play_card()` signature to accept action objects
-     - Could further type-safe the internal game engine methods
-   - **Status:** Significantly improved, further improvements optional
+2. **Complex and Ambiguous Function Arguments** - Resolved with structured action types (Nov 2025)
+   - Created structured action types in `/backend/src/game_engine/models/actions.py`
+   - ActionExecutor uses explicit parameters instead of kwargs
+   - All target and cost handling consolidated in executor
 
-### Critical Issues 🔴
+### Resolved Issues ✅
 
-1. **Card Identification by Name (Partially Resolved)**
-   - **Problem:** Multiple cards with same name can cause targeting bugs
-   - **Current Solution:** Unique card IDs implemented, zone-specific searching
-   - **Status:** Working reliably in production
-   - **Future Improvement:** Use IDs throughout frontend API calls
+1. **Code Duplication Between AI and Human Player Paths** - Resolved with ActionValidator and ActionExecutor classes (Nov 2025)
+2. **Complex and Ambiguous Function Arguments** - Resolved with structured action types (Nov 2025)
+3. **In-Memory Game State** - Migrated to PostgreSQL with Alembic (Nov 2025)
+4. **AI Can't Handle Targets** - AI now successfully selects targets and alternative costs (Nov 2025)
 
-### High Priority Issues 🟡
+### Active Issues
 
-4. **Target Filtering Logic Duplication**
-   - Target filtering logic in both frontend and backend
-   - Cost calculation partially duplicated
-   - Valid action checking scattered across multiple files
+**Target Filtering Logic Duplication:**
 
-5. **Effect Registration is Manual**
-   - Easy to forget to register effects
-   - No compile-time checking
-   - Hard to discover which effects exist
+- Target filtering logic duplicated in frontend and backend
+- Cost calculation partially duplicated
+- Valid action checking scattered across multiple files
 
-6. ~~**AI Can't Handle Targets**~~ ✅ FIXED (Nov 20, 2025)
-   - ~~AI doesn't select targets for Sun, Twist, Wake, Copy~~
-   - ~~AI doesn't decide on Ballaber alternative cost~~
-   - **Status:** AI now successfully selects targets and alternative costs
+**Effect Registration is Manual:**
 
-### Medium Priority Issues 🟢
+- Effects must be manually registered in effect_registry.py
+- No compile-time validation that CSV references existing effects
+- Could be improved with auto-discovery
 
-8. **No Card ID in Frontend**
-   - Frontend uses card names for keys (`key={card.name}`)
-   - Causes React warnings when duplicates exist
+**Frontend Uses Card Names:**
 
-9. **Hardcoded Card Names**
-   - Special handling for Copy, Twist, Wake hardcoded in routes
-   - Should use effect metadata
+- Frontend uses card names for keys (`key={card.name}`)
+- Can cause React warnings when duplicate names exist
+- Should transition to using card IDs consistently
 
-10. **No Game History**
-    - Can't replay games
-    - Can't undo moves (for development)
-    - No statistics accumulated to support game and card development
+**Hardcoded Card Names:**
+
+- Special handling for some cards hardcoded in routes
+- Should use effect metadata instead
 
 ---
 
-## Migration Considerations
+## Database & Persistence
 
-### Database Schema Evolution
+**Architecture:**
 
-**Current Implementation (Phase 1):** ✅ Complete
 - Two-tier caching (in-memory + PostgreSQL)
 - Serialized GameState in JSONB column
 - Denormalized metadata for efficient queries
 - Survives server restarts
 
-**Potential Future Enhancements (Phase 2):**
-- Normalize schema into separate tables
-- Add action logging to `game_actions` table
-- Populate `game_stats` table for leaderboards
-- Enable event sourcing for replay capability
+**Schema:**
 
-**See:** `docs/development/archive/POSTGRES_IMPLEMENTATION.md` for implementation details.
-
-### Card ID Migration Strategy
-
-**Step 1: Add UUID to Card Model**
-```python
-@dataclass
-class Card:
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    # ... rest of fields
+```sql
+CREATE TABLE games (
+    id UUID PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    player1_id VARCHAR NOT NULL,
+    player2_id VARCHAR NOT NULL,
+    status VARCHAR NOT NULL,
+    winner_id VARCHAR,
+    game_state JSONB NOT NULL
+);
 ```
 
-**Step 2: Update All Card Matching**
-- Replace `find_card_by_name()` with `find_card_by_id()`
-- Update API schemas to accept card IDs
-- Update frontend to send card IDs
-
-**Step 3: Update Frontend**
-- Use `card.id` for React keys
-- Send card IDs in API requests
-- Remove zone-specific workarounds
-
-### Multiplayer Migration Strategy
-
-**Requirements:**
-- WebSocket for real-time updates
-- Player authentication
-- Matchmaking system
-- Game lobbies
-
-**Architecture Change:**
-```
-Current:  Client → HTTP → Game Service
-Future:   Client → WebSocket → Game Room → Game Service
-```
+**See:** `docs/development/DATABASE_SCHEMA.md` for complete schema details.
 
 ---
 
@@ -921,11 +882,11 @@ Future:   Client → WebSocket → Game Room → Game Service
    - Regression protection
 
 2. **Complete data-driven effect migration**
-   - Migrate remaining cards from legacy effects
+   - Migrate remaining cards from card-specific effects
    - Improve effect factory with better error handling
    - Document effect string syntax
 
-### Medium Term (Future Enhancements)
+### Medium Term
 
 1. **Normalize database schema**
    - Separate tables for structured queries
@@ -951,6 +912,4 @@ Future:   Client → WebSocket → Game Room → Game Service
 
 ---
 
-**Document End**
-
-*This document will be updated as the architecture evolves. Please keep it in sync with code changes.*
+*This document reflects the current production architecture. Keep it in sync with code changes.*
