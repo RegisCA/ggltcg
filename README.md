@@ -3,7 +3,14 @@
 ![CI Status](https://github.com/RegisCA/ggltcg/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
-![React](https://img.shields.io/badge/react-19-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg?logo=postgresql&logoColor=white)
+![React](https://img.shields.io/badge/react-19-61DAFB.svg?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06B6D4.svg?logo=tailwindcss&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI-4285F4.svg?logo=google&logoColor=white)
+![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-EB5424.svg)
 
 A tactical two-player card game with no randomness in draws—only skill and strategy.
 
