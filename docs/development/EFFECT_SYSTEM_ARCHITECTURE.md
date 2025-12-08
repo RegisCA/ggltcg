@@ -4,8 +4,8 @@
 
 The GGLTCG effect system is responsible for managing card abilities that modify game state, apply stat buffs, and trigger special actions. This document explains how effects flow through the system from initial data definition to runtime execution.
 
-**Last Updated**: November 25, 2025
-**Status**: In Migration (Phase 3 of 4 complete)
+**Last Updated**: December 8, 2025
+**Status**: Data-driven system complete for all current cards
 
 ---
 
@@ -131,15 +131,27 @@ Parses effect definition strings into runtime effect objects.
 ]
 ```
 
-**Supported Effect Types**:
-- `stat_boost:stat_name:amount` - Buff adjacent cards
-- `gain_cc:amount[:not_first_turn]` - Gain CC when played
-- `unsleep:count` - Return cards from Sleep Zone to Hand
-- `sleep_all` - Sleep all cards in play
-- `set_tussle_cost:cost` - Set cost for all your tussles
-- `set_self_tussle_cost:cost[:not_turn_1]` - Set cost for this card's tussles
-- `reduce_cost_by_sleeping` - Reduce play cost by # of sleeping cards
-- `gain_cc_when_sleeped:amount` - Gain CC when this card is sleeped
+**Supported Effect Types (as of December 2025)**:
+
+- `stat_boost:stat_name:amount` – Continuous stat buffs (`speed`, `strength`, `stamina`, `all`)
+- `gain_cc:amount[:not_first_turn]` – Gain CC when played, with optional `not_first_turn` restriction
+- `unsleep:count` – Return cards from Sleep Zone to hand
+- `sleep_all` – Sleep all cards in play
+- `set_tussle_cost:cost` – Set cost for all your tussles
+- `set_self_tussle_cost:cost[:not_turn_1]` – Set cost for this card's tussles, optionally disabled on turn 1
+- `reduce_cost_by_sleeping` – Reduce play cost by number of your sleeping cards
+- `gain_cc_when_sleeped:amount` – Gain CC when this card is sleeped from play
+- `opponent_immunity` – This card is immune to opponent's effects
+- `team_opponent_immunity` – All your cards are immune to opponent's effects
+- `alternative_cost_sleep_card` – May sleep one of your cards instead of paying CC
+- `return_all_to_hand` – Return all cards in play to owners' hands
+- `take_control` – Take control of an opponent's Toy
+- `copy_card` – Copy another card's effect definitions onto this card
+- `sleep_target:count` – Sleep targeted cards in play
+- `return_target_to_hand:count` – Return targeted cards in play to hand
+- `turn_stat_boost:all:amount` – One-turn stat buff to all your Toys
+- `start_of_turn_gain_cc:amount` – Gain CC at start of your turn
+- `on_card_played_gain_cc:amount` – Gain CC when you play another card
 
 ### 4. EffectRegistry
 

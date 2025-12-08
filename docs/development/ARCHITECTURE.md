@@ -888,6 +888,10 @@ return GameStateResponse(
 
 ## Frontend Architecture
 
+For a high-level tour of the frontend codebase and how it
+integrates with the backend, see `FRONTEND_OVERVIEW.md` in this
+folder.
+
 ### State Management
 
 **React Query** for server state:

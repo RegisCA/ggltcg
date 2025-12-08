@@ -85,19 +85,27 @@ This section guides you through submitting an enhancement suggestion for GGLTCG,
 
 ### Pull Requests
 
-1. Fork the repo and create your branch from `main`.
-2. If you've added code that should be tested, add tests.
-3. Ensure the test suite passes.
-4. Make sure your code lints.
-5. Issue that pull request!
+1. **Fork & Branch**: Fork the repo and create your branch from `main`.
+2. **Tests**: If you've added code that should be tested, add tests. Ensure the test suite passes.
+3. **Linting**: Make sure your code lints.
+4. **Submit PR**: Issue that pull request to the `main` branch.
+   - **Note**: Direct pushes to `main` are blocked. All changes must go through a Pull Request.
+   - **Approval**: PRs require at least one approval from a maintainer before merging.
 
-## Coding Standards
+## Coding Standards & Guidelines
 
-### Backend (Python)
+We have detailed internal instructions that serve as the authoritative source for coding standards, security practices, and documentation. Please review these before contributing:
 
-- Follow PEP 8 style guidelines.
-- Use type hints for function arguments and return values.
-- Write unit tests for new logic in `backend/tests/`.
+- **[Coding Instructions](.github/instructions/coding.instructions.md)**: Comprehensive coding standards, architecture principles, and best practices.
+- **[Security & OWASP](.github/instructions/security-and-owasp.instructions.md)**: Secure coding guidelines and security requirements.
+- **[Markdown & Docs](.github/instructions/markdown.instructions.md)**: Standards for documentation and content creation.
+
+### Quick Summary
+
+- **Backend (Python)**: Follow PEP 8, use type hints, and write tests in `backend/tests/`.
+- **Frontend (React)**: Use functional components, TypeScript interfaces, and Tailwind CSS.
+- **Security**: Never commit secrets. Use environment variables.
+
 
 ### Frontend (React/TypeScript)
 

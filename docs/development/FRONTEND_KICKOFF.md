@@ -1,8 +1,9 @@
-# Frontend Development Kickoff
+# Frontend Development Kickoff (Legacy Doc)
 
-## 🎉 Backend Complete!
-
-The GGLTCG backend is **100% complete** and ready for frontend integration. All game logic, card effects, and AI opponent functionality are working and tested.
+> NOTE: This document captured the initial frontend kickoff plan.
+> The authoritative, up-to-date overview is now in
+> `docs/development/FRONTEND_OVERVIEW.md`. This file is kept as
+> historical context and example payloads only.
 
 ## Backend API Overview
 

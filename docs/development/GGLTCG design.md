@@ -1,3 +1,5 @@
+> **Historical Document**: This is the original design document. The implementation has evolved. See `docs/development/ARCHITECTURE.md` for the current architecture.
+
 <img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" style="height:64px;margin-right:32px"/>
 
 # I want to create an app to support the Googooland TCG (GGLTCG) game my son designed. Here are my requirements and roadmap thoughts. Help me structure those ideas so that we can start defining requirements, tech stack, etc.

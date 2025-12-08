@@ -1,3 +1,5 @@
+> **Historical Document**: This refactoring has been completed.
+
 # GGLTCG Refactoring Plan
 
 **Created:** November 20, 2025  
