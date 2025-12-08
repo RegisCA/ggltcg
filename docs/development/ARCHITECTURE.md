@@ -99,11 +99,15 @@ backend/
 - API layer (`api/`) cleanly separated from game logic (`game_engine/`)
 - Effect types properly abstracted (base classes)
 - Turn management isolated in `turn_manager.py`
+- Validation logic centralized in `ActionValidator`
+- Execution logic centralized in `ActionExecutor`
+- Database layer abstracted through SQLAlchemy ORM
+- Authentication handled separately in `auth_routes.py`
 
-**⚠️ Needs Improvement:**
-- Game service is singleton with in-memory dict (not scalable)
-- Some game logic leaks into API routes (cost calculation, special card handling)
-- Card searching logic scattered across multiple files
+**Recent Improvements (Nov 2025):**
+- Eliminated ~457 lines of code duplication with ActionValidator/ActionExecutor refactor
+- Migrated from in-memory storage to PostgreSQL with Alembic migrations
+- Unified AI and human player code paths through structured actions
 
 ---
 
