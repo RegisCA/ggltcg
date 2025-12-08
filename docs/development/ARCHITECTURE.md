@@ -1,8 +1,8 @@
 # GGLTCG Architecture Documentation
 
-**Version:** 2.0  
-**Date:** November 21, 2025  
-**Status:** Current implementation (refactor/action-architecture branch)
+**Version:** 3.0  
+**Date:** December 8, 2025  
+**Status:** Current production implementation
 
 **Major Changes:**
 - Added ActionValidator and ActionExecutor classes
@@ -34,7 +34,8 @@
 **Backend:**
 - FastAPI (Python 3.13+)
 - Uvicorn (ASGI server)
-- In-memory game state (temporary - will migrate to PostgreSQL)
+- PostgreSQL database with SQLAlchemy ORM
+- Alembic for database migrations
 
 **Frontend:**
 - React 19.2
@@ -48,8 +49,11 @@
 
 ### Architecture Pattern
 
-**Current:** Monolithic backend with RESTful API  
-**Future:** Will need to support WebSocket for real-time 1v1 multiplayer
+**Current:** Monolithic backend with RESTful API supporting:
+- Quick Play vs AI
+- 1v1 Online Multiplayer via lobby system (polling-based)
+- Google OAuth authentication
+- Persistent game state in PostgreSQL
 
 ---
 
@@ -64,8 +68,15 @@ backend/
 │   │   ├── app.py             # Main FastAPI app, CORS config
 │   │   ├── routes_actions.py  # Game actions (play, tussle, AI turn)
 │   │   ├── routes_games.py    # Game management (create, get state)
+│   │   ├── routes_lobby.py    # Multiplayer lobby system
+│   │   ├── routes_auth.py     # Google OAuth authentication
+│   │   ├── routes_stats.py    # Player stats and leaderboard
+│   │   ├── routes_admin.py    # Admin endpoints (logs, playbacks)
+│   │   ├── routes_maintenance.py # Database cleanup tasks
 │   │   ├── schemas.py         # Pydantic models for API
-│   │   └── game_service.py    # In-memory game storage (singleton)
+│   │   ├── game_service.py    # Game state management with DB persistence
+│   │   ├── database.py        # SQLAlchemy setup
+│   │   └── db_models.py       # Database models
 │   │
 │   └── game_engine/           # Core game logic (domain layer)
 │       ├── game_engine.py     # Main game orchestrator
@@ -143,176 +154,13 @@ Wake,Action,1,unsleep:1,...
   - `unsleep:2` - Sun unsleeps 2 cards
   - `sleep_all` - Clean sleeps all cards in play
 
-**Implementation Status:**
-- ✅ **PR #78 (Merged)**: StatBoostEffect (Ka, Demideca)
-- 🔄 **Phase 1 (In Progress)**: GainCCEffect, UnsleepEffect, SleepAllEffect (Rush, Wake, Sun, Clean)
-- 📋 **Phase 2 (Planned)**: Cost modifications (Wizard, Dream)
-- 📋 **Phase 3 (Planned)**: Triggered effects (Umbruh)
-- ⚠️ **Keep Custom**: Complex cards (Knight, Beary, Copy, Twist, etc.)
+**Current Status:**
+- ✅ Data-driven effects implemented for 10+ cards
+- ✅ StatBoostEffect, GainCCEffect, UnsleepEffect, SleepAllEffect
+- ✅ Complex cards use custom effects (Knight, Beary, Copy, Twist, Archer)
+- 📊 27 cards total in production
 
-**Migration Progress:** 6/18 cards (33%) migrated to data-driven system
-
-### Generic Effect Classes
-
-#### StatBoostEffect (Continuous)
-**Purpose:** Add stat bonuses to toys in play.
-
-```python
-class StatBoostEffect(ContinuousEffect):
-    def __init__(self, source_card: "Card", stat_name: str, amount: int):
-        self.stat_name = stat_name  # "speed", "strength", "all"
-        self.amount = amount
-```
-
-**CSV Examples:**
-- `stat_boost:strength:2` - +2 strength (Ka)
-- `stat_boost:all:1` - +1 to all stats (Demideca)
-
-**Cards Using:** Ka, Demideca
-
-#### GainCCEffect (Action)
-**Purpose:** Gain command counters when played.
-
-```python
-class GainCCEffect(PlayEffect):
-    def __init__(self, source_card: "Card", amount: int, not_first_turn: bool = False):
-        self.amount = amount
-        self.not_first_turn = not_first_turn
-    
-    def can_apply(self, game_state: "GameState", **kwargs) -> bool:
-        if not self.not_first_turn:
-            return True
-        player = kwargs.get("player")
-        first_player_id = game_state.first_player_id
-        turn_number = game_state.turn_number
-        is_first_turn = (player.player_id == first_player_id and turn_number == 1) or \
-                       (player.player_id != first_player_id and turn_number == 2)
-        return not is_first_turn
-```
-
-**CSV Examples:**
-- `gain_cc:2:not_first_turn` - Gain 2 CC (not on first turn) (Rush)
-- `gain_cc:3` - Gain 3 CC (unrestricted)
-
-**Cards Using:** Rush
-
-#### UnsleepEffect (Action)
-**Purpose:** Move cards from sleep zone to hand.
-
-```python
-class UnsleepEffect(PlayEffect):
-    def __init__(self, source_card: "Card", count: int):
-        self.count = count
-    
-    def requires_targets(self) -> bool:
-        return True
-    
-    def get_max_targets(self) -> int:
-        return self.count
-    
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
-        player = game_state.get_active_player()
-        return player.sleep_zone if player else []
-```
-
-**CSV Examples:**
-- `unsleep:1` - Unsleep 1 card (Wake)
-- `unsleep:2` - Unsleep 2 cards (Sun)
-
-**Cards Using:** Wake, Sun
-
-#### SleepAllEffect (Action)
-**Purpose:** Sleep all cards currently in play.
-
-```python
-class SleepAllEffect(PlayEffect):
-    def __init__(self, source_card: "Card"):
-        super().__init__(source_card)
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        all_in_play = []
-        for player in game_state.players.values():
-            all_in_play.extend(player.in_play[:])
-        
-        for card in all_in_play:
-            card_controller = game_state.get_card_controller(card)
-            game_state.sleep_card(card, card_controller)
-```
-
-**CSV Example:**
-- `sleep_all` - Sleep all cards in play (Clean)
-
-**Cards Using:** Clean
-
-### EffectFactory Parser
-
-The `EffectFactory` class in `effect_registry.py` parses effect strings from CSV:
-
-```python
-class EffectFactory:
-    @staticmethod
-    def parse_effects(effect_string: str, source_card: "Card") -> List[BaseEffect]:
-        """Parse semicolon-separated effect definitions."""
-        if not effect_string or not effect_string.strip():
-            return []
-        
-        effects = []
-        effect_defs = effect_string.split(';')
-        
-        for effect_def in effect_defs:
-            parts = effect_def.strip().split(':')
-            if not parts:
-                continue
-            
-            effect_type = parts[0].lower()
-            
-            if effect_type == "stat_boost":
-                effects.append(EffectFactory._parse_stat_boost(parts, source_card))
-            elif effect_type == "gain_cc":
-                effects.append(EffectFactory._parse_gain_cc(parts, source_card))
-            elif effect_type == "unsleep":
-                effects.append(EffectFactory._parse_unsleep(parts, source_card))
-            elif effect_type == "sleep_all":
-                effects.append(EffectFactory._parse_sleep_all(parts, source_card))
-        
-        return effects
-```
-
-**Parser Methods:**
-- `_parse_stat_boost(parts, source_card)` - Validates stat_name, parses amount
-- `_parse_gain_cc(parts, source_card)` - Parses amount, optional not_first_turn flag
-- `_parse_unsleep(parts, source_card)` - Validates count >= 1
-- `_parse_sleep_all(parts, source_card)` - No parameters
-
-### Priority System
-
-The `EffectRegistry.get_effects()` method checks CSV effects first:
-
-```python
-@staticmethod
-def get_effects(card: "Card") -> List[BaseEffect]:
-    """Get effects for a card - CSV definitions take priority."""
-    effects = []
-    
-    # PRIORITY 1: Check for CSV-defined effects
-    if card.effect_definitions and card.effect_definitions.strip():
-        effects.extend(EffectFactory.parse_effects(card.effect_definitions, card))
-    
-    # PRIORITY 2: Fall back to legacy name-based registry
-    if not effects:
-        if card.name in EffectRegistry._effects:
-            effect_class = EffectRegistry._effects[card.name]
-            effects.append(effect_class(card))
-    
-    return effects
-```
-
-**Benefits:**
-- Backward compatible with legacy effects
-- Gradual migration path
-- Can mix data-driven and legacy cards
-
-### Legacy Effect Type Hierarchy
+### Effect Type Hierarchy
 
 ```
 BaseEffect (abstract)
@@ -402,109 +250,9 @@ for effect in cost_modifying_effects:
     cost = effect.modify_card_cost(card, cost, game_state, player)
 ```
 
-### Effect Examples
+### Effect Execution
 
-#### Simple PlayEffect: Wake
-
-```python
-class WakeEffect(PlayEffect):
-    """Wake: Unsleep a card from your Sleep Zone."""
-    
-    def requires_targets(self) -> bool:
-        return True
-    
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
-        player = game_state.get_active_player()
-        return player.sleep_zone if player else []
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        target = kwargs.get("target")
-        player = kwargs.get("player")
-        if target and player and target in player.sleep_zone:
-            game_state.unsleep_card(target, player)
-```
-
-**Flow:**
-1. Player plays Wake from hand
-2. Frontend shows target selection modal
-3. Player selects target from their sleep zone
-4. API receives play request with `target_card_name`
-5. API finds target card (zone-specific search)
-6. `WakeEffect.apply()` called with target
-7. Card moved from sleep_zone to hand
-
-#### Complex PlayEffect: Twist
-
-```python
-class TwistEffect(PlayEffect):
-    """Twist: Take control of opponent's card in play."""
-    
-    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        target = kwargs.get("target")
-        player = kwargs.get("player")
-        
-        # Verify target is opponent's card
-        opponent = game_state.get_opponent(player.player_id)
-        target_controller = game_state.get_card_controller(target)
-        
-        if target_controller != opponent:
-            return
-        
-        # Transfer control
-        game_state.change_control(target, player)
-```
-
-**Key Point:** `change_control()` updates both:
-- Card's `controller` field
-- Player's `in_play` lists (remove from old, add to new)
-
-#### CostModificationEffect: Dream
-
-```python
-class DreamCostEffect(CostModificationEffect):
-    """Dream: Costs 1 less per sleeping card you have."""
-    
-    def modify_card_cost(self, card: "Card", base_cost: int, 
-                        game_state: "GameState", controller: "Player") -> int:
-        if card != self.source_card:
-            return base_cost
-        
-        sleeping_count = len(controller.sleep_zone)
-        reduction = min(sleeping_count, base_cost)
-        return base_cost - reduction
-```
-
-**Execution:** Called in `calculate_card_cost()` before player pays CC.
-
-#### TriggeredEffect: Snuggles
-
-```python
-class SnugglesWhenSleepedEffect(TriggeredEffect):
-    """Snuggles: When sleeped, may sleep a card in play."""
-    
-    def __init__(self, source_card: "Card"):
-        super().__init__(source_card, TriggerTiming.WHEN_SLEEPED, is_optional=True)
-    
-    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
-        sleeped_card = kwargs.get("sleeped_card")
-        return sleeped_card == self.source_card
-```
-
-**Execution:** Called in `sleep_card()` after card is moved to sleep zone.
-
-### Effect Registry Pattern
-
-**Purpose:** Decouple effect definitions from card data.
-
-**Benefits:**
-- Cards can be loaded from CSV without Python code
-- Effects can be reused across multiple cards
-- Testing effects independently from cards
-
-**Limitations:**
-- ⚠️ Effect registration is manual (must remember to register)
-- ⚠️ No validation that CSV references existing effects
-- ⚠️ Hard to see which cards have which effects
+See [EFFECT_SYSTEM_ARCHITECTURE.md](EFFECT_SYSTEM_ARCHITECTURE.md) for detailed effect execution flows and examples.
 
 ---
 
@@ -1056,23 +804,11 @@ const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
 
 ### Critical Issues 🔴
 
-1. **Card Identification by Name**
-   - **Problem:** Multiple cards with same name cause targeting bugs
-   - **Impact:** Twist, Wake, Copy can target wrong card
-   - **Workaround:** Zone-specific searching (temporary fix)
-   - **Solution:** Implement unique card IDs
-   - **Status:** Partially addressed with unique IDs (Nov 20), but still using names in some places
-
-2. **In-Memory Game State**
-   - **Problem:** Server restart loses all games
-   - **Impact:** Not production-ready
-   - **Solution:** PostgreSQL persistence layer
-
-3. **Inconsistent Controller Tracking**
-   - **Problem:** `card.controller` field vs `get_card_controller()` search
-   - **Impact:** Twist effect initially broken
-   - **Solution:** Always set `card.controller` when entering play
-   - **Status:** Fixed Nov 20, 2025
+1. **Card Identification by Name (Partially Resolved)**
+   - **Problem:** Multiple cards with same name can cause targeting bugs
+   - **Current Solution:** Unique card IDs implemented, zone-specific searching
+   - **Status:** Working reliably in production
+   - **Future Improvement:** Use IDs throughout frontend API calls
 
 ### High Priority Issues 🟡
 
