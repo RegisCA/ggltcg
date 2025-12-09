@@ -305,32 +305,23 @@ effects = EffectFactory.parse_effects(card.effect_definitions, card)
 - No code changes needed for new effects
 - Survives serialization
 
-### Legacy System (Name-Based)
+### Name-Based Effect Registration
 
-**Status**: ⚠️ Being phased out
-**Remaining Cards**: Knight, Beary, Archer, Copy, Twist, Toynado (6 cards)
+Some cards with complex, unique effects use custom effect classes registered by name:
 
 ```python
 # Effects registered by card name
 EffectRegistry.register_effect("Knight", KnightEffect)
+EffectRegistry.register_effect("Copy", CopyEffect)
+EffectRegistry.register_effect("Twist", TwistEffect)
 
-# Retrieved by name
-effects = EffectRegistry._effect_map.get("Knight", [])
+# Retrieved by EffectRegistry.get_effects()
+effects = EffectRegistry.get_effects(card)
 ```
 
-**Problems**:
-- Effect logic scattered in code
-- Hard to track which cards have effects
-- Requires code changes to add cards
-- Name-based lookup is fragile
-
-### Migration Plan
-
-**Phase 4 (Not Started)**:
-1. Audit codebase for `get_effects_by_card_name()` calls
-2. Implement remaining 6 cards in CSV
-3. Remove name-based registration
-4. Delete `_effect_map` from EffectRegistry
+**When to use**:
+- Complex, unique card mechanics (Knight, Beary, Archer, Copy, Twist, Toynado)
+- Dynamic behavior that can't be parameterized in CSV
 
 ---
 
@@ -354,8 +345,7 @@ if card._is_transformed:
     modifications['_is_transformed'] = True  # Store flag in modifications
 ```
 
-**BUG FIX (Issue #77 Bug #2)**: Always include `effect_definitions` in serialized data.
-**BUG FIX (Issue #77 Bug #3)**: Create copy of modifications dict before mutating.
+**Note**: Always include `effect_definitions` in serialized data and create a copy of the modifications dict before mutating to avoid aliasing issues.
 
 ### Load Flow
 
@@ -512,7 +502,7 @@ Exposes complete game state including:
 - Modifications and transformations
 - Internal flags like `_is_transformed`
 
-**⚠️ Security Note**: Dev-only endpoint. Reveals opponent's hand. If test players exploit this to cheat, we'll buy them pizza! 🍕
+**Note**: Dev-only endpoint. Exposes complete game state including opponent's hand for debugging purposes.
 
 Example response:
 
@@ -538,8 +528,7 @@ Example response:
         }
       ]
     }
-  },
-  "_warning": "This endpoint exposes complete game state. Dev-only. Pizza-worthy if exploited! 🍕"
+  }
 }
 ```
 
@@ -591,31 +580,6 @@ python -m pytest tests/test_comprehensive_serialization.py -v
 
 ---
 
-## Future Improvements
-
-### Phase 4: Complete Migration
-
-- [ ] Migrate remaining 6 cards to data-driven effects
-- [ ] Remove name-based effect registry
-- [ ] Delete `_effect_map` from EffectRegistry
-- [ ] Update documentation
-
-### Potential Optimizations
-
-1. **Effect Caching**: Cache parsed effects on Card instances
-   - Pro: Avoid re-parsing on every stat calculation
-   - Con: More memory, must invalidate cache carefully
-
-2. **Effect Composition**: Support effect modifiers
-   - Example: `stat_boost:strength:2:adjacent_only`
-   - Would reduce need for custom effect classes
-
-3. **Effect Priorities**: Support effect ordering
-   - Example: "Apply all stat boosts before cost reductions"
-   - Useful for complex effect interactions
-
----
-
 ## Related Documents
 
 - [NEXT_SESSION_PROMPT.md](NEXT_SESSION_PROMPT.md) - Current development status
@@ -637,6 +601,4 @@ python -m pytest tests/test_comprehensive_serialization.py -v
 
 ---
 
-**Document Status**: Complete
-**Next Review**: After Phase 4 migration complete
-**Maintainer**: Development Team
+**Last Updated**: December 8, 2025
