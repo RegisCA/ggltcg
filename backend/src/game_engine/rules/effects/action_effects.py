@@ -535,7 +535,7 @@ class ArcherActivatedAbility(ActivatedEffect):
     Archer: "You may spend CC to remove Stamina from cards."
     
     Costs 1 CC per 1 Stamina removed.
-    Can target any Toy in play (yours or opponent's).
+    Can only target opponent's Toys in play.
     Stamina removal is direct (not damage), so it doesn't trigger combat effects.
     If a Toy reaches 0 or fewer Stamina, it's sleeped immediately.
     """
@@ -548,10 +548,11 @@ class ArcherActivatedAbility(ActivatedEffect):
         return True
     
     def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
-        """Get all opponent's Toys in play."""
+        """Get all opponent's Toys in play (except protected ones like Beary)."""
         active_player = game_state.get_active_player()
         opponent = game_state.get_opponent(active_player.player_id)
-        return opponent.in_play
+        # Filter out cards protected from this effect (e.g., Beary with opponent_immunity)
+        return [card for card in opponent.in_play if not game_state.is_protected_from_effect(card, self)]
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """

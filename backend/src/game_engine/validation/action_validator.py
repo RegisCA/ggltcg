@@ -396,6 +396,9 @@ class ActionValidator:
                         target_options = [t.id for t in valid_targets]
                         max_targets = getattr(effect, 'max_targets', 1)
                         min_targets = getattr(effect, 'min_targets', 1)
+                    else:
+                        # No valid targets available - skip this ability
+                        continue
                 
                 # Standard activated ability (Archer can be used multiple times)
                 cost_cc = effect.cost_cc
