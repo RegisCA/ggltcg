@@ -115,7 +115,8 @@ class LLMPlayer:
         self,
         game_state: GameState,
         ai_player_id: str,
-        valid_actions: list[ValidAction]
+        valid_actions: list[ValidAction],
+        game_engine=None
     ) -> Optional[tuple[int, str]]:
         """
         Use LLM to select the best action from valid options.
@@ -124,6 +125,7 @@ class LLMPlayer:
             game_state: Current game state
             ai_player_id: ID of the AI player
             valid_actions: List of valid actions the AI can take
+            game_engine: Optional GameEngine for calculating effective stats
             
         Returns:
             Tuple of (action_index, reasoning) where action_index is 0-based,
@@ -136,7 +138,7 @@ class LLMPlayer:
         logger.info(f"🤖 AI Turn {game_state.turn_number} - {len(valid_actions)} actions available")
         
         # Build the prompt
-        prompt = get_ai_turn_prompt(game_state, ai_player_id, valid_actions)
+        prompt = get_ai_turn_prompt(game_state, ai_player_id, valid_actions, game_engine)
         
         # Store prompt for logging
         self._last_prompt = prompt
