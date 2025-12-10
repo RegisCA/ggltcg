@@ -64,3 +64,6 @@ htmlcov/
 # Game data (optional - comment out if you want to track game histories)
 backend/data/games/
 backend/data/history/
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.github/instructions/snyk_rules.instructions.md
