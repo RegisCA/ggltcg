@@ -56,7 +56,7 @@ for lobby, gameplay, and stats.
 - **1v1 Online Multiplayer**: Lobby system to create and join private games by code.
 - **Quick Play vs AI**: Start a game against the AI with a single click.
 - **Google OAuth Authentication**: Secure sign-in with Google, user profiles, and display names.
-- **LLM-Powered AI Opponent**: Uses Google Gemini for strategic, rules-aware play.
+- **LLM-Powered AI Opponent**: Uses Google Gemini with **native structured output** for reliable, strategic play.
 - **Persistent Stats**: PostgreSQL-backed tracking of game results and high-level stats.
 - **Deterministic Gameplay**: No random draws – only visible information and player decisions.
 - **Data-Driven Cards**: Card stats and effects defined in CSV, parsed by a generic effect system.

@@ -129,17 +129,16 @@ class TestLLMPlayerDecisionInfo:
         """Test that get_last_decision_info returns empty info initially."""
         # Mock the API key to avoid requiring real credentials
         with patch.dict('os.environ', {'GOOGLE_API_KEY': 'test-key'}):
-            with patch('google.generativeai.configure'):
-                with patch('google.generativeai.GenerativeModel'):
-                    from game_engine.ai.llm_player import LLMPlayer
-                    
-                    player = LLMPlayer(provider="gemini")
-                    info = player.get_last_decision_info()
-                    
-                    assert info["prompt"] is None
-                    assert info["response"] is None
-                    assert info["model_name"] is not None
-                    assert info["prompts_version"] is not None
+            with patch('google.genai.Client'):
+                from game_engine.ai.llm_player import LLMPlayer
+                
+                player = LLMPlayer(provider="gemini")
+                info = player.get_last_decision_info()
+                
+                assert info["prompt"] is None
+                assert info["response"] is None
+                assert info["model_name"] is not None
+                assert info["prompts_version"] is not None
 
 
 class TestDbModels:

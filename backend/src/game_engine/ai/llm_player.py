@@ -3,13 +3,18 @@ LLM-powered AI player using Claude or Gemini API.
 
 This module implements an AI player that uses either Anthropic's Claude
 or Google's Gemini to make strategic decisions in GGLTCG games.
+
+Version 2.0 Changes:
+- Unified target_id to target_ids (array) for multi-target support (Sun card)
+- Implemented Gemini structured output mode with JSON schema
+- Better error handling and logging
 """
 
 import json
 import os
 import logging
 import time
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any, Literal, List
 from pathlib import Path
 
 # Configure logging
@@ -25,7 +30,7 @@ try:
 except ImportError:
     pass  # python-dotenv is optional
 
-from .prompts import SYSTEM_PROMPT, get_ai_turn_prompt, PROMPTS_VERSION
+from .prompts import SYSTEM_PROMPT, get_ai_turn_prompt, PROMPTS_VERSION, AI_DECISION_JSON_SCHEMA
 from game_engine.models.game_state import GameState
 from api.schemas import ValidAction
 
@@ -35,6 +40,7 @@ class LLMPlayer:
     AI player powered by LLM API (Claude or Gemini).
     
     Uses an LLM to analyze game state and select optimal actions.
+    Version 2.0: Now supports multi-target selection and Gemini structured output.
     """
     
     def __init__(
@@ -54,7 +60,8 @@ class LLMPlayer:
         self.provider = provider
         
         # Store last target/alternative cost selections from LLM
-        self._last_target_id: Optional[str] = None
+        # v2.0: target_ids is now a list for multi-target support (Sun card)
+        self._last_target_ids: Optional[List[str]] = None
         self._last_alternative_cost_id: Optional[str] = None
         
         # Store last prompt/response for logging
@@ -77,7 +84,7 @@ class LLMPlayer:
             self.model = model or "claude-sonnet-4-20250514"
         
         elif provider == "gemini":
-            import google.generativeai as genai
+            from google import genai
             
             self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
             if not self.api_key:
@@ -87,7 +94,8 @@ class LLMPlayer:
                     "https://aistudio.google.com/apikey"
                 )
             
-            genai.configure(api_key=self.api_key)
+            # Create explicit client (new SDK pattern)
+            self.client = genai.Client(api_key=self.api_key)
             
             # Allow model override via environment variable or parameter
             # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
@@ -102,11 +110,6 @@ class LLMPlayer:
             
             logger.info(f"Initializing Gemini with model: {self.model_name}")
             logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
-            
-            self.client = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=SYSTEM_PROMPT
-            )
         
         else:
             raise ValueError(f"Unknown provider: {provider}. Use 'anthropic' or 'gemini'")
@@ -163,7 +166,7 @@ class LLMPlayer:
             logger.debug(f"Raw API Response:\n{response_text}")
             
             # Parse JSON response
-            # Handle markdown code blocks if present
+            # Handle markdown code blocks if present (for non-structured output mode)
             if "```json" in response_text:
                 json_start = response_text.find("```json") + 7
                 json_end = response_text.find("```", json_start)
@@ -179,13 +182,35 @@ class LLMPlayer:
             # Extract action number (1-based from prompt, convert to 0-based index)
             action_number = response_data.get("action_number")
             reasoning = response_data.get("reasoning", "No reasoning provided")
-            target_id = response_data.get("target_id")
+            
+            # v2.0: Support both target_ids (array, new) and target_id (string, legacy)
+            target_ids = response_data.get("target_ids")
+            target_id_legacy = response_data.get("target_id")  # Backwards compatibility
             alternative_cost_id = response_data.get("alternative_cost_id")
             
-            # Normalize string "null" to actual None
-            # Some LLMs return the string "null" instead of null/None
-            if target_id == "null" or target_id == "None":
-                target_id = None
+            # Normalize target_ids
+            # Handle: null, "null", "None", empty array, single string (legacy)
+            if target_ids is None or target_ids == "null" or target_ids == "None":
+                target_ids = None
+            elif isinstance(target_ids, str):
+                # Single string provided instead of array
+                if target_ids and target_ids not in ("null", "None"):
+                    target_ids = [target_ids]
+                else:
+                    target_ids = None
+            elif isinstance(target_ids, list):
+                # Filter out null/None strings from array
+                target_ids = [t for t in target_ids if t and t not in ("null", "None")]
+                if not target_ids:
+                    target_ids = None
+            
+            # Backwards compatibility: if target_id was provided instead of target_ids
+            if target_ids is None and target_id_legacy:
+                if target_id_legacy not in ("null", "None"):
+                    target_ids = [target_id_legacy]
+                    logger.info("Using legacy target_id field (migrating to target_ids)")
+            
+            # Normalize alternative_cost_id
             if alternative_cost_id == "null" or alternative_cost_id == "None":
                 alternative_cost_id = None
             
@@ -215,15 +240,15 @@ class LLMPlayer:
             selected_action = valid_actions[action_index]
             logger.info(f"✅ AI Decision: {selected_action.description}")
             logger.info(f"💭 Reasoning: {reasoning}")
-            if target_id:
-                logger.info(f"🎯 Target: {target_id}")
+            if target_ids:
+                logger.info(f"🎯 Targets ({len(target_ids)}): {target_ids}")
             if alternative_cost_id:
                 logger.info(f"💰 Alternative Cost: {alternative_cost_id}")
             logger.info(f"DEBUG - Returning action_index: {action_index}")
             logger.info("=" * 60)
             
             # Store target and alternative cost selections
-            self._last_target_id = target_id
+            self._last_target_ids = target_ids
             self._last_alternative_cost_id = alternative_cost_id
             
             # Store parsed action data for logging
@@ -275,7 +300,10 @@ class LLMPlayer:
     
     def _call_gemini(self, prompt: str, retry_count: int = 3, allow_fallback: bool = True) -> str:
         """
-        Call Google Gemini API with retry logic and automatic fallback to more stable models.
+        Call Google Gemini API with structured output mode and retry logic.
+        
+        v2.0: Uses google-genai SDK with native structured output mode
+        and Pydantic schema for reliable, type-safe responses.
         
         Args:
             prompt: The prompt to send
@@ -283,22 +311,34 @@ class LLMPlayer:
             allow_fallback: Whether to fallback to GEMINI_FALLBACK_MODEL on capacity issues (default: True)
             
         Returns:
-            The API response text
+            The API response text (valid JSON)
             
         Raises:
             Exception if all retries and fallbacks fail
         """
+        from google.genai import types
+        
         last_exception = None
         current_model = self.model_name
         
         for attempt in range(retry_count):
             try:
-                response = self.client.generate_content(
-                    prompt,
-                    generation_config={
-                        "temperature": 0.7,
-                        "max_output_tokens": 1024,
-                    }
+                # v2.0: Use google-genai SDK with structured output
+                # Combines system instruction + user prompt into contents
+                response = self.client.models.generate_content(
+                    model=current_model,
+                    contents=[
+                        types.Content(
+                            role="user",
+                            parts=[types.Part.from_text(text=f"{SYSTEM_PROMPT}\n\n{prompt}")]
+                        )
+                    ],
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        max_output_tokens=1024,
+                        response_mime_type="application/json",
+                        response_json_schema=AI_DECISION_JSON_SCHEMA,
+                    )
                 )
                 
                 # Log response metadata for debugging
@@ -307,11 +347,9 @@ class LLMPlayer:
                 # Check if response was blocked or empty
                 if not response.candidates or not response.candidates[0].content.parts:
                     finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-                    safety_ratings = response.candidates[0].safety_ratings if response.candidates else []
                     
                     logger.error(f"Gemini returned empty response")
                     logger.error(f"Finish reason: {finish_reason}")
-                    logger.error(f"Safety ratings: {safety_ratings}")
                     
                     raise ValueError(
                         f"Gemini returned empty response (finish_reason: {finish_reason}). "
@@ -319,7 +357,8 @@ class LLMPlayer:
                     )
                 
                 result = response.text.strip()
-                logger.debug(f"Gemini response length: {len(result)} characters")
+                logger.debug(f"Gemini structured output response length: {len(result)} characters")
+                logger.debug(f"Gemini structured output: {result}")
                 return result
                 
             except Exception as e:
@@ -344,13 +383,9 @@ class LLMPlayer:
                                 f"Gemini {current_model} capacity exhausted after {retry_count} retries. "
                                 f"Falling back to {self.fallback_model} (more stable, better availability)..."
                             )
-                            # Switch to fallback model
-                            import google.generativeai as genai
+                            # Switch to fallback model (just update the model name, client stays same)
                             self.model_name = self.fallback_model
-                            self.client = genai.GenerativeModel(
-                                model_name=self.fallback_model,
-                                system_instruction=SYSTEM_PROMPT
-                            )
+                            current_model = self.fallback_model
                             # Try one more time with fallback model
                             return self._call_gemini(prompt, retry_count=1, allow_fallback=False)
                         else:
@@ -388,14 +423,15 @@ class LLMPlayer:
             result["action_type"] = "play_card"
             result["card_id"] = selected_action.card_id
             
-            # Handle target selection (for cards like Twist, Wake, Copy, Sun)
-            if self._last_target_id:
-                result["target_id"] = self._last_target_id
-                logger.info(f"Using AI-selected target: {self._last_target_id}")
+            # v2.0: Handle target selection with target_ids (array) for multi-target support
+            # This enables Sun card to select 2 targets
+            if self._last_target_ids:
+                result["target_ids"] = self._last_target_ids
+                logger.info(f"Using AI-selected targets ({len(self._last_target_ids)}): {self._last_target_ids}")
             elif selected_action.target_options:
                 # Fallback: Use first available target if AI didn't specify
-                result["target_id"] = selected_action.target_options[0]
-                logger.warning(f"AI didn't specify target, using first option: {result['target_id']}")
+                result["target_ids"] = [selected_action.target_options[0]]
+                logger.warning(f"AI didn't specify target, using first option: {result['target_ids']}")
             
             # Handle alternative cost (for Ballaber)
             if self._last_alternative_cost_id:
@@ -410,10 +446,10 @@ class LLMPlayer:
             result["action_type"] = "tussle"
             result["attacker_id"] = selected_action.card_id
             
-            # Handle target selection for tussles
-            if self._last_target_id:
-                result["defender_id"] = self._last_target_id
-                logger.info(f"Using AI-selected tussle target: {self._last_target_id}")
+            # Handle target selection for tussles (still single target)
+            if self._last_target_ids and len(self._last_target_ids) > 0:
+                result["defender_id"] = self._last_target_ids[0]  # Use first target for tussle
+                logger.info(f"Using AI-selected tussle target: {self._last_target_ids[0]}")
             elif selected_action.target_options:
                 # Check if this is a direct attack or targeted tussle
                 if selected_action.target_options[0] == "direct_attack":
@@ -429,10 +465,10 @@ class LLMPlayer:
             result["card_id"] = selected_action.card_id
             result["amount"] = 1  # Always use 1 for now (can be repeated)
             
-            # Handle target selection for activated abilities
-            if self._last_target_id:
-                result["target_id"] = self._last_target_id
-                logger.info(f"Using AI-selected ability target: {self._last_target_id}")
+            # Handle target selection for activated abilities (still single target)
+            if self._last_target_ids and len(self._last_target_ids) > 0:
+                result["target_id"] = self._last_target_ids[0]  # Use first target for ability
+                logger.info(f"Using AI-selected ability target: {self._last_target_ids[0]}")
             elif selected_action.target_options:
                 # Fallback: Use first available target if AI didn't specify
                 result["target_id"] = selected_action.target_options[0]
@@ -442,7 +478,7 @@ class LLMPlayer:
             result["action_type"] = "end_turn"
         
         # Clear stored selections after use
-        self._last_target_id = None
+        self._last_target_ids = None
         self._last_alternative_cost_id = None
         
         return result
@@ -533,15 +569,17 @@ def get_llm_response(prompt: str, is_json: bool = True, provider: str = None) ->
         )
         response_text = message.content[0].text.strip()
     else:  # gemini
-        import google.generativeai as genai
-        # Create a new model instance without system instruction for custom prompts
-        model = genai.GenerativeModel(model_name=ai_player.model_name)
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.8,  # Higher temperature for creativity
-                "max_output_tokens": 2048,  # Allow longer responses
-            }
+        from google import genai
+        from google.genai import types
+        # Create a new client for custom prompts (without system instruction in config)
+        client = genai.Client(api_key=ai_player.api_key)
+        response = client.models.generate_content(
+            model=ai_player.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.8,  # Higher temperature for creativity
+                max_output_tokens=2048,  # Allow longer responses
+            )
         )
         response_text = response.text.strip()
     
