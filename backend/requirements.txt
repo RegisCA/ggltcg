@@ -26,6 +26,7 @@ google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 PyJWT==2.8.0
 better-profanity==0.7.0
+sentry-sdk[fastapi]==2.20.0  # Error tracking and monitoring
 
 # Testing
 pytest==8.3.4

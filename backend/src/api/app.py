@@ -5,6 +5,8 @@ Main entry point for the REST API server.
 """
 
 import logging
+import os
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,6 +17,19 @@ from .routes_stats import router as stats_router
 from .routes_maintenance import router as maintenance_router
 from .routes_admin import router as admin_router
 from .auth_routes import router as auth_router
+
+# Initialize Sentry for error tracking (production only)
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+if SENTRY_DSN and ENVIRONMENT == "production":
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=1.0,  # Capture 100% of transactions for performance monitoring
+        profiles_sample_rate=1.0,  # Capture 100% of profiles
+        environment=ENVIRONMENT,
+        enable_tracing=True,
+    )
 
 # Configure logging
 logging.basicConfig(
@@ -36,8 +51,6 @@ app = FastAPI(
 )
 
 # Configure CORS - allow frontend origins
-import os
-
 allowed_origins = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:5173,http://localhost:5174,http://localhost:3000"
