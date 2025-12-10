@@ -46,7 +46,8 @@
 - Tailwind CSS 4.1
 
 **AI Integration:**
-- Google Gemini API (primary and fallback endpoints)
+- Google Gemini API with native structured output (via `google-genai` SDK)
+- Pydantic-based JSON schema for reliable AI responses
 
 ### Architecture Pattern
 

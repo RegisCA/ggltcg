@@ -1,10 +1,12 @@
 # AI Player Setup Guide
 
-The GGLTCG AI player supports two LLM providers:
+The GGLTCG AI player uses **Google Gemini's native structured output** mode for reliable JSON responses. This eliminates parsing errors and ensures the AI always returns valid, schema-compliant decisions.
 
-## Option 1: Google Gemini (FREE - Recommended for Development)
+## Supported Providers
 
-Gemini offers a generous free tier perfect for testing and development.
+### Option 1: Google Gemini (FREE - Recommended)
+
+Gemini offers a generous free tier and **native structured output** support via the `google-genai` SDK. The AI uses Pydantic models to define a JSON schema, ensuring reliable responses.
 
 ### Setup:
 
@@ -28,9 +30,9 @@ Gemini offers a generous free tier perfect for testing and development.
 
 More than enough for game testing!
 
-## Option 2: Anthropic Claude (Requires Credits)
+### Option 2: Anthropic Claude (Requires Credits)
 
-Claude offers high-quality responses but requires purchasing API credits.
+Claude offers high-quality responses but requires purchasing API credits. Uses prompt-based JSON output (no native structured output).
 
 ### Setup:
 

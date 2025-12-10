@@ -334,6 +334,13 @@ class ActionExecutor:
                     )
                 targets.append(target)
             kwargs["targets"] = targets
+            
+            # Also set singular 'target' for effects that expect it (Twist, Copy, Wake, etc.)
+            # This ensures backwards compatibility with single-target effects
+            if len(targets) == 1:
+                kwargs["target"] = targets[0]
+                kwargs["target_id"] = targets[0].id
+                kwargs["target_name"] = targets[0].name
         
         return kwargs
     
