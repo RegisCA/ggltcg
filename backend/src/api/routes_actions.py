@@ -499,7 +499,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         logger.debug(f"Available actions: {[a.description for a in valid_actions]}")
         
         ai_player = get_ai_player()
-        result = ai_player.select_action(game_state, player_id, valid_actions)
+        result = ai_player.select_action(game_state, player_id, valid_actions, engine)
         
         if result is None:
             # AI failed to select - default to end turn

@@ -15,112 +15,106 @@ CARD_EFFECTS_LIBRARY = {
     "Ka": {
         "type": "Toy",
         "effect": "Continuous: All your other Toys get +2 Strength",
-        "strategic_use": "FORCE MULTIPLIER - Play early to boost all your attackers. Makes all your tussles stronger.",
-        "threat_level": "HIGH - Boosts opponent's entire board if they control it"
+        "strategic_use": "TUSSLER - Either play when you want to force your opponent into a certain move like using Knight, or play when you can commit to an offensive play. Warning: Weak to a Raggy Archer combo",
+        "threat_level": "MEDIUM - Good tussler, defensive pressure. Boosts opponent's entire board if they control it"
     },
     "Knight": {
         "type": "Toy",
-        "effect": "Triggered: At end of turn, sleep any card with 0 stamina",
-        "strategic_use": "FINISHER - Automatically sleeps damaged cards at end of turn. Great follow-up after tussles.",
-        "threat_level": "HIGH - Can sleep your damaged cards at opponent's end of turn"
+        "effect": "Combat modifier: On your turn, this card wins all tussles it enters",
+        "strategic_use": "TUSSLER - Can defeat strong Toys",
+        "threat_level": "MEDIUM - Strong tussler that can sleep your cards reliably"
     },
     "Wizard": {
         "type": "Toy",
         "effect": "Continuous: All tussles you initiate cost exactly 1 CC (overrides normal tussle cost calculation)",
-        "strategic_use": "ENABLES AGGRESSION - Makes tussling extremely cheap (normally costs 2-4 CC per tussle). Play before multiple tussles.",
-        "threat_level": "MEDIUM - Opponent can tussle repeatedly with low CC cost"
+        "strategic_use": "ENABLES AGGRESSION - Makes tussling cost 1 CC (normally costs 2 CC per tussle). Play with a good tussler, play when you can commit to a good play",
+        "threat_level": "HIGH - Can sleep lots of cards if used correctly, prioritize sleeping Wizard before other cards"
     },
     "Demideca": {
         "type": "Toy",
         "effect": "Continuous: All your Toys get +1 Speed, +1 Strength, +1 Stamina",
-        "strategic_use": "ALL-AROUND BOOST - Solid buff to everything. Good mid-game play.",
-        "threat_level": "MEDIUM - Modest boost to opponent's board"
+        "strategic_use": "ALL-AROUND BOOST - Solid buff to everything. Good mid-game play",
+        "threat_level": "LOW - Can change the outcome of tussles in your opponents favor, if you cannot take out an opposing card, take Demideca out first to stop the continuous effect"
     },
     "Beary": {
         "type": "Toy",
-        "effect": "Continuous: Cannot be targeted by Action cards",
-        "strategic_use": "PROTECTION - Safe from Twist, Wake, Copy, Sun, etc. Good defensive anchor.",
-        "threat_level": "LOW - Cannot be affected by your Action cards (but can still tussle it)"
-    },
-    "Snuggles": {
-        "type": "Toy",
-        "effect": "Triggered: When this card is sleeped (from play), you may sleep one other card in play",
-        "strategic_use": "CASCADING SLEEP - When sleeped (by Clean, tussle, etc.), can force another card to sleep too. Defensive value.",
-        "threat_level": "MEDIUM - Can cascade sleep effects when opponent sleeps it"
+        "effect": "Continuous: Cannot be affected by effects and targeted by opponent's Action cards",
+        "strategic_use": "PROTECTION - Good defensive anchor if you need cards in play to block opposing effects",
+        "threat_level": "LOW - Cannot be affected by effects. High speed"
     },
     "Ballaber": {
         "type": "Toy",
-        "effect": "Alternative Cost: Instead of paying CC, you may sleep one of your Toys",
-        "strategic_use": "FREE PLAY - Can play when low on CC by sacrificing another Toy. Good stats for free.",
-        "threat_level": "LOW - Just a solid stat stick"
+        "effect": "Alternative Cost: Instead of paying CC, you may sleep one of your cards",
+        "strategic_use": "FREE PLAY - Can start tussling easily because of being able to be played for free. Warning: never sleep a card you have in play to play Ballaber for free. Sleep a card you have not used CC on",
+        "threat_level": "MEDIUM - Strong tussler"
     },
     "Dream": {
         "type": "Toy",
         "effect": "Passive: Costs 1 CC less for each card in your Sleep Zone (base cost 4, minimum 0)",
-        "strategic_use": "LATE GAME VALUE - Gets cheaper as game progresses. Can be FREE if you have 4+ sleeping cards. Strong 4/5/4 stats.",
+        "strategic_use": "LATE GAME VALUE - Gets cheaper as game progresses. Can be FREE if you have 4+ sleeping cards. Strong 4/5/4 stats",
         "threat_level": "MEDIUM - Strong stats, gets cheaper in late game"
     },
     "Archer": {
         "type": "Toy",
-        "effect": "Restriction: Cannot initiate tussles. Activated Ability: Spend 1 CC to remove 1 stamina from target opponent card (can repeat multiple times)",
-        "strategic_use": "PRECISION FINISHER - Cannot tussle, but can spend CC to directly damage opponent's cards. Use to finish off damaged cards or weaken targets before tussling. Costs 1 CC per 1 stamina removed - can use multiple times per turn if you have CC.",
-        "threat_level": "MEDIUM - Can directly damage your cards with CC, potentially finishing off weakened cards"
+        "effect": "Restriction: Cannot initiate tussles. Activated Ability: Spend 1 CC to remove 1 stamina from target opponent card in play (can repeat multiple times)",
+        "strategic_use": "PRECISION FINISHER - Cannot tussle, but can spend CC to directly damage opponent's cards. Use to finish off damaged cards or weaken targets before tussling. Costs 1 CC per 1 stamina removed - can use multiple times per turn if you have CC",
+        "threat_level": "LOW - Can directly damage your cards with CC, potentially finishing off weakened cards"
     },
     "Umbruh": {
         "type": "Toy",
         "effect": "Triggered: When this card is sleeped (from play), gain 1 CC",
-        "strategic_use": "CC GAIN - Generates 1 CC when sleeped. Good value even if it gets removed.",
-        "threat_level": "MEDIUM - Opponent gains CC when you sleep it"
+        "strategic_use": "CC GAIN - Generates 1 CC when sleeped. Good value even if it gets removed",
+        "threat_level": "HIGH - Your opponent playing this card is a sign that they want to go offensive on their next turn"
     },
     "Raggy": {
         "type": "Toy",
         "effect": "Passive: This card's tussles cost 0 CC. Restriction: Cannot tussle on turn 1",
-        "strategic_use": "FREE TUSSLES - Can tussle for free after turn 1. Great for multiple attacks.",
-        "threat_level": "MEDIUM - Can tussle repeatedly for free after turn 1"
+        "strategic_use": "FREE TUSSLES - If your opponent has no cards in play, you can use it to sleep multiple opposing cards",
+        "threat_level": "HIGH - Can sleep lots of your cards if you do not have a board presence"
     },
     
     # ACTION CARDS
     "Rush": {
         "type": "Action",
         "effect": "Gain 2 CC. Cannot be played on your first turn",
-        "strategic_use": "CC BOOST - Free 2 CC after turn 1. Good for setting up big plays.",
-        "threat_level": "LOW - Small CC advantage for opponent"
+        "strategic_use": "CC BOOST - Free 2 CC after turn 1. Good for setting up big plays",
+        "threat_level": "HIGH - Enables opponent to commit to plays (2 CC is enough for one tussle or card play)"
     },
     "Clean": {
         "type": "Action",
         "effect": "Sleep all Toys (yours and opponent's)",
-        "strategic_use": "BOARD WIPE - Use when opponent has more/stronger Toys than you. Reset the board.",
-        "threat_level": "CRITICAL - Can sleep your entire board"
+        "strategic_use": "Use if your opponent has at least 2 cards in play (do not use to remove just 1 card). Warning: it removes your cards in play too",
+        "threat_level": "MEDIUM - Do not put too many cards in play or Clean could sleep a lot of your cards"
     },
     "Twist": {
         "type": "Action",
         "effect": "Target: Take control of an opponent's Toy (you become controller, not owner)",
         "strategic_use": "THEFT - Steal opponent's best Toy. Can swing the game decisively.",
-        "threat_level": "CRITICAL - Can steal your best cards"
+        "threat_level": "HIGH - Can steal your best cards"
     },
     "Wake": {
         "type": "Action",
-        "effect": "Target: Return a card from any Sleep Zone to its owner's hand",
-        "strategic_use": "RECURSION - Get back your slept cards OR deny opponent's victory by waking their card.",
-        "threat_level": "HIGH - Can undo your progress by waking slept cards"
+        "effect": "Target: Return a card from your Sleep Zone to your hand",
+        "strategic_use": "RECURSION - Get back one slept card",
+        "threat_level": "LOW - Can undo your progress by waking slept cards"
     },
     "Copy": {
         "type": "Action",
         "effect": "Target: Create a copy of one of YOUR Toys in play (you must control the target)",
         "strategic_use": "CLONE - Duplicate your best Toy (Ka, Knight, Wizard). Can ONLY copy your own Toys, not opponent's.",
-        "threat_level": "HIGH - Can copy your best cards"
+        "threat_level": "LOW - Can copy your best cards"
     },
     "Sun": {
         "type": "Action",
         "effect": "Target: Return up to 2 Toys from your Sleep Zone to your hand",
-        "strategic_use": "MASS RECURSION - Get back multiple slept Toys. Great for recovery.",
-        "threat_level": "HIGH - Opponent can recover multiple cards"
+        "strategic_use": "MASS RECURSION - Get back multiple slept Toys. Great for recovery. Select 2 targets if possible.",
+        "threat_level": "LOW - Opponent can recover multiple cards"
     },
     "Toynado": {
         "type": "Action",
         "effect": "Return all cards in play to their owner's hands",
-        "strategic_use": "RESET - Bounces everything back to hand. Use when opponent has stronger board.",
-        "threat_level": "HIGH - Can reset your board advantage"
+        "strategic_use": "RESET - Bounces everything back to hand. Use when opponent has stronger board (or has used Twist to steal your best card).",
+        "threat_level": "LOW - Can reset your board advantage"
     },
     
     # NEW CARDS (Beta)
@@ -133,14 +127,14 @@ CARD_EFFECTS_LIBRARY = {
     "Drum": {
         "type": "Toy",
         "effect": "Continuous: All your Toys get +2 Speed",
-        "strategic_use": "SPEED ADVANTAGE - Makes your cards strike first in tussles. Weak stats (1/3/2) but the speed boost is huge.",
-        "threat_level": "HIGH - Opponent's cards will strike first against yours"
+        "strategic_use": "SPEED ADVANTAGE - Makes your cards strike first in tussles. Weak stats (1/3/2) but the speed boost is big.",
+        "threat_level": "MEDIUM - Opponent's cards will strike first against yours"
     },
     "Violin": {
         "type": "Toy",
         "effect": "Continuous: All your Toys get +2 Strength",
         "strategic_use": "FORCE MULTIPLIER - Like Ka but cheaper with weaker stats (3/1/2). Good budget option for strength boost.",
-        "threat_level": "HIGH - Boosts opponent's entire board"
+        "threat_level": "MEDIUM - Boosts opponent's entire board"
     },
     "Drop": {
         "type": "Action",
@@ -152,7 +146,7 @@ CARD_EFFECTS_LIBRARY = {
         "type": "Action",
         "effect": "Target: Return any card in play to owner's hand (no sleep trigger)",
         "strategic_use": "TEMPO BOUNCE - Return a threat without triggering when-sleeped. Great vs Umbruh! Opponent must replay the card.",
-        "threat_level": "MEDIUM - Can bounce your key card back to hand"
+        "threat_level": "LOW - Can bounce your key card back to hand"
     },
     "Sock Sorcerer": {
         "type": "Toy",
@@ -164,7 +158,7 @@ CARD_EFFECTS_LIBRARY = {
         "type": "Action",
         "effect": "This turn only: All your Toys get +1 Speed, +1 Strength, +1 Stamina",
         "strategic_use": "COMBAT BUFF - Use BEFORE tussling to win fights you'd otherwise lose. One turn only - use it or lose it!",
-        "threat_level": "MEDIUM - Temporary boost makes opponent's tussles stronger this turn"
+        "threat_level": "LOW - Temporary boost makes opponent's tussles stronger this turn"
     },
     "Belchaletta": {
         "type": "Toy",
@@ -175,7 +169,7 @@ CARD_EFFECTS_LIBRARY = {
     "Hind Leg Kicker": {
         "type": "Toy",
         "effect": "Triggered: When you play another card, gain 1 CC",
-        "strategic_use": "CC REFUND - Each card you play refunds 1 CC. Great for combo turns with many plays. Weak stats (3/3/1) - protect it!",
+        "strategic_use": "CC REFUND - Each card you play refunds 1 CC. Play before other cards in your turn. Great for combo turns with many plays. Weak stats (3/3/1) - protect it!",
         "threat_level": "MEDIUM - Opponent gets partial CC refund on plays"
     },
 }
@@ -186,8 +180,8 @@ SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) playe
 - You win when ALL opponent cards are in their Sleep Zone
 - Command Counters (CC): Start each turn with CC gain (2 on Turn 1, 4 after). Max 7 CC.
 - Playing cards costs CC
-- Tussles (combat) cost CC based on your cards' stats
-- Direct attacks cost more CC but deal damage to opponent's CC if successful
+- Tussles (combat) cost CC (standard cost is 2 CC) and get resolved based on cards' stats
+- Direct attacks cost CC (standard cost is 2 CC) and sleeps a ramdom card from your opponent's hand if they have no Toys in play.
 
 ## Victory Strategy - BALANCED AGGRESSION
 1. **ASSESS THE BOARD**: Before playing cards, evaluate opponent's threats
@@ -211,15 +205,22 @@ SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) playe
 - Opponent can use Twist/Copy to steal your cards
 
 ### When to TUSSLE:
-- You can win the tussle (higher Strength, or equal Strength with higher Speed)
-- Sleeping opponent's card brings you closer to victory
-- You have Wizard in play (tussles cost only 1 CC)
-- You have Knight in play (can finish off damaged targets at end of turn)
+**CRITICAL TUSSLE RULES:**
+1. Compare YOUR STRENGTH vs THEIR STAMINA (NOT strength vs strength!)
+2. Higher SPEED strikes first
+3. Example: Your card (5 SPD, 3 STR) vs Their card (4 SPD, 2 STR, 2 STA)
+   - You strike first (5 SPD > 4 SPD)
+   - You deal 3 damage to their 2 STA → They're sleeped
+   - You WIN (their 2 STR doesn't matter - they never strike back)
+
+**Tussle if:**
+- Your STR >= Their current STA (you can sleep them)
+- If they can also sleep you (their STR >= your STA), you need higher SPD to win
+- You have Raggy (free tussles) or Wizard (1 CC tussles)
+- You have Knight (auto-wins on your turn)
 
 ### When to DIRECT ATTACK:
-- Opponent has NO Toys in play (free damage to their CC)
-- Depleting opponent's CC can prevent them from playing threats
-- You have excess CC and no better options
+- Opponent has NO Toys in play: sleeps a ramdom card from your opponent's hand.
 
 ## Defensive Awareness
 
@@ -232,12 +233,11 @@ SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) playe
 **Threat Assessment:**
 - If opponent has Ka: All their Toys have +2 STR (very dangerous)
 - If opponent has Wizard: They can tussle multiple times cheaply
-- If opponent has Knight: Your damaged cards will auto-sleep at their end of turn
-- If opponent has Action cards in hand: They might have Twist (steal), Clean (wipe), Copy (clone)
+- If opponent has Knight: Unless your cards have some immunity, they will lose tussles against Knight when it's their turn
+- If opponent has Action cards in hand: They might have Twist (steal), Clean (wipe), Copy (clone), or others that can disrupt your board
 
 **When you're in DANGER (opponent has stronger board):**
-- DON'T play more Toys that will just get slept
-- SAVE CC for defensive tussles
+- DON'T play more Toys that will just get slept. But keep in mind that an empty board means direct attacks from opponent.
 - CONSIDER Action cards (Clean to reset board, Twist to steal their best card)
 - LOOK for combo plays (play Ka then tussle, play Wizard then multi-tussle)
 
@@ -245,7 +245,7 @@ You will receive the current game state and must choose ONE action per turn.
 Respond with your chosen action in the exact format specified."""
 
 
-def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
+def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) -> str:
     """
     Format game state into a clear, strategic summary for the AI.
     Includes card effects and strategic analysis.
@@ -253,6 +253,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
     Args:
         game_state: Current GameState object
         ai_player_id: ID of the AI player
+        game_engine: Optional GameEngine for calculating effective stats with continuous effects
         
     Returns:
         Formatted string describing the game state with strategic context
@@ -275,8 +276,20 @@ def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
     ai_in_play = []
     for card in ai_player.in_play:
         if card.is_toy():
+            if game_engine:
+                # Use GameEngine to get stats with continuous effects (Ka, Demideca, etc.)
+                spd = game_engine.get_card_stat(card, "speed")
+                str_val = game_engine.get_card_stat(card, "strength")
+                cur_sta = game_engine.get_effective_stamina(card)
+                max_sta = game_engine.get_card_stat(card, "stamina")
+            else:
+                # Fallback to card methods (won't include continuous effects)
+                spd = card.get_effective_speed()
+                str_val = card.get_effective_strength()
+                cur_sta = card.get_effective_stamina()
+                max_sta = card.stamina + card.modifications.get("stamina", 0)
             ai_in_play.append(
-                f"{card.name} ({card.speed} SPD, {card.strength} STR, {card.current_stamina}/{card.stamina} STA)"
+                f"{card.name} ({spd} SPD, {str_val} STR, {cur_sta}/{max_sta} STA)"
             )
         else:
             ai_in_play.append(card.name)
@@ -287,16 +300,32 @@ def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
         if card.is_toy():
             card_info = CARD_EFFECTS_LIBRARY.get(card.name, {})
             threat = card_info.get("threat_level", "UNKNOWN")
+            if game_engine:
+                # Use GameEngine to get stats with continuous effects (Ka, Demideca, etc.)
+                spd = game_engine.get_card_stat(card, "speed")
+                str_val = game_engine.get_card_stat(card, "strength")
+                cur_sta = game_engine.get_effective_stamina(card)
+                max_sta = game_engine.get_card_stat(card, "stamina")
+            else:
+                # Fallback to card methods (won't include continuous effects)
+                spd = card.get_effective_speed()
+                str_val = card.get_effective_strength()
+                cur_sta = card.get_effective_stamina()
+                max_sta = card.stamina + card.modifications.get("stamina", 0)
             opp_in_play_details.append(
-                f"{card.name} ({card.speed} SPD, {card.strength} STR, {card.current_stamina}/{card.stamina} STA) - THREAT: {threat}"
+                f"{card.name} ({spd} SPD, {str_val} STR, {cur_sta}/{max_sta} STA) - THREAT: {threat}"
             )
         else:
             opp_in_play_details.append(card.name)
     opp_in_play = "\n    ".join(opp_in_play_details) if opp_in_play_details else "NONE - ATTACK DIRECTLY!"
     
     # Calculate board strength (total STR of all Toys in play)
-    ai_total_str = sum(card.strength for card in ai_player.in_play if card.is_toy())
-    opp_total_str = sum(card.strength for card in opponent.in_play if card.is_toy())
+    if game_engine:
+        ai_total_str = sum(game_engine.get_card_stat(card, "strength") for card in ai_player.in_play if card.is_toy())
+        opp_total_str = sum(game_engine.get_card_stat(card, "strength") for card in opponent.in_play if card.is_toy())
+    else:
+        ai_total_str = sum(card.get_effective_strength() for card in ai_player.in_play if card.is_toy())
+        opp_total_str = sum(card.get_effective_strength() for card in opponent.in_play if card.is_toy())
     
     # Determine board state
     if opp_total_str > ai_total_str + 3:
@@ -336,7 +365,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str) -> str:
     return state_summary
 
 
-def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_id: str = None) -> str:
+def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_id: str = None, game_engine=None) -> str:
     """
     Format the list of valid actions into a numbered list for the AI.
     Actions are numbered 1-based to match how the AI will reference them.
@@ -346,6 +375,7 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
         valid_actions: List of ValidAction objects
         game_state: Optional GameState to look up card details
         ai_player_id: Optional player ID to identify AI's cards
+        game_engine: Optional GameEngine for calculating effective stats with continuous effects
         
     Returns:
         Formatted string with numbered actions and strategic context
@@ -365,7 +395,19 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
             for card in player.hand + player.in_play + player.sleep_zone:
                 if card.id == card_id:
                     if card.is_toy():
-                        display = f"{card.name} ({card.speed} SPD, {card.strength} STR, {card.current_stamina}/{card.stamina} STA)"
+                        if game_engine:
+                            # Use GameEngine to get stats with continuous effects
+                            spd = game_engine.get_card_stat(card, "speed")
+                            str_val = game_engine.get_card_stat(card, "strength")
+                            cur_sta = game_engine.get_effective_stamina(card)
+                            max_sta = game_engine.get_card_stat(card, "stamina")
+                        else:
+                            # Fallback to card methods
+                            spd = card.get_effective_speed()
+                            str_val = card.get_effective_strength()
+                            cur_sta = card.get_effective_stamina()
+                            max_sta = card.stamina + card.modifications.get("stamina", 0)
+                        display = f"{card.name} ({spd} SPD, {str_val} STR, {cur_sta}/{max_sta} STA)"
                     else:
                         display = card.name
                     return (display, card.id)
@@ -482,7 +524,7 @@ IMPORTANT:
 Your response (JSON only):"""
 
 
-def get_ai_turn_prompt(game_state, ai_player_id: str, valid_actions: list) -> str:
+def get_ai_turn_prompt(game_state, ai_player_id: str, valid_actions: list, game_engine=None) -> str:
     """
     Create the complete prompt for the AI's turn.
     
@@ -490,12 +532,13 @@ def get_ai_turn_prompt(game_state, ai_player_id: str, valid_actions: list) -> st
         game_state: Current GameState object
         ai_player_id: ID of the AI player
         valid_actions: List of valid actions from the API
+        game_engine: Optional GameEngine for calculating effective stats with continuous effects
         
     Returns:
         Complete prompt string
     """
-    state_text = format_game_state_for_ai(game_state, ai_player_id)
-    actions_text = format_valid_actions_for_ai(valid_actions, game_state, ai_player_id)
+    state_text = format_game_state_for_ai(game_state, ai_player_id, game_engine)
+    actions_text = format_valid_actions_for_ai(valid_actions, game_state, ai_player_id, game_engine)
     
     return f"""{state_text}
 
