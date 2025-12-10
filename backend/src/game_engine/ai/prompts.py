@@ -51,32 +51,9 @@ class AIDecision(BaseModel):
     )
 
 
-# JSON Schema dict for older SDK compatibility
-AI_DECISION_JSON_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "action_number": {
-            "type": "integer",
-            "description": "Action number from the valid actions list (1-indexed, must be >= 1)",
-            "minimum": 1
-        },
-        "reasoning": {
-            "type": "string",
-            "description": "1-2 sentence explanation of why this is the best move"
-        },
-        "target_ids": {
-            "type": ["array", "null"],
-            "items": {"type": "string"},
-            "description": "Array of target card UUIDs. Use for targeting cards (Twist, Wake, Copy, Sun, tussles). Extract ONLY the UUID from [ID: xxx], never card names."
-        },
-        "alternative_cost_id": {
-            "type": ["string", "null"],
-            "description": "UUID of card to sleep for alternative cost (Ballaber). Extract ONLY the UUID from [ID: xxx]."
-        }
-    },
-    "required": ["action_number", "reasoning"],
-    "propertyOrdering": ["action_number", "reasoning", "target_ids", "alternative_cost_id"]
-}
+# Generate JSON Schema from Pydantic model for google-genai SDK
+# The new SDK accepts standard JSON Schema via response_json_schema parameter
+AI_DECISION_JSON_SCHEMA = AIDecision.model_json_schema()
 
 # Card effect library for AI strategic understanding
 CARD_EFFECTS_LIBRARY = {
@@ -512,11 +489,10 @@ ACTION_SELECTION_PROMPT = """Based on the game state and your valid actions, cho
 
 ## EXAMPLE SCENARIOS
 
-**Scenario A - Recovery Play (Issue #188 situation):**
-You have Sun + Wake in hand, 4 cards in sleep zone including Ka and Knight.
+**Scenario A - Recovery with Sun:**
+You have Sun in hand, 3 cards in sleep zone (Ka, Knight, Demideca).
 - GOOD: Play Sun targeting Ka AND Knight (recover 2 strong Toys)
-- BETTER: Play Wake → Ka, then Sun → Knight + Wake (recover 3 cards total!)
-- BAD: Play Sun but only select 1 target (wasted value)
+- BAD: Play Sun but only select 1 target when 2 are available (wasted value)
 
 **Scenario B - Win Condition:**
 Opponent at 4/5 slept, you can attack. → Attack immediately to WIN!

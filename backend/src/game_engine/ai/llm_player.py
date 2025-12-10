@@ -84,7 +84,7 @@ class LLMPlayer:
             self.model = model or "claude-sonnet-4-20250514"
         
         elif provider == "gemini":
-            import google.generativeai as genai
+            from google import genai
             
             self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
             if not self.api_key:
@@ -94,7 +94,8 @@ class LLMPlayer:
                     "https://aistudio.google.com/apikey"
                 )
             
-            genai.configure(api_key=self.api_key)
+            # Create explicit client (new SDK pattern)
+            self.client = genai.Client(api_key=self.api_key)
             
             # Allow model override via environment variable or parameter
             # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
@@ -109,11 +110,6 @@ class LLMPlayer:
             
             logger.info(f"Initializing Gemini with model: {self.model_name}")
             logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
-            
-            self.client = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=SYSTEM_PROMPT
-            )
         
         else:
             raise ValueError(f"Unknown provider: {provider}. Use 'anthropic' or 'gemini'")
@@ -306,8 +302,8 @@ class LLMPlayer:
         """
         Call Google Gemini API with structured output mode and retry logic.
         
-        v2.0: Uses Gemini's native structured output mode with JSON schema
-        for more reliable and type-safe responses.
+        v2.0: Uses google-genai SDK with native structured output mode
+        and Pydantic schema for reliable, type-safe responses.
         
         Args:
             prompt: The prompt to send
@@ -320,21 +316,29 @@ class LLMPlayer:
         Raises:
             Exception if all retries and fallbacks fail
         """
+        from google.genai import types
+        
         last_exception = None
         current_model = self.model_name
         
         for attempt in range(retry_count):
             try:
-                # v2.0: Use structured output mode with JSON schema
-                # This ensures Gemini returns valid JSON matching our schema
-                response = self.client.generate_content(
-                    prompt,
-                    generation_config={
-                        "temperature": 0.7,
-                        "max_output_tokens": 1024,
-                        "response_mime_type": "application/json",
-                        "response_schema": AI_DECISION_JSON_SCHEMA,
-                    }
+                # v2.0: Use google-genai SDK with structured output
+                # Combines system instruction + user prompt into contents
+                response = self.client.models.generate_content(
+                    model=current_model,
+                    contents=[
+                        types.Content(
+                            role="user",
+                            parts=[types.Part.from_text(text=f"{SYSTEM_PROMPT}\n\n{prompt}")]
+                        )
+                    ],
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        max_output_tokens=1024,
+                        response_mime_type="application/json",
+                        response_json_schema=AI_DECISION_JSON_SCHEMA,
+                    )
                 )
                 
                 # Log response metadata for debugging
@@ -343,11 +347,9 @@ class LLMPlayer:
                 # Check if response was blocked or empty
                 if not response.candidates or not response.candidates[0].content.parts:
                     finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-                    safety_ratings = response.candidates[0].safety_ratings if response.candidates else []
                     
                     logger.error(f"Gemini returned empty response")
                     logger.error(f"Finish reason: {finish_reason}")
-                    logger.error(f"Safety ratings: {safety_ratings}")
                     
                     raise ValueError(
                         f"Gemini returned empty response (finish_reason: {finish_reason}). "
@@ -381,13 +383,9 @@ class LLMPlayer:
                                 f"Gemini {current_model} capacity exhausted after {retry_count} retries. "
                                 f"Falling back to {self.fallback_model} (more stable, better availability)..."
                             )
-                            # Switch to fallback model
-                            import google.generativeai as genai
+                            # Switch to fallback model (just update the model name, client stays same)
                             self.model_name = self.fallback_model
-                            self.client = genai.GenerativeModel(
-                                model_name=self.fallback_model,
-                                system_instruction=SYSTEM_PROMPT
-                            )
+                            current_model = self.fallback_model
                             # Try one more time with fallback model
                             return self._call_gemini(prompt, retry_count=1, allow_fallback=False)
                         else:
@@ -571,15 +569,17 @@ def get_llm_response(prompt: str, is_json: bool = True, provider: str = None) ->
         )
         response_text = message.content[0].text.strip()
     else:  # gemini
-        import google.generativeai as genai
-        # Create a new model instance without system instruction for custom prompts
-        model = genai.GenerativeModel(model_name=ai_player.model_name)
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.8,  # Higher temperature for creativity
-                "max_output_tokens": 2048,  # Allow longer responses
-            }
+        from google import genai
+        from google.genai import types
+        # Create a new client for custom prompts (without system instruction in config)
+        client = genai.Client(api_key=ai_player.api_key)
+        response = client.models.generate_content(
+            model=ai_player.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.8,  # Higher temperature for creativity
+                max_output_tokens=2048,  # Allow longer responses
+            )
         )
         response_text = response.text.strip()
     
