@@ -1,13 +1,82 @@
 """
 Prompt templates for the AI player.
 
-These prompts guide Claude to play GGLTCG strategically and aggressively.
+These prompts guide Claude/Gemini to play GGLTCG strategically and aggressively.
+
+Version 2.0 Changes:
+- Unified target_id to target_ids (array) for multi-target support (Sun card)
+- Implemented Gemini structured output mode with JSON schema
+- Restructured prompt with critical constraints at top
+- Simplified decision framework from 5 to 3 core rules
+- Added negative constraints (AVOID THESE MISTAKES)
+- Added pre-response verification checklist
+- Consolidated examples and added game-specific scenarios
 """
+
+from typing import List, Optional, Any, Dict
+from pydantic import BaseModel, Field
 
 # Version tracking for AI decision logs
 # Increment this when making significant changes to prompts or strategy
 # Format: MAJOR.MINOR (MAJOR = strategy overhaul, MINOR = tweaks/fixes)
-PROMPTS_VERSION = "1.1"
+PROMPTS_VERSION = "2.0"
+
+
+# ============================================================================
+# JSON SCHEMA FOR STRUCTURED OUTPUT (Gemini native structured output mode)
+# ============================================================================
+
+class AIDecision(BaseModel):
+    """
+    Schema for AI player decisions.
+    Uses Pydantic for Gemini's native structured output mode.
+    """
+    action_number: int = Field(
+        ...,
+        description="Action number from the valid actions list (1-indexed)",
+        ge=1  # Must be >= 1
+    )
+    reasoning: str = Field(
+        ...,
+        description="1-2 sentence explanation of why this is the best move",
+        max_length=200
+    )
+    target_ids: Optional[List[str]] = Field(
+        default=None,
+        description="Array of target card UUIDs. Use for targeting cards (Twist, Wake, Copy, Sun, tussles). Extract ONLY the UUID from [ID: xxx], never card names."
+    )
+    alternative_cost_id: Optional[str] = Field(
+        default=None,
+        description="UUID of card to sleep for alternative cost (Ballaber). Extract ONLY the UUID from [ID: xxx]."
+    )
+
+
+# JSON Schema dict for older SDK compatibility
+AI_DECISION_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "action_number": {
+            "type": "integer",
+            "description": "Action number from the valid actions list (1-indexed, must be >= 1)",
+            "minimum": 1
+        },
+        "reasoning": {
+            "type": "string",
+            "description": "1-2 sentence explanation of why this is the best move"
+        },
+        "target_ids": {
+            "type": ["array", "null"],
+            "items": {"type": "string"},
+            "description": "Array of target card UUIDs. Use for targeting cards (Twist, Wake, Copy, Sun, tussles). Extract ONLY the UUID from [ID: xxx], never card names."
+        },
+        "alternative_cost_id": {
+            "type": ["string", "null"],
+            "description": "UUID of card to sleep for alternative cost (Ballaber). Extract ONLY the UUID from [ID: xxx]."
+        }
+    },
+    "required": ["action_number", "reasoning"],
+    "propertyOrdering": ["action_number", "reasoning", "target_ids", "alternative_cost_id"]
+}
 
 # Card effect library for AI strategic understanding
 CARD_EFFECTS_LIBRARY = {
@@ -176,73 +245,45 @@ CARD_EFFECTS_LIBRARY = {
 
 SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) player. Your goal is to WIN by putting all of your opponent's cards in their Sleep Zone.
 
+## CRITICAL OUTPUT RULES (READ FIRST)
+- Respond with ONLY valid JSON matching the schema
+- action_number: Must be a number from the valid actions list (1 to N)
+- target_ids: Array of UUIDs extracted from [ID: xxx] brackets. NEVER use card names or stats.
+- alternative_cost_id: Single UUID from [ID: xxx] brackets (for Ballaber only)
+- Example: From "[ID: abc-123-def] Demideca (3 SPD, 2 STR)" extract ONLY "abc-123-def"
+
 ## Core Rules
 - You win when ALL opponent cards are in their Sleep Zone
 - Command Counters (CC): Start each turn with CC gain (2 on Turn 1, 4 after). Max 7 CC.
 - Playing cards costs CC
-- Tussles (combat) cost CC (standard cost is 2 CC) and get resolved based on cards' stats
-- Direct attacks cost CC (standard cost is 2 CC) and sleeps a ramdom card from your opponent's hand if they have no Toys in play.
+- Tussles (combat) cost CC (standard cost is 2 CC) and resolve based on cards' stats
+- Direct attacks cost CC (standard cost is 2 CC) and sleep a random card from opponent's hand if they have no Toys in play.
 
-## Victory Strategy - BALANCED AGGRESSION
-1. **ASSESS THE BOARD**: Before playing cards, evaluate opponent's threats
-2. **BUILD STRATEGICALLY**: Don't just dump cards - think about synergies
-3. **TUSSLE WHEN FAVORABLE**: Combat is how you win, but only when you can win
-4. **DEFEND WHEN NEEDED**: Sometimes saving CC for defense is better than playing more cards
-5. **COMBO EFFECTS**: Ka+attackers, Wizard+multiple tussles, Knight+damaged targets
+## DECISION PRIORITY (Execute in Order)
+1. **WIN CHECK**: Can you sleep opponent's last card this turn? → DO IT NOW!
+2. **THREAT CHECK**: Is opponent's board stronger? → Play defensive (Action cards, save CC)
+3. **VALUE CHECK**: Does playing/attacking improve your position? → Execute best move
 
-## Strategic Decision Framework
+## AVOID THESE MISTAKES
+- DON'T play cards blindly - evaluate if they help your win condition
+- DON'T attack into losing tussles (check STR vs STA, SPD for who strikes first)
+- DON'T waste board wipes (Clean/Toynado) when you have the advantage
+- DON'T use Sun to recover cards you can't afford to play
+- DON'T forget to use both target slots for Sun (select 2 targets when available)
 
-### When to PLAY cards:
-- You need enablers for tussles (can't tussle without Toys in play)
-- You can play a force multiplier (Ka, Wizard, Demideca) that benefits multiple cards
-- You have spare CC and opponent's board isn't threatening
-- You can play an Action card that swings the game (Twist, Clean, Copy)
-
-### When to NOT play more cards:
-- Opponent has Ka/Demideca boosting their board (your cards will just get tussled)
-- You're low on CC and might need it for crucial tussles
-- Playing another card doesn't improve your win condition
-- Opponent can use Twist/Copy to steal your cards
-
-### When to TUSSLE:
-**CRITICAL TUSSLE RULES:**
+## Tussle Combat Rules
 1. Compare YOUR STRENGTH vs THEIR STAMINA (NOT strength vs strength!)
 2. Higher SPEED strikes first
-3. Example: Your card (5 SPD, 3 STR) vs Their card (4 SPD, 2 STR, 2 STA)
-   - You strike first (5 SPD > 4 SPD)
-   - You deal 3 damage to their 2 STA → They're sleeped
-   - You WIN (their 2 STR doesn't matter - they never strike back)
+3. If your STR >= their current STA AND you're faster → You win, they sleep
+4. Knight auto-wins all tussles on your turn (ignore stats)
 
-**Tussle if:**
-- Your STR >= Their current STA (you can sleep them)
-- If they can also sleep you (their STR >= your STA), you need higher SPD to win
-- You have Raggy (free tussles) or Wizard (1 CC tussles)
-- You have Knight (auto-wins on your turn)
+## Strategic Patterns
+- **Ka + attackers**: +2 STR to all your Toys = more tussle wins
+- **Wizard + multiple tussles**: 1 CC per tussle instead of 2 CC
+- **Wake then Sun**: Wake a card first, then Sun can recover it + 2 more (3 total!)
+- **Toynado vs Twist**: If opponent stole your card, Toynado returns it to YOUR hand
 
-### When to DIRECT ATTACK:
-- Opponent has NO Toys in play: sleeps a ramdom card from your opponent's hand.
-
-## Defensive Awareness
-
-**Count opponent's potential attacks:**
-- How many Toys do they have in play?
-- What are their Strength values (boosted by Ka/Demideca)?
-- Can they tussle and sleep YOUR cards this turn?
-- Do they have CC for multiple tussles (check for Wizard)?
-
-**Threat Assessment:**
-- If opponent has Ka: All their Toys have +2 STR (very dangerous)
-- If opponent has Wizard: They can tussle multiple times cheaply
-- If opponent has Knight: Unless your cards have some immunity, they will lose tussles against Knight when it's their turn
-- If opponent has Action cards in hand: They might have Twist (steal), Clean (wipe), Copy (clone), or others that can disrupt your board
-
-**When you're in DANGER (opponent has stronger board):**
-- DON'T play more Toys that will just get slept. But keep in mind that an empty board means direct attacks from opponent.
-- CONSIDER Action cards (Clean to reset board, Twist to steal their best card)
-- LOOK for combo plays (play Ka then tussle, play Wizard then multi-tussle)
-
-You will receive the current game state and must choose ONE action per turn.
-Respond with your chosen action in the exact format specified."""
+You will receive the current game state and must choose ONE action per turn."""
 
 
 def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) -> str:
@@ -420,7 +461,7 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
         # DEBUG: Log target_options for debugging
         import logging
         logger = logging.getLogger(__name__)
-        logger.debug(f"Action {i} ({action.description}): target_options={action.target_options}, alt_cost={action.alternative_cost_options}")
+        logger.debug(f"Action {i} ({action.description}): target_options={action.target_options}, alt_cost={action.alternative_cost_options}, max_targets={action.max_targets}")
         
         # Add target information if available
         if action.target_options is not None and len(action.target_options) > 0:
@@ -434,7 +475,13 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
                     target_details.append(f"[ID: {actual_id}] {display_name}")
                 # Format targets list (extract join logic to avoid backslash in f-string)
                 targets_list = '\n   - '.join(target_details)
-                action_text += f"\n   Available targets (use the UUID from [ID: ...]):\n   - {targets_list}"
+                
+                # Indicate multi-target selection when max_targets > 1 (e.g., Sun)
+                max_targets = getattr(action, 'max_targets', 1) or 1
+                if max_targets > 1:
+                    action_text += f"\n   Select up to {max_targets} targets (add UUIDs to target_ids array):\n   - {targets_list}"
+                else:
+                    action_text += f"\n   Available targets (use the UUID from [ID: ...]):\n   - {targets_list}"
         
         # Add alternative cost information if available
         if action.alternative_cost_options is not None and len(action.alternative_cost_options) > 0:
@@ -461,65 +508,28 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
     return actions_text
 
 
-ACTION_SELECTION_PROMPT = """Based on the game state and your valid actions, choose the BEST action to help you WIN.
+ACTION_SELECTION_PROMPT = """Based on the game state and your valid actions, choose the BEST action to WIN.
 
-## Decision Framework:
-1. **Can you sleep opponent's last card and WIN?** → DO IT IMMEDIATELY!
-2. **Is opponent's board stronger than yours?** → Consider defensive plays (don't play more cards to get tussled)
-3. **Can you tussle and sleep an opponent card?** → Attack if you'll win the tussle!
-4. **Should you play a card?** → Only if it improves your position (force multiplier, enables combo, etc.)
-5. **Is saving CC better?** → Yes if opponent has threatening board and you might need defensive tussles
+## EXAMPLE SCENARIOS
 
-## Response Format:
-Respond with ONLY a JSON object in this exact format:
-```json
-{
-  "action_number": <number from the list above>,
-  "reasoning": "<1-2 sentence explanation of why this is the best move>",
-  "target_id": "<card_id if action requires a target, otherwise null>",
-  "alternative_cost_id": "<card_id if using alternative cost, otherwise null>"
-}
-```
+**Scenario A - Recovery Play (Issue #188 situation):**
+You have Sun + Wake in hand, 4 cards in sleep zone including Ka and Knight.
+- GOOD: Play Sun targeting Ka AND Knight (recover 2 strong Toys)
+- BETTER: Play Wake → Ka, then Sun → Knight + Wake (recover 3 cards total!)
+- BAD: Play Sun but only select 1 target (wasted value)
 
-Example 1 (Simple tussle):
-```json
-{
-  "action_number": 3,
-  "reasoning": "My Ka (8 STR) will defeat opponent's Wizard (5 STR), sleeping it and reducing their board advantage.",
-  "target_id": null,
-  "alternative_cost_id": null
-}
-```
+**Scenario B - Win Condition:**
+Opponent at 4/5 slept, you can attack. → Attack immediately to WIN!
 
-Example 2 (Twist with target selection):
-```json
-{
-  "action_number": 5,
-  "reasoning": "Stealing opponent's Ka will swing the board in my favor - I'll gain +2 STR on my toys and they'll lose it.",
-  "target_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "alternative_cost_id": null
-}
-```
+**Scenario C - Defensive:**  
+Opponent has 12 total STR, you have 4. You're at 2/5 slept.
+→ Play Toynado to reset, survive another turn.
 
-Example 3 (Ballaber with alternative cost):
-```json
-{
-  "action_number": 2,
-  "reasoning": "I'm low on CC but need another attacker. Sleeping my damaged Archer to play Ballaber for free is good value.",
-  "target_id": null,
-  "alternative_cost_id": "f9e8d7c6-b5a4-3210-fedc-ba9876543210"
-}
-```
-
-IMPORTANT:
-- Choose an action number from the list above
-- For target_id: Extract ONLY the UUID from inside [ID: ...], NEVER use the card name/stats that come after
-- For alternative_cost_id: Extract ONLY the UUID from inside [ID: ...], NEVER use the card name/stats that come after
-- Example: From "[ID: abc-123-def] Demideca (3 SPD, 2 STR, 3/3 STA)", use "abc-123-def" NOT "Demideca (3 SPD, 2 STR, 3/3 STA)"
-- Use the FULL UUID string from the [ID: ...] brackets, NOT the card name or stats
-- Think strategically - don't just play cards blindly
-- Consider opponent's threats and board state
-- Balance aggression with defense
+## BEFORE RESPONDING - VERIFY:
+✓ action_number matches an option from the list (1 to N)
+✓ target_ids contains ONLY UUIDs from [ID: xxx], not card names
+✓ For Sun: Did you select 2 targets if available?
+✓ reasoning addresses win condition
 
 Your response (JSON only):"""
 

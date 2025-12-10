@@ -599,10 +599,22 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             executor = ActionExecutor(engine)
             
             try:
+                # v2.0: Support both target_ids (array, new) and target_id (legacy)
+                target_ids = action_details.get("target_ids")
+                target_id_legacy = action_details.get("target_id")
+                
+                # Normalize to target_card_ids array
+                if target_ids:
+                    target_card_ids = target_ids if isinstance(target_ids, list) else [target_ids]
+                elif target_id_legacy:
+                    target_card_ids = [target_id_legacy]
+                else:
+                    target_card_ids = None
+                
                 result = executor.execute_play_card(
                     player_id=player_id,
                     card_id=card_id,
-                    target_card_id=action_details.get("target_id"),
+                    target_card_ids=target_card_ids,
                     alternative_cost_card_id=action_details.get("alternative_cost_card_id")
                 )
                 
@@ -652,7 +664,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     logger.error(
                         f"🤖 LLM HALLUCINATION DETECTED - AI play_card failed:\n"
                         f"  Card ID: {card_id}\n"
-                        f"  Target ID: {action_details.get('target_id')}\n"
+                        f"  Target IDs: {action_details.get('target_ids') or action_details.get('target_id')}\n"
                         f"  Alt Cost ID: {action_details.get('alternative_cost_card_id')}\n"
                         f"  Error: {error_msg}\n"
                         f"  Game: {game_id}, Turn: {game_state.turn_number}"
