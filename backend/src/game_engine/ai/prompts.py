@@ -386,11 +386,11 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
     
     # Determine board state
     if opp_total_str > ai_total_str + 3:
-        board_state = "⚠️ OPPONENT DOMINATES - You are behind on board. Consider defensive plays or board wipes."
+        board_state = "[BEHIND] OPPONENT DOMINATES - You are behind on board. Consider defensive plays or board wipes."
     elif ai_total_str > opp_total_str + 3:
-        board_state = "✅ YOU DOMINATE - You have board advantage. Press your advantage with tussles."
+        board_state = "[AHEAD] YOU DOMINATE - You have board advantage. Press your advantage with tussles."
     else:
-        board_state = "⚖️ EVEN BOARD - Board state is balanced. Look for favorable tussles."
+        board_state = "[EVEN] EVEN BOARD - Board state is balanced. Look for favorable tussles."
     
     state_summary = f"""## CURRENT GAME STATE (Turn {game_state.turn_number})
 
