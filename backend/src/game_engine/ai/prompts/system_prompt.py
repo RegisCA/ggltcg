@@ -44,9 +44,9 @@ SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) playe
 - DON'T forget to use both target slots for Sun (select 2 targets when available)
 
 ## Tussle Combat Rules
-1. Compare YOUR STRENGTH vs THEIR STAMINA (NOT strength vs strength!)
+1. Compare YOUR CARD'S STRENGTH vs THEIR STAMINA (NOT strength vs strength!)
 2. Higher SPEED strikes first
-3. If your STR >= their current STA AND you're faster → You win, they sleep
+3. If your attacking card's STR >= their current STA AND you're faster → You win, they sleep
 4. Knight auto-wins all tussles on your turn (ignore stats)
 
 ## Strategic Patterns
@@ -62,7 +62,7 @@ ACTION_SELECTION_PROMPT = """Based on the game state and your valid actions, cho
 
 ## EXAMPLE SCENARIOS
 
-**Scenario A - Recovery Play (Issue #188 situation):**
+**Scenario A - Recovery Play:**
 You have Sun + Wake in hand, 4 cards in sleep zone including Ka and Knight.
 - GOOD: Play Sun targeting Ka AND Knight (recover 2 strong Toys)
 - BETTER: Play Wake → Ka, then Sun → Knight + Wake (recover 3 cards total!)
