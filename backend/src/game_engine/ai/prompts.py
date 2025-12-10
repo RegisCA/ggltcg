@@ -51,9 +51,32 @@ class AIDecision(BaseModel):
     )
 
 
-# Generate JSON Schema from Pydantic model for google-genai SDK
-# The new SDK accepts standard JSON Schema via response_json_schema parameter
-AI_DECISION_JSON_SCHEMA = AIDecision.model_json_schema()
+# JSON Schema dict for older SDK compatibility
+AI_DECISION_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "action_number": {
+            "type": "integer",
+            "description": "Action number from the valid actions list (1-indexed, must be >= 1)",
+            "minimum": 1
+        },
+        "reasoning": {
+            "type": "string",
+            "description": "1-2 sentence explanation of why this is the best move"
+        },
+        "target_ids": {
+            "type": ["array", "null"],
+            "items": {"type": "string"},
+            "description": "Array of target card UUIDs. Use for targeting cards (Twist, Wake, Copy, Sun, tussles). Extract ONLY the UUID from [ID: xxx], never card names."
+        },
+        "alternative_cost_id": {
+            "type": ["string", "null"],
+            "description": "UUID of card to sleep for alternative cost (Ballaber). Extract ONLY the UUID from [ID: xxx]."
+        }
+    },
+    "required": ["action_number", "reasoning"],
+    "propertyOrdering": ["action_number", "reasoning", "target_ids", "alternative_cost_id"]
+}
 
 # Card effect library for AI strategic understanding
 CARD_EFFECTS_LIBRARY = {
@@ -238,10 +261,13 @@ SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) playe
 
 ## DECISION PRIORITY (Execute in Order)
 1. **WIN CHECK**: Can you sleep opponent's last card this turn? → DO IT NOW!
-2. **THREAT CHECK**: Is opponent's board stronger? → Play defensive (Action cards, save CC)
-3. **VALUE CHECK**: Does playing/attacking improve your position? → Execute best move
+2. **ATTACK CHECK**: Can you tussle/direct attack and sleep an opponent card? → Attack first, play cards later!
+3. **THREAT CHECK**: Is opponent's board stronger? → Play defensive (Action cards, save CC)
+4. **PLAY CHECK**: Does playing a card improve your position? → Only play if it enables better attacks next turn
+5. **SAVE CC**: None of the above? → End turn, save CC for defense or future plays
 
 ## AVOID THESE MISTAKES
+- DON'T play cards before attacking - tussle/direct attack FIRST if you can sleep opponent cards!
 - DON'T play cards blindly - evaluate if they help your win condition
 - DON'T attack into losing tussles (check STR vs STA, SPD for who strikes first)
 - DON'T waste board wipes (Clean/Toynado) when you have the advantage
@@ -279,20 +305,14 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
     ai_player = game_state.players[ai_player_id]
     opponent = game_state.get_opponent(ai_player_id)
     
-    # Format AI's hand with effect descriptions and stats for Toys
+    # Format AI's hand with effect descriptions
     ai_hand_details = []
     for card in ai_player.hand:
         card_info = CARD_EFFECTS_LIBRARY.get(card.name, {})
         effect = card_info.get("effect", "Unknown effect")
-        # Include stats for Toy cards so AI can compare with opponent's board
-        if card.is_toy():
-            # Show base stats (cards in hand don't have continuous effects applied yet)
-            stats_str = f" [{card.speed} SPD, {card.strength} STR, {card.stamina} STA]"
-        else:
-            stats_str = ""
         # Don't include strategic_use here - it will be shown in valid actions
         ai_hand_details.append(
-            f"{card.name} (cost {card.cost}){stats_str} - {effect}."
+            f"{card.name} (cost {card.cost}) - {effect}."
         )
     ai_hand = "\n    ".join(ai_hand_details) if ai_hand_details else "EMPTY - Must tussle or end turn"
     
@@ -495,10 +515,11 @@ ACTION_SELECTION_PROMPT = """Based on the game state and your valid actions, cho
 
 ## EXAMPLE SCENARIOS
 
-**Scenario A - Recovery with Sun:**
-You have Sun in hand, 3 cards in sleep zone (Ka, Knight, Demideca).
+**Scenario A - Recovery Play (Issue #188 situation):**
+You have Sun + Wake in hand, 4 cards in sleep zone including Ka and Knight.
 - GOOD: Play Sun targeting Ka AND Knight (recover 2 strong Toys)
-- BAD: Play Sun but only select 1 target when 2 are available (wasted value)
+- BETTER: Play Wake → Ka, then Sun → Knight + Wake (recover 3 cards total!)
+- BAD: Play Sun but only select 1 target (wasted value)
 
 **Scenario B - Win Condition:**
 Opponent at 4/5 slept, you can attack. → Attack immediately to WIN!
