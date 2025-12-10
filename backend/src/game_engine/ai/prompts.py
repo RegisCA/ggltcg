@@ -305,14 +305,20 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
     ai_player = game_state.players[ai_player_id]
     opponent = game_state.get_opponent(ai_player_id)
     
-    # Format AI's hand with effect descriptions
+    # Format AI's hand with effect descriptions and stats for Toys
     ai_hand_details = []
     for card in ai_player.hand:
         card_info = CARD_EFFECTS_LIBRARY.get(card.name, {})
         effect = card_info.get("effect", "Unknown effect")
+        # Include stats for Toy cards so AI can compare with opponent's board
+        if card.is_toy():
+            # Show base stats (cards in hand don't have continuous effects applied yet)
+            stats_str = f" [{card.speed} SPD, {card.strength} STR, {card.stamina} STA]"
+        else:
+            stats_str = ""
         # Don't include strategic_use here - it will be shown in valid actions
         ai_hand_details.append(
-            f"{card.name} (cost {card.cost}) - {effect}."
+            f"{card.name} (cost {card.cost}){stats_str} - {effect}."
         )
     ai_hand = "\n    ".join(ai_hand_details) if ai_hand_details else "EMPTY - Must tussle or end turn"
     
