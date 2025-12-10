@@ -367,7 +367,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
             )
         else:
             opp_in_play_details.append(card.name)
-    opp_in_play = "\n    ".join(opp_in_play_details) if opp_in_play_details else "NONE - ATTACK DIRECTLY!"
+    opp_in_play = "\n    ".join(opp_in_play_details) if opp_in_play_details else "NONE (play a Toy first, then you can direct attack)"
     
     # Calculate board strength (total STR of all Toys in play)
     if game_engine:
