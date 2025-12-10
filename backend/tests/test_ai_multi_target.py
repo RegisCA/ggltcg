@@ -38,12 +38,22 @@ class TestAIMultiTargetSelection:
         assert "target_ids" in AI_DECISION_JSON_SCHEMA["properties"]
         target_ids_schema = AI_DECISION_JSON_SCHEMA["properties"]["target_ids"]
         
-        # Pydantic generates anyOf for Optional types
-        # Should have anyOf with array type and null type
-        assert "anyOf" in target_ids_schema
-        array_schema = next((s for s in target_ids_schema["anyOf"] if s.get("type") == "array"), None)
-        assert array_schema is not None, "target_ids should include array type"
-        assert array_schema["items"]["type"] == "string"
+        # Schema uses type: ["array", "null"] for optional array
+        # or anyOf format depending on how it was generated
+        if "anyOf" in target_ids_schema:
+            # Pydantic-generated schema with anyOf
+            array_schema = next((s for s in target_ids_schema["anyOf"] if s.get("type") == "array"), None)
+            assert array_schema is not None, "target_ids should include array type"
+            assert array_schema["items"]["type"] == "string"
+        else:
+            # Manual JSON schema with type array
+            schema_type = target_ids_schema.get("type")
+            # Handle both "array" and ["array", "null"] formats
+            if isinstance(schema_type, list):
+                assert "array" in schema_type, "target_ids type should include 'array'"
+            else:
+                assert schema_type == "array", "target_ids should be array type"
+            assert target_ids_schema["items"]["type"] == "string"
     
     def test_format_valid_actions_shows_multi_target_hint(self):
         """
