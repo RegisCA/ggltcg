@@ -6,6 +6,8 @@
 import { useState } from 'react';
 import { Leaderboard } from './Leaderboard';
 import { PlayerStats } from './PlayerStats';
+import { Footer } from './ui/Footer';
+import { HowToPlay } from './HowToPlay';
 
 interface LobbyHomeProps {
   onCreateLobby: () => void;
@@ -27,13 +29,23 @@ export function LobbyHome({
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   return (
     <div className="min-h-screen bg-game-bg flex items-center justify-center" style={{ padding: 'var(--spacing-component-md)' }}>
       <div className="max-w-2xl w-full">
         {/* Title */}
         <div className="text-center" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
-          <h1 className="text-7xl font-bold text-game-highlight" style={{ marginBottom: 'var(--spacing-component-sm)' }}>GGLTCG</h1>
+          <h1 
+            className="text-7xl font-bold text-game-highlight" 
+            style={{ 
+              marginBottom: 'var(--spacing-component-sm)',
+              fontWeight: 700,
+              textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+            }}
+          >
+            GGLTCG
+          </h1>
           <p className="text-3xl text-gray-100 font-semibold">Choose Your Game Mode</p>
         </div>
 
@@ -131,48 +143,57 @@ export function LobbyHome({
             </div>
           </button>
 
-          {/* Leaderboard Button */}
-          <button
-            onClick={() => setShowLeaderboard(true)}
-            onMouseEnter={() => setHoveredButton('leaderboard')}
-            onMouseLeave={() => setHoveredButton(null)}
-            className={`
-              w-full rounded-lg border-4 transition-all
-              ${hoveredButton === 'leaderboard'
-                ? 'border-yellow-500 bg-gray-700 scale-105'
-                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-              }
-            `}
-            style={{ padding: '20px', marginTop: 'var(--spacing-component-xs)' }}
-          >
-            <div className="text-2xl font-bold text-white" style={{ marginBottom: '4px' }}>🏆 Leaderboard</div>
-            <div className="text-lg text-gray-100 font-semibold">
-              View top players and rankings
-            </div>
-          </button>
+          {/* Secondary buttons row */}
+          <div className="flex" style={{ gap: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)' }}>
+            {/* Leaderboard Button */}
+            <button
+              onClick={() => setShowLeaderboard(true)}
+              onMouseEnter={() => setHoveredButton('leaderboard')}
+              onMouseLeave={() => setHoveredButton(null)}
+              className={`
+                flex-1 rounded-lg border-4 transition-all
+                ${hoveredButton === 'leaderboard'
+                  ? 'border-yellow-500 bg-gray-700 scale-105'
+                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                }
+              `}
+              style={{ padding: 'var(--spacing-component-md)' }}
+            >
+              <div className="text-2xl font-bold text-white" style={{ marginBottom: '4px' }}>🏆 Leaderboard</div>
+              <div className="text-sm text-gray-300">
+                View top players
+              </div>
+            </button>
+
+            {/* How to Play Button */}
+            <button
+              onClick={() => setShowHowToPlay(true)}
+              onMouseEnter={() => setHoveredButton('howtoplay')}
+              onMouseLeave={() => setHoveredButton(null)}
+              className={`
+                flex-1 rounded-lg border-4 transition-all
+                ${hoveredButton === 'howtoplay'
+                  ? 'border-blue-500 bg-gray-700 scale-105'
+                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                }
+              `}
+              style={{ padding: 'var(--spacing-component-md)' }}
+            >
+              <div className="text-2xl font-bold text-white" style={{ marginBottom: '4px' }}>📖 How to Play</div>
+              <div className="text-sm text-gray-300">
+                Learn the rules
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-gray-500 text-sm" style={{ marginTop: 'var(--spacing-component-xl)' }}>
-          <p>A trading card game where strategy meets imagination</p>
-          <p style={{ marginTop: 'var(--spacing-component-xs)' }}>
-            <button
-              onClick={onShowPrivacyPolicy}
-              className="text-blue-400 hover:underline"
-              style={{ marginLeft: 'var(--spacing-component-xs)', marginRight: 'var(--spacing-component-xs)' }}
-            >
-              Privacy Policy
-            </button>
-            •
-            <button
-              onClick={onShowTermsOfService}
-              className="text-blue-400 hover:underline"
-              style={{ marginLeft: 'var(--spacing-component-xs)', marginRight: 'var(--spacing-component-xs)' }}
-            >
-              Terms of Service
-            </button>
-          </p>
-        </div>
+        <Footer
+          variant="light"
+          showTagline={true}
+          onShowPrivacyPolicy={onShowPrivacyPolicy}
+          onShowTermsOfService={onShowTermsOfService}
+        />
       </div>
 
       {/* Leaderboard Modal */}
@@ -196,6 +217,9 @@ export function LobbyHome({
           }}
         />
       )}
+
+      {/* How to Play Modal */}
+      <HowToPlay isOpen={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 /**
  * LoadingScreen Component
- * Initial loading screen that wakes up backend and preloads card data
+ * Initial loading screen that wakes up backend and preloads card data.
+ * Enhanced with better branding and expectation setting for backend wake-up time.
  */
 
 import { useEffect, useState } from 'react';
@@ -69,91 +70,76 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
     const retryCount = healthCheck.failureCount || 0;
     switch (status) {
       case 'checking':
-        return 'Connecting to game server...';
+        return 'Connecting to game server';
       case 'waking':
         return retryCount <= 2 
-          ? 'Waking up game server...' 
-          : 'Game server is warming up (this can take up to 50 seconds)...';
+          ? 'Waking up game server' 
+          : 'Server is warming up';
       case 'loading':
-        return 'Loading card database...';
+        return 'Loading cards';
       case 'ready':
         return 'Ready to play!';
       case 'error':
-        return 'Unable to connect to game server. Please refresh the page.';
+        return 'Unable to connect';
     }
   };
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#1a1a2e',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'white',
-      padding: '2rem',
-    }}>
-      {/* Logo */}
-      <div style={{
-        fontSize: '4rem',
-        fontWeight: 'bold',
-        marginBottom: '2rem',
-        textAlign: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-      }}>
-        GGLTCG
-      </div>
+  const retryCount = healthCheck.failureCount || 0;
+  const showWakeupInfo = status === 'waking' && retryCount > 1;
 
-      <div style={{
-        fontSize: '1.5rem',
-        color: '#a0a0c0',
-        marginBottom: '3rem',
-        textAlign: 'center',
-      }}>
+  return (
+    <div 
+      className="min-h-screen bg-game-bg flex flex-col items-center justify-center text-white"
+      style={{ padding: 'var(--spacing-component-lg)' }}
+    >
+      {/* Logo */}
+      <h1 
+        className="text-6xl sm:text-7xl font-bold text-game-highlight"
+        style={{ 
+          marginBottom: 'var(--spacing-component-sm)',
+          fontWeight: 700,
+          textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+        }}
+      >
+        GGLTCG
+      </h1>
+
+      <p 
+        className="text-xl text-gray-300"
+        style={{ marginBottom: 'var(--spacing-component-xl)' }}
+      >
         Googooland Trading Card Game
-      </div>
+      </p>
 
       {/* Status Message */}
-      <div style={{
-        fontSize: '1.125rem',
-        color: status === 'error' ? '#ff6b6b' : '#e0e0ff',
-        marginBottom: '2rem',
-        textAlign: 'center',
-        minHeight: '2rem',
-      }}>
+      <div 
+        className={`text-lg ${status === 'error' ? 'text-red-400' : 'text-gray-200'}`}
+        style={{ marginBottom: 'var(--spacing-component-lg)', minHeight: '2rem' }}
+      >
         {getStatusMessage()}{status !== 'ready' && status !== 'error' && dots}
       </div>
 
       {/* Loading Spinner */}
       {status !== 'ready' && status !== 'error' && (
-        <div style={{
-          width: '48px',
-          height: '48px',
-          border: '4px solid rgba(102, 126, 234, 0.2)',
-          borderTopColor: '#667eea',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-        }} />
+        <div 
+          className="border-4 border-game-highlight/20 rounded-full"
+          style={{
+            width: '48px',
+            height: '48px',
+            borderTopColor: 'var(--color-game-highlight)',
+            animation: 'spin 1s linear infinite',
+          }}
+        />
       )}
 
       {/* Error Actions */}
       {status === 'error' && (
         <button
           onClick={() => window.location.reload()}
-          style={{
-            marginTop: '1rem',
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#667eea',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.5rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            fontWeight: '600',
+          className="bg-game-highlight hover:bg-red-600 text-white font-semibold rounded transition-colors"
+          style={{ 
+            marginTop: 'var(--spacing-component-md)',
+            padding: 'var(--spacing-component-sm) var(--spacing-component-lg)',
           }}
         >
           Refresh Page
@@ -167,24 +153,47 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
         }
       `}</style>
 
-      {/* Note about free tier */}
-      {status === 'waking' && (healthCheck.failureCount || 0) > 1 && (
-        <div style={{
-          marginTop: '3rem',
-          padding: '1rem',
-          backgroundColor: 'rgba(102, 126, 234, 0.1)',
-          borderRadius: '0.5rem',
-          maxWidth: '500px',
-          fontSize: '0.875rem',
-          color: '#a0a0c0',
-          textAlign: 'center',
-          lineHeight: '1.5',
-        }}>
-          <strong>Note:</strong> The game server runs on a free tier and may be asleep. 
-          First load can take up to 50 seconds while the server wakes up. 
-          Subsequent plays will be much faster!
+      {/* Wake-up Info Box */}
+      {showWakeupInfo && (
+        <div 
+          className="bg-game-card border border-gray-600 rounded-lg text-center"
+          style={{
+            marginTop: 'var(--spacing-component-xl)',
+            padding: 'var(--spacing-component-md)',
+            maxWidth: '400px',
+          }}
+        >
+          <p className="text-gray-300 text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+            <span className="text-yellow-400 font-semibold">☕ First visit?</span> The game server 
+            runs on a free tier and may be asleep.
+          </p>
+          <p className="text-gray-400 text-sm">
+            This can take up to <span className="text-white font-medium">50 seconds</span> the first time. 
+            After that, it's instant!
+          </p>
+          
+          {/* Progress indicator */}
+          <div 
+            className="bg-gray-700 rounded-full overflow-hidden"
+            style={{ marginTop: 'var(--spacing-component-md)', height: '4px' }}
+          >
+            <div 
+              className="bg-game-highlight h-full rounded-full"
+              style={{
+                width: `${Math.min(retryCount * 15, 90)}%`,
+                transition: 'width 1s ease-out',
+              }}
+            />
+          </div>
         </div>
       )}
+
+      {/* Tagline at bottom */}
+      <p 
+        className="text-gray-500 text-sm absolute bottom-8"
+      >
+        A tactical card game where strategy meets imagination
+      </p>
     </div>
   );
 }
