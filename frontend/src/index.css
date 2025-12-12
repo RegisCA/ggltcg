@@ -10,9 +10,13 @@
  * ✓ text-error (#FCA5A5) on dark backgrounds (6.2:1 ratio)
  * ✓ text-success (#86EFAC) on dark backgrounds (10.1:1 ratio)
  * 
- * Font Usage:
- * - font-bangers: Headings, card names, titles, game branding
- * - font-lato: Body text, labels, descriptions, UI text
+ * Typography:
+ * Single font family (Lato) with weight variations for hierarchy.
+ * - font-weight: 400 (normal) - Body text, descriptions
+ * - font-weight: 700 (bold) - Headings, emphasis, card names
+ * 
+ * Use Tailwind classes: font-normal, font-bold
+ * Or CSS: font-weight: 400, font-weight: 700
  */
 @theme {
   /* Legacy colors (keep for backward compatibility) */
@@ -44,9 +48,8 @@
   --color-text-success: #86EFAC;      /* Success messages, green-300 (10.1:1) */
   --color-text-warning: #FCD34D;      /* Warning messages, yellow-300 (11.8:1) */
   
-  /* Font Families */
-  --font-family-bangers: 'Bangers', 'Impact', sans-serif;
-  --font-family-lato: 'Lato', 'Arial', sans-serif;
+  /* Font Family - Single font with weight variations */
+  --font-family: 'Lato', 'Arial', sans-serif;
   
   /* Spacing tokens for card dimensions (from UX spec) */
   --spacing-card-base-w: 825px;
@@ -114,8 +117,7 @@
 
 /* Additional CSS Custom Properties (non-Tailwind) */
 :root {
-  /* Typography */
-  --font-card-name: 'Bangers', 'Impact', sans-serif;
+  /* Typography - kept for backward compatibility, use --font-family preferred */
   --font-body: 'Lato', 'Arial', sans-serif;
 }
 

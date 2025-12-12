@@ -483,6 +483,47 @@ const spacing = isMobile
 - Hand positioned full-width below player's zones only
 - Messages + Actions always visible on right side
 
+### Frontend Typography Design System
+
+**CRITICAL**: Use single font family (Lato) with weight variations. NEVER add custom font families.
+
+**Font Setup** (defined in `frontend/src/index.css` and `frontend/index.html`):
+- Single font: **Lato** (loaded via Google Fonts)
+- Two weights: 400 (normal), 700 (bold)
+
+**Typography Hierarchy**:
+| Element | Weight | Tailwind Class | CSS |
+|---------|--------|----------------|-----|
+| Body text | 400 | `font-normal` | `font-weight: 400` |
+| Headings, titles | 700 | `font-bold` | `font-weight: 700` |
+| Card names | 700 | `font-bold` | `font-weight: 700` |
+| Emphasis | 700 | `font-bold` | `font-weight: 700` |
+
+**✅ CORRECT Usage**:
+```tsx
+// Use Tailwind classes (preferred)
+<h1 className="text-3xl font-bold">Game Title</h1>
+<p className="text-base font-normal">Body text here</p>
+
+// Use CSS weight in inline styles when needed
+<span style={{ fontWeight: 700, fontSize: '1.5rem' }}>Heading</span>
+
+// Font is inherited from body - no need to specify fontFamily
+<div className="font-bold">Bold text</div>
+```
+
+**❌ WRONG Usage**:
+```tsx
+// NEVER specify fontFamily inline
+<div style={{ fontFamily: "'Bangers', sans-serif" }}>  // BAD!
+<div style={{ fontFamily: 'var(--font-card-name)' }}>  // BAD!
+
+// NEVER add new Google Fonts without team discussion
+// NEVER use fonts not defined in the design system
+```
+
+**Exceptions**: NONE. All text uses Lato. Visual hierarchy comes from weight and size, not font family.
+
 ## Common Patterns & Anti-Patterns
 
 ### ✅ Good Patterns
