@@ -35,11 +35,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
   
   // Responsive layout detection
-  const { isDesktop, isMobile, isLandscape, isTablet } = useResponsive();
+  const { isDesktop, isMobile, isLandscape, isTablet, width, height } = useResponsive();
   // Use small cards for mobile OR tablet in landscape (limited vertical space)
   // Use medium cards for desktop and tablet in portrait
   const isLandscapeTablet = isTablet && isLandscape;
   const cardSize = (isMobile || isLandscapeTablet) ? 'small' : 'medium';
+  
+  // Debug flag - set to true to show viewport debug info
+  const DEBUG_VIEWPORT = false;
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
@@ -255,6 +258,12 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   return (
     <div className="min-h-screen bg-game-bg" style={{ padding: 'var(--spacing-component-sm)' }}>
+      {/* Debug viewport indicator - toggle DEBUG_VIEWPORT to show */}
+      {DEBUG_VIEWPORT && (
+        <div className="fixed top-0 left-0 bg-black/80 text-white text-xs px-2 py-1 z-50 font-mono">
+          {width}×{height} | {isMobile ? 'MOBILE' : isTablet ? 'TABLET' : 'DESKTOP'} | {isLandscape ? 'LAND' : 'PORT'}
+        </div>
+      )}
       <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
         <div 
