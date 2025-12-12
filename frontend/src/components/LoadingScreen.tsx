@@ -67,14 +67,11 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
   }, [cardsQuery.isSuccess, cardsQuery.isError, cardsQuery.data, onReady]);
 
   const getStatusMessage = () => {
-    const retryCount = healthCheck.failureCount || 0;
     switch (status) {
       case 'checking':
         return 'Connecting to game server';
       case 'waking':
-        return retryCount <= 2 
-          ? 'Waking up game server' 
-          : 'Server is warming up';
+        return 'Waking up game server (up to 50 seconds)';
       case 'loading':
         return 'Loading cards';
       case 'ready':
@@ -153,7 +150,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
         }
       `}</style>
 
-      {/* Wake-up Info Box */}
+      {/* Wake-up Info Box - shows after a few retries */}
       {showWakeupInfo && (
         <div 
           className="bg-game-card border border-gray-600 rounded-lg text-center"
@@ -163,13 +160,9 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
             maxWidth: '400px',
           }}
         >
-          <p className="text-gray-300 text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
-            <span className="text-yellow-400 font-semibold">☕ First visit?</span> The game server 
-            runs on a free tier and may be asleep.
-          </p>
-          <p className="text-gray-400 text-sm">
-            This can take up to <span className="text-white font-medium">50 seconds</span> the first time. 
-            After that, it's instant!
+          <p className="text-gray-300 text-sm">
+            <span className="text-yellow-400 font-semibold">☕ First visit of the day?</span> The server 
+            is waking up. After this, it'll be instant!
           </p>
           
           {/* Progress indicator */}
