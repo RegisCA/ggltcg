@@ -46,7 +46,7 @@ name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accen
 
 Effect definitions are semicolon-separated for multiple effects:
 
-```
+```python
 single_effect:param1:param2
 effect1;effect2;effect3
 ```
@@ -54,25 +54,18 @@ effect1;effect2;effect3
 ### Available Effect Types (from `EffectFactory`)
 
 #### Stat Boosts (Continuous)
-- `stat_boost:strength:N` - Your Toys get +N strength
-- `stat_boost:speed:N` - Your Toys get +N speed
-- `stat_boost:stamina:N` - Your Toys get +N stamina
-- `stat_boost:all:N` - Your Toys get +N to all stats
 
-The effect system is data-driven. Supported effect strings must match the
-parsers implemented in `backend/src/game_engine/rules/effects/effect_registry.py`
-(`EffectFactory.parse_effects`). As of December 2025, the core effect types are:
-
-#### Stat Boosts (Continuous)
 - `stat_boost:strength:N` – Your Toys get +N strength
 - `stat_boost:speed:N` – Your Toys get +N speed
 - `stat_boost:stamina:N` – Your Toys get +N stamina
 - `stat_boost:all:N` – Your Toys get +N to all stats
 
 #### Temporary Boosts
+
 - `turn_stat_boost:all:N` – This turn only, +N to all stats
 
 #### CC Effects
+
 - `gain_cc:N` – Gain N CC when played
 - `gain_cc:N:not_first_turn` – Gain N CC (cannot play on your first turn)
 - `start_of_turn_gain_cc:N` – Gain N CC at start of your turn
@@ -80,20 +73,24 @@ parsers implemented in `backend/src/game_engine/rules/effects/effect_registry.py
 - `gain_cc_when_sleeped:N` – Gain N CC when this card is sleeped from play
 
 #### Targeting Effects
+
 - `sleep_target:N` – Sleep N target card(s) in play
 - `return_target_to_hand:N` – Return N target card(s) to owner's hand
 
 #### Protection Effects
+
 - `opponent_immunity` – This card is immune to opponent's effects
 - `team_opponent_immunity` – All your cards are immune to opponent's effects
 
 #### Combat Modifiers
+
 - `auto_win_tussle_on_own_turn` – This card wins all tussles it enters on your turn
 - `set_tussle_cost:N` – Your tussles cost N CC
 - `set_self_tussle_cost:N:not_turn_1` – This card's tussles cost N CC, but not on turn 1
 - `cannot_tussle` – This card cannot initiate tussles
 
 #### Special Effects
+
 - `sleep_all` – Sleep all Toys in play
 - `return_all_to_hand` – Return all cards in play to owners' hands
 - `copy_card` – Action: copy the effects of another card
@@ -106,6 +103,7 @@ parsers implemented in `backend/src/game_engine/rules/effects/effect_registry.py
 - `turn_stat_boost:all:N` – This turn only, +N to all stats
 
 #### Cost Modifiers
+
 - `reduce_cost_by_sleeping` – Cost reduced by 1 per card in your sleep zone
 - `alternative_cost_sleep_card` – May sleep one of your cards instead of paying CC
 
@@ -116,16 +114,19 @@ parsers implemented in `backend/src/game_engine/rules/effects/effect_registry.py
 ### Example Cards
 
 **Action Card (simple)**:
+
 ```csv
 Surge,18,0,Gain 1 CC.,,,,#e612d0,#e612d0,gain_cc:1
 ```
 
 **Toy Card (stat boost)**:
+
 ```csv
 Drum,18,1,Your cards have 2 more speed.,1,3,2,#eb9113,#eb9113,stat_boost:speed:2
 ```
 
 **Toy Card (triggered effect)**:
+
 ```csv
 Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,#eb9113,#eb9113,start_of_turn_gain_cc:2
 ```
@@ -341,6 +342,7 @@ python scripts/validate_new_cards.py
 ```
 
 This checks:
+
 - All CSV cards have prompts.py entries
 - All effect_definitions are recognized
 - No orphaned test files
@@ -393,11 +395,13 @@ This checks:
 Let's add "Zap" - an Action that deals 1 damage to a target.
 
 ### 1. CSV Entry
+
 ```csv
 Zap,18,1,Deal 1 damage to target card.,,,,#ff0000,#ff0000,damage_target:1
 ```
 
 ### 2. Effect Handler (if `damage_target` is new)
+
 ```python
 class DamageTargetEffect(PlayEffect):
     def __init__(self, amount: int):
@@ -417,6 +421,7 @@ class DamageTargetEffect(PlayEffect):
 ```
 
 ### 3. Prompts Entry
+
 ```python
 "Zap": {
     "type": "Action",
@@ -427,6 +432,7 @@ class DamageTargetEffect(PlayEffect):
 ```
 
 ### 4. Test
+
 ```python
 def test_zap_deals_damage(self):
     setup, cards = create_game_with_cards(
