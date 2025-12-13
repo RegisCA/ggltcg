@@ -12,10 +12,15 @@ interface PlayerStatsProps {
   onClose: () => void;
 }
 
+type SortField = 'card_name' | 'games_won' | 'games_lost' | 'win_rate';
+type SortDirection = 'asc' | 'desc';
+
 export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
   const [stats, setStats] = useState<PlayerStatsType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('win_rate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   useEffect(() => {
     async function fetchStats() {
@@ -48,6 +53,56 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
     if (rate >= 70) return 'text-green-400';
     if (rate >= 50) return 'text-yellow-400';
     return 'text-red-400';
+  };
+
+  const getHeatmapColor = (rate: number): string => {
+    // Background colors for heatmap (more subtle than text colors)
+    if (rate >= 80) return 'bg-green-900/60';
+    if (rate >= 70) return 'bg-green-900/40';
+    if (rate >= 60) return 'bg-yellow-900/40';
+    if (rate >= 50) return 'bg-yellow-900/30';
+    if (rate >= 40) return 'bg-orange-900/30';
+    if (rate >= 30) return 'bg-red-900/30';
+    return 'bg-red-900/50';
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if clicking same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Default to desc for numeric fields, asc for name
+      setSortField(field);
+      setSortDirection(field === 'card_name' ? 'asc' : 'desc');
+    }
+  };
+
+  const getSortedCardStats = (cardStats: CardStats[]): CardStats[] => {
+    return [...cardStats].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'card_name':
+          comparison = a.card_name.localeCompare(b.card_name);
+          break;
+        case 'games_won':
+          comparison = a.games_won - b.games_won;
+          break;
+        case 'games_lost':
+          comparison = (a.games_played - a.games_won) - (b.games_played - b.games_won);
+          break;
+        case 'win_rate':
+          comparison = a.win_rate - b.win_rate;
+          break;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  const getSortIcon = (field: SortField): string => {
+    if (sortField !== field) return '↕️';
+    return sortDirection === 'asc' ? '↑' : '↓';
   };
 
   return (
@@ -148,22 +203,57 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
               {stats.card_stats && stats.card_stats.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold text-cyan-400" style={{ marginBottom: 'var(--spacing-component-sm)' }}>🃏 Card Usage</h3>
-                  <div className="flex flex-col max-h-48 overflow-y-auto" style={{ gap: 'var(--spacing-component-xs)' }}>
-                    {stats.card_stats.map((card: CardStats) => (
-                      <div
-                        key={card.card_name}
-                        className="flex items-center bg-gray-900/90 rounded-lg"
-                        style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)' }}
-                      >
-                        <div className="flex-1 font-medium text-white" style={{ paddingLeft: 'var(--spacing-component-sm)' }}>{card.card_name}</div>
-                        <div className="text-sm text-gray-300">
-                          {card.games_won}W / {card.games_played - card.games_won}L
+                  
+                  {/* Column Headers */}
+                  <div className="flex items-center bg-gray-950/80 rounded-t-lg font-semibold text-xs text-gray-400 uppercase" style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}>
+                    <button
+                      onClick={() => handleSort('card_name')}
+                      className="flex-1 text-left hover:text-cyan-400 transition-colors"
+                    >
+                      Card {getSortIcon('card_name')}
+                    </button>
+                    <button
+                      onClick={() => handleSort('games_won')}
+                      className="w-16 text-center hover:text-cyan-400 transition-colors"
+                    >
+                      Wins {getSortIcon('games_won')}
+                    </button>
+                    <button
+                      onClick={() => handleSort('games_lost')}
+                      className="w-16 text-center hover:text-cyan-400 transition-colors"
+                    >
+                      Loss {getSortIcon('games_lost')}
+                    </button>
+                    <button
+                      onClick={() => handleSort('win_rate')}
+                      className="w-16 text-center hover:text-cyan-400 transition-colors"
+                    >
+                      Rate {getSortIcon('win_rate')}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col max-h-48 overflow-y-auto">
+                    {getSortedCardStats(stats.card_stats).map((card: CardStats) => {
+                      const gamesLost = card.games_played - card.games_won;
+                      return (
+                        <div
+                          key={card.card_name}
+                          className={`flex items-center ${getHeatmapColor(card.win_rate)} hover:brightness-125 transition-all`}
+                          style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}
+                        >
+                          <div className="flex-1 font-medium text-white">{card.card_name}</div>
+                          <div className="w-16 text-center text-sm text-green-300">
+                            {card.games_won}
+                          </div>
+                          <div className="w-16 text-center text-sm text-red-300">
+                            {gamesLost}
+                          </div>
+                          <div className={`w-16 text-center font-bold ${getWinRateColor(card.win_rate)}`}>
+                            {card.win_rate.toFixed(0)}%
+                          </div>
                         </div>
-                        <div className={`font-bold ${getWinRateColor(card.win_rate)}`} style={{ paddingRight: 'var(--spacing-component-sm)' }}>
-                          {card.win_rate.toFixed(0)}%
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
