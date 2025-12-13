@@ -1,0 +1,9 @@
+# Snyk Code (DeepCode) ignore file for VS Code extension
+# Ignore false positive warnings in generated and third-party code
+
+# Generated Vite dependencies - not our source code
+.vite/deps/**
+
+# Specific files with false positives
+# AuthContext: TOKEN_KEY is a localStorage key name, not a secret
+src/contexts/AuthContext.tsx
