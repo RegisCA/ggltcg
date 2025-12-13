@@ -2,8 +2,10 @@
  * useResponsive Hook
  * 
  * Provides responsive breakpoint detection for adaptive layouts.
- * Based on common breakpoints: mobile (<640), tablet (640-1024), desktop (>1024)
- * Also detects landscape orientation for tablets.
+ * Breakpoints optimized for card game readability:
+ * - mobile (<360px): Very small screens, simplified layout
+ * - tablet (360-1024px): Most phones and tablets, readable card text
+ * - desktop (>1024px): Full desktop layout
  * 
  * Uses visualViewport API when available for more accurate measurements
  * across different mobile browsers (especially iOS Chrome vs Safari).
@@ -11,9 +13,13 @@
 
 import { useState, useEffect } from 'react';
 
+// Breakpoint constants - adjust here to change all breakpoint logic
+const MOBILE_BREAKPOINT = 360;   // Below this: mobile layout (very small screens only)
+const DESKTOP_BREAKPOINT = 1024; // Above this: desktop layout
+
 interface ResponsiveState {
-  isMobile: boolean;      // < 640px width
-  isTablet: boolean;      // 640-1024px width
+  isMobile: boolean;      // < 360px width (very small screens)
+  isTablet: boolean;      // 360-1024px width (most phones and tablets)
   isDesktop: boolean;     // > 1024px width
   isLandscape: boolean;   // width > height
   width: number;
@@ -50,9 +56,9 @@ export function useResponsive(): ResponsiveState {
   const [state, setState] = useState<ResponsiveState>(() => {
     const { width, height } = getViewportDimensions();
     return {
-      isMobile: width < 640,
-      isTablet: width >= 640 && width <= 1024,
-      isDesktop: width > 1024,
+      isMobile: width < MOBILE_BREAKPOINT,
+      isTablet: width >= MOBILE_BREAKPOINT && width <= DESKTOP_BREAKPOINT,
+      isDesktop: width > DESKTOP_BREAKPOINT,
       isLandscape: width > height,
       width,
       height,
@@ -63,9 +69,9 @@ export function useResponsive(): ResponsiveState {
     const updateState = () => {
       const { width, height } = getViewportDimensions();
       setState({
-        isMobile: width < 640,
-        isTablet: width >= 640 && width <= 1024,
-        isDesktop: width > 1024,
+        isMobile: width < MOBILE_BREAKPOINT,
+        isTablet: width >= MOBILE_BREAKPOINT && width <= DESKTOP_BREAKPOINT,
+        isDesktop: width > DESKTOP_BREAKPOINT,
         isLandscape: width > height,
         width,
         height,
