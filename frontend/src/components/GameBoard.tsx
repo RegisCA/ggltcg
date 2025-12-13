@@ -41,7 +41,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const cardSize = isMobile ? 'small' : 'medium';
   
   // Debug flag - set to true to show viewport debug info
-  const DEBUG_VIEWPORT = true;
+  const DEBUG_VIEWPORT = false;
 
   // Fetch game state with polling
   const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
