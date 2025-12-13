@@ -36,10 +36,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   
   // Responsive layout detection
   const { isDesktop, isMobile, isLandscape, isTablet, width, height } = useResponsive();
-  // Use small cards for mobile OR tablet in landscape (limited vertical space)
-  // Use medium cards for desktop and tablet in portrait
-  const isLandscapeTablet = isTablet && isLandscape;
-  const cardSize = (isMobile || isLandscapeTablet) ? 'small' : 'medium';
+  // Use small cards only for true mobile (<360px)
+  // Use medium cards (with effect text) for tablet and desktop - readability is key
+  const cardSize = isMobile ? 'small' : 'medium';
   
   // Debug flag - set to true to show viewport debug info
   const DEBUG_VIEWPORT = true;
@@ -576,7 +575,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               playableCardIds={playableCardIds}
               isPlayerTurn={isHumanTurn}
               size={cardSize}
-              isCompact={isLandscapeTablet}
+              isCompact={isTablet && isLandscape}
               enableLayoutAnimation={true}
             />
           </div>
