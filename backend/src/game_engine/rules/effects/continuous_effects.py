@@ -326,6 +326,57 @@ class ReduceCostBySleepingEffect(CostModificationEffect):
         return max(0, modified_cost)  # Cost can't go below 0
 
 
+class OpponentCostIncreaseEffect(CostModificationEffect):
+    """
+    Generic effect that increases the cost of opponent's cards while in play.
+    
+    Applies to all cards in the opponent's hand, making them more expensive to play.
+    Only active while the source card is in play.
+    
+    Examples:
+    - Gibbers: OpponentCostIncreaseEffect(source_card, amount=1)
+    """
+    
+    def __init__(self, source_card: "Card", amount: int):
+        """
+        Initialize opponent cost increase effect.
+        
+        Args:
+            source_card: The card providing this effect (e.g., Gibbers)
+            amount: How much to increase opponent's card costs by
+        """
+        super().__init__(source_card)
+        self.amount = amount
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Cost increase doesn't modify card stats."""
+        return base_value
+    
+    def modify_card_cost(self, card: "Card", base_cost: int,
+                        game_state: "GameState", player: "Player") -> int:
+        """Increase opponent's card costs while Gibbers is in play."""
+        from ...models.card import Zone
+        
+        # Only applies while source card is in play
+        if self.source_card.zone != Zone.IN_PLAY:
+            return base_cost
+        
+        # Get the controller of the effect source (Gibbers)
+        effect_controller = game_state.get_card_controller(self.source_card)
+        
+        # Only affects opponent's cards
+        if effect_controller is None or player == effect_controller:
+            return base_cost
+        
+        # Check if the card being modified is protected from this effect (e.g., Beary)
+        if game_state.is_protected_from_effect(card, self):
+            return base_cost
+        
+        # Increase the cost
+        return base_cost + self.amount
+
+
 class SetSelfTussleCostEffect(CostModificationEffect):
     """
     Generic effect that sets the source card's tussle cost with optional turn restriction.

@@ -41,9 +41,14 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
             stats_str = f" [{card.speed} SPD, {card.strength} STR, {card.stamina} STA]"
         else:
             stats_str = ""
+        # Calculate effective cost with Gibbers and other cost modifiers
+        if game_engine and card.cost >= 0:  # Skip Copy card (cost -1)
+            effective_cost = game_engine.calculate_card_cost(card, ai_player)
+        else:
+            effective_cost = card.cost
         # Don't include strategic_use here - it will be shown in valid actions
         ai_hand_details.append(
-            f"{card.name} (cost {card.cost}){stats_str} - {effect}."
+            f"{card.name} (cost {effective_cost}){stats_str} - {effect}."
         )
     ai_hand = "\n    ".join(ai_hand_details) if ai_hand_details else "EMPTY - Must tussle or end turn"
     
@@ -73,7 +78,11 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
     opp_in_play_details = []
     for card in opponent.in_play:
         if card.is_toy():
-            card_info = CARD_EFFECTS_LIBRARY.get(card.name, {})
+            # For copied cards (e.g., "Copy of Gibbers"), look up the original card name
+            lookup_name = card.name
+            if card.name.startswith("Copy of "):
+                lookup_name = card.name[8:]  # Remove "Copy of " prefix
+            card_info = CARD_EFFECTS_LIBRARY.get(lookup_name, {})
             threat = card_info.get("threat_level", "UNKNOWN")
             if game_engine:
                 # Use GameEngine to get stats with continuous effects (Ka, Demideca, etc.)

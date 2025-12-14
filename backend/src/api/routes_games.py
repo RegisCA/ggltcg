@@ -194,13 +194,13 @@ async def get_game_state(game_id: str, player_id: str = None) -> GameStateRespon
     players_state = {}
     for pid, player in game_state.players.items():
         # Convert cards to CardState
-        in_play_cards = [_card_to_state(c, engine) for c in player.in_play]
-        sleep_cards = [_card_to_state(c, engine) for c in player.sleep_zone]
+        in_play_cards = [_card_to_state(c, engine, player) for c in player.in_play]
+        sleep_cards = [_card_to_state(c, engine, player) for c in player.sleep_zone]
         
         # Only include hand if player_id matches
         hand_cards = None
         if player_id == pid:
-            hand_cards = [_card_to_state(c, engine) for c in player.hand]
+            hand_cards = [_card_to_state(c, engine, player) for c in player.hand]
         
         players_state[pid] = PlayerState(
             player_id=pid,
@@ -246,8 +246,14 @@ async def delete_game(game_id: str) -> Dict[str, str]:
     return {"message": f"Game {game_id} deleted successfully"}
 
 
-def _card_to_state(card, engine) -> CardState:
-    """Convert a Card to CardState with current stats."""
+def _card_to_state(card, engine, player) -> CardState:
+    """Convert a Card to CardState with current stats.
+    
+    Args:
+        card: The card to convert
+        engine: The game engine (for stat calculations)
+        player: The player who owns/controls this card (for cost calculations)
+    """
     # Get modified stats if applicable (with continuous effects applied)
     current_speed = None
     current_strength = None
@@ -273,11 +279,22 @@ def _card_to_state(card, engine) -> CardState:
         base_strength = card.strength
         base_stamina = card.stamina
     
+    # Calculate effective cost (with continuous effects like Gibbers)
+    # Only calculate for cards in hand (playable cards)
+    # Skip Copy card (cost -1) since it has dynamic cost based on target
+    effective_cost = None
+    if card.zone == Zone.HAND and card.cost >= 0:
+        calculated_cost = engine.calculate_card_cost(card, player)
+        # Only set effective_cost if it differs from base cost
+        if calculated_cost != card.cost:
+            effective_cost = calculated_cost
+    
     return CardState(
         id=card.id,
         name=card.name,
         card_type=card.card_type.value,  # Convert enum to string
         cost=card.cost,
+        effective_cost=effective_cost,
         effect_text=card.effect_text,  # Include effect description
         zone=card.zone.value,
         owner=card.owner,

@@ -140,6 +140,7 @@ Parses effect definition strings into runtime effect objects.
 - `set_tussle_cost:cost` – Set cost for all your tussles
 - `set_self_tussle_cost:cost[:not_turn_1]` – Set cost for this card's tussles, optionally disabled on turn 1
 - `reduce_cost_by_sleeping` – Reduce play cost by number of your sleeping cards
+- `opponent_cost_increase:amount` – Opponent's cards cost +amount CC to play
 - `gain_cc_when_sleeped:amount` – Gain CC when this card is sleeped from play
 - `opponent_immunity` – This card is immune to opponent's effects
 - `team_opponent_immunity` – All your cards are immune to opponent's effects

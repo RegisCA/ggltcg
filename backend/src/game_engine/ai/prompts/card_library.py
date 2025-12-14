@@ -168,4 +168,10 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "CC REFUND - Each card you play refunds 1 CC. Play before other cards in your turn. Great for combo turns with many plays. Weak stats (3/3/1) - protect it!",
         "threat_level": "MEDIUM - Opponent gets partial CC refund on plays"
     },
+    "Gibbers": {
+        "type": "Toy",
+        "effect": "Continuous: Opponent's cards cost 1 more CC to play",
+        "strategic_use": "ECONOMIC DISRUPTION - Makes opponent's plays more expensive. Very weak stats (1/1/1) but the cost increase hampers their tempo. Protect it to maintain the effect!",
+        "threat_level": "HIGH - Your cards cost 1 more to play while Gibbers is in play. Priority removal target!"
+    },
 }

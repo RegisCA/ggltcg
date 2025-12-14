@@ -211,6 +211,109 @@ class TestCopyCardBug(unittest.TestCase):
             "Copy should have 'Copy of [target]' as its name"
         )
 
+    def _create_dream_card(self):
+        """Helper to create a Dream card."""
+        return Card(
+            name="Dream",
+            card_type=CardType.TOY,
+            cost=4,
+            speed=4,
+            strength=5,
+            stamina=4,
+            effect_text="This card costs 1 less for each of your sleeping cards.",
+            effect_definitions="reduce_cost_by_sleeping",
+            owner=self.player1.player_id,
+            controller=self.player1.player_id,
+            primary_color="#d8c7fa",
+            accent_color="#C74444",
+            zone=Zone.HAND
+        )
+
+    def _create_simple_toy(self, name="Beary"):
+        """Helper to create a simple Toy card for sleep zone."""
+        return Card(
+            name=name,
+            card_type=CardType.TOY,
+            cost=1,
+            speed=5,
+            strength=3,
+            stamina=3,
+            effect_text="Immune to opponent effects.",
+            effect_definitions="opponent_immunity",
+            owner=self.player1.player_id,
+            controller=self.player1.player_id,
+            primary_color="brown",
+            accent_color="brown",
+            zone=Zone.SLEEP
+        )
+
+    def test_copy_of_dream_uses_effective_cost(self):
+        """
+        Test that copying Dream uses Dream's effective cost (reduced by sleeping cards),
+        not its base cost of 4.
+        
+        If player has 2 cards in sleep zone, Dream would cost 2 (4 - 2) to play.
+        Copy targeting Dream should also cost 2, not 4.
+        """
+        # Put Dream in play so it can be copied
+        dream = self._create_dream_card()
+        dream.zone = Zone.IN_PLAY
+        self.player1.in_play.append(dream)
+        
+        # Put some cards in sleep zone to reduce Dream's cost
+        sleeping1 = self._create_simple_toy("Sleeper1")
+        sleeping2 = self._create_simple_toy("Sleeper2")
+        self.player1.sleep_zone.append(sleeping1)
+        self.player1.sleep_zone.append(sleeping2)
+        
+        # Add Copy to hand
+        copy_card = self._create_copy_card()
+        self.player1.hand.append(copy_card)
+        self.player1.cc = 7  # Give enough CC
+        
+        # Calculate Copy's cost when targeting Dream
+        # Dream base cost: 4, but with 2 sleeping cards it would cost 2 to play
+        # Copy should use this effective cost (2), not the base cost (4)
+        copy_cost = self.game_engine.calculate_card_cost(copy_card, self.player1, target_id=dream.id)
+        self.assertEqual(
+            copy_cost,
+            2,  # Should use Dream's effective cost, not base cost of 4
+            f"Copy of Dream should cost 2 (Dream's effective cost with 2 sleeping cards), got {copy_cost}"
+        )
+
+    def test_copy_of_dream_base_cost_without_sleeping(self):
+        """
+        Test that Copy of Dream costs 4 when there are no sleeping cards.
+        """
+        # Put Dream in play
+        dream = self._create_dream_card()
+        dream.zone = Zone.IN_PLAY
+        self.player1.in_play.append(dream)
+        
+        # No sleeping cards
+        self.player1.sleep_zone.clear()
+        
+        # Add Copy to hand
+        copy_card = self._create_copy_card()
+        self.player1.hand.append(copy_card)
+        self.player1.cc = 7
+        
+        # Dream with no sleeping cards should cost 4
+        dream_effective_cost = self.game_engine.calculate_card_cost(dream, self.player1)
+        self.assertEqual(
+            dream_effective_cost,
+            4,
+            f"Dream should cost 4 with no sleeping cards, got {dream_effective_cost}"
+        )
+        
+        # Copy should also cost 4
+        copy_cost = self.game_engine.calculate_card_cost(copy_card, self.player1, target_id=dream.id)
+        self.assertEqual(
+            copy_cost,
+            4,
+            f"Copy of Dream should cost 4 with no sleeping cards, got {copy_cost}"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
