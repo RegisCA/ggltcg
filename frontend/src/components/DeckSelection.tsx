@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { CardDisplay } from './CardDisplay';
 import { getRandomDeck, getAllCards } from '../api/gameService';
+import { apiClient } from '../api/client';
 import { createCardFromApiData } from '../utils/cardFactory';
 import type { Card } from '../types/game';
 import type { CardDataResponse } from '../types/api';
@@ -17,31 +18,49 @@ interface DeckSelectionProps {
   defaultPlayerName?: string;  // Override the default player name (for AI player)
 }
 
+type SortOption = 'cost-asc' | 'cost-desc' | 'name-asc' | 'name-desc' | 'status';
+
 export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlayerName }: DeckSelectionProps) {
   const { user } = useAuth();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
-  const [numToys, setNumToys] = useState(4); // Default: 4 Toys
-  const [numActions, setNumActions] = useState(2); // Default: 2 Actions
+  const [sortBy, setSortBy] = useState<SortOption>('cost-asc');
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [cards, setCards] = useState<CardDataResponse[]>([]);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
+  const [favoriteDecks, setFavoriteDecks] = useState<string[][]>([[], [], []]);
+  const [savingSlot, setSavingSlot] = useState<number | null>(null);
 
   // Use provided default name, or get display name from authenticated user
   const playerName = defaultPlayerName || user?.display_name || 'Player';
 
-  // Load cards from backend on mount
+  // Load cards and favorite decks from backend on mount
   useEffect(() => {
-    getAllCards()
-      .then((cardData) => {
+    const loadData = async () => {
+      try {
+        // Load all cards
+        const cardData = await getAllCards();
         setCards(cardData);
-        setIsLoadingCards(false);
-      })
-      .catch((error) => {
+        
+        // Load favorite decks if user is authenticated and not in hidden mode
+        if (user?.google_id && !hiddenMode) {
+          try {
+            const response = await apiClient.get<{ decks: string[][] }>('/auth/me/decks');
+            setFavoriteDecks(response.data.decks);
+          } catch (error) {
+            console.error('Failed to load favorite decks:', error);
+            // Continue without favorite decks
+          }
+        }
+      } catch (error) {
         console.error('Failed to load cards:', error);
         alert('Failed to load card database. Please refresh the page.');
+      } finally {
         setIsLoadingCards(false);
-      });
-  }, []);
+      }
+    };
+
+    loadData();
+  }, [user, hiddenMode]);
 
   const toggleCard = (cardName: string) => {
     if (selectedCards.includes(cardName)) {
@@ -51,17 +70,11 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
     }
   };
 
-  const handleSliderChange = (newNumToys: number) => {
-    // Ensure sum equals 6
-    const newNumActions = 6 - newNumToys;
-    setNumToys(newNumToys);
-    setNumActions(newNumActions);
-  };
-
   const handleRandomize = async () => {
     setIsRandomizing(true);
     try {
-      const randomDeck = await getRandomDeck(numToys, numActions);
+      // Use Quick Play logic: 4 toys, 2 actions
+      const randomDeck = await getRandomDeck(4, 2);
       setSelectedCards(randomDeck);
     } catch (error) {
       console.error('Failed to get random deck:', error);
@@ -71,11 +84,71 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
     }
   };
 
+  const loadFavoriteDeck = (slotIndex: number) => {
+    const deck = favoriteDecks[slotIndex];
+    if (deck && deck.length === 6) {
+      setSelectedCards([...deck]);
+    }
+  };
+
+  const saveFavoriteDeck = async (slotIndex: number) => {
+    if (selectedCards.length !== 6) {
+      alert('Please select exactly 6 cards before saving.');
+      return;
+    }
+
+    setSavingSlot(slotIndex);
+    try {
+      await apiClient.put(`/auth/me/decks/${slotIndex}`, {
+        deck: selectedCards
+      });
+      
+      // Update local state
+      const newDecks = [...favoriteDecks];
+      newDecks[slotIndex] = [...selectedCards];
+      setFavoriteDecks(newDecks);
+      
+      alert(`Deck saved to slot ${slotIndex + 1}!`);
+    } catch (error) {
+      console.error('Failed to save favorite deck:', error);
+      alert('Failed to save deck. Please try again.');
+    } finally {
+      setSavingSlot(null);
+    }
+  };
+
   const handleConfirm = () => {
     if (selectedCards.length === 6) {
       onDeckSelected(selectedCards, playerName);
     }
   };
+
+  // Sort and split cards into Toys and Actions
+  const sortCards = (cardList: CardDataResponse[]) => {
+    return [...cardList].sort((a, b) => {
+      switch (sortBy) {
+        case 'cost-asc':
+          return (a.cost ?? 999) - (b.cost ?? 999);
+        case 'cost-desc':
+          return (b.cost ?? -1) - (a.cost ?? -1);
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'status':
+          // Sort by selected status first, then by cost
+          const aSelected = selectedCards.includes(a.name) ? 0 : 1;
+          const bSelected = selectedCards.includes(b.name) ? 0 : 1;
+          if (aSelected !== bSelected) return aSelected - bSelected;
+          return (a.cost ?? 999) - (b.cost ?? 999);
+        default:
+          return 0;
+      }
+    });
+  };
+
+  const toyCards = sortCards(cards.filter(c => c.speed !== undefined));
+  const actionCards = sortCards(cards.filter(c => c.speed === undefined));
 
   // Convert CardDataResponse to Card for display using factory
   const createCardForDisplay = (cardData: CardDataResponse): Card => 
@@ -90,143 +163,238 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
   }
 
   return (
-    <div className="min-h-screen bg-game-bg" style={{ padding: 'var(--spacing-component-md)' }}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header with title, card count, and Confirm button */}
-        <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-          <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
+    <div className="min-h-screen bg-game-bg">
+      {/* Sticky Header */}
+      <div 
+        className="sticky top-0 z-10 bg-game-bg border-b border-gray-700"
+        style={{ padding: 'var(--spacing-component-md)' }}
+      >
+        <div className="max-w-7xl mx-auto">
+          {/* Title and Card Count */}
+          <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
             <h1 className="text-3xl font-bold">
               {playerName}
             </h1>
+
+            <p className="text-xl font-semibold text-game-highlight">
+              Choose 6 unique cards ({selectedCards.length}/6 selected)
+            </p>
+            
+            <button
+              onClick={handleConfirm}
+              disabled={selectedCards.length !== 6}
+              className={`rounded text-xl font-bold transition-all ${
+                selectedCards.length === 6
+                  ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
+                  : 'bg-gray-600 cursor-not-allowed opacity-50'
+              }`}
+              style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
+            >
+              Confirm Deck {selectedCards.length === 6 ? '✓' : `(${selectedCards.length}/6)`}
+            </button>
           </div>
 
-          <p className="text-xl font-semibold text-game-highlight">
-            Choose 6 unique cards ({selectedCards.length}/6 selected)
-          </p>
-          
-          <button
-            onClick={handleConfirm}
-            disabled={selectedCards.length !== 6}
-            className={`rounded text-xl font-bold transition-all ${
-              selectedCards.length === 6
-                ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
-                : 'bg-gray-600 cursor-not-allowed opacity-50'
-            }`}
-            style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
+          {/* Controls Row */}
+          <div 
+            className="flex items-center justify-between"
+            style={{ gap: 'var(--spacing-component-md)' }}
           >
-            Confirm Deck {selectedCards.length === 6 ? '✓' : `(${selectedCards.length}/6)`}
-          </button>
-        </div>
-
-        {/* Deck Composition Controls */}
-        <div 
-          className="bg-gray-800 rounded-lg flex items-center justify-between"
-          style={{ 
-            marginBottom: 'var(--spacing-component-sm)', 
-            padding: 'var(--spacing-component-sm)',
-            gap: 'var(--spacing-component-lg)'
-          }}
-        >
-          <div className="flex items-center" style={{ gap: 'var(--spacing-component-md)', maxWidth: '600px' }}>
-            <span className="text-lg font-semibold whitespace-nowrap">
-              <span className="text-red-400">Toys:</span> {numToys}
-            </span>
-            
-            <input
-              type="range"
-              min="0"
-              max="6"
-              value={numToys}
-              onChange={(e) => handleSliderChange(parseInt(e.target.value))}
-              className="flex-1 h-4 bg-gray-700 rounded-lg appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none
-                [&::-webkit-slider-thumb]:w-8
-                [&::-webkit-slider-thumb]:h-8
-                [&::-webkit-slider-thumb]:rounded-full
-                [&::-webkit-slider-thumb]:bg-game-highlight
-                [&::-webkit-slider-thumb]:cursor-pointer
-                [&::-webkit-slider-thumb]:shadow-lg
-                [&::-moz-range-thumb]:w-8
-                [&::-moz-range-thumb]:h-8
-                [&::-moz-range-thumb]:rounded-full
-                [&::-moz-range-thumb]:bg-game-highlight
-                [&::-moz-range-thumb]:cursor-pointer
-                [&::-moz-range-thumb]:border-0
-                [&::-moz-range-thumb]:shadow-lg
-              "
-              style={{ minWidth: '200px', maxWidth: '400px' }}
-            />
-            
-            <span className="text-lg font-semibold whitespace-nowrap">
-              <span className="text-purple-400">Actions:</span> {numActions}
-            </span>
-          </div>
-
-          <button
-            onClick={handleRandomize}
-            disabled={isRandomizing}
-            className={`rounded font-bold transition-all whitespace-nowrap ${
-              isRandomizing
-                ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                : 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
-            }`}
-            style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
-          >
-            {isRandomizing ? 'Randomizing...' : '🎲 Random Deck'}
-          </button>
-        </div>
-
-        <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
-          {cards.map((cardData) => {
-            const isSelected = selectedCards.includes(cardData.name);
-            const card = createCardForDisplay(cardData);
-            const isDisabled = hiddenMode || (!isSelected && selectedCards.length >= 6);
-            
-            // In hidden mode, show card backs
-            if (hiddenMode) {
-              return (
-                <div
-                  key={cardData.name}
-                  style={{ display: 'flex', justifyContent: 'center' }}
-                >
-                  <div
-                    className={`
-                      w-[165px] h-[225px] rounded border-2 flex items-center justify-center
-                      ${isSelected ? 'border-yellow-400 bg-gray-600 shadow-lg shadow-yellow-400/30' : 'border-gray-600 bg-gray-700'}
-                    `}
-                    style={{ padding: 'var(--spacing-component-md)' }}
-                  >
-                    <img 
-                      src="/ggltcg-logo.svg" 
-                      alt="Hidden card" 
-                      className={`w-full h-full object-contain ${isSelected ? 'opacity-70' : 'opacity-40'}`}
-                    />
-                  </div>
-                </div>
-              );
-            }
-            
-            return (
-              <div
-                key={cardData.name}
-                onClick={() => !isDisabled && toggleCard(cardData.name)}
-                style={{ display: 'flex', justifyContent: 'center' }}
+            {/* Sort Dropdown */}
+            <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
+              <label htmlFor="sort-select" className="font-semibold">Sort by:</label>
+              <select
+                id="sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="bg-gray-800 border border-gray-700 rounded px-3 py-1 cursor-pointer"
               >
-                <CardDisplay
-                  card={card}
-                  size="medium"
-                  isSelected={isSelected}
-                  isClickable={!isDisabled}
-                  isDisabled={isDisabled}
-                />
-              </div>
-            );
-          })}
+                <option value="cost-asc">Cost (Low to High)</option>
+                <option value="cost-desc">Cost (High to Low)</option>
+                <option value="name-asc">Name (A to Z)</option>
+                <option value="name-desc">Name (Z to A)</option>
+                <option value="status">Selected First</option>
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
+              {/* Favorite Deck Slots - Only show for authenticated users not in hidden mode */}
+              {user?.google_id && !hiddenMode && (
+                <>
+                  {[0, 1, 2].map((slotIndex) => {
+                    const deck = favoriteDecks[slotIndex];
+                    const hasCard = deck && deck.length === 6;
+                    const isSaving = savingSlot === slotIndex;
+                    
+                    return (
+                      <div key={slotIndex} className="flex flex-col items-center" style={{ gap: '4px' }}>
+                        <button
+                          onClick={() => loadFavoriteDeck(slotIndex)}
+                          disabled={!hasCard}
+                          className={`rounded font-bold transition-all ${
+                            hasCard
+                              ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                              : 'bg-gray-700 cursor-not-allowed opacity-50'
+                          }`}
+                          style={{ padding: '6px 12px', fontSize: '14px' }}
+                          title={hasCard ? `Load: ${deck.join(', ')}` : 'Empty slot'}
+                        >
+                          📁 Deck {slotIndex + 1}
+                        </button>
+                        <button
+                          onClick={() => saveFavoriteDeck(slotIndex)}
+                          disabled={selectedCards.length !== 6 || isSaving}
+                          className={`rounded font-bold transition-all text-xs ${
+                            selectedCards.length === 6 && !isSaving
+                              ? 'bg-green-600 hover:bg-green-700 cursor-pointer'
+                              : 'bg-gray-700 cursor-not-allowed opacity-50'
+                          }`}
+                          style={{ padding: '4px 8px' }}
+                        >
+                          {isSaving ? 'Saving...' : '💾 Save'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              <button
+                onClick={handleRandomize}
+                disabled={isRandomizing}
+                className={`rounded font-bold transition-all whitespace-nowrap ${
+                  isRandomizing
+                    ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                    : 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
+                }`}
+                style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
+              >
+                {isRandomizing ? 'Randomizing...' : '🎲 Random Deck'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Hover Preview - Disabled until artwork is added */}
-      {/* <CardHoverPreview card={hoveredCard} /> */}
+      {/* Scrollable Content - Split Layout */}
+      <div 
+        className="max-w-7xl mx-auto"
+        style={{ padding: 'var(--spacing-component-md)' }}
+      >
+        <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-lg)' }}>
+          {/* Toys Column */}
+          <div>
+            <h2 
+              className="text-2xl font-bold text-red-400 mb-4 sticky"
+              style={{ top: 'calc(140px)', backgroundColor: 'var(--color-bg)', paddingTop: 'var(--spacing-component-xs)', paddingBottom: 'var(--spacing-component-xs)', zIndex: 5 }}
+            >
+              🎭 Toys ({toyCards.filter(c => selectedCards.includes(c.name)).length}/{toyCards.length})
+            </h2>
+            <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
+              {toyCards.map((cardData) => {
+                const isSelected = selectedCards.includes(cardData.name);
+                const card = createCardForDisplay(cardData);
+                const isDisabled = hiddenMode || (!isSelected && selectedCards.length >= 6);
+                
+                if (hiddenMode) {
+                  return (
+                    <div
+                      key={cardData.name}
+                      style={{ display: 'flex', justifyContent: 'center' }}
+                    >
+                      <div
+                        className={`
+                          w-[165px] h-[225px] rounded border-2 flex items-center justify-center
+                          ${isSelected ? 'border-yellow-400 bg-gray-600 shadow-lg shadow-yellow-400/30' : 'border-gray-600 bg-gray-700'}
+                        `}
+                        style={{ padding: 'var(--spacing-component-md)' }}
+                      >
+                        <img 
+                          src="/ggltcg-logo.svg" 
+                          alt="Hidden card" 
+                          className={`w-full h-full object-contain ${isSelected ? 'opacity-70' : 'opacity-40'}`}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div
+                    key={cardData.name}
+                    onClick={() => !isDisabled && toggleCard(cardData.name)}
+                    style={{ display: 'flex', justifyContent: 'center' }}
+                  >
+                    <CardDisplay
+                      card={card}
+                      size="medium"
+                      isSelected={isSelected}
+                      isClickable={!isDisabled}
+                      isDisabled={isDisabled}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Actions Column */}
+          <div>
+            <h2 
+              className="text-2xl font-bold text-purple-400 mb-4 sticky"
+              style={{ top: 'calc(140px)', backgroundColor: 'var(--color-bg)', paddingTop: 'var(--spacing-component-xs)', paddingBottom: 'var(--spacing-component-xs)', zIndex: 5 }}
+            >
+              ⚡ Actions ({actionCards.filter(c => selectedCards.includes(c.name)).length}/{actionCards.length})
+            </h2>
+            <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
+              {actionCards.map((cardData) => {
+                const isSelected = selectedCards.includes(cardData.name);
+                const card = createCardForDisplay(cardData);
+                const isDisabled = hiddenMode || (!isSelected && selectedCards.length >= 6);
+                
+                if (hiddenMode) {
+                  return (
+                    <div
+                      key={cardData.name}
+                      style={{ display: 'flex', justifyContent: 'center' }}
+                    >
+                      <div
+                        className={`
+                          w-[165px] h-[225px] rounded border-2 flex items-center justify-center
+                          ${isSelected ? 'border-yellow-400 bg-gray-600 shadow-lg shadow-yellow-400/30' : 'border-gray-600 bg-gray-700'}
+                        `}
+                        style={{ padding: 'var(--spacing-component-md)' }}
+                      >
+                        <img 
+                          src="/ggltcg-logo.svg" 
+                          alt="Hidden card" 
+                          className={`w-full h-full object-contain ${isSelected ? 'opacity-70' : 'opacity-40'}`}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div
+                    key={cardData.name}
+                    onClick={() => !isDisabled && toggleCard(cardData.name)}
+                    style={{ display: 'flex', justifyContent: 'center' }}
+                  >
+                    <CardDisplay
+                      card={card}
+                      size="medium"
+                      isSelected={isSelected}
+                      isClickable={!isDisabled}
+                      isDisabled={isDisabled}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -213,6 +213,7 @@ CREATE INDEX idx_game_stats_created_at ON game_stats(created_at DESC);
 ### Phase 1A: Core Persistence (This PR)
 
 **Scope:**
+
 - Implement `games` table only
 - Add SQLAlchemy ORM models
 - Create database service layer
@@ -220,6 +221,7 @@ CREATE INDEX idx_game_stats_created_at ON game_stats(created_at DESC);
 - Support game create, read, update operations
 
 **Files to Create:**
+
 - `backend/src/api/database.py` - Database connection and session management
 - `backend/src/api/db_models.py` - SQLAlchemy ORM models
 - `backend/alembic/versions/001_create_games_table.py` - Migration script
@@ -227,6 +229,7 @@ CREATE INDEX idx_game_stats_created_at ON game_stats(created_at DESC);
 - `backend/alembic/env.py` - Alembic environment
 
 **Files to Modify:**
+
 - `backend/src/api/game_service.py` - Add database persistence
 - `backend/requirements.txt` - Add SQLAlchemy, Alembic, psycopg2
 - `backend/render.yaml` - Add database config and migration command
@@ -234,6 +237,7 @@ CREATE INDEX idx_game_stats_created_at ON game_stats(created_at DESC);
 ### Phase 1B: Action Logging (Future PR)
 
 **Scope:**
+
 - Implement `game_actions` table
 - Log every action to database
 - Enable action replay functionality
@@ -241,6 +245,7 @@ CREATE INDEX idx_game_stats_created_at ON game_stats(created_at DESC);
 ### Phase 1C: Statistics (Future PR)
 
 **Scope:**
+
 - Implement `game_stats` table
 - Calculate stats on game completion
 - Build leaderboard API endpoints
@@ -360,6 +365,7 @@ def serialize_card(card: Card) -> dict:
 ### Authentication & Authorization (Future)
 
 For multiplayer, we'll need to add:
+
 - Player authentication (OAuth or JWT tokens)
 - Authorization checks (can player access this game?)
 - Rate limiting (prevent spam)
@@ -413,6 +419,7 @@ engine = create_engine(
 ### Caching Strategy (Future)
 
 For high-traffic games:
+
 - Add Redis cache layer
 - Cache active game states in memory
 - Invalidate on updates
@@ -456,6 +463,7 @@ For high-traffic games:
 ### Cleanup Strategy
 
 **Abandoned Games:**
+
 ```sql
 -- Delete games abandoned for >24 hours
 DELETE FROM games 
@@ -464,6 +472,7 @@ WHERE status = 'active'
 ```
 
 **Completed Games:**
+
 ```sql
 -- Archive completed games after 30 days
 -- Move to archive table or export to S3
@@ -529,11 +538,13 @@ CREATE TABLE cards_in_game (
 ```
 
 **Benefits:**
+
 - Advanced queries (e.g., "Which cards win most often?")
 - Better indexing and performance
 - Referential integrity
 
 **Costs:**
+
 - More complex schema
 - More code to maintain
 - Harder to evolve game rules
@@ -553,11 +564,13 @@ CREATE TABLE game_events (
 ```
 
 **Benefits:**
+
 - Complete audit trail
 - Replay games from any point
 - Debugging historical issues
 
 **Costs:**
+
 - Higher storage requirements
 - More complex state reconstruction
 - Potential performance impact
@@ -569,6 +582,7 @@ CREATE TABLE game_events (
 This schema design provides a solid foundation for PostgreSQL persistence while minimizing changes to the existing codebase. The JSONB approach offers flexibility for rapid iteration while maintaining data integrity and enabling future enhancements.
 
 **Next Steps:**
+
 1. ✅ Review and approve schema design
 2. ✅ Set up Render PostgreSQL instance
 3. ✅ Implement SQLAlchemy models

@@ -3,6 +3,7 @@
 ## Overview
 
 The GGLTCG backend now uses PostgreSQL for persistent game storage, replacing the in-memory dict. This enables:
+
 - Game sessions survive server restarts
 - Foundation for online multiplayer
 - Ability to query game statistics
@@ -181,6 +182,7 @@ Primary table storing complete game state:
 | updated_at | TIMESTAMP | Last update time |
 
 **Indexes:**
+
 - player1_id, player2_id (for finding user's games)
 - status (for filtering active games)
 - updated_at (for sorting by recency)
@@ -226,10 +228,12 @@ The `GameService` implements a two-tier storage:
 2. **Database storage**: All games persisted to PostgreSQL
 
 **Read flow:**
+
 - Check cache → Return if found
 - Load from database → Cache → Return
 
 **Write flow:**
+
 - Update cache
 - Save to database
 
@@ -238,6 +242,7 @@ This provides excellent performance while ensuring persistence.
 ### Connection Pooling
 
 SQLAlchemy uses connection pooling:
+
 - Pool size: 5 connections
 - Max overflow: 10 additional connections
 - Pool pre-ping: Verifies connections before use
@@ -287,6 +292,7 @@ psql your-render-url -c "SELECT count(*) FROM games WHERE status='active';"
 ### Migration Errors
 
 **Error: "DATABASE_URL environment variable is required"**
+
 ```bash
 # Make sure DATABASE_URL is set
 echo $DATABASE_URL
@@ -294,6 +300,7 @@ export DATABASE_URL="your-database-url"
 ```
 
 **Error: "relation 'games' already exists"**
+
 ```bash
 # Check current version
 alembic current
@@ -305,6 +312,7 @@ alembic stamp head
 ### Connection Errors
 
 **Error: "connection to server ... failed"**
+
 ```bash
 # Verify DATABASE_URL is correct
 echo $DATABASE_URL
@@ -319,6 +327,7 @@ psql $DATABASE_URL -c "\l"
 ### Data Issues
 
 **Game not persisting**
+
 ```bash
 # Check logs for errors
 # Verify use_database=True in GameService
@@ -326,6 +335,7 @@ psql $DATABASE_URL -c "\l"
 ```
 
 **Deserialization errors**
+
 ```bash
 # Check game_state JSONB structure
 psql $DATABASE_URL -c "SELECT game_state FROM games LIMIT 1;"
