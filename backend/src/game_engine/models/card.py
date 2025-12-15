@@ -85,22 +85,52 @@ class Card:
     
     def _reset_copy_transformation(self):
         """Reset Copy card to original state by reloading from card definition."""
-        # Copy card original properties from CSV
-        self.name = "Copy"
-        self.card_type = CardType.ACTION
-        self.cost = -1
-        self.effect_text = "This card acts as an exact copy of a card you have in play."
-        self.effect_definitions = "copy_card"
+        from ..data.card_loader import load_cards_dict
         
-        # Remove Toy stats (Copy is an Action card)
-        self.speed = None
-        self.strength = None
-        self.stamina = None
-        self.current_stamina = None
-        
-        # Restore original colors
-        self.primary_color = "#8B5FA8"  # Purple
-        self.accent_color = "#8B5FA8"
+        # Load Copy card definition from CSV (single source of truth)
+        try:
+            cards_dict = load_cards_dict()
+            copy_definition = cards_dict.get("Copy")
+            
+            if copy_definition:
+                # Restore properties from card definition
+                self.name = copy_definition.name
+                self.card_type = copy_definition.card_type
+                self.cost = copy_definition.cost
+                self.effect_text = copy_definition.effect_text
+                self.effect_definitions = copy_definition.effect_definitions
+                self.speed = copy_definition.speed
+                self.strength = copy_definition.strength
+                self.stamina = copy_definition.stamina
+                self.current_stamina = copy_definition.current_stamina
+                self.primary_color = copy_definition.primary_color
+                self.accent_color = copy_definition.accent_color
+            else:
+                # Fallback if Copy not found in CSV (shouldn't happen)
+                self.name = "Copy"
+                self.card_type = CardType.ACTION
+                self.cost = -1
+                self.effect_text = "This card acts as an exact copy of a card you have in play."
+                self.effect_definitions = "copy_card"
+                self.speed = None
+                self.strength = None
+                self.stamina = None
+                self.current_stamina = None
+                self.primary_color = "#8B5FA8"
+                self.accent_color = "#8B5FA8"
+        except Exception:
+            # Fallback if CardLoader fails (shouldn't happen in normal operation)
+            self.name = "Copy"
+            self.card_type = CardType.ACTION
+            self.cost = -1
+            self.effect_text = "This card acts as an exact copy of a card you have in play."
+            self.effect_definitions = "copy_card"
+            self.speed = None
+            self.strength = None
+            self.stamina = None
+            self.current_stamina = None
+            self.primary_color = "#8B5FA8"
+            self.accent_color = "#8B5FA8"
         
         # Clean up transformation tracking attributes
         if hasattr(self, '_is_transformed'):
