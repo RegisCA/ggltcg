@@ -180,4 +180,10 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "ACTION RECURSION - Bring back powerful Actions like Rush, Clean, or Twist. More limited than Wake (only Actions) but free at 0 CC. Good synergy with high-impact Action cards.",
         "threat_level": "LOW - Lets opponent reuse their Action cards"
     },
+    "Paper Plane": {
+        "type": "Toy",
+        "effect": "Combat modifier: Can direct attack opponent's hand even when they have cards in play",
+        "strategic_use": "HAND PRESSURE - Bypasses opponent's defensive board to directly attack their hand. Use to pressure opponents who turtle behind defenders. Still costs CC and counts toward 2 direct attack limit per turn.",
+        "threat_level": "MEDIUM - Can attack your hand directly even when you have defenders. Consider removing before it chips away your hand."
+    },
 }

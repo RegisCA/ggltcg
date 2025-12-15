@@ -768,6 +768,26 @@ class ArcherRestrictionEffect(ContinuousEffect):
         return False
 
 
+class DirectAttackEffect(ContinuousEffect):
+    """
+    Paper Plane: "This card can direct attack, even if your opponent has cards in play."
+    
+    Allows this card to perform direct attacks against the opponent's hand
+    regardless of whether the opponent has cards in play. Bypasses the normal
+    requirement that direct attacks can only happen when opponent's play zone is empty.
+    """
+    
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Direct attack effect doesn't modify stats."""
+        return base_value
+    
+    def can_direct_attack(self, game_state: "GameState") -> bool:
+        """This card can always direct attack."""
+        return True
+
+
 # Register legacy effects (cards not yet migrated to data-driven system)
 # Note: All cards now use data-driven effect_definitions from CSV!
 # (Snuggles is registered in triggered_effects.py)
+

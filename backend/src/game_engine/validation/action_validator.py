@@ -317,8 +317,13 @@ class ActionValidator:
             if card.card_type != CardType.TOY:
                 continue
             
-            # Check direct attack (only when opponent has no cards in play)
-            if not opponent.has_cards_in_play():
+            # Check if card has direct attack ability (can attack hand even with opponent cards in play)
+            from ..rules.effects.continuous_effects import DirectAttackEffect
+            has_direct_attack = card.has_effect_type(DirectAttackEffect)
+            
+            # Check direct attack (normally only when opponent has no cards in play,
+            # but cards with DirectAttackEffect can always do this)
+            if not opponent.has_cards_in_play() or has_direct_attack:
                 can_attack, _ = self.engine.can_tussle(card, None, player)
                 if can_attack:
                     cost = self.engine.calculate_tussle_cost(card, player)

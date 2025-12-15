@@ -34,6 +34,7 @@ class EffectDefinitions:
     # === Combat Effects ===
     AUTO_WIN_TUSSLE_ON_OWN_TURN = "auto_win_tussle_on_own_turn"
     CANNOT_TUSSLE = "cannot_tussle"
+    DIRECT_ATTACK = "direct_attack"
     
     # === Tussle Cost Effects ===
     SET_TUSSLE_COST_1 = "set_tussle_cost:1"
@@ -157,6 +158,7 @@ CARD_EFFECT_DEFINITIONS: Dict[str, str] = {
     "Hind Leg Kicker": EffectDefinitions.ON_CARD_PLAYED_GAIN_CC_1,
     "Gibbers": EffectDefinitions.OPPONENT_COST_INCREASE_1,
     "That was fun": EffectDefinitions.UNSLEEP_ACTIONS_1,
+    "Paper Plane": EffectDefinitions.DIRECT_ATTACK,
 }
 
 

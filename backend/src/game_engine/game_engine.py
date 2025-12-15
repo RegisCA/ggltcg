@@ -658,8 +658,12 @@ class GameEngine:
         if defender is None:
             opponent = self.game_state.get_opponent(player.player_id)
             
-            # Opponent must have no cards in play
-            if opponent.has_cards_in_play():
+            # Check if attacker has direct attack ability (can bypass opponent's cards in play)
+            from game_engine.rules.effects.continuous_effects import DirectAttackEffect
+            has_direct_attack = attacker.has_effect_type(DirectAttackEffect)
+            
+            # Opponent must have no cards in play (unless attacker has DirectAttackEffect)
+            if opponent.has_cards_in_play() and not has_direct_attack:
                 return False, "Opponent has cards in play - must target one"
             
             # Opponent must have cards in hand

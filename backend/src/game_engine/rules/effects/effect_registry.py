@@ -99,6 +99,9 @@ class EffectFactory:
             elif effect_type == "cannot_tussle":
                 effect = cls._parse_cannot_tussle(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "direct_attack":
+                effect = cls._parse_direct_attack(parts, source_card)
+                effects.append(effect)
             elif effect_type == "remove_stamina_ability":
                 effect = cls._parse_remove_stamina_ability(parts, source_card)
                 effects.append(effect)
@@ -684,6 +687,36 @@ class EffectFactory:
         # Import here to avoid circular dependency
         from .continuous_effects import ArcherRestrictionEffect
         return ArcherRestrictionEffect(source_card)
+    
+    @classmethod
+    def _parse_direct_attack(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a direct_attack effect definition.
+        
+        Format: "direct_attack" (no parameters)
+        
+        Allows this card to perform direct attacks against the opponent's hand
+        even when the opponent has cards in play.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            DirectAttackEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"direct_attack effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        # Import here to avoid circular dependency
+        from .continuous_effects import DirectAttackEffect
+        return DirectAttackEffect(source_card)
     
     @classmethod
     def _parse_remove_stamina_ability(cls, parts: List[str], source_card: "Card") -> BaseEffect:
