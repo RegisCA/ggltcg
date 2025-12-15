@@ -51,6 +51,10 @@ single_effect:param1:param2
 effect1;effect2;effect3
 ```
 
+> **Tip**: Use constants from `backend/src/game_engine/effects_constants.py` for type-safe
+> effect definitions. This module provides constants like `EffectDefinitions.OPPONENT_IMMUNITY`
+> and helper methods like `EffectDefinitions.stat_boost('strength', 2)` to avoid typos.
+
 ### Available Effect Types (from `EffectFactory`)
 
 #### Stat Boosts (Continuous)

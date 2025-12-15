@@ -103,6 +103,25 @@ class TestIssue123FeatureName:
         assert expected_condition, "Clear error message explaining failure"
 ```
 
+## Test Card Helpers
+
+For frequently-used cards, use the pre-configured helper functions in `conftest.py`:
+
+```python
+from conftest import (
+    create_beary, create_knight, create_dream, create_gibbers,
+    create_ka, create_demideca, create_copy, create_rush,
+    create_surge, create_clean, create_wake, create_wizard,
+    create_archer, create_ballaber, create_twist
+)
+
+# Create cards with correct stats and effects from CSV
+beary = create_beary(owner="player1", zone=Zone.IN_PLAY)
+ka = create_ka(owner="player2")
+```
+
+These helpers ensure cards have correct effect definitions and stats without manual lookup.
+
 ## Common Test Patterns
 
 ### Testing Tussle Outcomes
