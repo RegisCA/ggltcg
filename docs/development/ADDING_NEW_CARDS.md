@@ -80,6 +80,9 @@ effect1;effect2;effect3
 
 - `sleep_target:N` – Sleep N target card(s) in play
 - `return_target_to_hand:N` – Return N target card(s) to owner's hand
+- `unsleep:N` – Return N card(s) from your sleep zone to hand
+- `unsleep:actions:N` – Return N Action card(s) from your sleep zone to hand
+- `unsleep:toys:N` – Return N Toy card(s) from your sleep zone to hand
 
 #### Protection Effects
 
