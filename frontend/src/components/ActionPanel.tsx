@@ -220,7 +220,10 @@ return (
             {cardActions.map((action, index) => {
               const cleanDescription = action.description.replace(/\s*\(Cost:.*?\)/, '');
               const shortcutKey = getShortcutKey(action);
-              const isUnaffordable = action.cost_cc !== undefined && action.cost_cc > currentCC;
+              // Button is affordable if: cost is within CC OR alternative cost is available (Ballaber)
+              const isUnaffordable = action.cost_cc !== undefined && 
+                action.cost_cc > currentCC && 
+                !action.alternative_cost_available;
 
               return (
                 <button

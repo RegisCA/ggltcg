@@ -17,6 +17,7 @@ interface TargetSelectionModalProps {
   onConfirm: (selectedTargets: string[], alternativeCostCard?: string) => void;
   onCancel: () => void;
   alternativeCostOptions?: Card[]; // For Ballaber
+  currentCC?: number; // Current CC to determine if Pay CC option is affordable
 }
 
 export function TargetSelectionModal({
@@ -25,10 +26,12 @@ export function TargetSelectionModal({
   onConfirm,
   onCancel,
   alternativeCostOptions,
+  currentCC,
 }: TargetSelectionModalProps) {
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [useAlternativeCost, setUseAlternativeCost] = useState(false);
   const [alternativeCostCard, setAlternativeCostCard] = useState<string | null>(null);
+  const [useDirectAttack, setUseDirectAttack] = useState(false);
 
   const maxTargets = action.max_targets || 1;
   const minTargets = action.min_targets || 1;
@@ -40,25 +43,48 @@ export function TargetSelectionModal({
   // Even if there are no cards to sleep, we need to show "Pay CC" option
   const hasAlternativeCost = action.alternative_cost_available === true;
   const hasCardsToSleep = filteredAlternativeCostOptions.length > 0;
+  
+  // Check if Pay CC option is affordable (for Ballaber)
+  const canAffordCC = currentCC !== undefined && action.cost_cc !== undefined 
+    ? currentCC >= action.cost_cc 
+    : true;
+  
+  // Check if this is a tussle action that includes direct_attack as an option
+  const hasDirectAttackOption = action.action_type === 'tussle' && 
+    action.target_options?.includes('direct_attack');
 
   // Reset state when action changes
   useEffect(() => {
     setSelectedTargets([]);
     setAlternativeCostCard(null);
-    // If alternative cost is available but no cards to sleep, auto-select "Pay CC"
-    if (hasAlternativeCost && !hasCardsToSleep) {
+    setUseDirectAttack(false);
+    // If alternative cost is available but no cards to sleep AND can afford CC, auto-select "Pay CC"
+    if (hasAlternativeCost && !hasCardsToSleep && canAffordCC) {
       setUseAlternativeCost(true);
     } else {
       setUseAlternativeCost(false);
     }
-  }, [action.card_id, hasAlternativeCost, hasCardsToSleep]);
+  }, [action.card_id, hasAlternativeCost, hasCardsToSleep, canAffordCC]);
 
   const toggleTarget = (cardId: string) => {
     if (selectedTargets.includes(cardId)) {
       setSelectedTargets(selectedTargets.filter((id) => id !== cardId));
     } else if (selectedTargets.length < maxTargets) {
       setSelectedTargets([...selectedTargets, cardId]);
+      setUseDirectAttack(false); // Clear direct attack if selecting a card target
     }
+  };
+
+  // Select direct attack option (for Paper Plane and similar cards)
+  const selectDirectAttack = () => {
+    setUseDirectAttack(true);
+    setSelectedTargets([]); // Clear card targets when selecting direct attack
+  };
+
+  // Select a card target (clears direct attack selection)
+  const selectCardTarget = (cardId: string) => {
+    setSelectedTargets([cardId]);
+    setUseDirectAttack(false);
   };
 
   // Only allow one card to be selected for alternative cost
@@ -76,6 +102,11 @@ export function TargetSelectionModal({
   };
 
   const handleConfirm = () => {
+    // Direct attack for tussle actions (Paper Plane, etc.)
+    if (useDirectAttack) {
+      onConfirm(['direct_attack'], undefined);
+      return;
+    }
     // Ballaber: if using alt cost with card, must have selected a card
     if (useAlternativeCost && alternativeCostCard) {
       onConfirm([], alternativeCostCard);
@@ -92,6 +123,10 @@ export function TargetSelectionModal({
   };
 
   const canConfirm = () => {
+    // Direct attack selected
+    if (useDirectAttack) {
+      return true;
+    }
     // Ballaber: if using alt cost, either have CC selected or a card selected
     if (useAlternativeCost) {
       return true; // Can confirm with just CC payment or with a card
@@ -153,13 +188,57 @@ export function TargetSelectionModal({
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
+          {/* Direct Attack option for tussle actions (Paper Plane, etc.) */}
+          {hasDirectAttackOption && (
+            <div style={{ marginBottom: 'var(--spacing-component-md)' }}>
+              <button
+                style={{
+                  padding: 'var(--spacing-component-sm) var(--spacing-component-md)',
+                  marginBottom: 'var(--spacing-component-sm)',
+                  borderWidth: useDirectAttack ? '3px' : '2px',
+                  borderStyle: 'solid',
+                  borderColor: useDirectAttack ? '#FFD700' : 'transparent',
+                  boxShadow: useDirectAttack 
+                    ? '0 0 12px rgba(255, 215, 0, 0.9), 0 0 24px rgba(255, 215, 0, 0.5)' 
+                    : 'none',
+                }}
+                className={`
+                  w-full rounded transition-all text-sm focus:ring-2 focus:ring-yellow-400
+                  ${useDirectAttack
+                    ? 'bg-red-700'
+                    : 'bg-red-600 hover:bg-red-700 cursor-pointer'
+                  }
+                `}
+                onClick={selectDirectAttack}
+              >
+                <div className="flex justify-between items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
+                  <span className="font-medium leading-tight text-left flex-1">
+                    🎯 Direct Attack
+                  </span>
+                  <span 
+                    className="rounded text-xs font-bold whitespace-nowrap flex-shrink-0 bg-black bg-opacity-30"
+                    style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-xs)' }}
+                  >
+                    Random from hand
+                  </span>
+                </div>
+              </button>
+              {availableTargets.length > 0 && (
+                <p className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                  Or select a card to tussle:
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Ballaber alternative cost: one-click selection */}
           {hasAlternativeCost && (
             <div style={{ marginBottom: 'var(--spacing-component-md)' }}>
               <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Pay cost to play Ballaber:</h3>
               <button
+                disabled={!canAffordCC}
                 style={{
-                  ...(useAlternativeCost && !alternativeCostCard
+                  ...(useAlternativeCost && !alternativeCostCard && canAffordCC
                     ? { boxShadow: '0 0 0 4px rgb(250 204 21), 0 10px 15px -3px rgba(250, 204, 21, 0.5)' }
                     : {}),
                   padding: 'var(--spacing-component-sm) var(--spacing-component-md)',
@@ -167,16 +246,18 @@ export function TargetSelectionModal({
                 }}
                 className={`
                   w-full rounded transition-all text-sm focus:ring-2 focus:ring-yellow-400
-                  ${useAlternativeCost && !alternativeCostCard
-                    ? 'bg-red-700'
-                    : 'bg-red-600 hover:bg-red-700 cursor-pointer'
+                  ${!canAffordCC
+                    ? 'bg-gray-600 opacity-50 cursor-not-allowed'
+                    : useAlternativeCost && !alternativeCostCard
+                      ? 'bg-red-700'
+                      : 'bg-red-600 hover:bg-red-700 cursor-pointer'
                   }
                 `}
-                onClick={selectPayCC}
+                onClick={canAffordCC ? selectPayCC : undefined}
               >
                 <div className="flex justify-between items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
                   <span className="font-medium leading-tight text-left flex-1">
-                    Pay {action.cost_cc} CC
+                    {canAffordCC ? `Pay ${action.cost_cc} CC` : `🔒 Pay ${action.cost_cc} CC (not enough CC)`}
                   </span>
                   <span 
                     className="rounded text-xs font-bold whitespace-nowrap flex-shrink-0 bg-black bg-opacity-30"
@@ -227,18 +308,21 @@ export function TargetSelectionModal({
           {/* Target Selection (for other cards) */}
           {!useAlternativeCost && availableTargets.length > 0 && (
             <div>
-              <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-                {maxTargets > 1
-                  ? `Select up to ${maxTargets} targets`
-                  : 'Select a target '
-                }
-                {minTargets === 0 && ' (optional)'}
-                {selectedTargets.length > 0 && (
-                  <span className="text-yellow-400" style={{ marginLeft: 'var(--spacing-component-xs)' }}>
-                    ({selectedTargets.length}/{maxTargets} selected)
-                  </span>
-                )}
-              </h3>
+              {/* Only show header if not already shown by direct attack section */}
+              {!hasDirectAttackOption && (
+                <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                  {maxTargets > 1
+                    ? `Select up to ${maxTargets} targets`
+                    : 'Select a target '
+                  }
+                  {minTargets === 0 && ' (optional)'}
+                  {selectedTargets.length > 0 && (
+                    <span className="text-yellow-400" style={{ marginLeft: 'var(--spacing-component-xs)' }}>
+                      ({selectedTargets.length}/{maxTargets} selected)
+                    </span>
+                  )}
+                </h3>
+              )}
               {/* Add padding to accommodate card hover scale effect */}
               <div 
                 className="grid grid-cols-2" 
@@ -251,18 +335,22 @@ export function TargetSelectionModal({
                 {availableTargets.map((card) => {
                   const isSelected = selectedTargets.includes(card.id);
                   const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
+                  // For tussle with direct attack option, use single-select behavior
+                  const handleClick = hasDirectAttackOption 
+                    ? () => selectCardTarget(card.id)
+                    : () => !isDisabled && toggleTarget(card.id);
                   return (
                     <div
                       key={card.id}
-                      onClick={() => !isDisabled && toggleTarget(card.id)}
+                      onClick={handleClick}
                       className="flex justify-center"
                     >
                       <CardDisplay
                         card={card}
                         size="medium"
                         isSelected={isSelected}
-                        isClickable={!isDisabled}
-                        isDisabled={isDisabled}
+                        isClickable={!isDisabled || hasDirectAttackOption}
+                        isDisabled={isDisabled && !hasDirectAttackOption}
                       />
                     </div>
                   );

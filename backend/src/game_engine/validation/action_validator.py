@@ -209,8 +209,10 @@ class ActionValidator:
                 )
             elif target_info["requires_targets"] and not target_info["target_options"]:
                 # Card requires targets but none available
-                if target_info["min_targets"] == 0:
-                    # Can still play without targets
+                # For action cards (no stats), don't show if no targets - the card does nothing
+                # For toys, they can still be played for their stats even without effect targets
+                if target_info["min_targets"] == 0 and card.is_toy():
+                    # Toy card can still be played without targets (has stats)
                     desc += ", no targets available)"
                     valid_actions.append(
                         ValidAction(
@@ -223,7 +225,7 @@ class ActionValidator:
                             description=desc
                         )
                     )
-                # Otherwise skip - can't play without required targets
+                # Otherwise skip - can't play action card without targets, it does nothing
             else:
                 # No targets required
                 desc += ")"

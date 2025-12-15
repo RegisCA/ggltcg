@@ -591,6 +591,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           availableTargets={getAvailableTargets(pendingAction)}
           onConfirm={handleTargetSelection}
           onCancel={handleCancelTargetSelection}
+          currentCC={humanPlayer.cc}
           alternativeCostOptions={
             pendingAction.alternative_cost_available
               ? [...humanPlayer.in_play, ...(humanPlayer.hand || [])]
