@@ -317,17 +317,22 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.HAND)
         
         # Verify COMPLETE reset - back to original Copy card
-        self.assertEqual(copy_card.name, "Copy")
-        self.assertEqual(copy_card.card_type, CardType.ACTION)  # Back to Action
-        self.assertEqual(copy_card.cost, -1)
-        self.assertIsNone(copy_card.speed)  # No longer has Toy stats
-        self.assertIsNone(copy_card.strength)
-        self.assertIsNone(copy_card.stamina)
-        self.assertIsNone(copy_card.current_stamina)
-        self.assertEqual(copy_card.effect_text, "This card acts as an exact copy of a card you have in play.")
-        self.assertEqual(copy_card.effect_definitions, "copy_card")
-        self.assertEqual(copy_card.primary_color, "#8B5FA8")  # Original purple color
-        self.assertEqual(copy_card.accent_color, "#8B5FA8")
+        # Load expected Copy definition from CSV to avoid brittle hardcoded values
+        from game_engine.data.card_loader import load_cards_dict
+        cards_dict = load_cards_dict()
+        expected_copy = cards_dict["Copy"]
+        
+        self.assertEqual(copy_card.name, expected_copy.name)
+        self.assertEqual(copy_card.card_type, expected_copy.card_type)
+        self.assertEqual(copy_card.cost, expected_copy.cost)
+        self.assertEqual(copy_card.speed, expected_copy.speed)
+        self.assertEqual(copy_card.strength, expected_copy.strength)
+        self.assertEqual(copy_card.stamina, expected_copy.stamina)
+        self.assertEqual(copy_card.current_stamina, expected_copy.current_stamina)
+        self.assertEqual(copy_card.effect_text, expected_copy.effect_text)
+        self.assertEqual(copy_card.effect_definitions, expected_copy.effect_definitions)
+        self.assertEqual(copy_card.primary_color, expected_copy.primary_color)
+        self.assertEqual(copy_card.accent_color, expected_copy.accent_color)
         self.assertEqual(copy_card.zone, Zone.HAND)
 
 
