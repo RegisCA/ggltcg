@@ -318,8 +318,9 @@ async def update_favorite_deck(
         raise HTTPException(status_code=404, detail="User not found")
     
     # Validate deck composition using game service logic
-    from .game_service import GameService
-    is_valid, error_msg = GameService.validate_deck(deck_update.deck)
+    from .game_service import get_game_service
+    game_service = get_game_service()
+    is_valid, error_msg = game_service.validate_deck(deck_update.deck)
     
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)

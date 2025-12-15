@@ -14,13 +14,14 @@ import type { CardDataResponse } from '../types/api';
 
 interface DeckSelectionProps {
   onDeckSelected: (deck: string[], playerName: string) => void;
+  onBack?: () => void;  // Optional back button handler
   hiddenMode?: boolean;  // When true, cards are face-down and only random selection works
   defaultPlayerName?: string;  // Override the default player name (for AI player)
 }
 
 type SortOption = 'cost-asc' | 'cost-desc' | 'name-asc' | 'name-desc' | 'status';
 
-export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlayerName }: DeckSelectionProps) {
+export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defaultPlayerName }: DeckSelectionProps) {
   const { user } = useAuth();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('cost-asc');
@@ -80,8 +81,10 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
   const handleRandomize = async () => {
     setIsRandomizing(true);
     try {
-      // Use Quick Play logic: 4 toys, 2 actions
-      const randomDeck = await getRandomDeck(4, 2);
+      // Use truly random deck: 2-4 toys, rest actions
+      const numToys = Math.floor(Math.random() * 3) + 2; // 2, 3, or 4
+      const numActions = 6 - numToys;
+      const randomDeck = await getRandomDeck(numToys, numActions);
       setSelectedCards(randomDeck);
     } catch (error) {
       console.error('Failed to get random deck:', error);
@@ -154,8 +157,8 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
     });
   };
 
-  const toyCards = sortCards(cards.filter(c => c.speed !== undefined));
-  const actionCards = sortCards(cards.filter(c => c.speed === undefined));
+  const toyCards = sortCards(cards.filter(c => c.speed !== null && c.speed !== undefined));
+  const actionCards = sortCards(cards.filter(c => c.speed === null || c.speed === undefined));
 
   // Convert CardDataResponse to Card for display using factory
   const createCardForDisplay = (cardData: CardDataResponse): Card => 
@@ -179,9 +182,20 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
         <div className="max-w-7xl mx-auto">
           {/* Title and Card Count */}
           <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-            <h1 className="text-3xl font-bold">
-              {playerName}
-            </h1>
+            <div className="flex items-center" style={{ gap: 'var(--spacing-component-md)' }}>
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="text-gray-400 hover:text-game-highlight transition-colors flex items-center"
+                  style={{ gap: 'var(--spacing-component-xs)' }}
+                >
+                  <span>←</span> Back
+                </button>
+              )}
+              <h1 className="text-3xl font-bold">
+                {playerName}
+              </h1>
+            </div>
 
             <p className="text-xl font-semibold text-game-highlight">
               Choose 6 unique cards ({selectedCards.length}/6 selected)

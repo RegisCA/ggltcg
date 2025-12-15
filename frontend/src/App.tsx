@@ -295,7 +295,11 @@ function GameApp() {
 
   if (gamePhase === 'deck-selection-p1') {
     return (
-      <DeckSelection onDeckSelected={handlePlayer1DeckSelected} hiddenMode={hiddenCardsMode} />
+      <DeckSelection 
+        onDeckSelected={handlePlayer1DeckSelected} 
+        onBack={handleBackToMenu}
+        hiddenMode={hiddenCardsMode} 
+      />
     );
   }
 
@@ -303,7 +307,12 @@ function GameApp() {
     // For AI games (single-player), use "Gemiknight" as the AI's name
     const aiDefaultName = gameMode === 'single-player' ? 'Gemiknight' : undefined;
     return (
-      <DeckSelection onDeckSelected={handlePlayer2DeckSelected} hiddenMode={hiddenCardsMode} defaultPlayerName={aiDefaultName} />
+      <DeckSelection 
+        onDeckSelected={handlePlayer2DeckSelected} 
+        onBack={handleBackToMenu}
+        hiddenMode={hiddenCardsMode} 
+        defaultPlayerName={aiDefaultName} 
+      />
     );
   }
 
