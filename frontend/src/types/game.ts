@@ -11,6 +11,7 @@ export interface Card {
   name: string;
   card_type: CardType;
   cost: number;
+  effective_cost: number | null;  // Current cost after modifications (null if same as base)
   effect_text: string;  // Card effect description
   zone: Zone;
   owner: string;

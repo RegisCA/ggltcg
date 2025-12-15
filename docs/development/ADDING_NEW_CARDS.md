@@ -106,6 +106,7 @@ effect1;effect2;effect3
 
 - `reduce_cost_by_sleeping` – Cost reduced by 1 per card in your sleep zone
 - `alternative_cost_sleep_card` – May sleep one of your cards instead of paying CC
+- `opponent_cost_increase:N` – Opponent's cards cost N more CC to play
 
 > If you introduce a new effect string that is not yet parsed in
 > `EffectFactory.parse_effects`, you **must** add a parser there as part of

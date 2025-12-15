@@ -120,6 +120,9 @@ class EffectFactory:
             elif effect_type == "on_card_played_gain_cc":
                 effect = cls._parse_on_card_played_gain_cc(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "opponent_cost_increase":
+                effect = cls._parse_opponent_cost_increase(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -962,6 +965,45 @@ class EffectFactory:
         
         from .continuous_effects import OnCardPlayedGainCCEffect
         return OnCardPlayedGainCCEffect(source_card, amount=amount)
+
+    @classmethod
+    def _parse_opponent_cost_increase(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an opponent_cost_increase effect definition.
+        
+        Format: "opponent_cost_increase:amount"
+        - amount: integer increase to apply to opponent's card costs
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            OpponentCostIncreaseEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"opponent_cost_increase effect requires exactly 1 parameter: amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            amount = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid amount '{parts[1]}' for opponent_cost_increase. Must be an integer."
+            )
+        
+        if amount < 1:
+            raise ValueError(
+                f"Invalid amount {amount} for opponent_cost_increase. Must be at least 1."
+            )
+        
+        from .continuous_effects import OpponentCostIncreaseEffect
+        return OpponentCostIncreaseEffect(source_card, amount=amount)
 
 
 class EffectRegistry:

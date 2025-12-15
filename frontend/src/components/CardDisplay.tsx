@@ -215,24 +215,44 @@ export function CardDisplay({
         {/* Card Header: Cost + Name + Type Badge */}
         <div className="flex justify-between items-start" style={{ marginBottom: 'var(--spacing-component-xs)', position: 'relative', zIndex: 1 }}>
           {/* Cost Indicator */}
-          <div 
-            className="font-bold"
-            style={{
-              width: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
-              height: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
-              backgroundColor: accentColor,
-              color: 'white',
-              borderRadius: '4px',
-              fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '1rem' : '1.5rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {card.cost}
-          </div>
+          {(() => {
+            // Determine cost display and color
+            const displayCost = card.effective_cost ?? card.cost;
+            const isCostModified = card.effective_cost !== null && card.effective_cost !== undefined;
+            const isCostIncreased = isCostModified && card.effective_cost! > card.cost;
+            const isCostDecreased = isCostModified && card.effective_cost! < card.cost;
+            
+            // Color logic: red for increased cost (debuff), green for decreased cost (buff)
+            let costBgColor = accentColor;
+            if (isCostIncreased) costBgColor = '#f87171'; // red-400 (debuff - costs more)
+            if (isCostDecreased) costBgColor = '#4ade80'; // green-400 (buff - costs less)
+            
+            return (
+              <div 
+                className="font-bold"
+                style={{
+                  width: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
+                  height: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
+                  backgroundColor: costBgColor,
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '1rem' : '1.5rem',
+                  boxShadow: isCostModified 
+                    ? `0 0 12px ${costBgColor}, 0 0 20px ${costBgColor}80, inset 0 0 4px rgba(255,255,255,0.3)` 
+                    : '0 2px 4px rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  border: isCostModified ? '2px solid white' : undefined,
+                  animation: isCostModified ? 'pulse 2s infinite' : undefined,
+                }}
+                title={isCostModified ? `Base cost: ${card.cost}` : undefined}
+              >
+                {displayCost}
+              </div>
+            );
+          })()}
 
           {/* Card Name */}
           <h3 

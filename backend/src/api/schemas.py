@@ -137,6 +137,7 @@ class CardState(BaseModel):
     name: str
     card_type: str
     cost: int
+    effective_cost: Optional[int] = None  # Current cost after modifications (None if same as base)
     effect_text: str = ""  # Card effect description
     zone: str
     owner: str
