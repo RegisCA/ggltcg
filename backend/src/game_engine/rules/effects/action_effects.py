@@ -125,22 +125,26 @@ class UnsleepEffect(PlayEffect):
     
     Returns N cards from player's Sleep Zone to their hand.
     Player chooses which cards to unsleep.
+    Can optionally filter by card type (actions or toys only).
     
     Examples:
     - Wake: UnsleepEffect(source_card, count=1)
     - Sun: UnsleepEffect(source_card, count=2)
+    - That was fun: UnsleepEffect(source_card, count=1, card_type_filter="actions")
     """
     
-    def __init__(self, source_card: "Card", count: int):
+    def __init__(self, source_card: "Card", count: int, card_type_filter: Optional[str] = None):
         """
         Initialize unsleep effect.
         
         Args:
             source_card: The card providing this effect
             count: How many cards to unsleep
+            card_type_filter: Optional filter - "actions" or "toys" (None = all cards)
         """
         super().__init__(source_card)
         self.count = count
+        self.card_type_filter = card_type_filter
     
     def requires_targets(self) -> bool:
         """Unsleep effect requires choosing cards to unsleep."""
@@ -155,12 +159,21 @@ class UnsleepEffect(PlayEffect):
         return 0
     
     def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get all cards in player's Sleep Zone."""
+        """Get cards in player's Sleep Zone, optionally filtered by card type."""
         if player is None:
             player = game_state.get_active_player()
         if not player:
             return []
-        return list(player.sleep_zone)
+        
+        cards = list(player.sleep_zone)
+        
+        # Apply card type filter if specified
+        if self.card_type_filter == "actions":
+            cards = [c for c in cards if c.is_action()]
+        elif self.card_type_filter == "toys":
+            cards = [c for c in cards if c.is_toy()]
+        
+        return cards
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Return target cards from Sleep Zone to hand."""

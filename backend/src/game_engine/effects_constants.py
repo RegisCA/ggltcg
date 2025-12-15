@@ -66,6 +66,7 @@ class EffectDefinitions:
     SLEEP_TARGET_1 = "sleep_target:1"
     UNSLEEP_1 = "unsleep:1"
     UNSLEEP_2 = "unsleep:2"
+    UNSLEEP_ACTIONS_1 = "unsleep:actions:1"
     
     # === Ability Effects ===
     REMOVE_STAMINA_ABILITY_1 = "remove_stamina_ability:1"
@@ -155,6 +156,7 @@ CARD_EFFECT_DEFINITIONS: Dict[str, str] = {
     "Belchaletta": EffectDefinitions.START_OF_TURN_GAIN_CC_2,
     "Hind Leg Kicker": EffectDefinitions.ON_CARD_PLAYED_GAIN_CC_1,
     "Gibbers": EffectDefinitions.OPPONENT_COST_INCREASE_1,
+    "That was fun": EffectDefinitions.UNSLEEP_ACTIONS_1,
 }
 
 

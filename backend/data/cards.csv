@@ -26,3 +26,4 @@ VeryVeryAppleJuice,18,0,"This turn, your cards have 1 more of each stat.",,,,,,#
 Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,,,#eb9113,#eb9113,start_of_turn_gain_cc:2
 Hind Leg Kicker,18,1,"When you play a card (not this one), gain 1 charge.",3,3,1,,,#eb9113,#eb9113,on_card_played_gain_cc:1
 Gibbers,18,1,Your opponent's cards cost 1 more.,1,1,1,,,#eb9113,#eb9113,opponent_cost_increase:1
+That was fun,18,0,Unsleep an action card.,,,,,,#8B5FA8,#8B5FA8,unsleep:actions:1

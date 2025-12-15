@@ -229,8 +229,9 @@ class EffectFactory:
         """
         Parse an unsleep effect definition.
         
-        Format: "unsleep:count"
-        - count: integer number of cards to unsleep
+        Formats:
+        - "unsleep:count" - unsleep N cards (any type)
+        - "unsleep:card_type:count" - unsleep N cards of specific type
         
         Args:
             parts: Split effect definition parts
@@ -242,18 +243,35 @@ class EffectFactory:
         Raises:
             ValueError: If format is invalid
         """
-        if len(parts) != 2:
+        if len(parts) not in (2, 3):
             raise ValueError(
-                f"unsleep effect requires 1 parameter: count. "
+                f"unsleep effect requires 1-2 parameters: [card_type:]count. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
+        card_type_filter = None
+        count_str = None
+        
+        if len(parts) == 2:
+            # Format: unsleep:count
+            count_str = parts[1].strip()
+        else:
+            # Format: unsleep:card_type:count
+            card_type_filter = parts[1].strip().lower()
+            count_str = parts[2].strip()
+            
+            if card_type_filter not in ("actions", "toys"):
+                raise ValueError(
+                    f"Invalid card_type_filter '{card_type_filter}' for unsleep. "
+                    f"Must be 'actions' or 'toys'."
+                )
+        
         # Parse count
         try:
-            count = int(parts[1].strip())
+            count = int(count_str)
         except ValueError:
             raise ValueError(
-                f"Invalid count '{parts[1]}' for unsleep. Must be an integer."
+                f"Invalid count '{count_str}' for unsleep. Must be an integer."
             )
         
         if count < 1:
@@ -263,7 +281,7 @@ class EffectFactory:
         
         # Import here to avoid circular dependency
         from .action_effects import UnsleepEffect
-        return UnsleepEffect(source_card, count)
+        return UnsleepEffect(source_card, count, card_type_filter)
     
     @classmethod
     def _parse_sleep_all(cls, parts: List[str], source_card: "Card") -> BaseEffect:

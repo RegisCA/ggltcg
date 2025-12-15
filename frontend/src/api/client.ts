@@ -37,16 +37,15 @@ apiClient.interceptors.response.use(
       // Server responded with error
       console.error('API Error:', error.response.data);
       
-      // Handle 401 Unauthorized - redirect to login
+      // Handle 401 Unauthorized - clear auth state
+      // The app will show login UI when auth state is cleared
       if (error.response.status === 401) {
         // Clear auth state
         localStorage.removeItem('ggltcg_auth_token');
         localStorage.removeItem('ggltcg_user');
         
-        // Redirect to login (if not already there)
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        // Reload the app to reset state (this returns to root which shows login)
+        window.location.href = '/';
       }
     } else if (error.request) {
       // No response received

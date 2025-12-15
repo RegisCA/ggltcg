@@ -174,4 +174,10 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "ECONOMIC DISRUPTION - Makes opponent's plays more expensive. Very weak stats (1/1/1) but the cost increase hampers their tempo. Protect it to maintain the effect!",
         "threat_level": "HIGH - Your cards cost 1 more to play while Gibbers is in play. Priority removal target!"
     },
+    "That was fun": {
+        "type": "Action",
+        "effect": "Target: Return an Action card from your Sleep Zone to your hand",
+        "strategic_use": "ACTION RECURSION - Bring back powerful Actions like Rush, Clean, or Twist. More limited than Wake (only Actions) but free at 0 CC. Good synergy with high-impact Action cards.",
+        "threat_level": "LOW - Lets opponent reuse their Action cards"
+    },
 }
