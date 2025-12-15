@@ -209,8 +209,10 @@ class ActionValidator:
                 )
             elif target_info["requires_targets"] and not target_info["target_options"]:
                 # Card requires targets but none available
-                if target_info["min_targets"] == 0:
-                    # Can still play without targets
+                # For action cards (no stats), don't show if no targets - the card does nothing
+                # For toys, they can still be played for their stats even without effect targets
+                if target_info["min_targets"] == 0 and card.is_toy():
+                    # Toy card can still be played without targets (has stats)
                     desc += ", no targets available)"
                     valid_actions.append(
                         ValidAction(
@@ -223,7 +225,7 @@ class ActionValidator:
                             description=desc
                         )
                     )
-                # Otherwise skip - can't play without required targets
+                # Otherwise skip - can't play action card without targets, it does nothing
             else:
                 # No targets required
                 desc += ")"
@@ -317,8 +319,13 @@ class ActionValidator:
             if card.card_type != CardType.TOY:
                 continue
             
-            # Check direct attack (only when opponent has no cards in play)
-            if not opponent.has_cards_in_play():
+            # Check if card has direct attack ability (can attack hand even with opponent cards in play)
+            from ..rules.effects.continuous_effects import DirectAttackEffect
+            has_direct_attack = card.has_effect_type(DirectAttackEffect)
+            
+            # Check direct attack (normally only when opponent has no cards in play,
+            # but cards with DirectAttackEffect can always do this)
+            if not opponent.has_cards_in_play() or has_direct_attack:
                 can_attack, _ = self.engine.can_tussle(card, None, player)
                 if can_attack:
                     cost = self.engine.calculate_tussle_cost(card, player)
