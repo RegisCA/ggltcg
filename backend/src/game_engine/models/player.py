@@ -71,8 +71,11 @@ class Player:
         elif from_zone == Zone.SLEEP:
             self.sleep_zone.remove(card)
         
-        # Reset modifications when changing zones
-        card.reset_modifications()
+        # Reset modifications when leaving IN_PLAY or going to SLEEP
+        # This covers: IN_PLAY→SLEEP, IN_PLAY→HAND, HAND→SLEEP
+        if from_zone == Zone.IN_PLAY or to_zone == Zone.SLEEP:
+            card.reset_modifications()
+        
         card.zone = to_zone
         
         # Add to destination zone

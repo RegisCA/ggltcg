@@ -73,11 +73,44 @@ class Card:
         return self.card_type == CardType.ACTION
     
     def reset_modifications(self):
-        """Remove all modifications when card changes zones."""
+        """Remove all modifications and transformations when card changes zones."""
         self.modifications = {}
         self.turn_modifications = {}  # Clear turn-scoped modifications too
         if self.stamina is not None:
             self.current_stamina = self.stamina
+        
+        # Reset Copy card transformation by reloading from definition
+        if hasattr(self, '_is_transformed') and self._is_transformed:
+            self._reset_copy_transformation()
+    
+    def _reset_copy_transformation(self):
+        """Reset Copy card to original state by reloading from card definition."""
+        # Copy card original properties from CSV
+        self.name = "Copy"
+        self.card_type = CardType.ACTION
+        self.cost = -1
+        self.effect_text = "This card acts as an exact copy of a card you have in play."
+        self.effect_definitions = "copy_card"
+        
+        # Remove Toy stats (Copy is an Action card)
+        self.speed = None
+        self.strength = None
+        self.stamina = None
+        self.current_stamina = None
+        
+        # Restore original colors
+        self.primary_color = "#8B5FA8"  # Purple
+        self.accent_color = "#8B5FA8"
+        
+        # Clean up transformation tracking attributes
+        if hasattr(self, '_is_transformed'):
+            delattr(self, '_is_transformed')
+        if hasattr(self, '_original_name'):
+            delattr(self, '_original_name')
+        if hasattr(self, '_original_cost'):
+            delattr(self, '_original_cost')
+        if hasattr(self, '_copied_effects'):
+            delattr(self, '_copied_effects')
     
     def get_turn_modification(self, stat_name: str, current_turn: int) -> int:
         """
