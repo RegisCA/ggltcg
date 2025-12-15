@@ -485,9 +485,7 @@ class CopyEffect(PlayEffect):
         if not target or not copy_card:
             return
         
-        # Store original Copy card properties for reverting later
-        copy_card._original_name = "Copy"
-        copy_card._original_cost = -1
+        # Mark card as transformed (used by reset_modifications to know to reset)
         copy_card._is_transformed = True
         
         # Transform Copy card properties to match target

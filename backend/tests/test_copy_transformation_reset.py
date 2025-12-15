@@ -283,6 +283,52 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         # So SLEEP → HAND would NOT trigger reset (correct)
         self.assertEqual(copy_card.modifications, {"strength": 2})
         self.assertEqual(copy_card.zone, Zone.HAND)
+    
+    def test_copy_resets_card_type_and_stats(self):
+        """
+        Test that Copy fully resets including card_type, stats, and effect_text.
+        
+        Regression test for issue where only name and cost were being reset,
+        but card_type, stats, effect_text remained from the copied card.
+        """
+        # Setup: Ka in play, Copy in play (transformed)
+        ka_card = self._create_ka_card()
+        ka_card.zone = Zone.IN_PLAY
+        self.player1.in_play.append(ka_card)
+        
+        copy_card = self._create_copy_card()
+        copy_card.zone = Zone.IN_PLAY
+        self.player1.in_play.append(copy_card)
+        
+        # Transform Copy into Copy of Ka
+        self._transform_copy_into_ka(copy_card, ka_card)
+        
+        # Verify transformation occurred - Copy became a Toy with stats
+        self.assertEqual(copy_card.name, "Copy of Ka")
+        self.assertEqual(copy_card.card_type, CardType.TOY)
+        self.assertEqual(copy_card.cost, 2)
+        self.assertEqual(copy_card.speed, 5)
+        self.assertEqual(copy_card.strength, 11)
+        self.assertEqual(copy_card.stamina, 1)
+        self.assertEqual(copy_card.effect_text, "Your cards have +2 strength.")
+        self.assertEqual(copy_card.effect_definitions, "stat_boost:strength:2")
+        
+        # Return Copy to hand (IN_PLAY → HAND)
+        self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.HAND)
+        
+        # Verify COMPLETE reset - back to original Copy card
+        self.assertEqual(copy_card.name, "Copy")
+        self.assertEqual(copy_card.card_type, CardType.ACTION)  # Back to Action
+        self.assertEqual(copy_card.cost, -1)
+        self.assertIsNone(copy_card.speed)  # No longer has Toy stats
+        self.assertIsNone(copy_card.strength)
+        self.assertIsNone(copy_card.stamina)
+        self.assertIsNone(copy_card.current_stamina)
+        self.assertEqual(copy_card.effect_text, "This card acts as an exact copy of a card you have in play.")
+        self.assertEqual(copy_card.effect_definitions, "copy_card")
+        self.assertEqual(copy_card.primary_color, "#8B5FA8")  # Original purple color
+        self.assertEqual(copy_card.accent_color, "#8B5FA8")
+        self.assertEqual(copy_card.zone, Zone.HAND)
 
 
 if __name__ == "__main__":
