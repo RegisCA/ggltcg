@@ -158,11 +158,18 @@ class ActionValidator:
             from ..rules.effects.action_effects import CopyEffect
             if card.has_effect_type(CopyEffect) and target_info["target_options"]:
                 # Filter Copy targets to only include cards the player can afford
+                # Use effective cost (considering Dream's cost reduction, etc.)
                 affordable_targets = []
                 for target_id in target_info["target_options"]:
                     target_card = self.game_state.find_card_by_id(target_id)
-                    if target_card and target_card.cost <= player.cc:
-                        affordable_targets.append(target_id)
+                    if target_card:
+                        # Get target card's effective cost (e.g., Dream's reduced cost)
+                        target_player = self.game_state.players.get(target_card.controller, player)
+                        effective_cost = self.engine._calculate_card_base_cost_for_copy(
+                            target_card, target_player
+                        )
+                        if effective_cost <= player.cc:
+                            affordable_targets.append(target_id)
                 
                 # Only show Copy action if there are affordable targets
                 if affordable_targets:
