@@ -279,12 +279,21 @@ def _card_to_state(card, engine, player) -> CardState:
         base_strength = card.strength
         base_stamina = card.stamina
     
-    # Calculate effective cost (with continuous effects like Gibbers)
-    # Only calculate for cards in hand (playable cards)
+    # Calculate effective cost (with continuous effects)
+    # For HAND: includes opponent effects (Gibbers)
+    # For IN_PLAY: only self-modifying effects (Dream) - used for Copy targeting
     # Skip Copy card (cost -1) since it has dynamic cost based on target
     effective_cost = None
-    if card.zone == Zone.HAND and card.cost >= 0:
-        calculated_cost = engine.calculate_card_cost(card, player)
+    if card.cost >= 0:
+        if card.zone == Zone.HAND:
+            # Cards in hand: full cost calculation including opponent effects
+            calculated_cost = engine.calculate_card_cost(card, player)
+        elif card.zone == Zone.IN_PLAY:
+            # Cards in play: only self-modifying effects (for Copy target display)
+            calculated_cost = engine._calculate_card_base_cost_for_copy(card, player)
+        else:
+            calculated_cost = card.cost
+        
         # Only set effective_cost if it differs from base cost
         if calculated_cost != card.cost:
             effective_cost = calculated_cost
