@@ -181,6 +181,55 @@ const spacing = isMobile
 
 **Exceptions**: NONE. All text uses Lato. Visual hierarchy comes from weight and size, not font family.
 
+## Card Factory Utilities
+
+**File**: `frontend/src/utils/cardFactory.ts`
+
+Use factory functions to create Card objects consistently:
+
+```typescript
+import { 
+  createCardFromApiData, 
+  createTestCard, 
+  createCardInZone,
+  withEffectiveCost 
+} from '../utils/cardFactory';
+
+// Convert API response to Card type
+const card = createCardFromApiData(apiResponse, 'preview');
+
+// Create cards for testing/storybook
+const testCard = createTestCard({
+  name: 'Test Knight',
+  card_type: 'Toy',
+  cost: 2,
+  speed: 3,
+  strength: 3,
+  stamina: 3,
+});
+
+// Create card in specific zone
+const handCard = createCardInZone(apiData, 'hand', 'player1');
+```
+
+### ❌ WRONG: Manual Card Object Creation
+
+```typescript
+// BAD - Easy to miss required fields
+const card: Card = {
+  id: `preview-${data.name}`,
+  name: data.name,
+  // ... 15+ more fields
+};
+```
+
+### ✅ CORRECT: Use Factory Functions
+
+```typescript
+// GOOD - Handles all required fields, uses sensible defaults
+const card = createCardFromApiData(data, 'preview');
+```
+
 ## Layout Patterns
 
 ### GameBoard Layout (Desktop)

@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { CardDisplay } from './CardDisplay';
 import { getRandomDeck, getAllCards } from '../api/gameService';
+import { createCardFromApiData } from '../utils/cardFactory';
 import type { Card } from '../types/game';
 import type { CardDataResponse } from '../types/api';
 
@@ -76,28 +77,9 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
     }
   };
 
-  // Convert CardDataResponse to Card for display
-  const createCardForDisplay = (cardData: CardDataResponse): Card => ({
-    id: `preview-${cardData.name}`,  // Temporary ID for preview cards
-    name: cardData.name,
-    card_type: cardData.card_type,
-    cost: cardData.cost,
-    effective_cost: null,  // Preview cards don't have cost modifications
-    effect_text: cardData.effect,  // Map 'effect' from API to 'effect_text' for Card type
-    zone: 'Hand',
-    owner: '',
-    controller: '',
-    speed: cardData.speed,
-    strength: cardData.strength,
-    stamina: cardData.stamina,
-    current_stamina: cardData.stamina,
-    base_speed: cardData.speed,
-    base_strength: cardData.strength,
-    base_stamina: cardData.stamina,
-    is_sleeped: false,
-    primary_color: cardData.primary_color,
-    accent_color: cardData.accent_color,
-  });
+  // Convert CardDataResponse to Card for display using factory
+  const createCardForDisplay = (cardData: CardDataResponse): Card => 
+    createCardFromApiData(cardData, 'preview');
 
   if (isLoadingCards) {
     return (
