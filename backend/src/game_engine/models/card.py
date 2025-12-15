@@ -73,11 +73,27 @@ class Card:
         return self.card_type == CardType.ACTION
     
     def reset_modifications(self):
-        """Remove all modifications when card changes zones."""
+        """Remove all modifications and transformations when card changes zones."""
         self.modifications = {}
         self.turn_modifications = {}  # Clear turn-scoped modifications too
         if self.stamina is not None:
             self.current_stamina = self.stamina
+        
+        # Reset Copy card transformation if applicable
+        if hasattr(self, '_is_transformed') and self._is_transformed:
+            # Restore original Copy card properties
+            if hasattr(self, '_original_name'):
+                self.name = self._original_name
+            if hasattr(self, '_original_cost'):
+                self.cost = self._original_cost
+            # Remove transformation state attributes
+            delattr(self, '_is_transformed')
+            if hasattr(self, '_original_name'):
+                delattr(self, '_original_name')
+            if hasattr(self, '_original_cost'):
+                delattr(self, '_original_cost')
+            if hasattr(self, '_copied_effects'):
+                delattr(self, '_copied_effects')
     
     def get_turn_modification(self, stat_name: str, current_turn: int) -> int:
         """
