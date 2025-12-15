@@ -45,10 +45,17 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
         if (user?.google_id && !hiddenMode) {
           try {
             const response = await apiClient.get<{ decks: string[][] }>('/auth/me/decks');
-            setFavoriteDecks(response.data.decks);
+            // Ensure response has proper structure
+            if (response.data?.decks && Array.isArray(response.data.decks)) {
+              setFavoriteDecks(response.data.decks);
+            } else {
+              console.warn('Invalid favorite decks response:', response.data);
+              setFavoriteDecks([[], [], []]);
+            }
           } catch (error) {
             console.error('Failed to load favorite decks:', error);
-            // Continue without favorite decks
+            // Keep default empty decks
+            setFavoriteDecks([[], [], []]);
           }
         }
       } catch (error) {
@@ -85,8 +92,8 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
   };
 
   const loadFavoriteDeck = (slotIndex: number) => {
-    const deck = favoriteDecks[slotIndex];
-    if (deck && deck.length === 6) {
+    const deck = favoriteDecks?.[slotIndex];
+    if (deck && Array.isArray(deck) && deck.length === 6) {
       setSelectedCards([...deck]);
     }
   };
@@ -104,7 +111,7 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
       });
       
       // Update local state
-      const newDecks = [...favoriteDecks];
+      const newDecks = [...(favoriteDecks || [[], [], []])];
       newDecks[slotIndex] = [...selectedCards];
       setFavoriteDecks(newDecks);
       
@@ -219,11 +226,11 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
             {/* Action Buttons */}
             <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
               {/* Favorite Deck Slots - Only show for authenticated users not in hidden mode */}
-              {user?.google_id && !hiddenMode && (
+              {user?.google_id && !hiddenMode && Array.isArray(favoriteDecks) && (
                 <>
                   {[0, 1, 2].map((slotIndex) => {
-                    const deck = favoriteDecks[slotIndex];
-                    const hasCard = deck && deck.length === 6;
+                    const deck = favoriteDecks?.[slotIndex] || [];
+                    const hasCard = Array.isArray(deck) && deck.length === 6;
                     const isSaving = savingSlot === slotIndex;
                     
                     return (
