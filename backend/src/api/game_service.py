@@ -819,6 +819,31 @@ class GameService:
         finally:
             db.close()
     
+    def validate_deck(self, card_names: list[str]) -> tuple[bool, Optional[str]]:
+        """
+        Validate a deck composition.
+        
+        Args:
+            card_names: List of card names
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Check deck size
+        if len(card_names) != 6:
+            return False, f"Deck must have exactly 6 cards, got {len(card_names)}"
+        
+        # Check for duplicates
+        if len(set(card_names)) != len(card_names):
+            return False, "Deck cannot contain duplicate cards"
+        
+        # Check if all cards exist
+        for name in card_names:
+            if not any(c.name == name for c in self.all_cards):
+                return False, f"Card '{name}' not found in card database"
+        
+        return True, None
+    
     def _create_deck(self, card_names: list[str], owner_id: str) -> list[Card]:
         """
         Create a deck of cards from card names.

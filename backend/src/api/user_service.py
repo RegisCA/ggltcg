@@ -141,7 +141,12 @@ class UserService:
         user = UserModel(
             google_id=google_id,
             first_name=first_name,
-            custom_display_name=None
+            custom_display_name=None,
+            favorite_decks=[
+                ["Dream", "Knight", "Raggy", "Umbruh", "Rush", "Twist"],
+                ["Ballaber", "Demideca", "Ka", "Wizard", "Copy", "Wake"],
+                ["Belchaletta", "Drum", "Hind Leg Kicker", "Violin", "Jumpscare", "Surge"]
+            ]
         )
         
         db.add(user)

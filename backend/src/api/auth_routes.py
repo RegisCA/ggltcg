@@ -7,8 +7,9 @@ Provides endpoints for user authentication, token verification, and profile mana
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-from typing import Optional, Annotated
+from sqlalchemy.orm import Session, attributes
+from typing import Optional, Annotated, List
+from datetime import datetime
 import logging
 import time
 from collections import defaultdict
@@ -80,6 +81,17 @@ class UserProfileResponse(BaseModel):
     custom_display_name: Optional[str]
     created_at: str
     updated_at: str
+    favorite_decks: Optional[List[List[str]]] = Field(None, description="Array of 3 favorite decks")
+
+
+class UpdateFavoriteDeckRequest(BaseModel):
+    """Request to update a favorite deck slot."""
+    deck: List[str] = Field(..., min_length=6, max_length=6, description="Array of 6 card names")
+
+
+class FavoriteDecksResponse(BaseModel):
+    """Response with all favorite decks."""
+    favorite_decks: List[List[str]] = Field(..., description="Array of 3 favorite decks")
 
 
 # Dependency for JWT authentication
@@ -212,7 +224,8 @@ async def get_current_user_profile(
         display_name=user.display_name,
         custom_display_name=user.custom_display_name,
         created_at=user.created_at.isoformat(),
-        updated_at=user.updated_at.isoformat()
+        updated_at=user.updated_at.isoformat(),
+        favorite_decks=user.favorite_decks or []
     )
 
 
@@ -257,3 +270,81 @@ async def update_user_profile(
     except Exception as e:
         logger.error(f"Profile update failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Profile update failed")
+
+
+@router.get("/me/decks", response_model=FavoriteDecksResponse)
+async def get_favorite_decks(
+    google_id: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get user's favorite decks.
+    """
+    user = UserService.get_user_by_google_id(db, google_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Ensure we return 3 decks (fill with empty if needed)
+    decks = user.favorite_decks or []
+    while len(decks) < 3:
+        decks.append([])
+    
+    return FavoriteDecksResponse(favorite_decks=decks[:3])
+
+
+@router.put("/me/decks/{slot}")
+async def update_favorite_deck(
+    slot: int,
+    deck_update: UpdateFavoriteDeckRequest,
+    google_id: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a specific favorite deck slot (0, 1, or 2).
+    
+    Validates that:
+    - Slot is 0, 1, or 2
+    - Deck has exactly 6 cards
+    - All cards exist in the game
+    - Deck composition is valid
+    """
+    # Validate slot
+    if slot not in [0, 1, 2]:
+        raise HTTPException(status_code=400, detail="Slot must be 0, 1, or 2")
+    
+    user = UserService.get_user_by_google_id(db, google_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Validate deck composition using game service logic
+    from .game_service import get_game_service
+    game_service = get_game_service()
+    is_valid, error_msg = game_service.validate_deck(deck_update.deck)
+    
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+    
+    # Update the specific slot
+    decks = user.favorite_decks or [[], [], []]
+    while len(decks) < 3:
+        decks.append([])
+    
+    decks[slot] = deck_update.deck
+    user.favorite_decks = decks
+    
+    # CRITICAL: Mark the JSON column as modified so SQLAlchemy commits the change
+    attributes.flag_modified(user, "favorite_decks")
+    
+    user.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(user)
+    
+    logger.info(f"Updated favorite deck slot {slot} for user {google_id}: {deck_update.deck}")
+    
+    return {
+        "success": True,
+        "slot": slot,
+        "deck": deck_update.deck
+    }

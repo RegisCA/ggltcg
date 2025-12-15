@@ -375,6 +375,7 @@ async def get_users(
             "avg_game_duration_seconds": player_stats.avg_game_duration_seconds if player_stats else 0.0,
             "last_game_at": last_game.updated_at.isoformat() if last_game else None,
             "last_game_status": last_game.status if last_game else None,
+            "favorite_decks": user.favorite_decks if user.favorite_decks else [[], [], []],
         })
     
     return {
