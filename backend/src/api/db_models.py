@@ -37,6 +37,10 @@ class UserModel(Base):
     first_name = Column(String(255), nullable=False)
     custom_display_name = Column(String(255), nullable=True)
     
+    # Favorite decks - array of 3 decks (each deck is array of 6 card names)
+    # Stored as JSON for cross-database compatibility (SQLite + PostgreSQL)
+    favorite_decks = Column(JSONType, nullable=True)
+    
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
