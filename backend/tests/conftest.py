@@ -289,3 +289,84 @@ def basic_game() -> GameSetup:
 def card_templates() -> Dict[str, Card]:
     """Provide card templates dictionary."""
     return get_card_templates()
+
+
+# =============================================================================
+# Test Card Helpers
+# =============================================================================
+# Pre-configured card creation functions for common test scenarios.
+# These ensure correct effect definitions and stats are used.
+
+def create_beary(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Beary card (immune to opponent effects)."""
+    return create_card("Beary", owner=owner, zone=zone)
+
+
+def create_knight(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Knight card (wins all tussles on own turn)."""
+    return create_card("Knight", owner=owner, zone=zone)
+
+
+def create_dream(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Dream card (cost reduced by sleeping cards)."""
+    return create_card("Dream", owner=owner, zone=zone)
+
+
+def create_gibbers(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Gibbers card (increases opponent's costs)."""
+    return create_card("Gibbers", owner=owner, zone=zone)
+
+
+def create_ka(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Ka card (+2 strength to all cards)."""
+    return create_card("Ka", owner=owner, zone=zone)
+
+
+def create_demideca(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Demideca card (+1 all stats to all cards)."""
+    return create_card("Demideca", owner=owner, zone=zone)
+
+
+def create_copy(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Copy card (copies a card in play)."""
+    return create_card("Copy", owner=owner, zone=zone)
+
+
+def create_rush(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Rush card (gain 2 CC, not on first turn)."""
+    return create_card("Rush", owner=owner, zone=zone)
+
+
+def create_surge(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Surge card (gain 1 CC)."""
+    return create_card("Surge", owner=owner, zone=zone)
+
+
+def create_clean(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Clean card (sleep all cards in play)."""
+    return create_card("Clean", owner=owner, zone=zone)
+
+
+def create_wake(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Wake card (unsleep 1 card)."""
+    return create_card("Wake", owner=owner, zone=zone)
+
+
+def create_wizard(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Wizard card (tussles cost 1)."""
+    return create_card("Wizard", owner=owner, zone=zone)
+
+
+def create_archer(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create an Archer card (can't tussle, can remove stamina)."""
+    return create_card("Archer", owner=owner, zone=zone)
+
+
+def create_ballaber(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Ballaber card (alternative cost: sleep a card)."""
+    return create_card("Ballaber", owner=owner, zone=zone)
+
+
+def create_twist(owner: str, zone: Zone = Zone.HAND) -> Card:
+    """Create a Twist card (take control of opponent's card)."""
+    return create_card("Twist", owner=owner, zone=zone)

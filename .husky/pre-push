@@ -1,0 +1,33 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-push checks..."
+
+# Check if frontend has changes
+if git diff --cached --name-only origin/main...HEAD | grep -q "^frontend/"; then
+  echo "📦 Frontend changes detected, running build check..."
+  cd frontend
+  npm run build
+  if [ $? -ne 0 ]; then
+    echo "❌ Frontend build failed! Fix TypeScript errors before pushing."
+    exit 1
+  fi
+  echo "✅ Frontend build succeeded"
+  cd ..
+fi
+
+# Run backend tests
+if git diff --cached --name-only origin/main...HEAD | grep -q "^backend/"; then
+  echo "🧪 Backend changes detected, running tests..."
+  cd backend
+  source ../.venv/bin/activate 2>/dev/null || true
+  python -m pytest tests/ -q --tb=short
+  if [ $? -ne 0 ]; then
+    echo "❌ Backend tests failed! Fix tests before pushing."
+    exit 1
+  fi
+  echo "✅ Backend tests passed"
+  cd ..
+fi
+
+echo "🚀 All pre-push checks passed!"
