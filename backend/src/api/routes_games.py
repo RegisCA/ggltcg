@@ -101,19 +101,35 @@ async def get_random_deck(request: RandomDeckRequest) -> RandomDeckResponse:
     
     - **num_toys**: Number of Toy cards to include (0-6)
     - **num_actions**: Number of Action cards to include (0-6)
-    - Sum must equal 6
+    - Sum must equal 6, OR both 0 for truly random
+    
+    Special case: If both are 0, generates a completely random deck (Quick Play mode)
     
     Returns a list of unique card names for the deck.
     Uses the same card source as game creation.
     """
     try:
         service = get_game_service()
-        deck = service.generate_random_deck(num_toys=request.num_toys, num_actions=request.num_actions)
-        return RandomDeckResponse(
-            deck=deck,
-            num_toys=request.num_toys,
-            num_actions=request.num_actions,
-        )
+        
+        # Special case: both 0 means "truly random" (Quick Play mode)
+        if request.num_toys == 0 and request.num_actions == 0:
+            deck = service.generate_random_full_deck()
+            # Count the actual toys/actions for response
+            from game_engine.models.card import CardType
+            actual_toys = sum(1 for card in service.all_cards if card.name in deck and card.card_type == CardType.TOY)
+            actual_actions = 6 - actual_toys
+            return RandomDeckResponse(
+                deck=deck,
+                num_toys=actual_toys,
+                num_actions=actual_actions,
+            )
+        else:
+            deck = service.generate_random_deck(num_toys=request.num_toys, num_actions=request.num_actions)
+            return RandomDeckResponse(
+                deck=deck,
+                num_toys=request.num_toys,
+                num_actions=request.num_actions,
+            )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

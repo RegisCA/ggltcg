@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { CardDisplay } from './CardDisplay';
 import { getRandomDeck, getAllCards } from '../api/gameService';
@@ -45,10 +46,10 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
         // Load favorite decks if user is authenticated and not in hidden mode
         if (user?.google_id && !hiddenMode) {
           try {
-            const response = await apiClient.get<{ decks: string[][] }>('/auth/me/decks');
+            const response = await apiClient.get<{ favorite_decks: string[][] }>('/auth/me/decks');
             // Ensure response has proper structure
-            if (response.data?.decks && Array.isArray(response.data.decks)) {
-              setFavoriteDecks(response.data.decks);
+            if (response.data?.favorite_decks && Array.isArray(response.data.favorite_decks)) {
+              setFavoriteDecks(response.data.favorite_decks);
             } else {
               console.warn('Invalid favorite decks response:', response.data);
               setFavoriteDecks([[], [], []]);
@@ -81,10 +82,9 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
   const handleRandomize = async () => {
     setIsRandomizing(true);
     try {
-      // Use truly random deck: 2-4 toys, rest actions
-      const numToys = Math.floor(Math.random() * 3) + 2; // 2, 3, or 4
-      const numActions = 6 - numToys;
-      const randomDeck = await getRandomDeck(numToys, numActions);
+      // Use Quick Play logic: completely random 6 cards (any combination)
+      // Backend will select any 6 cards from the entire pool
+      const randomDeck = await getRandomDeck(0, 0); // Special: 0,0 means "truly random"
       setSelectedCards(randomDeck);
     } catch (error) {
       console.error('Failed to get random deck:', error);
@@ -109,9 +109,11 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
 
     setSavingSlot(slotIndex);
     try {
-      await apiClient.put(`/auth/me/decks/${slotIndex}`, {
+      console.log(`Saving deck to slot ${slotIndex}:`, selectedCards);
+      const response = await apiClient.put(`/auth/me/decks/${slotIndex}`, {
         deck: selectedCards
       });
+      console.log('Save response:', response.data);
       
       // Update local state
       const newDecks = [...(favoriteDecks || [[], [], []])];
@@ -121,6 +123,13 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
       alert(`Deck saved to slot ${slotIndex + 1}!`);
     } catch (error) {
       console.error('Failed to save favorite deck:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+      }
       alert('Failed to save deck. Please try again.');
     } finally {
       setSavingSlot(null);
@@ -145,12 +154,13 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
           return a.name.localeCompare(b.name);
         case 'name-desc':
           return b.name.localeCompare(a.name);
-        case 'status':
+        case 'status': {
           // Sort by selected status first, then by cost
           const aSelected = selectedCards.includes(a.name) ? 0 : 1;
           const bSelected = selectedCards.includes(b.name) ? 0 : 1;
           if (aSelected !== bSelected) return aSelected - bSelected;
           return (a.cost ?? 999) - (b.cost ?? 999);
+        }
         default:
           return 0;
       }

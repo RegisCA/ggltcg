@@ -7,7 +7,7 @@ Provides endpoints for user authentication, token verification, and profile mana
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, attributes
 from typing import Optional, Annotated, List
 from datetime import datetime
 import logging
@@ -332,10 +332,16 @@ async def update_favorite_deck(
     
     decks[slot] = deck_update.deck
     user.favorite_decks = decks
+    
+    # CRITICAL: Mark the JSON column as modified so SQLAlchemy commits the change
+    attributes.flag_modified(user, "favorite_decks")
+    
     user.updated_at = datetime.utcnow()
     
     db.commit()
     db.refresh(user)
+    
+    logger.info(f"Updated favorite deck slot {slot} for user {google_id}: {deck_update.deck}")
     
     return {
         "success": True,
