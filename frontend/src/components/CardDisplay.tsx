@@ -219,8 +219,8 @@ export function CardDisplay({
             // Determine cost display and color
             const displayCost = card.effective_cost ?? card.cost;
             const isCostModified = card.effective_cost !== null && card.effective_cost !== undefined;
-            const isCostIncreased = isCostModified && card.effective_cost > card.cost;
-            const isCostDecreased = isCostModified && card.effective_cost < card.cost;
+            const isCostIncreased = isCostModified && card.effective_cost! > card.cost;
+            const isCostDecreased = isCostModified && card.effective_cost! < card.cost;
             
             // Color logic: red for increased cost (debuff), green for decreased cost (buff)
             let costBgColor = accentColor;

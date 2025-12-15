@@ -82,6 +82,7 @@ export function DeckSelection({ onDeckSelected, hiddenMode = false, defaultPlaye
     name: cardData.name,
     card_type: cardData.card_type,
     cost: cardData.cost,
+    effective_cost: null,  // Preview cards don't have cost modifications
     effect_text: cardData.effect,  // Map 'effect' from API to 'effect_text' for Card type
     zone: 'Hand',
     owner: '',
