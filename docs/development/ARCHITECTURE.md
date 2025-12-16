@@ -482,69 +482,61 @@ new_controller.in_play.append(card)
 
 ## Target Selection System
 
-### Frontend Flow
+### Current Implementation (Dec 2025)
 
-1. **User clicks "Play Card"** on action card requiring targets
-2. **Frontend checks** if card requires targets (hardcoded per card name)
-3. **Target Selection Modal** appears with available targets
-4. **User selects target(s)** from filtered list
-5. **API request sent** with `target_card_name` or `target_card_names`
+**Frontend Flow:**
 
-### Frontend Target Filtering
+1. **User clicks "Play Card"** on a card requiring targets
+2. **Frontend checks** `ValidAction.target_options` (provided by backend via `/valid-actions` endpoint)
+3. **Target Selection Modal** appears if `target_options` is populated
+4. **User selects target(s)** from the available cards
+5. **API request sent** with `target_ids` (card IDs, not names)
 
-```typescript
-// GameBoard.tsx -> getAvailableTargets()
-const getAvailableTargets = (actionName: string): Card[] => {
-  if (actionName === 'Wake') {
-    return gameState.players[playerId].sleep_zone;
-  }
-  if (actionName === 'Copy') {
-    return gameState.players[playerId].in_play;
-  }
-  if (actionName === 'Sun' || actionName === 'Twist') {
-    const opponentId = // ... find opponent
-    return gameState.players[opponentId].in_play;
-  }
-  // ... etc
-};
-```
+**Backend Flow:**
 
-**Note:** Zone filtering logic exists in both backend and frontend for validation.
+1. **ActionValidator** determines valid targets based on effect type
+2. **ValidAction** includes `target_options` (list of card IDs), `min_targets`, `max_targets`
+3. **ActionExecutor** receives `target_ids` and executes the action
+4. **Effect classes** define `get_valid_targets()` method for their specific requirements
 
-### Backend Target Resolution
+### Target Validation Example
 
 ```python
-# routes_actions.py -> play_card endpoint
-if request.target_card_name:
-    # Zone-specific search to avoid duplicate names
-    if card.name == "Twist":
-        opponent = game_state.get_opponent(player.player_id)
-        target = next((c for c in opponent.in_play 
-                      if c.name == request.target_card_name), None)
-    elif card.name == "Wake":
-        target = next((c for c in player.sleep_zone 
-                      if c.name == request.target_card_name), None)
-    # ... etc
+# action_validator.py
+def _get_target_info(self, card: Card, player: Player) -> dict:
+    """Get target requirements for a card's effects."""
+    effects = EffectRegistry.get_effects(card)
+    
+    for effect in effects:
+        if hasattr(effect, 'get_valid_targets'):
+            valid_targets = effect.get_valid_targets(self.game_state, player)
+            return {
+                "target_options": [t.id for t in valid_targets],
+                "max_targets": getattr(effect, 'max_targets', 1),
+                "min_targets": getattr(effect, 'min_targets', 1),
+            }
+    
+    return {"target_options": None}
 ```
 
 **Card Identification:**
 
-Cards are identified by unique IDs (`card.id`) to prevent ambiguity when multiple cards have the same name. Target selection uses zone-specific searching combined with ID-based lookups.
+All cards are identified by unique IDs (`card.id`). Target selection uses ID-based lookups exclusively - no name-based lookups in gameplay logic.
 
 ### Effect Target Validation
 
 ```python
 class PlayEffect:
-    def requires_targets(self) -> bool:
-        """Override to return True if effect needs targets."""
-        return False
-    
-    def get_valid_targets(self, game_state: "GameState") -> List["Card"]:
-        """Override to return list of valid target cards."""
+    def get_valid_targets(
+        self, 
+        game_state: "GameState", 
+        player: Player
+    ) -> List["Card"]:
+        """Return list of valid target cards for this effect."""
         return []
 ```
 
-**Used by:** AI player to determine valid actions
+**Used by:** Both AI player and ActionValidator to determine valid targets
 
 ---
 
@@ -803,22 +795,28 @@ const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
 - Cost calculation partially duplicated
 - Valid action checking scattered across multiple files
 
-**Effect Registration is Manual:**
+### Recently Resolved Issues ✅
 
-- Effects must be manually registered in effect_registry.py
-- No compile-time validation that CSV references existing effects
-- Could be improved with auto-discovery
+**Effect Registration is Manual:** - ✅ MOSTLY RESOLVED (Dec 2025)
 
-**Frontend Uses Card Names:**
+- All 30 cards now use data-driven effect definitions in CSV (`effects` column)
+- `EffectFactory` parses effect definitions from CSV at runtime
+- Only 1 legacy manual registration remains (Snuggles - marked as NOT WORKING)
+- 96% of cards (29/30) use automated data-driven effect system
 
-- Frontend uses card names for keys (`key={card.name}`)
-- Can cause React warnings when duplicate names exist
-- Should transition to using card IDs consistently
+**Frontend Uses Card Names:** - ✅ MOSTLY RESOLVED (Dec 2025)
 
-**Hardcoded Card Names:**
+- Most components now use `card.id` for React keys (InPlayZone, HandZone, TargetSelectionModal, PlayerZone)
+- Only remaining name-based keys:
+  - `DeckSelection.tsx` - Uses card template names (acceptable, not game cards)
+  - `PlayerStats.tsx` - Uses `card.card_name` for historical game data display
+- No React warnings for duplicate keys in active gameplay
 
-- Special handling for some cards hardcoded in routes
-- Should use effect metadata instead
+**Hardcoded Card Names:** - ✅ RESOLVED (Dec 2025)
+
+- No special handling for specific cards found in routes
+- All card behavior driven by effect metadata from CSV
+- Card name lookups only used for deck building and card templates (not gameplay logic)
 
 ---
 
@@ -855,14 +853,15 @@ CREATE TABLE games (
 ### Immediate (Before Adding Features)
 
 1. **✅ Document architecture** (this document)
-2. **Implement unique card IDs**
-   - Highest impact/effort ratio
-   - Fixes critical bug class
-   - Prerequisite for database migration
+2. **✅ Implement unique card IDs** - COMPLETED
+   - All cards use unique IDs for lookups
+   - Fixed critical bug class related to duplicate card names
+   - Database uses card IDs throughout
 
-3. **Consolidate target selection logic**
-   - Single source of truth for valid targets
-   - Use effect metadata instead of hardcoded names
+3. **Consolidate target selection logic** - IN PROGRESS
+   - Backend uses ActionValidator for target validation ✅
+   - Frontend still has some duplicate logic for target filtering
+   - Target options now passed from backend via ValidAction ✅
 
 ### Short Term
 
@@ -871,10 +870,10 @@ CREATE TABLE games (
    - Test all card effects
    - Regression protection
 
-2. **Complete data-driven effect migration**
-   - Migrate remaining cards from card-specific effects
-   - Improve effect factory with better error handling
-   - Document effect string syntax
+2. **✅ Complete data-driven effect migration** - MOSTLY COMPLETED
+   - 29/30 cards migrated to data-driven effects
+   - Effect factory has comprehensive error handling
+   - Effect string syntax documented in effect_registry.py
 
 ### Medium Term
 
