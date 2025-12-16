@@ -126,6 +126,9 @@ class EffectFactory:
             elif effect_type == "opponent_cost_increase":
                 effect = cls._parse_opponent_cost_increase(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "damage_all_opponent_cards":
+                effect = cls._parse_damage_all_opponent_cards(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -778,6 +781,49 @@ class EffectFactory:
         # Note: ArcherActivatedAbility currently only uses cc_cost in __init__
         # The amount parameter would need to be added if we want variable damage
         return ArcherActivatedAbility(source_card)
+
+    @classmethod
+    def _parse_damage_all_opponent_cards(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a damage_all_opponent_cards effect definition.
+        
+        Format: "damage_all_opponent_cards:amount"
+        - amount: Damage to deal to each opponent card (typically 1)
+        
+        One-time effect when played: deals damage to all opponent's cards in play.
+        Cards that reach 0 stamina are sleeped.
+        
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+            
+        Returns:
+            DamageAllOpponentCardsEffect instance
+            
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 2:
+            raise ValueError(
+                f"damage_all_opponent_cards effect requires exactly 1 parameter: amount. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+        
+        try:
+            damage = int(parts[1].strip())
+        except ValueError:
+            raise ValueError(
+                f"Invalid damage '{parts[1]}' for damage_all_opponent_cards. Must be an integer."
+            )
+        
+        if damage < 1:
+            raise ValueError(
+                f"Invalid damage {damage} for damage_all_opponent_cards. Must be at least 1."
+            )
+        
+        # Import here to avoid circular dependency
+        from .action_effects import DamageAllOpponentCardsEffect
+        return DamageAllOpponentCardsEffect(source_card, damage)
 
     @classmethod
     def _parse_sleep_target(cls, parts: List[str], source_card: "Card") -> BaseEffect:

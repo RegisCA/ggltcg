@@ -6,7 +6,7 @@ Activated abilities can be used by paying a cost during the Main Phase.
 """
 
 from typing import TYPE_CHECKING, Any, List, Optional
-from .base_effect import PlayEffect, ActivatedEffect
+from .base_effect import PlayEffect, ActivatedEffect, TriggeredEffect, TriggerTiming
 from .effect_registry import EffectRegistry
 
 if TYPE_CHECKING:
@@ -595,6 +595,78 @@ class ArcherActivatedAbility(ActivatedEffect):
         elif not game_engine and target.current_stamina <= 0:
             # Fallback for tests without game_engine - simple check
             game_state.sleep_card(target, was_in_play=True)
+
+
+class DamageAllOpponentCardsEffect(TriggeredEffect):
+    """
+    Monster: "When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are sleeped instead."
+    
+    One-time triggered effect that sets ALL cards' stamina to 1 (both players).
+    Cards with base stamina of 1 are sleeped instead.
+    Respects protection effects (e.g., Beary, Sock Sorcerer).
+    
+    Note: The class name is a misnomer from initial implementation - it affects ALL cards, not just opponent's.
+    """
+    
+    def __init__(self, source_card: "Card", damage: int = 1):
+        """
+        Initialize the effect.
+        
+        Args:
+            source_card: The card providing this effect (Monster)
+            damage: Unused parameter, kept for compatibility with effect registry
+        """
+        super().__init__(source_card, trigger=TriggerTiming.WHEN_PLAYED, is_optional=False)
+        self.damage = damage
+    
+    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """Always trigger when played."""
+        return True
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Set all cards' stamina to 1. Cards with base stamina of 1 are sleeped instead."""
+        player: Optional["Player"] = kwargs.get("player")
+        game_engine = kwargs.get("game_engine")
+        
+        if not player:
+            return
+        
+        # Get opponent
+        opponent = game_state.get_opponent(player.player_id)
+        
+        # Collect ALL cards in play from both players (excluding Monster itself)
+        all_cards_in_play = []
+        
+        # Add player's own cards (excluding the Monster card being played)
+        for card in list(player.in_play):
+            if card.id != self.source_card.id:
+                all_cards_in_play.append((card, player))
+        
+        # Add opponent's cards
+        if opponent:
+            for card in list(opponent.in_play):
+                all_cards_in_play.append((card, opponent))
+        
+        for card, card_owner in all_cards_in_play:
+            # Skip protected cards
+            if game_state.is_protected_from_effect(card, self):
+                continue
+            
+            # Skip cards without stamina (action cards)
+            if not hasattr(card, "stamina") or card.stamina is None:
+                continue
+            
+            # Check BASE stamina (natural stamina), not current_stamina
+            if card.stamina == 1:
+                # Cards with natural 1 stamina are sleeped
+                if game_engine:
+                    game_engine._sleep_card(card, card_owner, was_in_play=True)
+                else:
+                    game_state.sleep_card(card, was_in_play=True)
+            else:
+                # Set current stamina to 1
+                if card.current_stamina is not None and card.current_stamina > 1:
+                    card.current_stamina = 1
 
 
 # Register legacy effects (cards not yet migrated to data-driven system)

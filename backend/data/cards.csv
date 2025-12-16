@@ -28,3 +28,4 @@ Hind Leg Kicker,18,1,"When you play a card (not this one), gain 1 charge.",3,3,1
 Gibbers,18,1,Your opponent's cards cost 1 more.,1,1,1,,,#eb9113,#eb9113,opponent_cost_increase:1
 That was fun,18,0,Unsleep an action card.,,,,,,#8B5FA8,#8B5FA8,unsleep:actions:1
 Paper Plane,18,1,This card can direct attack even if your opponent has cards in play.,2,2,1,,,#87CEEB,#4682B4,direct_attack
+Monster,18,2,"When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are sleeped instead.",3,1,2,,,#4A0E4E,#8B008B,damage_all_opponent_cards:1

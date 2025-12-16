@@ -186,4 +186,10 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "HAND PRESSURE - Bypasses opponent's defensive board to directly attack their hand. Use to pressure opponents who turtle behind defenders. Still costs CC and counts toward 2 direct attack limit per turn.",
         "threat_level": "MEDIUM - Can attack your hand directly even when you have defenders. Consider removing before it chips away your hand."
     },
+    "Monster": {
+        "type": "Toy",
+        "effect": "On play: Set all cards' stamina to 1. If they naturally have 1 stamina, they are sleeped instead.",
+        "strategic_use": "BOARD EQUALIZER - Affects ALL cards in play (yours and opponent's). Cards with base 1 stamina (Ka, Hind Leg Kicker, Paper Plane, Gibbers) get sleeped. Use when opponent has more high-stamina cards than you.",
+        "threat_level": "MEDIUM - Affects YOUR cards too. Dangerous if you have more high-stamina cards in play."
+    },
 }

@@ -72,6 +72,9 @@ class EffectDefinitions:
     # === Ability Effects ===
     REMOVE_STAMINA_ABILITY_1 = "remove_stamina_ability:1"
     
+    # === Damage Effects ===
+    DAMAGE_ALL_OPPONENT_CARDS_1 = "damage_all_opponent_cards:1"
+    
     # === Compound Effects (multiple effects separated by ;) ===
     ARCHER_EFFECTS = "cannot_tussle;remove_stamina_ability:1"
     
@@ -159,6 +162,7 @@ CARD_EFFECT_DEFINITIONS: Dict[str, str] = {
     "Gibbers": EffectDefinitions.OPPONENT_COST_INCREASE_1,
     "That was fun": EffectDefinitions.UNSLEEP_ACTIONS_1,
     "Paper Plane": EffectDefinitions.DIRECT_ATTACK,
+    "Monster": EffectDefinitions.DAMAGE_ALL_OPPONENT_CARDS_1,
 }
 
 
