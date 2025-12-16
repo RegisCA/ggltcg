@@ -808,7 +808,7 @@ const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
 - All 30 cards now use data-driven effect definitions in CSV (`effects` column)
 - `EffectFactory` parses effect definitions from CSV at runtime
 - Only 1 legacy manual registration remains (Snuggles - marked as NOT WORKING)
-- 96% of cards (29/30) use automated data-driven effect system
+- 97% of cards (30/31) use automated data-driven effect system
 
 **Frontend Uses Card Names:** - ✅ MOSTLY RESOLVED (Dec 2025)
 
