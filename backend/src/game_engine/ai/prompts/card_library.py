@@ -188,8 +188,8 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Monster": {
         "type": "Toy",
-        "effect": "On play: Set all opponent cards' stamina to 1. Cards already at 1 stamina are sleeped instead.",
-        "strategic_use": "BOARD CONTROL - Weakens entire opponent board or sleeps low-stamina cards. Best against boards with mixed stamina values. Triggers sleep on 1-stamina cards like Beary (if not protected).",
-        "threat_level": "MEDIUM - Can weaken or sleep your entire board when played. Particularly dangerous against low-stamina cards."
+        "effect": "On play: Set all cards' stamina to 1. If they naturally have 1 stamina, they are sleeped instead.",
+        "strategic_use": "BOARD EQUALIZER - Affects ALL cards in play (yours and opponent's). Cards with base 1 stamina (Ka, Hind Leg Kicker, Paper Plane, Gibbers) get sleeped. Use when opponent has more high-stamina cards than you.",
+        "threat_level": "MEDIUM - Affects YOUR cards too. Dangerous if you have more high-stamina cards in play."
     },
 }
