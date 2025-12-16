@@ -72,7 +72,7 @@ export function CardDetailModal({
           </button>
         </div>
 
-        {/* Card Type and Cost */}
+        {/* Card Cost */}
         <div className="flex" style={{ gap: 'var(--spacing-component-sm)' }}>
           <div
             className="flex items-center justify-center font-bold text-white rounded"
@@ -91,18 +91,7 @@ export function CardDetailModal({
               className="text-gray-400"
               style={{ fontSize: 'var(--font-size-lg)' }}
             >
-              Type
-            </div>
-            <div
-              className="font-bold text-white rounded inline-block"
-              style={{
-                fontSize: 'var(--font-size-xl)',
-                backgroundColor: isToy ? 'var(--ui-toy-badge)' : 'var(--ui-action-badge)',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
-              }}
-            >
-              {card.card_type}
+              Cost
             </div>
           </div>
         </div>
