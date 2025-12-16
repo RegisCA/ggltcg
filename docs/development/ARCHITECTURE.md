@@ -508,15 +508,21 @@ def _get_target_info(self, card: Card, player: Player) -> dict:
     effects = EffectRegistry.get_effects(card)
     
     for effect in effects:
-        if hasattr(effect, 'get_valid_targets'):
+        if isinstance(effect, PlayEffect) and effect.requires_targets():
             valid_targets = effect.get_valid_targets(self.game_state, player)
             return {
+                "requires_targets": True,
                 "target_options": [t.id for t in valid_targets],
                 "max_targets": getattr(effect, 'max_targets', 1),
                 "min_targets": getattr(effect, 'min_targets', 1),
             }
     
-    return {"target_options": None}
+    return {
+        "requires_targets": False,
+        "target_options": None,
+        "max_targets": 0,
+        "min_targets": 0,
+    }
 ```
 
 **Card Identification:**
