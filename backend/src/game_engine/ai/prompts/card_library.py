@@ -188,8 +188,8 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Monster": {
         "type": "Toy",
-        "effect": "On play: Deal 1 damage to ALL opponent's cards in play",
-        "strategic_use": "BOARD SWEEPER - Excellent for finishing off weakened opponents or softening multiple targets. Best played when opponent has many cards at low stamina. Can trigger multiple sleeps at once. Combine with other damage sources for devastating clears.",
-        "threat_level": "MEDIUM - Damages your entire board when played. Particularly dangerous if your cards are already weakened. Keep stamina healthy or remove Monster before it's played."
+        "effect": "On play: Set all opponent cards' stamina to 1. Cards already at 1 stamina are sleeped instead.",
+        "strategic_use": "BOARD CONTROL - Weakens entire opponent board or sleeps low-stamina cards. Best against boards with mixed stamina values. Triggers sleep on 1-stamina cards like Beary (if not protected).",
+        "threat_level": "MEDIUM - Can weaken or sleep your entire board when played. Particularly dangerous against low-stamina cards."
     },
 }
