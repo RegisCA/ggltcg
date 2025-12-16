@@ -256,21 +256,19 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   };
 
   return (
-    <div className="min-h-screen bg-game-bg" style={{ padding: 'var(--spacing-component-sm)' }}>
+    <div className="min-h-screen bg-game-bg">
       {/* Debug viewport indicator - toggle DEBUG_VIEWPORT to show */}
       {DEBUG_VIEWPORT && (
         <div className="fixed top-0 left-0 bg-black/80 text-white text-xs px-2 py-1 z-50 font-mono">
           {width}×{height} | {isMobile ? 'MOBILE' : isTablet ? 'TABLET' : 'DESKTOP'} | {isLandscape ? 'LAND' : 'PORT'}
         </div>
       )}
-      <div className="max-w-[1400px] mx-auto">
         {/* Game Header - Player Info Bars */}
         <div 
-          className={`bg-game-card rounded ${isMobile ? 'flex flex-col' : 'grid grid-cols-3'} items-center`}
+          className={`sticky top-0 z-10 bg-game-bg border-b border-gray-700 ${isMobile ? 'flex flex-col' : 'grid grid-cols-3'} items-center`}
           style={{ 
-            marginBottom: 'var(--spacing-component-sm)', 
             padding: 'var(--spacing-component-sm)', 
-            gap: isMobile ? 'var(--spacing-component-xs)' : 'var(--spacing-component-md)' 
+            gap: isMobile ? 'var(--spacing-component-xs)' : 'var(--spacing-component-md)'
           }}
         >
           {isMobile ? (
@@ -334,6 +332,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         </div>
 
         {/* Main Game Area - Responsive Layout */}
+        <div className="max-w-[1400px] mx-auto" style={{ marginTop: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)' }}>
         <LayoutGroup>
         {isDesktop ? (
           /* Desktop: Left side = game zones stacked, Right side = messages + actions */
@@ -582,7 +581,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           </>
         )}
         </LayoutGroup>
-      </div>
+        </div>
 
       {/* Target Selection Modal */}
       {pendingAction && (

@@ -212,7 +212,7 @@ export function CardDisplay({
           </div>
         )}
 
-        {/* Card Header: Cost + Name + Type Badge */}
+        {/* Card Header: Cost + Name */}
         <div className="flex justify-between items-start" style={{ marginBottom: 'var(--spacing-component-xs)', position: 'relative', zIndex: 1 }}>
           {/* Cost Indicator */}
           {(() => {
@@ -268,21 +268,6 @@ export function CardDisplay({
           >
             {card.name}
           </h3>
-
-          {/* Type Badge */}
-          <span 
-            className="font-bold text-white"
-            style={{
-              padding: size === 'small' ? '2px 6px' : size === 'medium' ? '4px 8px' : '6px 12px',
-              borderRadius: '4px',
-              fontSize: size === 'small' ? '0.625rem' : size === 'medium' ? '0.75rem' : '0.875rem',
-              backgroundColor: isToy ? 'var(--ui-toy-badge)' : 'var(--ui-action-badge)',
-              whiteSpace: 'nowrap',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-            }}
-          >
-            {card.card_type}
-          </span>
         </div>
 
         {/* Artwork Placeholder (for future) - Only show on large cards */}
