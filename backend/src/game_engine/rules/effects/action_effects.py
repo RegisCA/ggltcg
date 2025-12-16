@@ -6,7 +6,7 @@ Activated abilities can be used by paying a cost during the Main Phase.
 """
 
 from typing import TYPE_CHECKING, Any, List, Optional
-from .base_effect import PlayEffect, ActivatedEffect
+from .base_effect import PlayEffect, ActivatedEffect, TriggeredEffect, TriggerTiming
 from .effect_registry import EffectRegistry
 
 if TYPE_CHECKING:
@@ -595,6 +595,67 @@ class ArcherActivatedAbility(ActivatedEffect):
         elif not game_engine and target.current_stamina <= 0:
             # Fallback for tests without game_engine - simple check
             game_state.sleep_card(target, was_in_play=True)
+
+
+class DamageAllOpponentCardsEffect(TriggeredEffect):
+    """
+    Monster: "When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are sleeped instead."
+    
+    One-time triggered effect that sets all opponent's cards' stamina to 1.
+    Cards already at 1 stamina are sleeped instead.
+    Respects protection effects (e.g., Beary, Sock Sorcerer).
+    """
+    
+    def __init__(self, source_card: "Card", damage: int = 1):
+        """
+        Initialize damage all opponent cards effect.
+        
+        Args:
+            source_card: The card providing this effect
+            damage: Amount of damage to deal to each card (default 1)
+        """
+        super().__init__(source_card, trigger=TriggerTiming.WHEN_PLAYED, is_optional=False)
+        self.damage = damage
+    
+    def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
+        """Always trigger when played."""
+        return True
+    
+    def apply(self, game_state: "GameState", **kwargs: Any) -> None:
+        """Set all opponent's cards' stamina to 1. Cards already at 1 get sleeped."""
+        player: Optional["Player"] = kwargs.get("player")
+        game_engine = kwargs.get("game_engine")
+        
+        if not player:
+            return
+        
+        # Get opponent (use player_id string, not Player object)
+        opponent = game_state.get_opponent(player.player_id)
+        if not opponent:
+            return
+        
+        # Get all opponent cards in play (copy list since we may modify it)
+        opponent_cards = list(opponent.in_play)
+        
+        for card in opponent_cards:
+            # Skip protected cards
+            if game_state.is_protected_from_effect(card, self):
+                continue
+            
+            # Skip cards without stamina (action cards)
+            if not hasattr(card, "current_stamina") or card.current_stamina is None:
+                continue
+            
+            if card.current_stamina > 1:
+                # Set stamina to 1
+                damage_to_apply = card.current_stamina - 1
+                card.apply_damage(damage_to_apply)
+            elif card.current_stamina == 1:
+                # Already at 1: sleep the card
+                if game_engine:
+                    game_engine._sleep_card(card, opponent, was_in_play=True)
+                else:
+                    game_state.sleep_card(card, was_in_play=True)
 
 
 # Register legacy effects (cards not yet migrated to data-driven system)

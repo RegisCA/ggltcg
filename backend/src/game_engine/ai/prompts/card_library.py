@@ -186,4 +186,10 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "HAND PRESSURE - Bypasses opponent's defensive board to directly attack their hand. Use to pressure opponents who turtle behind defenders. Still costs CC and counts toward 2 direct attack limit per turn.",
         "threat_level": "MEDIUM - Can attack your hand directly even when you have defenders. Consider removing before it chips away your hand."
     },
+    "Monster": {
+        "type": "Toy",
+        "effect": "On play: Deal 1 damage to ALL opponent's cards in play",
+        "strategic_use": "BOARD SWEEPER - Excellent for finishing off weakened opponents or softening multiple targets. Best played when opponent has many cards at low stamina. Can trigger multiple sleeps at once. Combine with other damage sources for devastating clears.",
+        "threat_level": "MEDIUM - Damages your entire board when played. Particularly dangerous if your cards are already weakened. Keep stamina healthy or remove Monster before it's played."
+    },
 }

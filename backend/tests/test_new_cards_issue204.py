@@ -1078,5 +1078,156 @@ class TestHindLegKicker:
         assert setup.player1.cc == expected_cc, f"Two HLKs should offset Ka cost (5 - {ka_cost} + 2 = {expected_cc})"
 
 
+# =============================================================================
+# Phase 7: Monster (damage all opponent cards)
+# =============================================================================
+
+
+class TestMonster:
+    """Tests for Monster card: 'When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are sleeped instead.'"""
+    
+    def test_monster_damages_all_opponent_cards(self):
+        """Monster should set all opponent's cards' stamina to 1 when played."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Monster"],
+            player2_in_play=["Knight", "Wizard", "Beary"],  # Knight: 3 stam, Wizard: 3 stam, Beary: 3 stam
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        monster = cards["p1_hand_Monster"]
+        knight = cards["p2_inplay_Knight"]
+        wizard = cards["p2_inplay_Wizard"]
+        beary = cards["p2_inplay_Beary"]
+        
+        # Record initial stamina values
+        knight_initial = knight.current_stamina
+        wizard_initial = wizard.current_stamina
+        beary_initial = beary.current_stamina
+        
+        setup.engine.play_card(setup.player1, monster)
+        
+        # All opponent cards should have stamina SET TO 1 (except Beary due to immunity)
+        assert knight.current_stamina == 1, "Knight stamina should be set to 1"
+        assert wizard.current_stamina == 1, "Wizard stamina should be set to 1"
+        # Beary has opponent_immunity - should be protected
+        assert beary.current_stamina == beary_initial, "Beary should be protected by immunity"
+    
+    def test_monster_does_not_affect_own_cards(self):
+        """Monster should NOT damage the player's own cards."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Monster"],
+            player1_in_play=["Knight", "Wizard"],  # Own cards
+            player2_in_play=["Beary"],  # Opponent card with immunity - won't take damage
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        monster = cards["p1_hand_Monster"]
+        own_knight = cards["p1_inplay_Knight"]
+        own_wizard = cards["p1_inplay_Wizard"]
+        opponent_beary = cards["p2_inplay_Beary"]
+        
+        own_knight_initial = own_knight.current_stamina
+        own_wizard_initial = own_wizard.current_stamina
+        beary_initial = opponent_beary.current_stamina
+        
+        setup.engine.play_card(setup.player1, monster)
+        
+        # Own cards should NOT be affected
+        assert own_knight.current_stamina == own_knight_initial, "Own Knight should not take damage"
+        assert own_wizard.current_stamina == own_wizard_initial, "Own Wizard should not take damage"
+        # Beary should not be affected due to immunity
+        assert opponent_beary.current_stamina == beary_initial, "Beary should be protected by immunity"
+    
+    def test_monster_sleeps_cards_at_zero_stamina(self):
+        """Monster should sleep opponent cards that reach 0 stamina."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Monster"],
+            player2_in_play=["Paper Plane"],  # Paper Plane has 1 stamina
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        monster = cards["p1_hand_Monster"]
+        paper_plane = cards["p2_inplay_Paper Plane"]
+        
+        assert paper_plane.stamina == 1, "Paper Plane should have 1 base stamina"
+        assert paper_plane.zone == Zone.IN_PLAY
+        
+        setup.engine.play_card(setup.player1, monster)
+        
+        # Paper Plane should be sleeped (moved to sleep zone)
+        assert paper_plane.zone == Zone.SLEEP, "Paper Plane should be sleeped after taking lethal damage"
+    
+    def test_monster_no_effect_if_opponent_has_no_cards(self):
+        """Monster should still be playable even if opponent has no cards in play."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Monster"],
+            # No opponent cards in play
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        monster = cards["p1_hand_Monster"]
+        initial_cc = setup.player1.cc
+        
+        # Should play without error
+        setup.engine.play_card(setup.player1, monster)
+        
+        # Monster cost is 2
+        assert setup.player1.cc == initial_cc - 2, "CC should be reduced by Monster cost"
+        # Monster is a Toy, so it stays in play (not sleep zone)
+        assert monster.zone == Zone.IN_PLAY, "Monster (Toy) should stay in play after being played"
+    
+    def test_monster_respects_sock_sorcerer_immunity(self):
+        """Monster should NOT damage cards protected by Sock Sorcerer."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Monster"],
+            player2_in_play=["Sock Sorcerer", "Knight"],  # Sock Sorcerer protects team from opponent effects
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        monster = cards["p1_hand_Monster"]
+        sock_sorcerer = cards["p2_inplay_Sock Sorcerer"]
+        knight = cards["p2_inplay_Knight"]
+        
+        sock_initial = sock_sorcerer.current_stamina
+        knight_initial = knight.current_stamina
+        
+        setup.engine.play_card(setup.player1, monster)
+        
+        # Both cards should be protected by Sock Sorcerer's team immunity
+        assert sock_sorcerer.current_stamina == sock_initial, "Sock Sorcerer should be protected by its own effect"
+        assert knight.current_stamina == knight_initial, "Knight should be protected by Sock Sorcerer"
+    
+    def test_monster_damages_multiple_low_stamina_cards(self):
+        """Monster should sleep multiple cards if they all reach 0 stamina."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Monster"],
+            player2_in_play=["Paper Plane", "Hind Leg Kicker", "Gibbers"],  # All have 1 stamina
+            active_player="player1",
+            player1_cc=5,
+        )
+        
+        monster = cards["p1_hand_Monster"]
+        paper_plane = cards["p2_inplay_Paper Plane"]
+        hlk = cards["p2_inplay_Hind Leg Kicker"]
+        gibbers = cards["p2_inplay_Gibbers"]
+        
+        # All should have 1 stamina
+        assert paper_plane.stamina == 1
+        assert hlk.stamina == 1
+        assert gibbers.stamina == 1
+        
+        setup.engine.play_card(setup.player1, monster)
+        
+        # All three should be sleeped
+        assert paper_plane.zone == Zone.SLEEP, "Paper Plane should be sleeped"
+        assert hlk.zone == Zone.SLEEP, "Hind Leg Kicker should be sleeped"
+        assert gibbers.zone == Zone.SLEEP, "Gibbers should be sleeped"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
