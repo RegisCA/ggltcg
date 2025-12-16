@@ -877,7 +877,7 @@ CREATE TABLE games (
    - Regression protection
 
 2. **✅ Complete data-driven effect migration** - MOSTLY COMPLETED
-   - 29/30 cards migrated to data-driven effects
+   - 30/31 cards migrated to data-driven effects
    - Effect factory has comprehensive error handling
    - Effect string syntax documented in effect_registry.py
 
