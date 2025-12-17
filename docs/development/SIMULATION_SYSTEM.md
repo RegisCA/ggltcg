@@ -171,9 +171,15 @@ If a specific model isn't working:
 The Simulation UI is in the Admin Data Viewer (`frontend/src/components/AdminDataViewer.tsx`):
 
 - **Simulation Tab**: Configure and start runs
+  <img width="1440" height="900" alt="GGLTCG New Simulation screen" src="https://github.com/user-attachments/assets/fdc02c94-da5f-4437-947a-55432c2c1538" />
+
 - **Run History**: View past runs with status
 - **Results View**: Matchup statistics and individual game details
+  <img width="1440" height="900" alt="GGLTCG Simulation results" src="https://github.com/user-attachments/assets/09a9c177-9b63-4f5e-9cc9-45ac63f3ca19" />
+
 - **Game Detail**: CC tracking table and action log
+  <img width="1440" height="900" alt="GGLTCG Simulation match details" src="https://github.com/user-attachments/assets/9f78668a-2983-4df3-97f7-927e8a3b2cb3" />
+
 
 ## Future Enhancements
 
