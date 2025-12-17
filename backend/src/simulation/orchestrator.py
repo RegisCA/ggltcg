@@ -303,6 +303,16 @@ class SimulationOrchestrator:
         
         game_results = []
         for game in games:
+            # Calculate total CC spent per player from cc_tracking
+            p1_cc_spent = 0
+            p2_cc_spent = 0
+            if game.cc_tracking:
+                for entry in game.cc_tracking:
+                    if entry.get('player_id') == 'player1':
+                        p1_cc_spent += entry.get('cc_spent', 0)
+                    elif entry.get('player_id') == 'player2':
+                        p2_cc_spent += entry.get('cc_spent', 0)
+            
             game_results.append({
                 "game_number": game.game_number,
                 "deck1_name": game.deck1_name,
@@ -311,6 +321,8 @@ class SimulationOrchestrator:
                 "winner_deck": game.winner_deck,
                 "turn_count": game.turn_count,
                 "duration_ms": game.duration_ms,
+                "p1_cc_spent": p1_cc_spent,
+                "p2_cc_spent": p2_cc_spent,
                 "error_message": game.error_message,
             })
         

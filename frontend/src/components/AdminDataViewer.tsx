@@ -113,6 +113,7 @@ interface ActionLogEntry {
   player: string;
   action: string;
   card: string | null;
+  description: string;
   reasoning: string;
 }
 
@@ -182,6 +183,8 @@ interface SimulationResults {
     winner_deck: string | null;
     turn_count: number;
     duration_ms: number;
+    p1_cc_spent: number;
+    p2_cc_spent: number;
     error_message: string | null;
   }>;
   created_at: string;
@@ -1012,31 +1015,57 @@ const AdminDataViewer: React.FC = () => {
                     onChange={e => setIterationsPerMatchup(parseInt(e.target.value))}
                     className="w-full"
                   />
-                  <div className="text-sm text-gray-400" style={{ marginTop: '4px' }}>
-                    {selectedDecks.length >= 1 && (
-                      <>
-                        {selectedDecks.length === 1 ? '1 mirror matchup' : `${selectedDecks.length * (selectedDecks.length + 1) / 2} matchups`} × {iterationsPerMatchup} games = {' '}
-                        <span className="text-white font-semibold">
-                          {(selectedDecks.length === 1 ? 1 : selectedDecks.length * (selectedDecks.length + 1) / 2) * iterationsPerMatchup} total games
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  {(() => {
+                    const numDecks = selectedDecks.length;
+                    const numMatchups = numDecks * numDecks; // n² matchups (all directions + mirrors)
+                    const totalGames = numMatchups * iterationsPerMatchup;
+                    const MAX_GAMES = 500;
+                    const exceedsLimit = totalGames > MAX_GAMES;
+                    
+                    return (
+                      <div className="text-sm" style={{ marginTop: '4px' }}>
+                        {numDecks >= 1 && (
+                          <>
+                            <span className="text-gray-400">
+                              {numMatchups} matchups ({numDecks}² = mirrors + both directions) × {iterationsPerMatchup} games ={' '}
+                            </span>
+                            <span className={`font-semibold ${exceedsLimit ? 'text-red-400' : 'text-white'}`}>
+                              {totalGames} total games
+                            </span>
+                            {exceedsLimit && (
+                              <div className="text-red-400 mt-1">
+                                ⚠️ Exceeds {MAX_GAMES} game limit. Reduce decks or games per matchup.
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Start Button */}
-                <button
-                  onClick={startSimulation}
-                  disabled={isRunningSimulation || selectedDecks.length < 1}
-                  className={`w-full rounded font-semibold ${
-                    isRunningSimulation || selectedDecks.length < 1
-                      ? 'bg-gray-600 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-700'
-                  }`}
-                  style={{ padding: 'var(--spacing-component-md)' }}
-                >
-                  {isRunningSimulation ? 'Starting...' : 'Start Simulation'}
-                </button>
+                {(() => {
+                  const totalGames = selectedDecks.length * selectedDecks.length * iterationsPerMatchup;
+                  const MAX_GAMES = 500;
+                  const exceedsLimit = totalGames > MAX_GAMES;
+                  const isDisabled = isRunningSimulation || selectedDecks.length < 1 || exceedsLimit;
+                  
+                  return (
+                    <button
+                      onClick={startSimulation}
+                      disabled={isDisabled}
+                      className={`w-full rounded font-semibold ${
+                        isDisabled
+                          ? 'bg-gray-600 cursor-not-allowed'
+                          : 'bg-green-600 hover:bg-green-700'
+                      }`}
+                      style={{ padding: 'var(--spacing-component-md)' }}
+                    >
+                      {isRunningSimulation ? 'Starting...' : exceedsLimit ? 'Too Many Games' : 'Start Simulation'}
+                    </button>
+                  );
+                })()}
 
                 {/* Progress Display */}
                 {isRunningSimulation && runProgress && (
@@ -1105,207 +1134,263 @@ const AdminDataViewer: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Matchup Stats Table */}
+                  {/* Matchup Results Matrix */}
                   <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-                    Matchup Results
+                    Matchup Results Matrix
+                    <span className="text-sm font-normal text-gray-400 ml-2">(Row Deck as P1 vs Column Deck as P2)</span>
                   </h3>
-                  <div className="bg-gray-900 rounded overflow-hidden" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-950">
-                        <tr>
-                          <th className="px-4 py-2 text-left">Matchup</th>
-                          <th className="px-4 py-2 text-center">Games</th>
-                          <th className="px-4 py-2 text-center text-green-400" title="Player 1 always goes first">
-                            P1 Wins
-                          </th>
-                          <th className="px-4 py-2 text-center text-blue-400">P2 Wins</th>
-                          <th className="px-4 py-2 text-center">Draws</th>
-                          <th className="px-4 py-2 text-center">P1 Win %</th>
-                          <th className="px-4 py-2 text-center">Avg Turns</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.values(selectedSimulation.matchup_stats).map((stats) => (
-                          <tr key={`${stats.deck1_name}_vs_${stats.deck2_name}`} className="border-t border-gray-800">
-                            <td className="px-4 py-2 font-semibold">
-                              <span className="text-green-400">{stats.deck1_name}</span>
-                              <span className="text-gray-500"> vs </span>
-                              <span className="text-blue-400">{stats.deck2_name}</span>
-                            </td>
-                            <td className="px-4 py-2 text-center">{stats.games_played}</td>
-                            <td className="px-4 py-2 text-center text-green-400">{stats.deck1_wins}</td>
-                            <td className="px-4 py-2 text-center text-blue-400">{stats.deck2_wins}</td>
-                            <td className="px-4 py-2 text-center text-gray-400">{stats.draws}</td>
-                            <td className="px-4 py-2 text-center">
-                              <span className={stats.deck1_win_rate > 0.5 ? 'text-green-400' : stats.deck1_win_rate < 0.5 ? 'text-red-400' : 'text-gray-400'}>
-                                {(stats.deck1_win_rate * 100).toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 text-center text-orange-400">
-                              {stats.avg_turns.toFixed(1)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {(() => {
+                    // Build matrix data from matchup_stats
+                    const deckNames = [...new Set(
+                      Object.values(selectedSimulation.matchup_stats).flatMap(s => [s.deck1_name, s.deck2_name])
+                    )].sort();
+                    
+                    // Create lookup map for matchups
+                    const matchupMap = new Map<string, MatchupStats>();
+                    Object.values(selectedSimulation.matchup_stats).forEach(stats => {
+                      matchupMap.set(`${stats.deck1_name}_vs_${stats.deck2_name}`, stats);
+                    });
+                    
+                    // Helper to get cell color based on win rate
+                    const getWinRateColor = (winRate: number) => {
+                      if (winRate >= 0.7) return 'bg-green-600';
+                      if (winRate >= 0.55) return 'bg-green-800';
+                      if (winRate > 0.45) return 'bg-gray-700';
+                      if (winRate > 0.3) return 'bg-red-900';
+                      return 'bg-red-700';
+                    };
+
+                    return (
+                      <div className="bg-gray-900 rounded overflow-hidden" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-950">
+                            <tr>
+                              <th className="px-3 py-2 text-left border-r border-gray-700">
+                                <span className="text-green-400">P1 (Row)</span>
+                                <span className="text-gray-500"> \ </span>
+                                <span className="text-blue-400">P2 (Col)</span>
+                              </th>
+                              {deckNames.map(deck => (
+                                <th key={deck} className="px-3 py-2 text-center text-blue-400 font-medium" style={{ minWidth: '90px' }}>
+                                  {deck}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deckNames.map(rowDeck => (
+                              <tr key={rowDeck} className="border-t border-gray-800">
+                                <td className="px-3 py-2 font-medium text-green-400 border-r border-gray-700">{rowDeck}</td>
+                                {deckNames.map(colDeck => {
+                                  const stats = matchupMap.get(`${rowDeck}_vs_${colDeck}`);
+                                  const isMirror = rowDeck === colDeck;
+                                  
+                                  if (!stats) {
+                                    return (
+                                      <td key={colDeck} className={`px-3 py-2 text-center ${isMirror ? 'bg-gray-800' : ''} text-gray-600`}>
+                                        {isMirror ? '—' : 'N/A'}
+                                      </td>
+                                    );
+                                  }
+                                  return (
+                                    <td 
+                                      key={colDeck} 
+                                      className={`px-3 py-2 text-center ${getWinRateColor(stats.deck1_win_rate)} ${isMirror ? 'ring-1 ring-gray-500' : ''}`}
+                                      title={`${stats.deck1_wins}W / ${stats.deck2_wins}L / ${stats.draws}D (${stats.games_played} games, avg ${stats.avg_turns.toFixed(1)} turns)`}
+                                    >
+                                      <div className="font-bold">{(stats.deck1_win_rate * 100).toFixed(0)}%</div>
+                                      <div className="text-xs opacity-75">{stats.deck1_wins}-{stats.deck2_wins}</div>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="px-4 py-2 text-xs text-gray-400 border-t border-gray-800">
+                          <span className="inline-block w-4 h-3 bg-green-600 mr-1"></span>≥70%
+                          <span className="inline-block w-4 h-3 bg-green-800 mx-1 ml-3"></span>55-69%
+                          <span className="inline-block w-4 h-3 bg-gray-700 mx-1 ml-3"></span>45-55%
+                          <span className="inline-block w-4 h-3 bg-red-900 mx-1 ml-3"></span>31-44%
+                          <span className="inline-block w-4 h-3 bg-red-700 mx-1 ml-3"></span>≤30%
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Individual Games */}
                   <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
                     Individual Games
-                    <span className="text-sm font-normal text-gray-400 ml-2">(click to view CC tracking)</span>
+                    <span className="text-sm font-normal text-gray-400 ml-2">(click to view details)</span>
                   </h3>
-                  <div className="bg-gray-900 rounded overflow-hidden max-h-96 overflow-y-auto">
+                  <div className="bg-gray-900 rounded overflow-hidden max-h-[600px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-950 sticky top-0">
+                      <thead className="bg-gray-950 sticky top-0 z-10">
                         <tr>
                           <th className="px-4 py-2 text-left">#</th>
                           <th className="px-4 py-2 text-left">Matchup</th>
                           <th className="px-4 py-2 text-center">Result</th>
+                          <th className="px-4 py-2 text-center text-green-400" title="Player 1 Total CC Spent">P1 CC</th>
+                          <th className="px-4 py-2 text-center text-blue-400" title="Player 2 Total CC Spent">P2 CC</th>
                           <th className="px-4 py-2 text-center">Turns</th>
                           <th className="px-4 py-2 text-center">Duration</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedSimulation.games.map(game => (
-                          <tr 
-                            key={game.game_number} 
-                            className={`border-t border-gray-800 cursor-pointer hover:bg-gray-800 ${selectedGameDetail?.game_number === game.game_number ? 'bg-gray-800' : ''}`}
-                            onClick={() => loadGameDetail(selectedSimulation.run_id, game.game_number)}
-                          >
-                            <td className="px-4 py-2">{game.game_number}</td>
-                            <td className="px-4 py-2">
-                              <span className="text-green-400">{game.deck1_name}</span>
-                              <span className="text-gray-500"> vs </span>
-                              <span className="text-blue-400">{game.deck2_name}</span>
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              {game.outcome === 'draw' ? (
-                                <span className="text-gray-400">Draw</span>
-                              ) : (
-                                <span className={game.outcome === 'player1_win' ? 'text-green-400' : 'text-blue-400'}>
-                                  {game.winner_deck} wins
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 text-center text-orange-400">{game.turn_count}</td>
-                            <td className="px-4 py-2 text-center text-cyan-400">
-                              {(game.duration_ms / 1000).toFixed(1)}s
-                            </td>
-                          </tr>
+                          <React.Fragment key={game.game_number}>
+                            <tr 
+                              className={`border-t border-gray-800 cursor-pointer hover:bg-gray-800 ${selectedGameDetail?.game_number === game.game_number ? 'bg-gray-700' : ''}`}
+                              onClick={() => {
+                                if (selectedGameDetail?.game_number === game.game_number) {
+                                  setSelectedGameDetail(null);
+                                } else {
+                                  loadGameDetail(selectedSimulation.run_id, game.game_number);
+                                }
+                              }}
+                            >
+                              <td className="px-4 py-2">
+                                {game.game_number}
+                                <span className="ml-2 text-gray-500">{selectedGameDetail?.game_number === game.game_number ? '▼' : '▶'}</span>
+                              </td>
+                              <td className="px-4 py-2">
+                                <span className="text-green-400">{game.deck1_name}</span>
+                                <span className="text-gray-500"> vs </span>
+                                <span className="text-blue-400">{game.deck2_name}</span>
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                {game.outcome === 'draw' ? (
+                                  <span className="text-gray-400">Draw</span>
+                                ) : (
+                                  <span className={game.outcome === 'player1_win' ? 'text-green-400' : 'text-blue-400'}>
+                                    {game.winner_deck} wins
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-center text-green-400">{game.p1_cc_spent}</td>
+                              <td className="px-4 py-2 text-center text-blue-400">{game.p2_cc_spent}</td>
+                              <td className="px-4 py-2 text-center text-orange-400">{game.turn_count}</td>
+                              <td className="px-4 py-2 text-center text-cyan-400">
+                                {(game.duration_ms / 1000).toFixed(1)}s
+                              </td>
+                            </tr>
+                            {/* Inline detail panel */}
+                            {selectedGameDetail?.game_number === game.game_number && (
+                              <tr>
+                                <td colSpan={7} className="p-0">
+                                  <div className="bg-gray-800 border-l-4 border-blue-500 p-4">
+                                    {loadingGameDetail ? (
+                                      <div className="text-center text-gray-400 py-4">Loading game details...</div>
+                                    ) : selectedGameDetail.cc_tracking && selectedGameDetail.cc_tracking.length > 0 ? (
+                                      <div>
+                                        <div className="flex justify-between items-center mb-3">
+                                          <h4 className="font-semibold">Game #{selectedGameDetail.game_number} Details</h4>
+                                        </div>
+                                        
+                                        {/* CC Tracking - Compact timeline view */}
+                                        <div className="overflow-x-auto mb-4">
+                                          <table className="w-full text-sm border-collapse">
+                                            <thead className="bg-gray-900">
+                                              <tr>
+                                                <th className="px-3 py-2 text-center border-b border-gray-700 w-16">Turn</th>
+                                                <th className="px-3 py-2 text-center text-green-400 border-b border-gray-700 w-32">P1 CC</th>
+                                                <th className="px-3 py-2 text-center text-blue-400 border-b border-gray-700 w-32">P2 CC</th>
+                                                <th className="px-3 py-2 text-left border-b border-gray-700">Actions</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {(() => {
+                                                // Group CC tracking by turn
+                                                const turnMap = new Map<number, { p1?: typeof selectedGameDetail.cc_tracking[0], p2?: typeof selectedGameDetail.cc_tracking[0] }>();
+                                                selectedGameDetail.cc_tracking.forEach(cc => {
+                                                  if (!turnMap.has(cc.turn)) turnMap.set(cc.turn, {});
+                                                  const entry = turnMap.get(cc.turn)!;
+                                                  if (cc.player_id === 'player1') entry.p1 = cc;
+                                                  else entry.p2 = cc;
+                                                });
+                                                const turns = Array.from(turnMap.keys()).sort((a, b) => a - b);
+                                                
+                                                // Group actions by turn
+                                                const actionsByTurn = new Map<number, typeof selectedGameDetail.action_log>();
+                                                selectedGameDetail.action_log?.forEach(action => {
+                                                  if (!actionsByTurn.has(action.turn)) actionsByTurn.set(action.turn, []);
+                                                  actionsByTurn.get(action.turn)!.push(action);
+                                                });
+                                                
+                                                // Format CC change as compact string with proper spacing
+                                                const formatCC = (data: typeof selectedGameDetail.cc_tracking[0] | undefined, isActive: boolean): React.ReactNode => {
+                                                  if (!data) return <span className="text-gray-600">—</span>;
+                                                  return (
+                                                    <span className={`font-mono ${isActive ? '' : 'opacity-60'}`}>
+                                                      <span>{data.cc_start}</span>
+                                                      {data.cc_gained > 0 && <span className="text-yellow-400 ml-1">+{data.cc_gained}</span>}
+                                                      {data.cc_spent > 0 && <span className="text-red-400 ml-1">-{data.cc_spent}</span>}
+                                                      <span className="text-gray-500 mx-1">→</span>
+                                                      <span className="font-bold">{data.cc_end}</span>
+                                                    </span>
+                                                  );
+                                                };
+                                                
+                                                return turns.map(turn => {
+                                                  const data = turnMap.get(turn)!;
+                                                  const turnActions = actionsByTurn.get(turn) || [];
+                                                  const isP1Turn = turn % 2 === 1; // Odd turns = P1, even turns = P2
+                                                  
+                                                  const visibleActions = turnActions.filter(a => a.action !== 'end_turn');
+                                                  
+                                                  return (
+                                                    <tr key={turn} className="border-t border-gray-800 hover:bg-gray-850">
+                                                      <td className="px-3 py-2 text-center font-bold">{turn}</td>
+                                                      <td className={`px-3 py-2 text-center ${isP1Turn ? 'bg-green-900/20' : ''}`}>
+                                                        {formatCC(data.p1, isP1Turn)}
+                                                      </td>
+                                                      <td className={`px-3 py-2 text-center ${!isP1Turn ? 'bg-blue-900/20' : ''}`}>
+                                                        {formatCC(data.p2, !isP1Turn)}
+                                                      </td>
+                                                      <td className="px-3 py-2 text-left text-xs">
+                                                        {visibleActions.slice(0, 10).map((a, i) => (
+                                                          <React.Fragment key={i}>
+                                                            {i > 0 && <span className="text-gray-600">, </span>}
+                                                            <span className={a.player === 'player1' ? 'text-green-400' : 'text-blue-400'}>
+                                                              {a.description || `${a.action} ${a.card || ''}`}
+                                                            </span>
+                                                          </React.Fragment>
+                                                        ))}
+                                                        {visibleActions.length > 10 && <span className="text-gray-500"> +{visibleActions.length - 10} more</span>}
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                });
+                                              })()}
+                                              {/* Summary row aligned with columns */}
+                                              <tr className="border-t border-gray-700 bg-gray-900/50">
+                                                <td className="px-3 py-2 text-center text-xs text-gray-400">Total</td>
+                                                <td className="px-3 py-2 text-center text-green-400 text-xs">
+                                                  <span className="text-yellow-400">+{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_gained, 0)}</span>
+                                                  <span className="text-red-400 ml-1">-{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_spent, 0)}</span>
+                                                </td>
+                                                <td className="px-3 py-2 text-center text-blue-400 text-xs">
+                                                  <span className="text-yellow-400">+{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_gained, 0)}</span>
+                                                  <span className="text-red-400 ml-1">-{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_spent, 0)}</span>
+                                                </td>
+                                                <td></td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-gray-400">No CC tracking data available.</div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  
-                  {/* CC Tracking Detail Panel */}
-                  {loadingGameDetail && (
-                    <div className="bg-gray-900 rounded p-4 mt-4 text-center text-gray-400">
-                      Loading game details...
-                    </div>
-                  )}
-                  
-                  {selectedGameDetail && !loadingGameDetail && (
-                    <div className="bg-gray-900 rounded p-4 mt-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-lg font-semibold">
-                          Game #{selectedGameDetail.game_number} CC Tracking
-                        </h4>
-                        <button 
-                          onClick={() => setSelectedGameDetail(null)}
-                          className="text-gray-400 hover:text-white"
-                        >
-                          ✕ Close
-                        </button>
-                      </div>
-                      
-                      {selectedGameDetail.cc_tracking && selectedGameDetail.cc_tracking.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-950">
-                              <tr>
-                                <th className="px-3 py-2 text-center">Turn</th>
-                                <th className="px-3 py-2 text-center">Player</th>
-                                <th className="px-3 py-2 text-center">CC Start</th>
-                                <th className="px-3 py-2 text-center">CC Gained</th>
-                                <th className="px-3 py-2 text-center">CC Spent</th>
-                                <th className="px-3 py-2 text-center">CC End</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {selectedGameDetail.cc_tracking.map((cc, idx) => (
-                                <tr 
-                                  key={idx} 
-                                  className="border-t border-gray-800"
-                                  style={{ backgroundColor: cc.player_id === 'player1' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)' }}
-                                >
-                                  <td className="px-3 py-2 text-center">{cc.turn}</td>
-                                  <td className={`px-3 py-2 text-center font-semibold ${cc.player_id === 'player1' ? 'text-green-400' : 'text-blue-400'}`}>
-                                    {cc.player_id === 'player1' ? 'P1' : 'P2'}
-                                  </td>
-                                  <td className="px-3 py-2 text-center">{cc.cc_start}</td>
-                                  <td className="px-3 py-2 text-center text-yellow-400">+{cc.cc_gained}</td>
-                                  <td className="px-3 py-2 text-center text-red-400">-{cc.cc_spent}</td>
-                                  <td className="px-3 py-2 text-center font-bold">{cc.cc_end}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          
-                          {/* CC Summary */}
-                          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                            <div className="bg-gray-950 rounded p-3">
-                              <div className="text-green-400 font-semibold mb-2">Player 1 (P1) Summary</div>
-                              <div>Total CC Gained: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_gained, 0)}</div>
-                              <div>Total CC Spent: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_spent, 0)}</div>
-                            </div>
-                            <div className="bg-gray-950 rounded p-3">
-                              <div className="text-blue-400 font-semibold mb-2">Player 2 (P2) Summary</div>
-                              <div>Total CC Gained: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_gained, 0)}</div>
-                              <div>Total CC Spent: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_spent, 0)}</div>
-                            </div>
-                          </div>
-                          
-                          {/* Play-by-Play Actions */}
-                          {selectedGameDetail.action_log && selectedGameDetail.action_log.length > 0 && (
-                            <div className="mt-6">
-                              <h5 className="font-semibold mb-2">Play-by-Play Actions</h5>
-                              <div className="max-h-80 overflow-y-auto">
-                                <table className="w-full text-sm">
-                                  <thead className="bg-gray-950 sticky top-0">
-                                    <tr>
-                                      <th className="px-3 py-2 text-left">Turn</th>
-                                      <th className="px-3 py-2 text-left">Player</th>
-                                      <th className="px-3 py-2 text-left">Action</th>
-                                      <th className="px-3 py-2 text-left">Card</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {selectedGameDetail.action_log.map((entry, idx) => (
-                                      <tr 
-                                        key={idx} 
-                                        className="border-t border-gray-800"
-                                        style={{ backgroundColor: entry.player === 'player1' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)' }}
-                                      >
-                                        <td className="px-3 py-2">{entry.turn}</td>
-                                        <td className={`px-3 py-2 ${entry.player === 'player1' ? 'text-green-400' : 'text-blue-400'}`}>
-                                          {entry.player === 'player1' ? 'P1' : 'P2'}
-                                        </td>
-                                        <td className="px-3 py-2">{entry.action}</td>
-                                        <td className="px-3 py-2 text-yellow-400">{entry.card || '-'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-gray-400">No CC tracking data available for this game.</div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
