@@ -4,6 +4,12 @@
 
 The Simulation System enables automated AI vs AI game testing to analyze game balance, deck performance, and LLM model behavior. It was implemented as part of GitHub Issue #243.
 
+**Key Features:**
+- Parallel game execution (5 games by default) for faster completion
+- N² matchup matrix (all deck permutations)
+- CC tracking for both players per turn
+- Action logging with human-readable descriptions
+
 ## Architecture
 
 ### Components
@@ -13,9 +19,21 @@ backend/src/simulation/
 ├── __init__.py
 ├── config.py          # Data classes (SimulationConfig, GameResult, DeckConfig, etc.)
 ├── deck_loader.py     # Loads deck configurations from CSV
-├── orchestrator.py    # Manages batch runs, DB persistence, progress tracking
+├── orchestrator.py    # Manages batch runs with parallel execution, DB persistence
 └── runner.py          # Executes individual games with CC tracking & action logging
 ```
+
+### Parallel Execution
+
+Games run in parallel using a ThreadPoolExecutor (default: 5 workers). This significantly speeds up large simulation runs:
+- Sequential: ~20 seconds/game → 160 games = ~53 minutes
+- Parallel (5x): ~20 seconds/game → 160 games = ~11 minutes
+
+Each parallel worker:
+- Creates its own SimulationRunner instance
+- Makes independent Gemini API calls
+- Uses a separate database session for persistence
+- Progress updates are thread-safe via locking
 
 ### API Routes
 

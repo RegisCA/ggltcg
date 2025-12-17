@@ -3,16 +3,20 @@ Simulation orchestrator for managing batch AI vs AI simulations.
 
 This module coordinates running multiple games across deck matchups,
 tracks progress, persists results to database, and aggregates statistics.
+
+Supports parallel game execution to speed up simulations.
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+import threading
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from api.db_models import SimulationRunModel, SimulationGameModel
-from api.database import get_db
+from api.database import get_db, SessionLocal
 
 from .config import (
     SimulationConfig,
@@ -23,6 +27,9 @@ from .deck_loader import load_simulation_decks_dict
 from .runner import SimulationRunner
 
 logger = logging.getLogger(__name__)
+
+# Default number of parallel games
+DEFAULT_PARALLEL_GAMES = 5
 
 
 class SimulationOrchestrator:
@@ -106,14 +113,16 @@ class SimulationOrchestrator:
         
         return run.id
     
-    def run_simulation(self, run_id: int) -> SimulationResult:
+    def run_simulation(self, run_id: int, parallel_games: int = DEFAULT_PARALLEL_GAMES) -> SimulationResult:
         """
-        Execute a simulation run.
+        Execute a simulation run with parallel game execution.
         
-        This runs synchronously (blocking) until all games complete.
+        This runs synchronously (blocking) until all games complete,
+        but executes multiple games in parallel for speed.
         
         Args:
             run_id: ID of the simulation run to execute
+            parallel_games: Number of games to run in parallel (default: 5)
             
         Returns:
             SimulationResult with all game outcomes
@@ -148,72 +157,125 @@ class SimulationOrchestrator:
         db.commit()
         self._result.status = SimulationStatus.RUNNING
         
+        # Lock for thread-safe progress updates
+        progress_lock = threading.Lock()
+        completed_count = run.completed_games
+        
         try:
             # Load decks
             deck_dict = load_simulation_decks_dict()
             
-            # Create runner
-            runner = SimulationRunner(
-                player1_model=config.player1_model,
-                player2_model=config.player2_model,
-                max_turns=config.max_turns,
-            )
-            
-            # Get all matchups
+            # Build list of all games to run
+            games_to_run = []
             matchups = config.get_matchups()
-            game_number = run.completed_games + 1  # Resume from where we left off
+            game_number = 1
             
             for deck1_name, deck2_name in matchups:
-                deck1 = deck_dict[deck1_name]
-                deck2 = deck_dict[deck2_name]
-                
-                logger.info(
-                    f"Running matchup: {deck1_name} vs {deck2_name} "
-                    f"({config.iterations_per_matchup} games)"
-                )
-                
                 for iteration in range(config.iterations_per_matchup):
-                    # Check if we should skip (resume support)
-                    expected_game = (
-                        matchups.index((deck1_name, deck2_name)) * 
-                        config.iterations_per_matchup + iteration + 1
-                    )
-                    if expected_game <= run.completed_games:
-                        continue
-                    
-                    # Run game
-                    result = runner.run_game(deck1, deck2, game_number)
-                    
-                    # Persist game result
-                    game_record = SimulationGameModel(
-                        run_id=run_id,
-                        game_number=game_number,
-                        deck1_name=deck1_name,
-                        deck2_name=deck2_name,
-                        player1_model=config.player1_model,
-                        player2_model=config.player2_model,
-                        outcome=result.outcome.value,
-                        winner_deck=result.winner_deck,
-                        turn_count=result.turn_count,
-                        duration_ms=result.duration_ms,
-                        cc_tracking=[cc.to_dict() for cc in result.cc_tracking],
-                        action_log=result.action_log,
-                        error_message=result.error_message,
-                    )
-                    db.add(game_record)
-                    
-                    # Update run progress
-                    run.completed_games = game_number
-                    db.commit()
-                    
-                    # Update in-memory result
-                    self._result.add_game_result(result)
-                    
+                    if game_number > run.completed_games:  # Skip already completed
+                        games_to_run.append({
+                            "game_number": game_number,
+                            "deck1_name": deck1_name,
+                            "deck2_name": deck2_name,
+                            "deck1": deck_dict[deck1_name],
+                            "deck2": deck_dict[deck2_name],
+                        })
                     game_number += 1
+            
+            logger.info(
+                f"Running {len(games_to_run)} games with {parallel_games} parallel workers"
+            )
+            
+            def run_single_game(game_info: dict) -> tuple:
+                """Run a single game in a worker thread."""
+                # Each thread needs its own runner (has its own AI players)
+                runner = SimulationRunner(
+                    player1_model=config.player1_model,
+                    player2_model=config.player2_model,
+                    max_turns=config.max_turns,
+                )
+                result = runner.run_game(
+                    game_info["deck1"],
+                    game_info["deck2"],
+                    game_info["game_number"],
+                )
+                return (game_info, result)
+            
+            def persist_result(game_info: dict, result, db_session: Session):
+                """Persist a game result to the database."""
+                nonlocal completed_count
+                
+                game_record = SimulationGameModel(
+                    run_id=run_id,
+                    game_number=game_info["game_number"],
+                    deck1_name=game_info["deck1_name"],
+                    deck2_name=game_info["deck2_name"],
+                    player1_model=config.player1_model,
+                    player2_model=config.player2_model,
+                    outcome=result.outcome.value,
+                    winner_deck=result.winner_deck,
+                    turn_count=result.turn_count,
+                    duration_ms=result.duration_ms,
+                    cc_tracking=[cc.to_dict() for cc in result.cc_tracking],
+                    action_log=result.action_log,
+                    error_message=result.error_message,
+                )
+                db_session.add(game_record)
+                
+                with progress_lock:
+                    completed_count += 1
+                    # Update run progress
+                    run_record = db_session.query(SimulationRunModel).filter(
+                        SimulationRunModel.id == run_id
+                    ).first()
+                    if run_record:
+                        run_record.completed_games = completed_count
+                    db_session.commit()
+                
+                # Update in-memory result (thread-safe via lock)
+                with progress_lock:
+                    self._result.add_game_result(result)
+            
+            # Run games in parallel
+            with ThreadPoolExecutor(max_workers=parallel_games) as executor:
+                # Submit all games
+                futures = {
+                    executor.submit(run_single_game, game_info): game_info
+                    for game_info in games_to_run
+                }
+                
+                # Process results as they complete
+                for future in as_completed(futures):
+                    game_info = futures[future]
+                    try:
+                        _, result = future.result()
+                        # Use a fresh DB session for each persist (thread safety)
+                        if SessionLocal is not None:
+                            thread_db = SessionLocal()
+                            try:
+                                persist_result(game_info, result, thread_db)
+                            finally:
+                                thread_db.close()
+                        else:
+                            persist_result(game_info, result, db)
+                        
+                        logger.debug(
+                            f"Game {game_info['game_number']} completed: "
+                            f"{game_info['deck1_name']} vs {game_info['deck2_name']} "
+                            f"-> {result.outcome.value}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Game {game_info['game_number']} failed: {e}"
+                        )
+                        # Still count it as completed (with error)
+                        with progress_lock:
+                            completed_count += 1
             
             # Mark as completed
             run.status = "completed"
             run.completed_at = datetime.utcnow()
+            run.completed_games = completed_count
             run.results = {
                 "matchup_stats": {
                     k: v.to_dict() 
@@ -225,7 +287,7 @@ class SimulationOrchestrator:
             self._result.status = SimulationStatus.COMPLETED
             
             logger.info(
-                f"Simulation {run_id} completed: {run.completed_games} games"
+                f"Simulation {run_id} completed: {completed_count} games"
             )
             
         except Exception as e:
