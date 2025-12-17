@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from .database import SessionLocal
-from .db_models import GameModel, AIDecisionLogModel, GamePlaybackModel
+from .db_models import GameModel, AIDecisionLogModel, GamePlaybackModel, SimulationRunModel
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ class CleanupResult(BaseModel):
     games_abandoned: int
     ai_logs_deleted: int
     playback_deleted: int
+    simulations_deleted: int = 0
     execution_time_ms: int
 
 
@@ -45,6 +46,8 @@ class CleanupStats(BaseModel):
     ai_logs_stale: int  # Older than 6 hours
     playback_total: int
     playback_stale: int  # Older than 24 hours
+    simulations_total: int = 0
+    simulations_stale: int = 0  # Older than 7 days
 
 
 def verify_api_key(x_api_key: Optional[str] = Header(None)) -> bool:
@@ -93,6 +96,13 @@ async def get_cleanup_stats(x_api_key: Optional[str] = Header(None)):
             GamePlaybackModel.created_at < twenty_four_hours_ago
         ).count()
         
+        # Simulation stats (7 day retention)
+        seven_days_ago = now - timedelta(days=7)
+        simulations_total = db.query(SimulationRunModel).count()
+        simulations_stale = db.query(SimulationRunModel).filter(
+            SimulationRunModel.created_at < seven_days_ago
+        ).count()
+        
         return CleanupStats(
             active_games_total=active_games_total,
             active_games_stale=active_games_stale,
@@ -100,6 +110,8 @@ async def get_cleanup_stats(x_api_key: Optional[str] = Header(None)):
             ai_logs_stale=ai_logs_stale,
             playback_total=playback_total,
             playback_stale=playback_stale,
+            simulations_total=simulations_total,
+            simulations_stale=simulations_stale,
         )
     finally:
         db.close()
@@ -117,6 +129,7 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
     1. Mark games as 'abandoned' if active for > 24 hours
     2. Delete AI decision logs older than 6 hours
     3. Delete game playback data older than 24 hours
+    4. Delete simulation runs older than 7 days
     """
     verify_api_key(x_api_key)
     
@@ -124,10 +137,12 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
     now = start_time
     six_hours_ago = now - timedelta(hours=6)
     twenty_four_hours_ago = now - timedelta(hours=24)
+    seven_days_ago = now - timedelta(days=7)
     
     games_abandoned = 0
     ai_logs_deleted = 0
     playback_deleted = 0
+    simulations_deleted = 0
     
     db = SessionLocal()
     try:
@@ -166,6 +181,17 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
         playback_deleted = result.rowcount
         logger.info(f"Deleted {playback_deleted} game playback records")
         
+        # 4. Delete old simulation runs (games cascade delete)
+        result = db.execute(
+            text("""
+                DELETE FROM simulation_runs 
+                WHERE created_at < :cutoff
+            """),
+            {"cutoff": seven_days_ago}
+        )
+        simulations_deleted = result.rowcount
+        logger.info(f"Deleted {simulations_deleted} simulation runs")
+        
         db.commit()
         
     except Exception as e:
@@ -182,5 +208,6 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
         games_abandoned=games_abandoned,
         ai_logs_deleted=ai_logs_deleted,
         playback_deleted=playback_deleted,
+        simulations_deleted=simulations_deleted,
         execution_time_ms=execution_time_ms,
     )

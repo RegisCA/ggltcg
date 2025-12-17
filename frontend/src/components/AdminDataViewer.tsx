@@ -4,7 +4,7 @@
  * Simple interface to view AI logs, game playbacks, and stats.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 
@@ -97,10 +97,128 @@ interface User {
   favorite_decks: string[][];
 }
 
+// CC Tracking interface
+interface TurnCC {
+  turn: number;
+  player_id: string;
+  cc_start: number;
+  cc_gained: number;
+  cc_spent: number;
+  cc_end: number;
+}
+
+// Action log interface
+interface ActionLogEntry {
+  turn: number;
+  player: string;
+  action: string;
+  card: string | null;
+  reasoning: string;
+}
+
+interface SimulationGameDetail {
+  game_number: number;
+  deck1_name: string;
+  deck2_name: string;
+  outcome: string;
+  winner_deck: string | null;
+  turn_count: number;
+  duration_ms: number;
+  error_message: string | null;
+  cc_tracking: TurnCC[];
+  action_log: ActionLogEntry[];
+  player1_model: string;
+  player2_model: string;
+}
+
+// Simulation interfaces
+interface SimulationDeck {
+  name: string;
+  description: string;
+  cards: string[];
+}
+
+interface SimulationRun {
+  run_id: number;
+  status: string;
+  total_games: number;
+  completed_games: number;
+  config: {
+    deck_names: string[];
+    player1_model: string;
+    player2_model: string;
+    iterations_per_matchup: number;
+    max_turns: number;
+  };
+  created_at: string;
+  completed_at: string | null;
+}
+
+interface MatchupStats {
+  deck1_name: string;
+  deck2_name: string;
+  games_played: number;
+  deck1_wins: number;
+  deck2_wins: number;
+  draws: number;
+  deck1_win_rate: number;
+  deck2_win_rate: number;
+  avg_turns: number;
+  avg_duration_ms: number;
+}
+
+interface SimulationResults {
+  run_id: number;
+  status: string;
+  config: SimulationRun['config'];
+  total_games: number;
+  completed_games: number;
+  matchup_stats: Record<string, MatchupStats>;
+  games: Array<{
+    game_number: number;
+    deck1_name: string;
+    deck2_name: string;
+    outcome: string;
+    winner_deck: string | null;
+    turn_count: number;
+    duration_ms: number;
+    error_message: string | null;
+  }>;
+  created_at: string;
+  completed_at: string | null;
+}
+
 const AdminDataViewer: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users' | 'simulation'>('summary');
   const [selectedLog, setSelectedLog] = useState<AILog | null>(null);
   const [selectedPlayback, setSelectedPlayback] = useState<GamePlaybackDetail | null>(null);
+  
+  // Simulation state
+  const [selectedDecks, setSelectedDecks] = useState<string[]>([]);
+  const [player1Model, setPlayer1Model] = useState('gemini-2.0-flash');
+  const [player2Model, setPlayer2Model] = useState('gemini-2.5-flash');
+  const [iterationsPerMatchup, setIterationsPerMatchup] = useState(10);
+  const [isRunningSimulation, setIsRunningSimulation] = useState(false);
+  const [activeRunId, setActiveRunId] = useState<number | null>(null);
+  const [runProgress, setRunProgress] = useState<{ completed: number; total: number; status: string } | null>(null);
+  const [selectedSimulation, setSelectedSimulation] = useState<SimulationResults | null>(null);
+  const [selectedGameDetail, setSelectedGameDetail] = useState<SimulationGameDetail | null>(null);
+  const [loadingGameDetail, setLoadingGameDetail] = useState(false);
+  
+  // Ref for polling interval cleanup
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollErrorCountRef = useRef<number>(0);
+  const MAX_POLL_ERRORS = 10;
+  
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Fetch summary stats
   const { data: summary } = useQuery<SummaryStats>({
@@ -152,6 +270,27 @@ const AdminDataViewer: React.FC = () => {
     refetchInterval: activeTab === 'users' ? 10000 : 30000,
   });
 
+  // Fetch simulation decks
+  const { data: simulationDecks } = useQuery<SimulationDeck[]>({
+    queryKey: ['simulation-decks'],
+    queryFn: async () => {
+      const response = await axios.get(`${API_BASE_URL}/admin/simulation/decks`);
+      return response.data;
+    },
+    enabled: activeTab === 'simulation',
+  });
+
+  // Fetch simulation runs
+  const { data: simulationRuns, refetch: refetchSimulationRuns } = useQuery<SimulationRun[]>({
+    queryKey: ['simulation-runs'],
+    queryFn: async () => {
+      const response = await axios.get(`${API_BASE_URL}/admin/simulation/runs?limit=20`);
+      return response.data;
+    },
+    refetchInterval: activeTab === 'simulation' ? 5000 : 30000,
+    enabled: activeTab === 'simulation',
+  });
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString();
@@ -196,6 +335,130 @@ const AdminDataViewer: React.FC = () => {
   const truncate = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
+  };
+
+  // Simulation functions
+  const toggleDeckSelection = (deckName: string) => {
+    setSelectedDecks(prev => 
+      prev.includes(deckName) 
+        ? prev.filter(d => d !== deckName)
+        : [...prev, deckName]
+    );
+  };
+
+  const startSimulation = async () => {
+    if (selectedDecks.length < 1) {
+      alert('Please select at least 1 deck');
+      return;
+    }
+    
+    setIsRunningSimulation(true);
+    setRunProgress(null);
+    pollErrorCountRef.current = 0; // Reset error count
+    
+    try {
+      // Start simulation (returns immediately with run_id)
+      const response = await axios.post(`${API_BASE_URL}/admin/simulation/start`, {
+        deck_names: selectedDecks,
+        player1_model: player1Model,
+        player2_model: player2Model,
+        iterations_per_matchup: iterationsPerMatchup,
+        max_turns: 40,
+      });
+      
+      const runId = response.data.run_id;
+      setActiveRunId(runId);
+      setRunProgress({
+        completed: 0,
+        total: response.data.total_games,
+        status: 'pending',
+      });
+      
+      // Poll for progress until completed (with cleanup ref)
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const statusResponse = await axios.get(
+            `${API_BASE_URL}/admin/simulation/runs/${runId}`
+          );
+          const status = statusResponse.data;
+          pollErrorCountRef.current = 0; // Reset on success
+          
+          setRunProgress({
+            completed: status.completed_games,
+            total: status.total_games,
+            status: status.status,
+          });
+          
+          // Check if simulation is done
+          if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setIsRunningSimulation(false);
+            setActiveRunId(null);
+            
+            if (status.status === 'completed') {
+              // Load full results
+              const resultsResponse = await axios.get(
+                `${API_BASE_URL}/admin/simulation/runs/${runId}/results`
+              );
+              setSelectedSimulation(resultsResponse.data);
+            } else {
+              alert(`Simulation ${status.status}: ${status.error_message || 'Unknown error'}`);
+            }
+            
+            refetchSimulationRuns();
+          }
+        } catch (pollError) {
+          console.error('Error polling simulation status:', pollError);
+          pollErrorCountRef.current += 1;
+          
+          // Stop polling after too many consecutive errors
+          if (pollErrorCountRef.current >= MAX_POLL_ERRORS) {
+            console.error(`Stopping polling after ${MAX_POLL_ERRORS} consecutive errors`);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setIsRunningSimulation(false);
+            alert('Lost connection to server. Please refresh and check simulation status.');
+          }
+        }
+      }, 3000); // Poll every 3 seconds
+      
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { detail?: string } } };
+      console.error('Failed to start simulation:', error);
+      alert(`Failed to start simulation: ${axiosError.response?.data?.detail || 'Unknown error'}`);
+      setIsRunningSimulation(false);
+      setActiveRunId(null);
+      setRunProgress(null);
+    }
+  };
+
+  const loadSimulationResults = async (runId: number) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/admin/simulation/runs/${runId}/results`);
+      setSelectedSimulation(response.data);
+      setSelectedGameDetail(null); // Clear any game detail when switching runs
+    } catch (error) {
+      console.error('Failed to load simulation results:', error);
+      alert('Failed to load simulation results');
+    }
+  };
+
+  const loadGameDetail = async (runId: number, gameNumber: number) => {
+    setLoadingGameDetail(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/admin/simulation/runs/${runId}/games/${gameNumber}`);
+      setSelectedGameDetail(response.data);
+    } catch (error) {
+      console.error('Failed to load game detail:', error);
+      alert('Failed to load game detail');
+    } finally {
+      setLoadingGameDetail(false);
+    }
   };
 
   return (
@@ -282,6 +545,16 @@ const AdminDataViewer: React.FC = () => {
             onClick={() => setActiveTab('users')}
           >
             Users ({usersData?.count || 0})
+          </button>
+          <button
+            className={`px-4 py-2 font-semibold ${
+              activeTab === 'simulation'
+                ? 'text-blue-400 border-b-2 border-blue-400'
+                : 'text-gray-400 hover:text-white'
+            }`}
+            onClick={() => setActiveTab('simulation')}
+          >
+            Simulation
           </button>
         </div>
 
@@ -649,6 +922,435 @@ const AdminDataViewer: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'simulation' && (
+          <div className="flex flex-col" style={{ gap: 'var(--spacing-component-lg)' }}>
+            {/* Configuration Panel */}
+            {!selectedSimulation && (
+              <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
+                <h2 className="text-2xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+                  New Simulation
+                </h2>
+                
+                {/* Deck Selection */}
+                <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                  <h3 className="font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                    Select Decks
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: 'var(--spacing-component-sm)' }}>
+                    {simulationDecks?.map(deck => (
+                      <div
+                        key={deck.name}
+                        className={`cursor-pointer rounded-lg border-2 transition-colors ${
+                          selectedDecks.includes(deck.name)
+                            ? 'border-blue-500 bg-blue-900/30'
+                            : 'border-gray-600 bg-gray-900 hover:border-gray-500'
+                        }`}
+                        style={{ padding: 'var(--spacing-component-md)' }}
+                        onClick={() => toggleDeckSelection(deck.name)}
+                      >
+                        <div className="font-semibold">{deck.name}</div>
+                        <div className="text-xs text-gray-400" style={{ marginTop: '4px' }}>
+                          {deck.description}
+                        </div>
+                        <div className="text-xs text-gray-500" style={{ marginTop: '4px' }}>
+                          {deck.cards.join(', ')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Model Selection */}
+                <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-lg)' }}>
+                  <div>
+                    <label className="block font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                      Player 1 Model
+                    </label>
+                    <select
+                      value={player1Model}
+                      onChange={e => setPlayer1Model(e.target.value)}
+                      className="w-full bg-gray-900 border border-gray-600 rounded text-white"
+                      style={{ padding: 'var(--spacing-component-sm)' }}
+                    >
+                      <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                      <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                      Player 2 Model
+                    </label>
+                    <select
+                      value={player2Model}
+                      onChange={e => setPlayer2Model(e.target.value)}
+                      className="w-full bg-gray-900 border border-gray-600 rounded text-white"
+                      style={{ padding: 'var(--spacing-component-sm)' }}
+                    >
+                      <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                      <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Iterations */}
+                <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                  <label className="block font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                    Games per Matchup: {iterationsPerMatchup}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="50"
+                    value={iterationsPerMatchup}
+                    onChange={e => setIterationsPerMatchup(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="text-sm text-gray-400" style={{ marginTop: '4px' }}>
+                    {selectedDecks.length >= 1 && (
+                      <>
+                        {selectedDecks.length === 1 ? '1 mirror matchup' : `${selectedDecks.length * (selectedDecks.length + 1) / 2} matchups`} × {iterationsPerMatchup} games = {' '}
+                        <span className="text-white font-semibold">
+                          {(selectedDecks.length === 1 ? 1 : selectedDecks.length * (selectedDecks.length + 1) / 2) * iterationsPerMatchup} total games
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Start Button */}
+                <button
+                  onClick={startSimulation}
+                  disabled={isRunningSimulation || selectedDecks.length < 1}
+                  className={`w-full rounded font-semibold ${
+                    isRunningSimulation || selectedDecks.length < 1
+                      ? 'bg-gray-600 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                  style={{ padding: 'var(--spacing-component-md)' }}
+                >
+                  {isRunningSimulation ? 'Starting...' : 'Start Simulation'}
+                </button>
+
+                {/* Progress Display */}
+                {isRunningSimulation && runProgress && (
+                  <div className="bg-blue-900/30 border border-blue-500 rounded" style={{ marginTop: 'var(--spacing-component-md)', padding: 'var(--spacing-component-md)' }}>
+                    <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                      <span className="font-semibold">
+                        Simulation {runProgress.status === 'pending' ? 'starting' : 'in progress'}...
+                      </span>
+                      <span className="text-blue-400">
+                        {runProgress.completed} / {runProgress.total} games
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${runProgress.total > 0 ? (runProgress.completed / runProgress.total * 100) : 0}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-gray-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                      {runProgress.total > 0 ? Math.round(runProgress.completed / runProgress.total * 100) : 0}% complete 
+                      {activeRunId && <span> (Run #{activeRunId})</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Results Panel */}
+            {selectedSimulation && (
+              <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
+                <button
+                  onClick={() => setSelectedSimulation(null)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded"
+                  style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-md)', alignSelf: 'flex-start' }}
+                >
+                  ← Back to Configuration
+                </button>
+                
+                <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
+                  <h2 className="text-2xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+                    Simulation Results
+                    <span className={`text-sm rounded ${
+                      selectedSimulation.status === 'completed' ? 'bg-green-600' :
+                      selectedSimulation.status === 'running' ? 'bg-yellow-600' :
+                      selectedSimulation.status === 'failed' ? 'bg-red-600' :
+                      'bg-gray-600'
+                    }`} style={{ marginLeft: 'var(--spacing-component-sm)', padding: '4px var(--spacing-component-xs)' }}>
+                      {selectedSimulation.status}
+                    </span>
+                  </h2>
+                  
+                  {/* Config Summary */}
+                  <div className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                    <div>Decks: {selectedSimulation.config.deck_names.join(', ')}</div>
+                    <div className="bg-gray-900/50 rounded p-2 mt-2">
+                      <div className="font-semibold text-white mb-1">Model Assignment:</div>
+                      <div className="flex gap-4">
+                        <span><span className="text-green-400">Player 1 / Deck 1:</span> {selectedSimulation.config.player1_model}</span>
+                        <span><span className="text-blue-400">Player 2 / Deck 2:</span> {selectedSimulation.config.player2_model}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Note: Player 1 always goes first (receives 2 CC on turn 1 instead of 4)</div>
+                    </div>
+                    <div style={{ marginTop: '8px' }}>Games: {selectedSimulation.completed_games}/{selectedSimulation.total_games}</div>
+                    {selectedSimulation.completed_at && (
+                      <div>Completed: {formatDate(selectedSimulation.completed_at)}</div>
+                    )}
+                  </div>
+
+                  {/* Matchup Stats Table */}
+                  <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                    Matchup Results
+                  </h3>
+                  <div className="bg-gray-900 rounded overflow-hidden" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-950">
+                        <tr>
+                          <th className="px-4 py-2 text-left">Matchup</th>
+                          <th className="px-4 py-2 text-center">Games</th>
+                          <th className="px-4 py-2 text-center text-green-400" title="Player 1 always goes first">
+                            P1 Wins
+                          </th>
+                          <th className="px-4 py-2 text-center text-blue-400">P2 Wins</th>
+                          <th className="px-4 py-2 text-center">Draws</th>
+                          <th className="px-4 py-2 text-center">P1 Win %</th>
+                          <th className="px-4 py-2 text-center">Avg Turns</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.values(selectedSimulation.matchup_stats).map((stats) => (
+                          <tr key={`${stats.deck1_name}_vs_${stats.deck2_name}`} className="border-t border-gray-800">
+                            <td className="px-4 py-2 font-semibold">
+                              <span className="text-green-400">{stats.deck1_name}</span>
+                              <span className="text-gray-500"> vs </span>
+                              <span className="text-blue-400">{stats.deck2_name}</span>
+                            </td>
+                            <td className="px-4 py-2 text-center">{stats.games_played}</td>
+                            <td className="px-4 py-2 text-center text-green-400">{stats.deck1_wins}</td>
+                            <td className="px-4 py-2 text-center text-blue-400">{stats.deck2_wins}</td>
+                            <td className="px-4 py-2 text-center text-gray-400">{stats.draws}</td>
+                            <td className="px-4 py-2 text-center">
+                              <span className={stats.deck1_win_rate > 0.5 ? 'text-green-400' : stats.deck1_win_rate < 0.5 ? 'text-red-400' : 'text-gray-400'}>
+                                {(stats.deck1_win_rate * 100).toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-center text-orange-400">
+                              {stats.avg_turns.toFixed(1)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Individual Games */}
+                  <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                    Individual Games
+                    <span className="text-sm font-normal text-gray-400 ml-2">(click to view CC tracking)</span>
+                  </h3>
+                  <div className="bg-gray-900 rounded overflow-hidden max-h-96 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-950 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2 text-left">#</th>
+                          <th className="px-4 py-2 text-left">Matchup</th>
+                          <th className="px-4 py-2 text-center">Result</th>
+                          <th className="px-4 py-2 text-center">Turns</th>
+                          <th className="px-4 py-2 text-center">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedSimulation.games.map(game => (
+                          <tr 
+                            key={game.game_number} 
+                            className={`border-t border-gray-800 cursor-pointer hover:bg-gray-800 ${selectedGameDetail?.game_number === game.game_number ? 'bg-gray-800' : ''}`}
+                            onClick={() => loadGameDetail(selectedSimulation.run_id, game.game_number)}
+                          >
+                            <td className="px-4 py-2">{game.game_number}</td>
+                            <td className="px-4 py-2">
+                              <span className="text-green-400">{game.deck1_name}</span>
+                              <span className="text-gray-500"> vs </span>
+                              <span className="text-blue-400">{game.deck2_name}</span>
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              {game.outcome === 'draw' ? (
+                                <span className="text-gray-400">Draw</span>
+                              ) : (
+                                <span className={game.outcome === 'player1_win' ? 'text-green-400' : 'text-blue-400'}>
+                                  {game.winner_deck} wins
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-center text-orange-400">{game.turn_count}</td>
+                            <td className="px-4 py-2 text-center text-cyan-400">
+                              {(game.duration_ms / 1000).toFixed(1)}s
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* CC Tracking Detail Panel */}
+                  {loadingGameDetail && (
+                    <div className="bg-gray-900 rounded p-4 mt-4 text-center text-gray-400">
+                      Loading game details...
+                    </div>
+                  )}
+                  
+                  {selectedGameDetail && !loadingGameDetail && (
+                    <div className="bg-gray-900 rounded p-4 mt-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-lg font-semibold">
+                          Game #{selectedGameDetail.game_number} CC Tracking
+                        </h4>
+                        <button 
+                          onClick={() => setSelectedGameDetail(null)}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          ✕ Close
+                        </button>
+                      </div>
+                      
+                      {selectedGameDetail.cc_tracking && selectedGameDetail.cc_tracking.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-950">
+                              <tr>
+                                <th className="px-3 py-2 text-center">Turn</th>
+                                <th className="px-3 py-2 text-center">Player</th>
+                                <th className="px-3 py-2 text-center">CC Start</th>
+                                <th className="px-3 py-2 text-center">CC Gained</th>
+                                <th className="px-3 py-2 text-center">CC Spent</th>
+                                <th className="px-3 py-2 text-center">CC End</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedGameDetail.cc_tracking.map((cc, idx) => (
+                                <tr 
+                                  key={idx} 
+                                  className="border-t border-gray-800"
+                                  style={{ backgroundColor: cc.player_id === 'player1' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)' }}
+                                >
+                                  <td className="px-3 py-2 text-center">{cc.turn}</td>
+                                  <td className={`px-3 py-2 text-center font-semibold ${cc.player_id === 'player1' ? 'text-green-400' : 'text-blue-400'}`}>
+                                    {cc.player_id === 'player1' ? 'P1' : 'P2'}
+                                  </td>
+                                  <td className="px-3 py-2 text-center">{cc.cc_start}</td>
+                                  <td className="px-3 py-2 text-center text-yellow-400">+{cc.cc_gained}</td>
+                                  <td className="px-3 py-2 text-center text-red-400">-{cc.cc_spent}</td>
+                                  <td className="px-3 py-2 text-center font-bold">{cc.cc_end}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          
+                          {/* CC Summary */}
+                          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                            <div className="bg-gray-950 rounded p-3">
+                              <div className="text-green-400 font-semibold mb-2">Player 1 (P1) Summary</div>
+                              <div>Total CC Gained: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_gained, 0)}</div>
+                              <div>Total CC Spent: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_spent, 0)}</div>
+                            </div>
+                            <div className="bg-gray-950 rounded p-3">
+                              <div className="text-blue-400 font-semibold mb-2">Player 2 (P2) Summary</div>
+                              <div>Total CC Gained: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_gained, 0)}</div>
+                              <div>Total CC Spent: {selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_spent, 0)}</div>
+                            </div>
+                          </div>
+                          
+                          {/* Play-by-Play Actions */}
+                          {selectedGameDetail.action_log && selectedGameDetail.action_log.length > 0 && (
+                            <div className="mt-6">
+                              <h5 className="font-semibold mb-2">Play-by-Play Actions</h5>
+                              <div className="max-h-80 overflow-y-auto">
+                                <table className="w-full text-sm">
+                                  <thead className="bg-gray-950 sticky top-0">
+                                    <tr>
+                                      <th className="px-3 py-2 text-left">Turn</th>
+                                      <th className="px-3 py-2 text-left">Player</th>
+                                      <th className="px-3 py-2 text-left">Action</th>
+                                      <th className="px-3 py-2 text-left">Card</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {selectedGameDetail.action_log.map((entry, idx) => (
+                                      <tr 
+                                        key={idx} 
+                                        className="border-t border-gray-800"
+                                        style={{ backgroundColor: entry.player === 'player1' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)' }}
+                                      >
+                                        <td className="px-3 py-2">{entry.turn}</td>
+                                        <td className={`px-3 py-2 ${entry.player === 'player1' ? 'text-green-400' : 'text-blue-400'}`}>
+                                          {entry.player === 'player1' ? 'P1' : 'P2'}
+                                        </td>
+                                        <td className="px-3 py-2">{entry.action}</td>
+                                        <td className="px-3 py-2 text-yellow-400">{entry.card || '-'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-gray-400">No CC tracking data available for this game.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Past Simulations */}
+            {!selectedSimulation && simulationRuns && simulationRuns.length > 0 && (
+              <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
+                <h2 className="text-xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+                  Past Simulations
+                </h2>
+                <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
+                  {simulationRuns.map(run => (
+                    <div
+                      key={run.run_id}
+                      className="bg-gray-900 rounded-lg cursor-pointer hover:bg-gray-850"
+                      style={{ padding: 'var(--spacing-component-md)' }}
+                      onClick={() => loadSimulationResults(run.run_id)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-semibold">
+                            Run #{run.run_id}
+                            <span className={`text-xs rounded ${
+                              run.status === 'completed' ? 'bg-green-600' :
+                              run.status === 'running' ? 'bg-yellow-600' :
+                              run.status === 'failed' ? 'bg-red-600' :
+                              'bg-gray-600'
+                            }`} style={{ marginLeft: 'var(--spacing-component-xs)', padding: '2px 6px' }}>
+                              {run.status}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {run.config.deck_names.join(', ')} • {run.completed_games}/{run.total_games} games
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatRelativeTime(run.created_at)}
+                          </div>
+                        </div>
+                        <div className="text-blue-400">View →</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

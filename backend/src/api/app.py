@@ -16,6 +16,7 @@ from .routes_lobby import router as lobby_router
 from .routes_stats import router as stats_router
 from .routes_maintenance import router as maintenance_router
 from .routes_admin import router as admin_router
+from .routes_simulation import router as simulation_router
 from .auth_routes import router as auth_router
 
 # Initialize Sentry for error tracking (production only)
@@ -72,6 +73,7 @@ app.include_router(lobby_router)
 app.include_router(stats_router)
 app.include_router(maintenance_router)
 app.include_router(admin_router)
+app.include_router(simulation_router)
 
 
 @app.get("/")
