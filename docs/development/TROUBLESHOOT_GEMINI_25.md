@@ -2,11 +2,18 @@
 
 ## Context
 
-We've implemented a simulation system for AI vs AI games. Testing with `gemini-2.0-flash` works well (games complete in 17-25 seconds), but `gemini-2.5-flash` appears to hang - games don't complete even after several minutes.
+We've implemented a simulation system for AI vs AI games. Testing with `gemini-2.0-flash` works well (games complete in 17-25 seconds), but `gemini-2.5-flash` shows different behavior:
+
+- **Games complete but are slow** (133-276 seconds vs ~20 seconds)
+- **High turn counts** (14-38 turns vs typical 8-15)
+- **Passive play patterns** - AI appears to not take many actions per turn
+- **Skewed win rates** - 100% P1 win in mirror tests (should be ~50-60%)
+
+The issue is likely that Gemini 2.5 is not recognizing good action opportunities or is being overly conservative in its decision-making.
 
 ## Goal
 
-Get the GGLTCG game working with `gemini-2.5-flash` as the AI model.
+Improve Gemini 2.5's decision quality to match or exceed gemini-2.0-flash behavior.
 
 ## Test Protocol
 
@@ -58,8 +65,21 @@ HTTP Request: POST https://generativelanguage.googleapis.com/...
 - If it hangs after "Calling gemini API" → API timeout or response parsing issue
 - If you see 429 errors → Rate limiting
 - If you see parsing errors → Model response format incompatibility
+- If actions are mostly "end_turn" → AI not recognizing valid action opportunities
+- If games are very long → AI being overly conservative
 
-### Step 6: Check Response Format
+### Step 6: Compare Action Logs
+
+Compare action logs between gemini-2.0-flash and gemini-2.5-flash games:
+
+1. Run the same matchup with both models
+2. View game details and check action logs
+3. Look for patterns:
+   - Is 2.5 choosing "end_turn" more often?
+   - Is 2.5 playing fewer cards per turn?
+   - Is 2.5's reasoning different?
+
+### Step 7: Check Response Format
 
 The AI expects structured JSON output:
 ```json
@@ -83,9 +103,18 @@ If Gemini 2.5 returns a different format, we need to update the parsing logic.
 
 | Aspect | gemini-2.0-flash | gemini-2.5-flash |
 |--------|------------------|------------------|
-| Response time | ~1-2 seconds | Unknown |
-| Structured output | Works | To verify |
-| Rate limits | Standard | May differ |
+| Response time | ~1-2 seconds | ~2-5 seconds |
+| Structured output | Works well | Works but may differ |
+| Game duration | ~20 seconds | 133-276 seconds |
+| Turn count | 8-15 typical | 14-38 observed |
+| Decision quality | Good aggression | Possibly too conservative |
+
+## Hypotheses to Test
+
+1. **Prompt interpretation**: 2.5 may interpret the game state prompt differently
+2. **Action selection**: 2.5 may have different risk assessment
+3. **Structured output**: 2.5 may handle JSON response format differently
+4. **Context length**: 2.5 may process long prompts differently
 
 ## Expected Outcome
 
