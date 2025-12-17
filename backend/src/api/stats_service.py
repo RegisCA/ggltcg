@@ -349,6 +349,41 @@ class StatsService:
         finally:
             db.close()
     
+    def cleanup_old_simulations(self, max_age_days: int = 7) -> int:
+        """
+        Delete simulation runs older than the specified age.
+        
+        Simulation games are deleted via CASCADE when the run is deleted.
+        
+        Args:
+            max_age_days: Maximum age in days (default: 7)
+            
+        Returns:
+            Number of simulation runs deleted
+        """
+        if not self.use_database:
+            return 0
+        
+        SessionLocal = _get_session_local()
+        
+        db = SessionLocal()
+        try:
+            from .db_models import SimulationRunModel
+            
+            cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+            deleted = db.query(SimulationRunModel).filter(
+                SimulationRunModel.created_at < cutoff
+            ).delete()
+            db.commit()
+            logger.info(f"Cleaned up {deleted} simulation runs older than {max_age_days} day(s)")
+            return deleted
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to cleanup simulation runs: {e}")
+            return 0
+        finally:
+            db.close()
+    
     # ========================================
     # Query Methods (for future stats API)
     # ========================================

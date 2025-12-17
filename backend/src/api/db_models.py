@@ -400,3 +400,139 @@ class PlayerStatsModel(Base):
         if self.games_played == 0:
             return 0.0
         return self.total_game_duration_seconds / self.games_played
+
+
+class SimulationRunModel(Base):
+    """
+    Database model for simulation runs.
+    
+    Stores configuration and progress for AI vs AI simulation batches.
+    Retention: 7 days (cleaned up by scheduled task).
+    """
+    __tablename__ = "simulation_runs"
+    
+    # Primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Status tracking
+    status = Column(
+        String(50),
+        nullable=False,
+        default="pending",
+        index=True
+    )  # pending, running, completed, failed, cancelled
+    
+    # Configuration (JSON for flexibility)
+    # Structure: {
+    #   "deck_names": ["Aggro_Rush", "Control_Ka", ...],
+    #   "player1_model": "gemini-2.0-flash",
+    #   "player2_model": "gemini-2.5-flash",
+    #   "iterations_per_matchup": 10,
+    #   "max_turns": 40
+    # }
+    config = Column(JSONType, nullable=False)
+    
+    # Progress tracking
+    total_games = Column(Integer, nullable=False)
+    completed_games = Column(Integer, nullable=False, default=0)
+    
+    # Aggregated results (populated after completion)
+    # Structure: {
+    #   "matchup_stats": {"Deck1_vs_Deck2": {...}, ...},
+    #   "overall_stats": {...}
+    # }
+    results = Column(JSONType, nullable=True)
+    
+    # Error tracking
+    error_message = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        index=True  # Index for cleanup queries (7-day retention)
+    )
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed', 'cancelled')",
+            name="simulation_runs_status_check"
+        ),
+    )
+    
+    def __repr__(self):
+        return f"<SimulationRun(id={self.id}, status={self.status}, progress={self.completed_games}/{self.total_games})>"
+
+
+class SimulationGameModel(Base):
+    """
+    Database model for individual simulation game results.
+    
+    Stores per-game results including CC tracking for analysis.
+    Retention: 7 days (cascades with parent simulation run).
+    """
+    __tablename__ = "simulation_games"
+    
+    # Primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Foreign key to simulation run
+    run_id = Column(
+        Integer,
+        ForeignKey("simulation_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    
+    # Game metadata
+    game_number = Column(Integer, nullable=False)  # 1-indexed within run
+    deck1_name = Column(String(255), nullable=False, index=True)
+    deck2_name = Column(String(255), nullable=False, index=True)
+    player1_model = Column(String(100), nullable=False)
+    player2_model = Column(String(100), nullable=False)
+    
+    # Outcome
+    outcome = Column(
+        String(50),
+        nullable=False
+    )  # player1_win, player2_win, draw
+    winner_deck = Column(String(255), nullable=True)  # None for draw
+    
+    # Game metrics
+    turn_count = Column(Integer, nullable=False)
+    duration_ms = Column(Integer, nullable=False)
+    
+    # CC tracking per turn (JSON array)
+    # Structure: [
+    #   {"turn": 1, "player_id": "player1", "cc_start": 0, "cc_gained": 2, "cc_spent": 1, "cc_end": 1},
+    #   {"turn": 1, "player_id": "player2", "cc_start": 0, "cc_gained": 2, "cc_spent": 0, "cc_end": 2},
+    #   ...
+    # ]
+    cc_tracking = Column(JSONType, nullable=False)
+    
+    # Full action log for replay
+    action_log = Column(JSONType, nullable=False)
+    
+    # Error tracking (if game failed)
+    error_message = Column(Text, nullable=True)
+    
+    # Timestamp
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()
+    )
+    
+    __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('player1_win', 'player2_win', 'draw')",
+            name="simulation_games_outcome_check"
+        ),
+        Index('idx_simulation_games_matchup', 'deck1_name', 'deck2_name'),
+    )
+    
+    def __repr__(self):
+        return f"<SimulationGame(id={self.id}, run_id={self.run_id}, {self.deck1_name} vs {self.deck2_name})>"
