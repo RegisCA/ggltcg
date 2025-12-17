@@ -4,7 +4,7 @@
  * Simple interface to view AI logs, game playbacks, and stats.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 
@@ -204,6 +204,21 @@ const AdminDataViewer: React.FC = () => {
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationResults | null>(null);
   const [selectedGameDetail, setSelectedGameDetail] = useState<SimulationGameDetail | null>(null);
   const [loadingGameDetail, setLoadingGameDetail] = useState(false);
+  
+  // Ref for polling interval cleanup
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollErrorCountRef = useRef<number>(0);
+  const MAX_POLL_ERRORS = 10;
+  
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Fetch summary stats
   const { data: summary } = useQuery<SummaryStats>({
@@ -339,6 +354,7 @@ const AdminDataViewer: React.FC = () => {
     
     setIsRunningSimulation(true);
     setRunProgress(null);
+    pollErrorCountRef.current = 0; // Reset error count
     
     try {
       // Start simulation (returns immediately with run_id)
@@ -358,13 +374,14 @@ const AdminDataViewer: React.FC = () => {
         status: 'pending',
       });
       
-      // Poll for progress until completed
-      const pollInterval = setInterval(async () => {
+      // Poll for progress until completed (with cleanup ref)
+      pollIntervalRef.current = setInterval(async () => {
         try {
           const statusResponse = await axios.get(
             `${API_BASE_URL}/admin/simulation/runs/${runId}`
           );
           const status = statusResponse.data;
+          pollErrorCountRef.current = 0; // Reset on success
           
           setRunProgress({
             completed: status.completed_games,
@@ -374,7 +391,10 @@ const AdminDataViewer: React.FC = () => {
           
           // Check if simulation is done
           if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
-            clearInterval(pollInterval);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
             setIsRunningSimulation(false);
             setActiveRunId(null);
             
@@ -392,6 +412,18 @@ const AdminDataViewer: React.FC = () => {
           }
         } catch (pollError) {
           console.error('Error polling simulation status:', pollError);
+          pollErrorCountRef.current += 1;
+          
+          // Stop polling after too many consecutive errors
+          if (pollErrorCountRef.current >= MAX_POLL_ERRORS) {
+            console.error(`Stopping polling after ${MAX_POLL_ERRORS} consecutive errors`);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setIsRunningSimulation(false);
+            alert('Lost connection to server. Please refresh and check simulation status.');
+          }
         }
       }, 3000); // Poll every 3 seconds
       
@@ -983,9 +1015,9 @@ const AdminDataViewer: React.FC = () => {
                   <div className="text-sm text-gray-400" style={{ marginTop: '4px' }}>
                     {selectedDecks.length >= 1 && (
                       <>
-                        {selectedDecks.length === 1 ? '1 mirror matchup' : `${Math.ceil(selectedDecks.length * (selectedDecks.length + 1) / 2)} matchups`} × {iterationsPerMatchup} games = {' '}
+                        {selectedDecks.length === 1 ? '1 mirror matchup' : `${selectedDecks.length * (selectedDecks.length + 1) / 2} matchups`} × {iterationsPerMatchup} games = {' '}
                         <span className="text-white font-semibold">
-                          {(selectedDecks.length === 1 ? 1 : Math.ceil(selectedDecks.length * (selectedDecks.length + 1) / 2)) * iterationsPerMatchup} total games
+                          {(selectedDecks.length === 1 ? 1 : selectedDecks.length * (selectedDecks.length + 1) / 2) * iterationsPerMatchup} total games
                         </span>
                       </>
                     )}

@@ -18,8 +18,6 @@ from .config import (
     SimulationConfig,
     SimulationResult,
     SimulationStatus,
-    DeckConfig,
-    GameOutcome,
 )
 from .deck_loader import load_simulation_decks_dict
 from .runner import SimulationRunner

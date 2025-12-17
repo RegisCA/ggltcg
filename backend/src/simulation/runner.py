@@ -87,6 +87,7 @@ class SimulationRunner:
         cc_tracking: list[TurnCC] = []
         action_log: list[dict] = []
         error_message: Optional[str] = None
+        game_initialized = False  # Track successful game initialization
         
         try:
             # Create game state
@@ -198,8 +199,8 @@ class SimulationRunner:
                 # Track CC for this turn (use captured values from start of turn)
                 cc_end = active_player.cc
                 
-                # Calculate CC gained: what we ended with + what we spent - what we started with
-                cc_gained = cc_end - cc_start + cc_spent
+                # Reconstruct CC gained: end - start + spent, clamped at 0 to avoid negative "gains"
+                cc_gained = max(0, cc_end - cc_start + cc_spent)
                 
                 cc_tracking.append(TurnCC(
                     turn=current_turn,
@@ -213,6 +214,9 @@ class SimulationRunner:
                 # If turn didn't end from action, check state
                 if game_state.winner_id is None:
                     engine.check_state_based_actions()
+            
+            # Mark successful initialization
+            game_initialized = True
         
         except Exception as e:
             logger.exception(f"Error in game {game_number}: {e}")
@@ -228,8 +232,8 @@ class SimulationRunner:
         if error_message:
             # Game errored - treat as draw
             outcome = GameOutcome.DRAW
-            turn_count = game_state.turn_number if 'game_state' in locals() else 0
-        elif 'game_state' not in locals() or game_state.winner_id is None:
+            turn_count = game_state.turn_number if game_initialized else 0
+        elif not game_initialized or game_state.winner_id is None:
             # Hit turn limit or other issue - draw
             outcome = GameOutcome.DRAW
             turn_count = self.max_turns

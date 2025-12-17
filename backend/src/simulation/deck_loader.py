@@ -3,6 +3,7 @@
 import csv
 import logging
 import os
+import threading
 from pathlib import Path
 from typing import Dict, List
 
@@ -86,8 +87,9 @@ class SimulationDeckLoader:
         return Path(__file__).parent.parent.parent / "data" / "simulation_decks.csv"
 
 
-# Singleton instance for easy access
+# Singleton instance for easy access (thread-safe)
 _default_loader: SimulationDeckLoader | None = None
+_loader_lock = threading.Lock()
 
 
 def get_deck_loader() -> SimulationDeckLoader:
@@ -97,22 +99,27 @@ def get_deck_loader() -> SimulationDeckLoader:
     Checks SIMULATION_DECKS_CSV_PATH environment variable first, 
     falls back to default path.
     
+    Thread-safe using double-checked locking pattern.
+    
     Returns:
         SimulationDeckLoader instance with configured deck path
     """
     global _default_loader
     if _default_loader is None:
-        # Check for environment variable first
-        decks_path_str = os.environ.get("SIMULATION_DECKS_CSV_PATH")
-        
-        if decks_path_str:
-            decks_path = Path(decks_path_str)
-            logger.info(f"Loading simulation decks from environment variable: {decks_path}")
-        else:
-            decks_path = SimulationDeckLoader.get_default_deck_path()
-            logger.info(f"Loading simulation decks from default path: {decks_path}")
-        
-        _default_loader = SimulationDeckLoader(decks_path)
+        with _loader_lock:
+            # Double-check after acquiring lock
+            if _default_loader is None:
+                # Check for environment variable first
+                decks_path_str = os.environ.get("SIMULATION_DECKS_CSV_PATH")
+                
+                if decks_path_str:
+                    decks_path = Path(decks_path_str)
+                    logger.info(f"Loading simulation decks from environment variable: {decks_path}")
+                else:
+                    decks_path = SimulationDeckLoader.get_default_deck_path()
+                    logger.info(f"Loading simulation decks from default path: {decks_path}")
+                
+                _default_loader = SimulationDeckLoader(decks_path)
     return _default_loader
 
 

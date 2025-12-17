@@ -12,13 +12,13 @@ Architecture:
 
 import logging
 import threading
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
-from simulation.config import SimulationConfig
+from simulation.config import SimulationConfig, SUPPORTED_MODELS
 from simulation.orchestrator import SimulationOrchestrator
 from simulation.deck_loader import load_simulation_decks
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Track active simulation threads (run_id -> thread)
 _active_simulations: dict[int, threading.Thread] = {}
+_simulations_lock = threading.Lock()  # Protect concurrent access to _active_simulations
 
 router = APIRouter(prefix="/admin/simulation", tags=["simulation"])
 
@@ -68,7 +69,8 @@ def _run_simulation_background(run_id: int):
     finally:
         db.close()
         # Clean up thread tracking
-        _active_simulations.pop(run_id, None)
+        with _simulations_lock:
+            _active_simulations.pop(run_id, None)
 
 
 # ============================================================================
@@ -160,6 +162,18 @@ async def start_simulation(
     Returns:
         run_id and initial status (status will be "pending" or "running")
     """
+    # Validate model names
+    if request.player1_model not in SUPPORTED_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid player1_model '{request.player1_model}'. Supported: {SUPPORTED_MODELS}"
+        )
+    if request.player2_model not in SUPPORTED_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid player2_model '{request.player2_model}'. Supported: {SUPPORTED_MODELS}"
+        )
+    
     # Create config
     config = SimulationConfig(
         deck_names=request.deck_names,
@@ -170,6 +184,12 @@ async def start_simulation(
     )
     
     total_games = config.total_games()
+    if total_games == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Configuration results in 0 games. Check deck selection."
+        )
+    
     logger.info(
         f"Starting simulation: {config.deck_names} with {total_games} games"
     )
@@ -184,9 +204,10 @@ async def start_simulation(
             target=_run_simulation_background,
             args=(run_id,),
             name=f"simulation-{run_id}",
-            daemon=True,  # Don't block server shutdown
+            daemon=False,  # Allow in-progress simulations to finish cleanly on shutdown
         )
-        _active_simulations[run_id] = thread
+        with _simulations_lock:
+            _active_simulations[run_id] = thread
         thread.start()
         
         logger.info(f"Spawned background thread for simulation {run_id}")

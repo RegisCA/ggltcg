@@ -4,6 +4,14 @@ from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
 
+# Supported AI models for simulation
+SUPPORTED_MODELS = [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+]
+
 
 class SimulationStatus(str, Enum):
     """Status of a simulation run."""
@@ -31,7 +39,9 @@ class DeckConfig:
     def __post_init__(self) -> None:
         """Validate deck has exactly 6 cards."""
         if len(self.cards) != 6:
-            raise ValueError(f"Deck must have exactly 6 cards, got {len(self.cards)}")
+            raise ValueError(
+                f"Deck '{self.name}' must have exactly 6 cards, got {len(self.cards)}"
+            )
 
 
 @dataclass
