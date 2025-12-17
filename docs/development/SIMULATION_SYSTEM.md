@@ -94,25 +94,41 @@ Via Admin UI:
 ### Understanding Results
 
 **Matchup Generation:**
-- Single deck: 1 mirror matchup (Deck A vs Deck A)
-- Two decks: 3 matchups (A vs A, A vs B, B vs B)
-- N decks: N*(N+1)/2 matchups (triangular number)
+- N decks generate N² matchups (all permutations)
+- This treats A vs B and B vs A as different matchups since Player 1 goes first
+- Single deck: 1 matchup (mirror)
+- Two decks: 4 matchups (A vs A, A vs B, B vs A, B vs B)
+- Three decks: 9 matchups
+
+**Game Limit:**
+- Maximum 500 total games per simulation run
+- If iterations × matchups exceeds 500, iterations are automatically reduced
+
+**Results Matrix:**
+- Results are displayed in a heatmap matrix format
+- Rows = Player 1 deck, Columns = Player 2 deck
+- Cell shows P1 Win% with color coding (green = P1 favored, red = P2 favored)
+- Diagonal cells are mirror matchups
 
 **CC Tracking:**
-Each turn records:
-- `turn`: Turn number
-- `player_id`: Which player's turn ("player1" or "player2")
-- `cc_start`: CC at turn start
-- `cc_gained`: CC gained during turn
-- `cc_spent`: CC spent during turn
-- `cc_end`: CC at turn end
+Each turn records both players' CC state:
+- `turn`: Turn number (odd = P1's turn, even = P2's turn)
+- For both `p1` and `p2`:
+  - `cc_start`: CC at start of that player's action window
+  - `cc_gained`: CC gained (from abilities like Umbruh's on-tussle effect)
+  - `cc_spent`: CC spent on actions
+  - `cc_end`: CC at end of turn
+
+Note: Players can gain CC during their opponent's turn (e.g., Umbruh generates CC when tussled).
 
 **Action Log:**
 Each action records:
 - `turn`: Turn number
 - `player`: Player identifier
-- `action`: Action type (play_card, tussle, direct_attack, end_turn)
+- `action`: Action type (play_card, tussle, activate_ability, direct_attack, end_turn)
 - `card`: Card name (if applicable)
+- `target`: Target card (if applicable)
+- `description`: Human-readable action description (e.g., "Spent 2 CC for Knight to tussle Umbruh")
 - `reasoning`: AI's reasoning for the decision
 
 ## Testing Protocol
@@ -171,15 +187,13 @@ If a specific model isn't working:
 The Simulation UI is in the Admin Data Viewer (`frontend/src/components/AdminDataViewer.tsx`):
 
 - **Simulation Tab**: Configure and start runs
-  <img width="1440" height="900" alt="GGLTCG New Simulation screen" src="https://github.com/user-attachments/assets/fdc02c94-da5f-4437-947a-55432c2c1538" />
-
 - **Run History**: View past runs with status
-- **Results View**: Matchup statistics and individual game details
-  <img width="1440" height="900" alt="GGLTCG Simulation results" src="https://github.com/user-attachments/assets/09a9c177-9b63-4f5e-9cc9-45ac63f3ca19" />
-
-- **Game Detail**: CC tracking table and action log
-  <img width="1440" height="900" alt="GGLTCG Simulation match details" src="https://github.com/user-attachments/assets/9f78668a-2983-4df3-97f7-927e8a3b2cb3" />
-
+- **Results Matrix**: Heatmap showing P1 win rates for all deck matchups
+- **Individual Games Table**: List of all games with P1/P2 decks, winner, total CC spent
+- **Game Detail Panel**: Inline below clicked game row, showing:
+  - Turn-by-turn CC tracking for both players
+  - Color-coded actions using play-by-play descriptions
+  - Turn highlighting (green for P1's turns, blue for P2's turns)
 
 ## Future Enhancements
 

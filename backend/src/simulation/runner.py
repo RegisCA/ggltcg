@@ -119,10 +119,14 @@ class SimulationRunner:
                 current_turn = game_state.turn_number
                 current_player_id = game_state.active_player_id
                 active_player = game_state.get_active_player()
+                inactive_player_id = "player2" if current_player_id == "player1" else "player1"
+                inactive_player = game_state.players[inactive_player_id]
                 
-                # CC tracking - capture AFTER start_turn has given CC
-                cc_start = active_player.cc
-                cc_spent = 0
+                # CC tracking - capture BOTH players' CC after start_turn
+                active_cc_start = active_player.cc
+                inactive_cc_start = inactive_player.cc
+                active_cc_spent = 0
+                inactive_cc_end_of_turn = inactive_cc_start  # Initialize in case loop doesn't run
                 
                 # Determine which AI is playing
                 if current_player_id == "player1":
@@ -170,46 +174,72 @@ class SimulationRunner:
                     action_index, reasoning = result
                     selected_action = valid_actions[action_index]
                     
-                    # Log action
+                    # Log action with full description
                     action_entry = {
                         "turn": current_turn,
                         "player": current_player_id,
                         "action": selected_action.action_type,
                         "card": selected_action.card_name,
+                        "description": selected_action.description,
                         "reasoning": reasoning,
                     }
                     action_log.append(action_entry)
                     
                     # Execute action
                     cc_before = active_player.cc
+                    inactive_cc_before_action = inactive_player.cc
                     action_ended_turn = self._execute_action(
                         engine, game_state, ai_player, selected_action
                     )
                     cc_after = active_player.cc
-                    cc_spent += max(0, cc_before - cc_after)
+                    active_cc_spent += max(0, cc_before - cc_after)
                     
+                    # Capture inactive player's CC BEFORE end_turn gives them their turn-start CC
+                    # (end_turn internally calls start_turn for the next player)
                     if action_ended_turn:
+                        # Use the CC value right before end_turn was processed
+                        inactive_cc_end_of_turn = inactive_cc_before_action
                         break
                     
                     # Check victory after each action
                     engine.check_state_based_actions()
                     if game_state.winner_id is not None:
                         break
+                else:
+                    # Loop ended without break - no end_turn action was taken
+                    inactive_cc_end_of_turn = inactive_player.cc
                 
-                # Track CC for this turn (use captured values from start of turn)
-                cc_end = active_player.cc
+                # Track CC for BOTH players at end of this turn
+                active_cc_end = active_player.cc
                 
-                # Reconstruct CC gained: end - start + spent, clamped at 0 to avoid negative "gains"
-                cc_gained = max(0, cc_end - cc_start + cc_spent)
+                # Active player: gained = end - start + spent (clamped at 0)
+                active_cc_gained = max(0, active_cc_end - active_cc_start + active_cc_spent)
                 
+                # Inactive player: may have gained CC from effects (e.g., Umbruh sleeped)
+                # They don't spend CC during opponent's turn, so gained = end - start
+                # Use inactive_cc_end_of_turn which was captured BEFORE end_turn/start_turn
+                inactive_cc_gained = max(0, inactive_cc_end_of_turn - inactive_cc_start)
+                
+                # Record active player's turn
                 cc_tracking.append(TurnCC(
                     turn=current_turn,
                     player_id=current_player_id,
-                    cc_start=cc_start,
-                    cc_gained=cc_gained,
-                    cc_spent=cc_spent,
-                    cc_end=cc_end,
+                    cc_start=active_cc_start,
+                    cc_gained=active_cc_gained,
+                    cc_spent=active_cc_spent,
+                    cc_end=active_cc_end,
                 ))
+                
+                # Record inactive player's CC changes during this turn (if any)
+                if inactive_cc_gained > 0:
+                    cc_tracking.append(TurnCC(
+                        turn=current_turn,
+                        player_id=inactive_player_id,
+                        cc_start=inactive_cc_start,
+                        cc_gained=inactive_cc_gained,
+                        cc_spent=0,  # Inactive player can't spend during opponent's turn
+                        cc_end=inactive_cc_end_of_turn,
+                    ))
                 
                 # If turn didn't end from action, check state
                 if game_state.winner_id is None:

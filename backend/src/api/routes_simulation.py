@@ -190,6 +190,14 @@ async def start_simulation(
             detail="Configuration results in 0 games. Check deck selection."
         )
     
+    # Enforce maximum game limit to prevent resource exhaustion
+    MAX_TOTAL_GAMES = 500
+    if total_games > MAX_TOTAL_GAMES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Total games ({total_games}) exceeds maximum ({MAX_TOTAL_GAMES}). Reduce iterations or deck count."
+        )
+    
     logger.info(
         f"Starting simulation: {config.deck_names} with {total_games} games"
     )

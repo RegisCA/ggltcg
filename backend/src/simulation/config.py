@@ -111,14 +111,17 @@ class SimulationConfig:
     
     def get_matchups(self) -> list[tuple[str, str]]:
         """
-        Generate all deck matchups including mirrors.
+        Generate all deck matchups (n² total: all pairs including mirrors and both directions).
+        
+        Since Player 1 always goes first, A vs B is different from B vs A.
+        This generates all n² matchups for a complete matrix.
         
         Returns:
             List of (deck1_name, deck2_name) tuples
         """
         matchups = []
-        for i, deck1 in enumerate(self.deck_names):
-            for deck2 in self.deck_names[i:]:  # Include mirror matches
+        for deck1 in self.deck_names:
+            for deck2 in self.deck_names:
                 matchups.append((deck1, deck2))
         return matchups
     
