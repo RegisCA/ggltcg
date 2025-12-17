@@ -1,9 +1,11 @@
-> **Historical Document**: This plan has been executed. See `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md` for the current system.
+> **Historical Document**: This plan has been executed. See
+`docs/development/EFFECT_SYSTEM_ARCHITECTURE.md` for the current system.
 
 # Effect System Migration Plan
 
 ## Overview
-This document outlines the strategy for migrating all GGLTCG cards from hardcoded Python effect classes to the data-driven CSV effect system.
+This document outlines the strategy for migrating all GGLTCG cards from
+hardcoded Python effect classes to the data-driven CSV effect system.
 
 ## Current Status (Post-Phase 3 + Wake/Sun Cleanup - November 25, 2025)
 
@@ -65,7 +67,8 @@ These cards have inter-card dependencies and protection mechanics.
 
 **Knight** - "Opponent's effects don't affect. Auto-win tussles on your turn"
 - **Current**: 2 effects (KnightProtectionEffect, KnightWinConditionEffect)
-- **Effect Type**: `protection:opponent_effects` + `auto_win_tussle:on_turn:except:Beary`
+- **Effect Type**: `protection:opponent_effects` +
+  `auto_win_tussle:on_turn:except:Beary`
 - **Complexity**: HIGH - Complex protection + win condition
 - **Priority**: LOW - Works well with current system
 
@@ -82,7 +85,8 @@ These cards have inter-card dependencies and protection mechanics.
 - **Priority**: LOW - Marked "NOT WORKING" in CSV
 
 ### Category 3: Special Mechanics (Low Priority)
-These cards have unique mechanics that may benefit from staying as custom effects.
+These cards have unique mechanics that may benefit from staying as custom
+effects.
 
 **Copy** - "Acts as exact copy of card in play"
 - **Current**: CopyEffect (complex cloning logic)
@@ -187,7 +191,8 @@ These cards trigger on specific game events.
 
 **Implemented Generic Effect Types**:
 1. `GainCCWhenSleepedEffect(amount)` - triggered effect for Umbruh
-2. `SetSelfTussleCostEffect(cost, not_turn_1)` - self tussle cost with restriction for Raggy
+2. `SetSelfTussleCostEffect(cost, not_turn_1)` - self tussle cost with
+   restriction for Raggy
 
 **Migrated Cards**:
 - Umbruh: `gain_cc_when_sleeped:1`
@@ -195,9 +200,12 @@ These cards trigger on specific game events.
 
 **Status**: ✅ COMPLETED (Current PR)
 **Tests**: 5 tests passing
-**Architectural Fix**: Updated SleepAllEffect to use game_engine reference to properly trigger when-sleeped effects
+**Architectural Fix**: Updated SleepAllEffect to use game_engine reference to
+properly trigger when-sleeped effects
 
-**Key Learning**: Effects that trigger other effects (like Clean sleeping Umbruh) need access to GameEngine, not just GameState, to maintain proper architectural boundaries.
+**Key Learning**: Effects that trigger other effects (like Clean sleeping
+Umbruh) need access to GameEngine, not just GameState, to maintain proper
+architectural boundaries.
 
 ### Phase 4+: Complex/Custom Effects (Optional)
 **Decision**: Keep as custom Python classes
@@ -217,34 +225,31 @@ These cards trigger on specific game events.
 class GainCCEffect(PlayEffect):
     """Generic CC gain effect"""
     def __init__(self, source_card, amount, restrictions=None)
-    
+
 class UnsleepEffect(PlayEffect):
     """Generic unsleep N cards effect"""
     def __init__(self, source_card, count)
-    
+
 class SleepAllEffect(PlayEffect):
     """Sleep all cards in play"""
     def __init__(self, source_card)
-```
-
+```text
 ### Priority 2 (Phase 2)
 ```python
 class TussleCostEffect(CostModificationEffect):
     """Modify tussle cost"""
     def __init__(self, source_card, cost, scope)
-    
+
 class CardCostReductionEffect(CostModificationEffect):
     """Reduce card cost based on condition"""
     def __init__(self, source_card, reduction_type, amount)
-```
-
+```text
 ### Priority 3 (Phase 3)
 ```python
 class OnSleepEffect(TriggeredEffect):
     """Trigger effect when card is sleeped"""
     def __init__(self, source_card, action, params)
-```
-
+```text
 ## Success Metrics
 
 - ✅ **Phase 1 Complete**: 4 cards migrated (6 total / 18 = 33%)
@@ -252,7 +257,8 @@ class OnSleepEffect(TriggeredEffect):
 - ✅ **Phase 3 Complete**: 2 cards migrated (10 total / 18 = 56%)
 - **Final State**: 10 data-driven, 8 custom (excellent split!)
 
-**Achievement**: More than half of all cards (56%) now use the data-driven system!
+**Achievement**: More than half of all cards (56%) now use the data-driven
+system!
 
 ## Benefits vs. Complexity
 
@@ -270,14 +276,16 @@ class OnSleepEffect(TriggeredEffect):
 
 ### Issue #84: Review LLM Prompt Guidance
 
-**Status**: Open  
-**Priority**: HIGH  
+**Status**: Open
+**Priority**: HIGH
 **Link**: https://github.com/RegisCA/ggltcg/issues/84
 
-**Problem**: AI prompt guidance in `prompts.py` contains inaccurate card descriptions that cause the LLM to make invalid plays.
+**Problem**: AI prompt guidance in `prompts.py` contains inaccurate card
+descriptions that cause the LLM to make invalid plays.
 
 **Examples**:
-- **Copy**: Prompt says "Create a copy of target Toy" but doesn't clarify it must be YOUR Toy, not opponent's
+- **Copy**: Prompt says "Create a copy of target Toy" but doesn't clarify it
+  must be YOUR Toy, not opponent's
   - AI tried to copy opponent's Umbruh which is not allowed
   - AI used card name/stats as target_id instead of UUID
 - **Wizard**: Description may not accurately reflect cost modification mechanics
@@ -296,19 +304,23 @@ class OnSleepEffect(TriggeredEffect):
 
 ### Issue #85: GameEngine/GameState Separation Violations
 
-**Status**: Open  
-**Priority**: MEDIUM  
+**Status**: Open
+**Priority**: MEDIUM
 **Link**: https://github.com/RegisCA/ggltcg/issues/85
 
-**Problem**: Code directly calls `game_state` methods that perform game logic instead of delegating to `game_engine`. This bypasses effect triggering and violates architectural separation of concerns.
+**Problem**: Code directly calls `game_state` methods that perform game logic
+instead of delegating to `game_engine`. This bypasses effect triggering and
+violates architectural separation of concerns.
 
 **Architecture**:
 - **GameState**: Pure data model - holds state, provides data access methods
-- **GameEngine**: Logic orchestrator - handles all game rules, cost calculations, and effect triggering
+- **GameEngine**: Logic orchestrator - handles all game rules, cost
+  calculations, and effect triggering
 
 ## Architectural Analysis: GameState Methods
 
-The following methods currently exist on `GameState`. This analysis determines which should move to `GameEngine`:
+The following methods currently exist on `GameState`. This analysis determines
+which should move to `GameEngine`:
 
 ### ✅ Appropriate for GameState (Pure Data Access)
 These methods only read or query state without triggering game logic:
@@ -327,7 +339,8 @@ These methods only read or query state without triggering game logic:
 - `find_card_by_id()` - Data access
 - `to_dict()` / `from_dict()` - Serialization
 
-**Note**: `find_card_by_name()` is deprecated - we switched to `find_card_by_id()`. Should be removed.
+**Note**: `find_card_by_name()` is deprecated - we switched to
+`find_card_by_id()`. Should be removed.
 
 ### ⚠️ SHOULD MOVE to GameEngine (Triggers Effects or Contains Logic)
 
@@ -338,8 +351,9 @@ These methods only read or query state without triggering game logic:
 - **triggered_effects.py:109** - Snuggles' when-sleeped effect
 - **action_effects.py:505** - Archer activated ability (damage → sleep)
 
-**Impact**: 
-- When Ballaber sleeps a card from play (like Umbruh), triggered effects don't fire
+**Impact**:
+- When Ballaber sleeps a card from play (like Umbruh), triggered effects don't
+  fire
 - When Snuggles sleeps a card, that card's when-sleeped effects don't fire
 - When Archer damages a card to 0 stamina, sleep effects don't fire
 
@@ -348,20 +362,25 @@ These methods only read or query state without triggering game logic:
 - Sleeping a card **from Hand zone** → NO trigger (not "was_in_play")
 - This distinction is already tracked with `was_in_play` parameter
 
-**Fix**: All code should call `game_engine._sleep_card(card, owner, was_in_play)` which:
+**Fix**: All code should call `game_engine._sleep_card(card, owner,
+was_in_play)` which:
 1. Moves card to sleep zone via `player.sleep_card(card)`
 2. If `was_in_play=True`, triggers when-sleeped effects
 
 #### 2. `unsleep_card(card, player)` - **LOW PRIORITY**
 **Current Behavior**: Directly calls `player.unsleep_card(card)`
 
-**Analysis**: 
-- Wake and Sun currently unsleep cards, but they don't have triggered effects on the cards being unsleeped
-- No "when I get unsleeped" effects exist currently (only "I unsleep other cards" actions)
-- If we add "when unsleeped" triggers in future, this would need to move to GameEngine
+**Analysis**:
+- Wake and Sun currently unsleep cards, but they don't have triggered effects on
+  the cards being unsleeped
+- No "when I get unsleeped" effects exist currently (only "I unsleep other
+  cards" actions)
+- If we add "when unsleeped" triggers in future, this would need to move to
+  GameEngine
 - For now, this is just a data operation (move card from sleep zone to hand)
 
-**Decision**: Keep in GameState for now, but will need to move to GameEngine if we add "when unsleeped" card triggers
+**Decision**: Keep in GameState for now, but will need to move to GameEngine if
+we add "when unsleeped" card triggers
 
 #### 3. `return_card_to_hand(card, owner)` - **MEDIUM PRIORITY**
 **Current Users**: Toynado effect
@@ -372,7 +391,8 @@ These methods only read or query state without triggering game logic:
 - Resets controller to owner
 - Adds to owner's hand
 
-**Analysis**: This contains game logic (resetting modifications, resetting controller). Should be in GameEngine.
+**Analysis**: This contains game logic (resetting modifications, resetting
+controller). Should be in GameEngine.
 
 **Potential Issues**:
 - If we add "when returned to hand" effects, they won't trigger
@@ -405,11 +425,14 @@ These methods only read or query state without triggering game logic:
 - Sets zone to IN_PLAY
 - Adds to in_play
 
-**Analysis**: This is game logic (playing a card). Should use normal play_card flow through GameEngine.
+**Analysis**: This is game logic (playing a card). Should use normal play_card
+flow through GameEngine.
 
-**Issue**: Beary's effect bypasses normal "when played" triggers and CC cost payment
+**Issue**: Beary's effect bypasses normal "when played" triggers and CC cost
+payment
 
-**Recommendation**: Refactor Beary effect to use `game_engine.play_card()` or a special internal method that handles free plays
+**Recommendation**: Refactor Beary effect to use `game_engine.play_card()` or a
+special internal method that handles free plays
 
 #### 6. `is_protected_from_effect(card, effect)` - **COMPLEX**
 **Current Behavior**: Checks card's protection effects against incoming effect
@@ -418,10 +441,12 @@ These methods only read or query state without triggering game logic:
 
 **Issue**: Currently okay, but ties GameState to effect system imports
 
-**Recommendation**: Consider moving to GameEngine or a separate EffectResolver class
+**Recommendation**: Consider moving to GameEngine or a separate EffectResolver
+class
 
 #### 7. `check_victory()` - **ALREADY IN GAMEENGINE**
-**Note**: GameEngine also has `check_victory()` method that calls this. Should probably consolidate.
+**Note**: GameEngine also has `check_victory()` method that calls this. Should
+probably consolidate.
 
 ### 🔧 Specific Fixes Needed
 
@@ -431,15 +456,14 @@ These methods only read or query state without triggering game logic:
 **Current**:
 ```python
 self.game_state.sleep_card(card_to_sleep, was_in_play=was_in_play)
-```
-
+```text
 **Should be**:
 ```python
 owner = self.game_state.get_card_owner(card_to_sleep)
 self.engine._sleep_card(card_to_sleep, owner, was_in_play=was_in_play)
-```
-
-**Test Case**: Play Ballaber, sleep Umbruh from play → Umbruh's owner should gain 1 CC
+```text
+**Test Case**: Play Ballaber, sleep Umbruh from play → Umbruh's owner should
+gain 1 CC
 
 #### Fix #2: Snuggles When-Sleeped Effect
 **File**: `triggered_effects.py:109`
@@ -447,16 +471,15 @@ self.engine._sleep_card(card_to_sleep, owner, was_in_play=was_in_play)
 **Current**:
 ```python
 game_state.sleep_card(target, was_in_play=True)
-```
-
+```text
 **Should be**:
 ```python
 game_engine = kwargs.get("game_engine")
 owner = game_state.get_card_owner(target)
 game_engine._sleep_card(target, owner, was_in_play=True)
-```
-
-**Test Case**: Sleep Snuggles from play, target Umbruh in play → Umbruh's owner gains 1 CC
+```text
+**Test Case**: Sleep Snuggles from play, target Umbruh in play → Umbruh's owner
+gains 1 CC
 
 #### Fix #3: Archer Activated Ability
 **File**: `action_effects.py:505`
@@ -465,32 +488,36 @@ game_engine._sleep_card(target, owner, was_in_play=True)
 ```python
 if target.stamina <= 0:
     game_state.sleep_card(target, was_in_play=True)
-```
-
+```text
 **Should be**:
 ```python
 if target.stamina <= 0:
     game_engine = kwargs.get("game_engine")
     owner = game_state.get_card_owner(target)
     game_engine._sleep_card(target, owner, was_in_play=True)
-```
-
+```text
 **Test Case**: Archer damages Umbruh to 0 stamina → Umbruh's owner gains 1 CC
 
 #### Fix #4: Remove Duplicate Alternative Cost Logic
 **File**: `game_engine.py:241`
 
-**Issue**: Alternative cost is handled in both `action_executor.py` and `game_engine.py`
+**Issue**: Alternative cost is handled in both `action_executor.py` and
+`game_engine.py`
 
-**Recommendation**: Consolidate into single location (probably action_executor since it validates actions)
+**Recommendation**: Consolidate into single location (probably action_executor
+since it validates actions)
 
 ### 📋 "Punch" Effect - Mystery Solved
 
 **Finding**: There is NO card named "Punch" in the game!
 
-**What was found**: `action_effects.py:505` contains an UNNAMED effect class for Archer's activated ability that deals damage. The grep search flagged line 505 which has damage logic, but this is actually `ArcherActivatedAbility`, not a "Punch" effect.
+**What was found**: `action_effects.py:505` contains an UNNAMED effect class for
+Archer's activated ability that deals damage. The grep search flagged line 505
+which has damage logic, but this is actually `ArcherActivatedAbility`, not a
+"Punch" effect.
 
-**Conclusion**: "Punch" was a false positive from the grep search. The actual issue is Archer's damage-to-sleep logic at line 505.
+**Conclusion**: "Punch" was a false positive from the grep search. The actual
+issue is Archer's damage-to-sleep logic at line 505.
 
 ## Next Steps
 
@@ -508,5 +535,7 @@ if target.stamina <= 0:
     - Fix Ballaber + Umbruh interaction (HIGH PRIORITY)
     - Fix Snuggles cascading effects
     - Fix Archer damage-to-sleep triggering
-    - Consider moving `return_card_to_hand()` and `change_control()` to GameEngine
-12. 📋 Decide whether to implement Phase 4 or keep remaining cards as custom effects
+    - Consider moving `return_card_to_hand()` and `change_control()` to
+      GameEngine
+12. 📋 Decide whether to implement Phase 4 or keep remaining cards as custom
+    effects

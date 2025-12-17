@@ -12,7 +12,8 @@
 ![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI-4285F4.svg?logo=google&logoColor=white)
 ![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-EB5424.svg)
 
-A tactical two-player card game with no randomness in draws—only skill and strategy.
+A tactical two-player card game with no randomness in draws—only skill
+and strategy.
 
 ## Project Overview
 
@@ -24,8 +25,10 @@ for lobby, gameplay, and stats.
 ### Who is this for?
 
 - **TCG Enthusiasts**: Explore a deterministic, skill-based card game engine.
-- **AI Developers**: See how LLMs (Google Gemini) can be integrated as game agents.
-- **Full-Stack Engineers**: A reference for modern Python/React apps with enterprise-grade practices.
+- **AI Developers**: See how LLMs (Google Gemini) can be integrated
+  as game agents.
+- **Full-Stack Engineers**: A reference for modern Python/React apps
+  with enterprise-grade practices.
 
 ## 5-Minute Quickstart
 
@@ -55,16 +58,23 @@ for lobby, gameplay, and stats.
 
 - **1v1 Online Multiplayer**: Lobby system to create and join private games by code.
 - **Quick Play vs AI**: Start a game against the AI with a single click.
-- **Google OAuth Authentication**: Secure sign-in with Google, user profiles, and display names.
-- **LLM-Powered AI Opponent**: Uses Google Gemini with **native structured output** for reliable, strategic play.
-- **Persistent Stats**: PostgreSQL-backed tracking of game results and high-level stats.
-- **Deterministic Gameplay**: No random draws – only visible information and player decisions.
-- **Data-Driven Cards**: Card stats and effects defined in CSV, parsed by a generic effect system.
-- **Type-Safe Architecture**: TypeScript frontend and Pydantic-validated FastAPI backend.
+- **Google OAuth Authentication**: Secure sign-in with Google, user
+  profiles, and display names.
+- **LLM-Powered AI Opponent**: Uses Google Gemini with **native
+  structured output** for reliable, strategic play.
+- **Persistent Stats**: PostgreSQL-backed tracking of game results and
+  high-level stats.
+- **Deterministic Gameplay**: No random draws – only visible information
+  and player decisions.
+- **Data-Driven Cards**: Card stats and effects defined in CSV,
+  parsed by a generic effect system.
+- **Type-Safe Architecture**: TypeScript frontend and
+  Pydantic-validated FastAPI backend.
 
 ## Documentation
 
-For detailed documentation, see the **[Documentation Index](docs/README.md)**. Key guides include:
+For detailed documentation, see the
+**[Documentation Index](docs/README.md)**. Key guides include:
 
 - [Architecture](docs/development/ARCHITECTURE.md)
 - [Effect System](docs/development/EFFECT_SYSTEM_ARCHITECTURE.md)
@@ -81,10 +91,14 @@ For detailed documentation, see the **[Documentation Index](docs/README.md)**. K
 
 This project demonstrates professional software engineering practices:
 
-- **Database Migrations**: Uses **Alembic** for reliable schema evolution and version control of the database.
-- **Automated Maintenance**: Background tasks automatically clean up abandoned games and stale logs to keep the database healthy.
-- **Operational Security**: Maintenance endpoints are secured with API keys; user data is protected via OAuth 2.0.
-- **Scalable Architecture**: Stateless backend design allows for horizontal scaling (deployed on Render).
+- **Database Migrations**: Uses **Alembic** for reliable schema evolution
+  and version control of the database.
+- **Automated Maintenance**: Background tasks automatically clean up
+  abandoned games and stale logs to keep the database healthy.
+- **Operational Security**: Maintenance endpoints are secured with API
+  keys; user data is protected via OAuth 2.0.
+- **Scalable Architecture**: Stateless backend design allows for
+  horizontal scaling (deployed on Render).
 
 ## Architecture
 
@@ -118,7 +132,8 @@ graph TD
 - Uvicorn 0.34.0 ASGI server
 - Card data stored in CSV format (Single Source of Truth)
 - Game state management with JSON serialization
-- AI player powered by Google Gemini (free tier available)
+- AI player powered by Google Gemini
+  (free tier available)
 - **Deployed on Render.com** (free tier)
 
 ### Frontend
@@ -144,7 +159,8 @@ See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for complete rul
 
 **Live Game:** <https://ggltcg.vercel.app>
 
-*Note: The backend may take up to 50 seconds to wake up on first load (free tier hosting).*
+*Note: The backend may take up to 50 seconds to wake up on first
+load (free tier hosting).*
 
 **Backend API:** <https://ggltcg.onrender.com>
 
@@ -152,11 +168,14 @@ See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for complete rul
 - Health check: <https://ggltcg.onrender.com/health>
 
 **Screenshots:**
-<img width="1440" height="900" alt="GGLTCG Game Modes" src="https://github.com/user-attachments/assets/18c38998-77d2-4e56-822e-a8f0e5412a25" />
-<img width="1440" height="900" alt="GGLCTC Deck Selected" src="https://github.com/user-attachments/assets/5aeafad3-fdbc-4c49-a997-15b5591ad325" />
-<img width="1440" height="900" alt="GGLTCG Game Board" src="https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49" />
-<img width="1440" height="900" alt="GGLTCG Game Summary Story" src="https://github.com/user-attachments/assets/5a2feb10-6041-426a-9cec-536259e61d17" />
 
+![GGLTCG Game Modes](https://github.com/user-attachments/assets/18c38998-77d2-4e56-822e-a8f0e5412a25)
+
+![GGLTCG Deck Selected](https://github.com/user-attachments/assets/5aeafad3-fdbc-4c49-a997-15b5591ad325)
+
+![GGLTCG Game Board](https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49)
+
+![GGLTCG Game Summary Story](https://github.com/user-attachments/assets/5a2feb10-6041-426a-9cec-536259e61d17)
 
 ## Project Structure
 
@@ -197,7 +216,8 @@ ggltcg/
 
 - Python 3.13+
 - Node.js 18+
-- Google Gemini API key (get one free at <https://aistudio.google.com/api-keys>)
+- Google Gemini API key (get one free at
+  <https://aistudio.google.com/api-keys>)
 
 ### Backend Setup
 
@@ -312,9 +332,14 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
-This means you are free to use, modify, and distribute this software, provided that any modifications are also made open source under the same license. If you run this software on a network server, you must provide the source code to users of that server.
+This means you are free to use, modify, and distribute this software,
+provided that any modifications are also made open source under the
+same license. If you run this software on a network server, you must
+provide the source code to users of that server.
 
 **Commercial Licensing:**
-If you wish to use this software in a proprietary product or without the obligations of the AGPL-3.0, commercial licenses are available. Please contact the maintainers for more information.
+If you wish to use this software in a proprietary product or without
+the obligations of the AGPL-3.0, commercial licenses are available.
+Please contact the maintainers for more information.
 
 See the [LICENSE](LICENSE) file for details.

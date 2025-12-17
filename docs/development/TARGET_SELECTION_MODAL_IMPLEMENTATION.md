@@ -1,11 +1,13 @@
 # Target Selection Modal Implementation
 
-**Date:** November 21, 2025  
+**Date:** November 21, 2025
 **Status:** ✅ Complete
 
 ## Overview
 
-Implemented a polished, user-friendly target selection modal for playing cards that require targeting (Copy, Sun, Wake, Twist, etc.) and alternative cost mechanics (Ballaber).
+Implemented a polished, user-friendly target selection modal for playing cards
+that require targeting (Copy, Sun, Wake, Twist, etc.) and alternative cost
+mechanics (Ballaber).
 
 ## Component: TargetSelectionModal
 
@@ -97,8 +99,7 @@ interface TargetSelectionModalProps {
   onCancel: () => void;
   alternativeCostOptions?: Card[];
 }
-```
-
+```text
 ### State Management
 
 - `selectedTargets`: Array of selected card IDs
@@ -114,17 +115,17 @@ const canConfirm = () => {
     return !!alternativeCostCard;
   }
   if (minTargets === 0) return true;
-  return selectedTargets.length >= minTargets && selectedTargets.length <= maxTargets;
+  return selectedTargets.length >= minTargets && selectedTargets.length <=
+maxTargets;
 };
-```
-
+```text
 ### Integration with GameBoard
 
 ```typescript
 // GameBoard checks if modal is needed
-const needsTargetSelection = 
-  action.action_type === 'play_card' && 
-  action.target_options && 
+const needsTargetSelection =
+  action.action_type === 'play_card' &&
+  action.target_options &&
   action.target_options.length > 0;
 
 if (needsTargetSelection || hasAlternativeCost) {
@@ -132,8 +133,7 @@ if (needsTargetSelection || hasAlternativeCost) {
 } else {
   executeAction(action, []);  // Execute immediately
 }
-```
-
+```text
 ## Cards Using This Modal
 
 ### Targeting Cards (Select 1)
@@ -241,14 +241,12 @@ if (needsTargetSelection || hasAlternativeCost) {
 
 ```plaintext
 frontend/src/components/TargetSelectionModal.tsx
-```
-
+```text
 ### Modified Files
 
 ```plaintext
 frontend/src/components/GameBoard.tsx  (handleAction, handleTargetSelection)
-```
-
+```text
 ## Deployment
 
 No backend changes required. Frontend-only implementation.
@@ -257,8 +255,7 @@ No backend changes required. Frontend-only implementation.
 cd frontend
 npm run build
 # Deploy to Vercel (auto on git push)
-```
-
+```text
 ## Success Metrics
 
 - ✅ Modal displays correctly on all supported browsers
@@ -272,4 +269,5 @@ npm run build
 
 **Implementation Complete!** 🎉
 
-The target selection modal is fully functional, polished, and ready for production deployment.
+The target selection modal is fully functional, polished, and ready for
+production deployment.

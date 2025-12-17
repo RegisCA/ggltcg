@@ -1,6 +1,6 @@
 # Development Notes
 
-**⚠️ Note for Contributors:**
+## ⚠️ Note for Contributors
 
 The documents in this directory (`dev-notes/`) are primarily for internal use by maintainers. They contain:
 

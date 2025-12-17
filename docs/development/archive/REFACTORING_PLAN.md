@@ -2,15 +2,16 @@
 
 # GGLTCG Refactoring Plan
 
-**Created:** November 20, 2025  
-**Completed:** November 21, 2025  
-**Status:** ✅ COMPLETE (Phases 1-3 finished, Phase 4 integrated into Phase 3)  
-**Priority:** High  
+**Created:** November 20, 2025
+**Completed:** November 21, 2025
+**Status:** ✅ COMPLETE (Phases 1-3 finished, Phase 4 integrated into Phase 3)
+**Priority:** High
 **Branch:** `refactor/action-architecture` (ready for PR)
 
 ## Executive Summary
 
-This refactoring successfully addressed critical architectural issues identified during the November 20, 2025 debugging session. The main problems were:
+This refactoring successfully addressed critical architectural issues identified
+during the November 20, 2025 debugging session. The main problems were:
 
 1. ~~**Code Duplication**~~: ✅ RESOLVED - Three separate code paths consolidated
 2. ~~**Type Safety**~~: ✅ IMPROVED - Structured action types implemented
@@ -28,7 +29,7 @@ This refactoring successfully addressed critical architectural issues identified
 
 **Current Architecture:**
 
-```
+```text
 Human Player Path:
   POST /play-card → routes_actions.py (lines 53-250)
     → Validate action
@@ -51,8 +52,7 @@ Valid Actions Path:
     → [DUPLICATE] Check effects for targets
     → Build action list
     → Return actions
-```
-
+```text
 **Problems:**
 
 - Effect checking logic appears in 2 places (valid actions + AI turn)
@@ -64,7 +64,9 @@ Valid Actions Path:
 
 **Example Bug from Nov 20:**
 
-Twist effect wasn't working for AI because the `target` kwarg wasn't being passed to `engine.play_card()` in the AI turn endpoint, even though it was being passed in the human player endpoint.
+Twist effect wasn't working for AI because the `target` kwarg wasn't being
+passed to `engine.play_card()` in the AI turn endpoint, even though it was being
+passed in the human player endpoint.
 
 ### Issue #2: Complex and Ambiguous Function Arguments
 
@@ -82,8 +84,7 @@ def play_card(
     alternative_cost_card: Optional[str] = None,  # Name not object!
     **kwargs                                  # More unknown args
 ) -> None:
-```
-
+```text
 **Problems:**
 
 - Hard to know what arguments are required for each card
@@ -99,7 +100,7 @@ def play_card(
 
 **Desired Architecture:**
 
-```
+```text
 Human Player Path:
   POST /play-card → routes_actions.py
     → Parse request → PlayCardAction
@@ -119,11 +120,11 @@ Valid Actions Path:
   GET /valid-actions → routes_actions.py
     → ActionValidator.get_valid_actions()  # Same validator!
     → Return actions
-```
-
+```text
 **Key Principles:**
 
-1. **Single Source of Truth**: One place for validation logic, one place for execution logic
+1. **Single Source of Truth**: One place for validation logic, one place for
+   execution logic
 2. **Structured Types**: Replace kwargs with explicit dataclasses
 3. **Separation of Concerns**: Validation separate from execution
 4. **Testability**: Easy to unit test validators and executors independently
@@ -155,7 +156,7 @@ class PlayCardAction(GameAction):
     card_id: str
     target_ids: List[str] = field(default_factory=list)
     alternative_cost_card_id: Optional[str] = None
-    
+
     def __post_init__(self):
         self.action_type = ActionType.PLAY_CARD
 
@@ -164,18 +165,17 @@ class TussleAction(GameAction):
     """Action to initiate a tussle."""
     attacker_id: str
     defender_id: str
-    
+
     def __post_init__(self):
         self.action_type = ActionType.TUSSLE
 
 @dataclass
 class EndTurnAction(GameAction):
     """Action to end the current turn."""
-    
+
     def __post_init__(self):
         self.action_type = ActionType.END_TURN
-```
-
+```text
 **Benefits:**
 
 - ✅ All required fields explicitly declared
@@ -287,7 +287,8 @@ class EndTurnAction(GameAction):
 
 ## Implementation Plan
 
-The original implementation plan is preserved below for reference, with status annotations.
+The original implementation plan is preserved below for reference, with status
+annotations.
 
 ---
 
@@ -322,18 +323,18 @@ The original implementation plan is preserved below for reference, with status a
    ```python
    class ActionValidator:
        """Validates game actions and provides valid action lists."""
-       
+
        def __init__(self, game_state: GameState):
            self.game_state = game_state
-       
+
        def get_valid_actions(self, player_id: str) -> List[GameAction]:
            """Get all valid actions for a player."""
            pass
-       
+
        def validate_action(self, action: GameAction) -> ValidationResult:
            """Validate if an action can be executed."""
            pass
-       
+
        def get_target_options(self, card_id: str) -> List[str]:
            """Get valid target IDs for a card."""
            pass
@@ -364,10 +365,10 @@ The original implementation plan is preserved below for reference, with status a
    ```python
    class ActionExecutor:
        """Executes validated game actions."""
-       
+
        def __init__(self, game_engine: GameEngine):
            self.engine = game_engine
-       
+
        def execute(self, action: GameAction) -> ExecutionResult:
            """Execute a validated action."""
            if isinstance(action, PlayCardAction):
@@ -375,11 +376,11 @@ The original implementation plan is preserved below for reference, with status a
            elif isinstance(action, TussleAction):
                return self._execute_tussle(action)
            # ... etc
-       
+
        def _execute_play_card(self, action: PlayCardAction) -> ExecutionResult:
            """Execute a play card action."""
            pass
-       
+
        def _build_description(self, action: GameAction) -> str:
            """Build human-readable description of action."""
            pass
@@ -479,10 +480,12 @@ The original implementation plan is preserved below for reference, with status a
 
 ### Must Have ✅
 
-1. **No Code Duplication**: Effect checking, validation, execution in single location
+1. **No Code Duplication**: Effect checking, validation, execution in single
+   location
 2. **Type Safety**: All actions use structured dataclasses, no kwargs
 3. **All Tests Pass**: Existing behavior preserved, all cards work
-4. **AI and Human Use Same Code**: Both paths use ActionValidator and ActionExecutor
+4. **AI and Human Use Same Code**: Both paths use ActionValidator and
+   ActionExecutor
 5. **Documentation Updated**: ARCHITECTURE.md reflects new design
 
 ### Nice to Have 🎯
@@ -547,7 +550,8 @@ After this refactoring, these features become easier:
 ## Approval and Timeline
 
 **Proposed Start Date:** After PR #61 review complete
-**Proposed Branch:** `refactor/action-architecture` from `feat/complete-card-effects`
+**Proposed Branch:** `refactor/action-architecture` from `feat/complete-card-
+effects`
 **Review Required:** Yes (significant architectural change)
 **Deployment Impact:** None (internal refactoring only)
 

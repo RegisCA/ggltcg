@@ -1,7 +1,9 @@
 # Next Session: Core Game Mechanics & Effect System Completion
 
 ## Session Goal
-Complete the core game mechanics implementation, finish effect system migration, and improve testing infrastructure to prevent bugs like issue #77.
+
+Complete the core game mechanics implementation, finish effect system migration,
+and improve testing infrastructure to prevent bugs like issue #77.
 
 ## Critical Context
 
@@ -9,43 +11,59 @@ Complete the core game mechanics implementation, finish effect system migration,
 
 #### 1. Fixed Copy Effect (Issue #77) - Three Interconnected Bugs
 
-1. **Deck Creation Bug**: `_create_deck()` wasn't copying `effect_definitions` from card templates
+1. **Deck Creation Bug**: `_create_deck()` wasn't copying `effect_definitions`
+   from card templates
    - Location: `backend/src/api/game_service.py` line 683
    - Impact: All cards in new games had empty effect_definitions
-   - Fix: Added `effect_definitions=template.effect_definitions` to Card constructor
+   - Fix: Added `effect_definitions=template.effect_definitions` to Card
+     constructor
 
-2. **Serialization Bug**: `serialize_card()` wasn't saving `effect_definitions` to database
+2. **Serialization Bug**: `serialize_card()` wasn't saving `effect_definitions`
+   to database
    - Location: `backend/src/api/serialization.py` lines 30-38
    - Impact: Even if cards had effect_definitions, they were lost on save
    - Fix: Always include `effect_definitions` in serialized data
 
-3. **Dict Mutation Bug**: `serialize_card()` was mutating the original `modifications` dict
+3. **Dict Mutation Bug**: `serialize_card()` was mutating the original
+   `modifications` dict
    - Location: `backend/src/api/serialization.py` line 35
    - Impact: Setting `_is_transformed` flag modified the card object
    - Fix: Create copy of modifications dict before mutating
 
-**Result**: Copy effects now work correctly. Example: Umbruh 6/6/6 (4 base + 1 Demideca + 1 Copy) ✓
+**Result**: Copy effects now work correctly. Example: Umbruh 6/6/6 (4 base + 1
+Demideca + 1 Copy) ✓
 
 #### 2. Fixed Wake/Unsleep Regression
 
-**Problem**: Wake card wasn't unsleeeping selected cards - they stayed in Sleep Zone instead of returning to Hand.
+**Problem**: Wake card wasn't unsleeeping selected cards - they stayed in Sleep
+Zone instead of returning to Hand.
 
-**Root Cause**: Frontend sends `target_card_id` (singular) when exactly 1 target selected, but `UnsleepEffect.apply()` expects `targets` (plural list). The `ActionExecutor._handle_targets()` was only setting `kwargs['target']` for singular targets.
+**Root Cause**: Frontend sends `target_card_id` (singular) when exactly 1 target
+selected, but `UnsleepEffect.apply()` expects `targets` (plural list). The
+`ActionExecutor._handle_targets()` was only setting `kwargs['target']` for
+singular targets.
 
-**Fix**: Modified `ActionExecutor._handle_targets()` to ALSO set `kwargs['targets'] = [target]` when `target_card_id` provided. Ensures backward compatibility with effects expecting a list.
+**Fix**: Modified `ActionExecutor._handle_targets()` to ALSO set
+`kwargs['targets'] = [target]` when `target_card_id` provided. Ensures backward
+compatibility with effects expecting a list.
 
-**Impact**: Wake and Sun now work correctly. Any multi-target effect that can select 1 target now works.
+**Impact**: Wake and Sun now work correctly. Any multi-target effect that can
+select 1 target now works.
 
 #### 3. Removed Legacy WakeEffect and SunEffect Classes
 
-**Cleanup**: Deleted 84 lines of dead code - `WakeEffect` and `SunEffect` classes were no longer used since Wake and Sun now use the generic `UnsleepEffect` via `effect_definitions`.
+**Cleanup**: Deleted 84 lines of dead code - `WakeEffect` and `SunEffect`
+classes were no longer used since Wake and Sun now use the generic
+`UnsleepEffect` via `effect_definitions`.
 
-**Progress**: 10 cards migrated to data-driven effects, 6 legacy effect classes remaining (Knight, Beary, Archer, Copy, Twist, Toynado).
+**Progress**: 10 cards migrated to data-driven effects, 6 legacy effect classes
+remaining (Knight, Beary, Archer, Copy, Twist, Toynado).
 
 ### Architecture Overview
 
 **Effect System Data Flow**:
-```
+
+```text
 cards.csv
   └─> effect_definitions (string)
        └─> CardLoader.load_cards()
@@ -55,19 +73,18 @@ cards.csv
                            └─> _copied_effects (runtime list)
                                 └─> EffectRegistry.get_effects()
                                      └─> GameEngine.get_card_stat()
-```
-
+```text
 **Persistence Flow**:
-```
+```text
 Card in memory
   └─> serialize_card()
        └─> JSONB in PostgreSQL
             └─> deserialize_card()
                  └─> Card in memory
                       └─> EffectFactory.parse_effects() (re-creates effects)
-```
-
-**Key Insight**: `effect_definitions` (string from CSV) is the source of truth. `_copied_effects` (list of effect objects) is ephemeral and rebuilt on load.
+```text
+**Key Insight**: `effect_definitions` (string from CSV) is the source of truth.
+`_copied_effects` (list of effect objects) is ephemeral and rebuilt on load.
 
 ### Current State
 
@@ -77,12 +94,14 @@ Card in memory
 - ✅ Deserialization rebuilds effects correctly from `effect_definitions`
 - ✅ Stats calculated correctly with all continuous effects
 - ✅ **PR #88 MERGED & DEPLOYED TO PRODUCTION** (November 25, 2025)
-- ✅ **Wake/unsleep regression fixed** - ActionExecutor handles single targets correctly
+- ✅ **Wake/unsleep regression fixed** - ActionExecutor handles single targets
+  correctly
 - ✅ **Legacy WakeEffect and SunEffect removed** - 84 lines of dead code deleted
 
 **What Needs Work** (see issue #89):
 - ❌ No easy way to inspect game state in database
-- ⚠️ Effect system still has legacy name-based registry - 6 cards remaining (Knight, Beary, Archer, Copy, Twist, Toynado)
+- ⚠️ Effect system still has legacy name-based registry - 6 cards remaining
+  (Knight, Beary, Archer, Copy, Twist, Toynado)
 - ❌ Serialization not fully tested (only Copy case tested)
 - ❌ No architecture documentation for effect system
 - ❌ Error messages don't help when `effect_definitions` is missing
@@ -104,7 +123,8 @@ Card in memory
 2. Add comprehensive serialization tests for all Card fields
 3. Document effect system architecture with diagrams
 
-**Why**: These would have caught the bugs much earlier and saved hours of debugging.
+**Why**: These would have caught the bugs much earlier and saved hours of
+debugging.
 
 ### Priority 3: Complete Effect Migration (Phase 4)
 **Current Problem**: Two ways to get effects:
@@ -135,9 +155,12 @@ Continue implementing remaining effect cards and game features.
 ## Key Files You'll Need
 
 ### Effect System Core
-- `backend/src/game_engine/rules/effects/__init__.py` - EffectFactory, EffectRegistry
-- `backend/src/game_engine/rules/effects/action_effects.py` - CopyEffect (reference implementation)
-- `backend/src/game_engine/rules/effects/continuous_effects.py` - Stat buff effects
+- `backend/src/game_engine/rules/effects/__init__.py` - EffectFactory,
+  EffectRegistry
+- `backend/src/game_engine/rules/effects/action_effects.py` - CopyEffect
+  (reference implementation)
+- `backend/src/game_engine/rules/effects/continuous_effects.py` - Stat buff
+  effects
 
 ### Serialization & Persistence
 - `backend/src/api/serialization.py` - serialize_card(), deserialize_card()
@@ -145,7 +168,8 @@ Continue implementing remaining effect cards and game features.
 - `backend/src/api/database.py` - Database models
 
 ### Testing
-- `backend/tests/test_simple_serialization.py` - Current serialization test (Copy only)
+- `backend/tests/test_simple_serialization.py` - Current serialization test
+  (Copy only)
 - `backend/tests/test_effects.py` - Effect tests
 - `backend/tests/test_game_engine.py` - Game logic tests
 
@@ -160,23 +184,20 @@ Continue implementing remaining effect cards and game features.
 # Mutates original!
 card.modifications['new_key'] = value
 serialized = {"modifications": card.modifications}
-```
-
+```text
 **Good**:
 ```python
 # Create copy first
 modifications = card.modifications.copy()
 modifications['new_key'] = value
 serialized = {"modifications": modifications}
-```
-
+```text
 ### 2. Missing effect_definitions
 **Bad**:
 ```python
 # Might not copy effect_definitions!
 card = Card(name=template.name, strength=template.strength)
-```
-
+```text
 **Good**:
 ```python
 # Explicitly copy all fields
@@ -185,8 +206,7 @@ card = Card(
     effect_definitions=template.effect_definitions,
     strength=template.strength
 )
-```
-
+```text
 ### 3. Testing Only Unit Level
 **Bad**:
 ```python
@@ -195,8 +215,7 @@ def test_copy_effect():
     effect = CopyEffect(...)
     effect.apply(...)
     assert card._copied_effects  # ✓ but doesn't test serialization!
-```
-
+```text
 **Good**:
 ```python
 # Test full cycle
@@ -206,14 +225,14 @@ def test_copy_effect_survives_save():
     state = serialize_game_state(game)
     loaded = deserialize_game_state(state)
     assert loaded.get_card_stat()  # ✓ tests everything
-```
-
+```text
 ## Questions to Answer
 
 ### Architecture
 1. Is `effect_definitions` (CSV string) truly the single source of truth?
 2. Can we remove the name-based effect registry entirely?
-3. Should `_copied_effects` be serialized or always rebuilt from `effect_definitions`?
+3. Should `_copied_effects` be serialized or always rebuilt from
+   `effect_definitions`?
 
 ### Testing
 4. What's the minimum set of fields every Card must have?
@@ -223,7 +242,8 @@ def test_copy_effect_survives_save():
 ### Implementation
 7. Are there other places besides `_create_deck()` that create Card instances?
 8. Do all card templates from CSV have `effect_definitions`?
-9. Are there effects that can't be expressed in the current `effect_definitions` format?
+9. Are there effects that can't be expressed in the current `effect_definitions`
+   format?
 
 ## Success Metrics
 
@@ -239,7 +259,8 @@ After this session, we should have:
 ## Related Issues & PRs
 
 - **Issue #77**: Copy effect not working (CLOSED - fixed by PR #88)
-- **PR #88**: Fix for Copy effect bugs (MERGED - November 25, 2025, deployed to production)
+- **PR #88**: Fix for Copy effect bugs (MERGED - November 25, 2025, deployed to
+  production)
 - **Issue #89**: Testing infrastructure improvements (OPEN - next priority)
 - **Issue #82**: Testing difficulties (mentioned by user as related)
 
@@ -249,16 +270,23 @@ If you need to inspect game state during this session:
 
 - `backend/check_game_state.py` - Inspect specific game from database
 - `backend/check_copy_effects.py` - Check Copy effect state
-- Add debug logging: `logger.debug(f"Card {card.name} effects: {card.effect_definitions}")`
+- Add debug logging: `logger.debug(f"Card {card.name} effects:
+  {card.effect_definitions}")`
 
 ## Final Notes
 
-The Copy effect bug hunt taught us that **multiple small bugs can compound into one mysterious failure**. The effect system is complex with data flowing through many layers (CSV → templates → deck cards → serialization → database → deserialization → effects).
+The Copy effect bug hunt taught us that **multiple small bugs can compound into
+one mysterious failure**. The effect system is complex with data flowing through
+many layers (CSV → templates → deck cards → serialization → database →
+deserialization → effects).
 
-**Be paranoid about serialization**: Always assume data might be lost unless proven otherwise with tests.
+**Be paranoid about serialization**: Always assume data might be lost unless
+proven otherwise with tests.
 
-**Trust the architecture docs**: Once you create them, they'll prevent future confusion about which system is authoritative.
+**Trust the architecture docs**: Once you create them, they'll prevent future
+confusion about which system is authoritative.
 
-**Build debugging tools early**: The time spent creating inspection tools pays off quickly.
+**Build debugging tools early**: The time spent creating inspection tools pays
+off quickly.
 
 Good luck! 🚀

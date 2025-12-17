@@ -1,14 +1,16 @@
 # PostgreSQL Database Integration - Implementation Summary (Legacy Reference)
 
-**Branch:** `feat/postgres-persistence`  
-**Date:** November 21, 2025  
-**Status:** ✅ Implemented (see `DATABASE_SCHEMA.md` and current backend code for canonical design)
+**Branch:** `feat/postgres-persistence`
+**Date:** November 21, 2025
+**Status:** ✅ Implemented (see `DATABASE_SCHEMA.md` and current backend code for
+canonical design)
 
 ---
 
 ## Overview
 
-Successfully implemented PostgreSQL persistence layer to replace in-memory game storage, enabling:
+Successfully implemented PostgreSQL persistence layer to replace in-memory game
+storage, enabling:
 - Game sessions survive server restarts
 - Foundation for online multiplayer functionality
 - Complete audit trail of game state changes
@@ -130,14 +132,15 @@ Added:
 ### 9. Documentation
 
 **Files:**
-- `docs/development/DATABASE_SCHEMA.md` (NEW - 570 lines) - Comprehensive schema design
+- `docs/development/DATABASE_SCHEMA.md` (NEW - 570 lines) - Comprehensive schema
+  design
 - `backend/DATABASE_README.md` (NEW - 360 lines) - Testing and deployment guide
 
 ## Architecture
 
 ### Data Flow
 
-```
+```text
 API Request
     ↓
 ActionEndpoint
@@ -157,8 +160,7 @@ GameService.update_game()
         └─→ Serialize to JSONB
     ↓
 Return Response
-```
-
+```text
 ### Database Schema (Phase 1)
 
 ```sql
@@ -180,8 +182,7 @@ Indexes:
 - updated_at (sort by recency)
 - Combined: (player1_id, player2_id, status)
 - Partial: active_player_id WHERE status='active'
-```
-
+```text
 ## Testing Checklist
 
 ### ✅ Pre-Deployment Testing
@@ -247,7 +248,8 @@ Indexes:
 | Update Game | ~5ms | ~25ms | +20ms |
 | AI Turn | ~2s | ~2.02s | +20ms |
 
-**Conclusion:** Database adds ~20ms per write operation, negligible for turn-based gameplay.
+**Conclusion:** Database adds ~20ms per write operation, negligible for turn-
+based gameplay.
 
 ## Security Considerations
 
@@ -313,8 +315,7 @@ In Render dashboard, ensure these are set:
 git add .
 git commit -m "feat: add PostgreSQL database persistence"
 git push origin feat/postgres-persistence
-```
-
+```text
 ### Step 3: Merge to Main
 
 Once tested on feat branch:
@@ -322,8 +323,7 @@ Once tested on feat branch:
 git checkout main
 git merge feat/postgres-persistence
 git push origin main
-```
-
+```text
 Render will automatically:
 1. Install dependencies (`pip install -r requirements.txt`)
 2. Run migrations (`alembic upgrade head`)
@@ -345,8 +345,7 @@ curl -X POST https://ggltcg.onrender.com/games \
 # Create new game
 # Play several turns
 # Check game persists after page refresh
-```
-
+```text
 ## Rollback Plan
 
 If issues arise:
@@ -354,7 +353,8 @@ If issues arise:
 1. **Immediate:** Revert to previous deployment in Render dashboard
 2. **Code Fix:** Revert merge commit on main branch
 3. **Database:** Rollback migration: `alembic downgrade -1`
-4. **Emergency:** Disable database: Set `USE_DATABASE=false` env var (requires code change)
+4. **Emergency:** Disable database: Set `USE_DATABASE=false` env var (requires
+   code change)
 
 ## Success Criteria
 

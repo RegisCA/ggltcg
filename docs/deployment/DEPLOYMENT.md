@@ -3,6 +3,7 @@
 ## Overview
 
 This guide covers deploying the GGLTCG application to production:
+
 - **Backend:** Render.com (Free Tier)
 - **Frontend:** Vercel (Free Tier)
 
@@ -11,25 +12,29 @@ This guide covers deploying the GGLTCG application to production:
 - GitHub account with the ggltcg repository
 - Render account (connected to GitHub)
 - Vercel account (connected to GitHub)
-- Google Gemini API key (free from https://aistudio.google.com/apikey)
+- Google Gemini API key (free from <https://aistudio.google.com/apikey>)
 
 ## Part 1: Backend Deployment (Render)
 
 ### Step 1: Fix Your Render Configuration
 
-The error you're seeing is because Render is looking for the wrong module path. Here's how to fix it:
+The error you're seeing is because Render is looking for the wrong module path.
+Here's how to fix it:
 
 1. **Go to your Render dashboard** → Your web service (`ggltcg-backend`)
 
-2. **Update the Start Command:**
+1. **Update the Start Command:**
+
    - Find the "Start Command" field
    - Change from: `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
    - Change to: **`cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`**
 
-3. **Update the Root Directory:**
+1. **Update the Root Directory:**
+
    - Set "Root Directory" to: `backend`
 
-4. **Update the Build Command:**
+1. **Update the Build Command:**
+
    - Set "Build Command" to: `pip install -r requirements.txt`
 
 ### Step 2: Configure Environment Variables
@@ -37,7 +42,7 @@ The error you're seeing is because Render is looking for the wrong module path. 
 In your Render service settings, add these environment variables:
 
 | Key | Value | Notes |
-|-----|-------|-------|
+| :--- | :--- | :--- |
 | `GOOGLE_API_KEY` | `your-actual-api-key` | From Google AI Studio |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Primary model |
 | `GEMINI_FALLBACK_MODEL` | `gemini-2.5-flash-lite` | Fallback for capacity issues |
@@ -47,15 +52,17 @@ In your Render service settings, add these environment variables:
 ### Step 3: Deploy Backend
 
 1. Click **"Manual Deploy"** → **"Deploy latest commit"**
-2. Wait for build to complete (3-5 minutes)
-3. Once deployed, note your backend URL: `https://ggltcg.onrender.com`
+1. Wait for build to complete (3-5 minutes)
+1. Once deployed, note your backend URL: `https://ggltcg.onrender.com`
 
 ### Step 4: Update CORS After Frontend Deployment
 
-After you deploy to Vercel (Part 2), come back and update the `ALLOWED_ORIGINS` variable:
+After you deploy to Vercel (Part 2), come back and update the `ALLOWED_ORIGINS`
+variable:
 
 ```text
 ALLOWED_ORIGINS=https://ggltcg.vercel.app,https://ggltcg-git-*.vercel.app,http://localhost:5173
+
 ```
 
 This allows your Vercel frontend (and local dev) to call your backend API.
@@ -65,39 +72,43 @@ This allows your Vercel frontend (and local dev) to call your backend API.
 ### Step 1: Configure Vercel Project
 
 1. **Go to Vercel dashboard** → **Add New Project**
-2. **Import your GitHub repository** (`RegisCA/ggltcg`)
-3. **Configure the project:**
+1. **Import your GitHub repository** (`RegisCA/ggltcg`)
+1. **Configure the project:**
+
    - **Framework Preset:** Vite
    - **Root Directory:** `frontend`
    - **Build Command:** `npm run build` (default is fine)
    - **Output Directory:** `dist` (default is fine)
    - **Install Command:** `npm install` (default is fine)
 
-### Step 2: Configure Environment Variables
+### Step 2: Configure Environment Variables (Vercel)
 
 In Vercel project settings → Environment Variables, add:
 
 | Name | Value | Environment |
-|------|-------|-------------|
+| :--- | :--- | :--- |
 | `VITE_API_URL` | `https://ggltcg.onrender.com` | Production |
 
-**Important:** Replace `ggltcg.onrender.com` with your actual Render backend URL from Part 1.
+**Important:** Replace `ggltcg.onrender.com` with your actual Render backend URL
+from Part 1.
 
 ### Step 3: Deploy Frontend
 
 1. Click **"Deploy"**
-2. Wait for build to complete (2-3 minutes)
-3. Once deployed, note your frontend URL: `https://ggltcg.vercel.app` (or similar)
+1. Wait for build to complete (2-3 minutes)
+1. Once deployed, note your frontend URL: `https://ggltcg.vercel.app` (or similar)
 
 ### Step 4: Update Backend CORS
 
 Go back to Render and update the `ALLOWED_ORIGINS` environment variable:
 
-```
+```text
 ALLOWED_ORIGINS=https://ggltcg.vercel.app,https://ggltcg-git-*.vercel.app,http://localhost:5173
+
 ```
 
-**Note:** Replace `ggltcg.vercel.app` with your actual Vercel domain. Include preview deployment patterns if you want those to work.
+**Note:** Replace `ggltcg.vercel.app` with your actual Vercel domain. Include
+preview deployment patterns if you want those to work.
 
 Then redeploy your backend for the CORS changes to take effect.
 
@@ -106,66 +117,82 @@ Then redeploy your backend for the CORS changes to take effect.
 ### Test Backend
 
 Visit your Render URL directly:
+
 ```text
 https://ggltcg.onrender.com/
+
 ```
 
 You should see:
+
 ```json
 {
   "name": "GGLTCG API",
   "version": "0.1.0",
   "status": "running"
 }
+
 ```
 
 Test the cards endpoint:
+
 ```text
 https://ggltcg.onrender.com/games/cards
+
 ```
 
 ### Test Frontend
 
 1. Visit your Vercel URL: `https://ggltcg.vercel.app`
-2. Start a new game
-3. Verify cards load correctly
-4. Play a few turns against the AI
+1. Start a new game
+1. Verify cards load correctly
+1. Play a few turns against the AI
 
 ### Common Issues & Solutions
 
 #### Backend Issues
 
-**"Error loading ASGI app"**
-- Verify Start Command is: `cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`
+### "Error loading ASGI app"
+
+- Verify Start Command is: `cd src && uvicorn api.app:app --host 0.0.0.0 --port
+
+$PORT`
+
 - Verify Root Directory is: `backend`
 
-**"Module not found" errors**
+### "Module not found" errors
+
 - Check that `requirements.txt` is in the `backend/` directory
 - Verify Build Command is: `pip install -r requirements.txt`
 
-**AI not responding**
+### AI not responding
+
 - Check `GOOGLE_API_KEY` is set correctly in Render
 - Check logs for API quota/capacity errors
 - Fallback model should activate automatically on 429 errors
 
-**Render free tier sleeping**
+### Render free tier sleeping
+
 - Free tier spins down after 15 minutes of inactivity
 - First request after sleep takes ~50 seconds
 - Upgrade to paid tier for always-on service
 
 #### Frontend Issues
 
-**CORS errors in browser console**
+### CORS errors in browser console
+
 - Verify `ALLOWED_ORIGINS` in Render includes your Vercel domain
 - Redeploy backend after updating CORS
 - Clear browser cache
 
-**Can't connect to API**
+### Can't connect to API
+
 - Verify `VITE_API_URL` in Vercel matches your Render backend URL
 - Check backend is actually running (visit /health endpoint)
 - Redeploy frontend after changing environment variables
 
-**Cards not loading**
+### Cards not loading
+
 - Check Network tab in browser DevTools
 - Verify backend `/games/cards` endpoint works directly
 - Check for CORS errors
@@ -173,15 +200,18 @@ https://ggltcg.onrender.com/games/cards
 ## Free Tier Limitations
 
 ### Render Free Tier
+
 - 750 hours/month compute time
 - Spins down after 15 minutes of inactivity
 - 50-second cold start on first request
 - 512MB RAM
 - Shared CPU
 
-**Workaround for sleeping:** Use a service like UptimeRobot to ping your backend every 14 minutes.
+**Workaround for sleeping:** Use a service like UptimeRobot to ping your backend
+every 14 minutes.
 
 ### Vercel Free Tier
+
 - 100GB bandwidth/month
 - 100 deployments/day
 - Serverless function execution time: 10s max
@@ -191,33 +221,43 @@ https://ggltcg.onrender.com/games/cards
 
 ### Using an Alternate Deck (Custom Cards)
 
-You can use a custom CSV file instead of the default `cards.csv` by setting the `CARDS_CSV_PATH` environment variable in Render:
+You can use a custom CSV file instead of the default `cards.csv` by setting the
+`CARDS_CSV_PATH` environment variable in Render:
 
-1. **Upload your custom deck CSV** to your repository (e.g., `backend/data/custom_deck.csv`)
-2. **In Render** → Environment Variables, add:
+1. **Upload your custom deck CSV** to your repository (e.g.,
+
+`backend/data/custom_deck.csv`)
+
+1. **In Render** → Environment Variables, add:
+
    - Key: `CARDS_CSV_PATH`
    - Value: `/opt/render/project/src/backend/data/custom_deck.csv`
-3. **Redeploy** your backend
+
+1. **Redeploy** your backend
 
 The CSV must follow the same format as `backend/data/cards.csv`.
 
-Alternatively, you can modify the start command to use the `--deck` argument, but environment variables are cleaner for Render deployments.
+Alternatively, you can modify the start command to use the `--deck` argument,
+but environment variables are cleaner for Render deployments.
 
 ## Production Best Practices
 
 ### Security
+
 - Never commit `.env` files to Git
 - Rotate API keys periodically
 - Monitor API usage and quotas
 - Use Render's secret environment variables
 
 ### Monitoring
+
 - Check Render logs regularly for errors
 - Monitor Google API quota usage
 - Set up alerts for deployment failures
 - Use Vercel Analytics (free tier available)
 
 ### Updates & Maintenance
+
 - Test changes locally first
 - Use feature branches and preview deployments
 - Monitor error rates after deployments
@@ -226,32 +266,38 @@ Alternatively, you can modify the start command to use the `--deck` argument, bu
 ## Troubleshooting Commands
 
 ### Check Backend Logs (Render)
+
 1. Go to Render dashboard → Your service
-2. Click "Logs" tab
-3. Look for errors during startup or requests
+1. Click "Logs" tab
+1. Look for errors during startup or requests
 
 ### Check Frontend Build Logs (Vercel)
+
 1. Go to Vercel dashboard → Your project
-2. Click on a deployment
-3. View build and function logs
+1. Click on a deployment
+1. View build and function logs
 
 ### Test API Locally
+
 ```bash
 cd backend
 source venv/bin/activate  # or your virtualenv
 uvicorn src.api.app:app --reload
+
 ```
 
-Visit: http://localhost:8000/docs
+Visit: <http://localhost:8000/docs>
 
 ### Test Frontend Locally Against Production Backend
+
 ```bash
 cd frontend
 echo "VITE_API_URL=https://ggltcg.onrender.com" > .env.local
 npm run dev
+
 ```
 
-Visit: http://localhost:5173
+Visit: <http://localhost:5173>
 
 ## Deployment Checklist
 
@@ -268,21 +314,21 @@ Visit: http://localhost:5173
 
 ## Support & Resources
 
-- **Render Docs:** https://render.com/docs
-- **Vercel Docs:** https://vercel.com/docs
-- **FastAPI Deployment:** https://fastapi.tiangolo.com/deployment/
-- **Vite Deployment:** https://vite.dev/guide/static-deploy.html
-- **Google Gemini API:** https://ai.google.dev/gemini-api/docs
+- **Render Docs:** <https://render.com/docs>
+- **Vercel Docs:** <https://vercel.com/docs>
+- **FastAPI Deployment:** <https://fastapi.tiangolo.com/deployment/>
+- **Vite Deployment:** <https://vite.dev/guide/static-deploy.html>
+- **Google Gemini API:** <https://ai.google.dev/gemini-api/docs>
 
 ## Next Steps
 
 Once deployed successfully:
 
 1. Test the full game flow in production
-2. Share the Vercel URL with friends for playtesting
-3. Monitor logs for any errors
-4. Consider adding analytics (Vercel Analytics, Google Analytics)
-5. Set up continuous deployment for automatic updates
+1. Share the Vercel URL with friends for playtesting
+1. Monitor logs for any errors
+1. Consider adding analytics (Vercel Analytics, Google Analytics)
+1. Set up continuous deployment for automatic updates
 
 ---
 

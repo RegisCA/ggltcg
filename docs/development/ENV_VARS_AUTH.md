@@ -19,8 +19,7 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,https://ggltcg.verce
 
 # Database (already configured)
 DATABASE_URL=postgresql://user:password@host:port/dbname
-```
-
+```text
 ### Frontend (.env)
 
 ```bash
@@ -30,20 +29,17 @@ VITE_GOOGLE_CLIENT_ID=<your_google_client_id>
 # API URL
 VITE_API_URL=http://localhost:8000  # Development
 # VITE_API_URL=https://ggltcg.onrender.com  # Production
-```
-
+```text
 ## Generating Secrets
 
 ### JWT Secret Key
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
+```text
 ### Example Output
-```
+```text
 MdR7X9kP2nQ8vL5wY3jF6tH4sB1mN0cA9zE2xK7pG
-```
-
+```text
 ## Deployment Configuration
 
 ### Render (Backend)
@@ -75,12 +71,12 @@ Add these in Vercel Dashboard → Settings → Environment Variables:
 ```bash
 cd backend
 source ../.venv/bin/activate
-python -c "import os; from dotenv import load_dotenv; load_dotenv(); print('Client ID:', os.getenv('GOOGLE_CLIENT_ID')[:20] + '...')"
-```
-
+python -c "import os; from dotenv import load_dotenv; load_dotenv(); \
+print('Client ID:', os.getenv('GOOGLE_CLIENT_ID')[:20] + '...')"
+```text
 ### Frontend
 ```bash
 cd frontend
 npm run dev
 # Check browser console: window.import.meta.env
-```
+```text

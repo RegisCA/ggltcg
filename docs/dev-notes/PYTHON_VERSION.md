@@ -4,7 +4,7 @@
 
 This project **requires Python 3.13.x** to match the production environment on Render.
 
-### Why Python 3.13?
+### Why Python 3.13
 
 - Production environment (Render) uses Python 3.13.0
 - Python 3.14 has compatibility issues with pydantic-core and other dependencies
@@ -55,6 +55,7 @@ pip install -r backend/requirements.txt
 **Problem:** I have multiple Python versions - how do I avoid using 3.14?
 
 **Solution:** Always use `python3.13` explicitly when creating virtual environments:
+
 ```bash
 python3.13 -m venv .venv  # NOT python3 or python
 ```
