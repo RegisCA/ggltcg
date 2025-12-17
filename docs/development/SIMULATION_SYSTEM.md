@@ -5,6 +5,7 @@
 The Simulation System enables automated AI vs AI game testing to analyze game balance, deck performance, and LLM model behavior. It was implemented as part of GitHub Issue #243.
 
 **Key Features:**
+
 - Parallel game execution (5 games by default) for faster completion
 - N² matchup matrix (all deck permutations)
 - CC tracking for both players per turn
@@ -14,7 +15,7 @@ The Simulation System enables automated AI vs AI game testing to analyze game ba
 
 ### Components
 
-```
+```bash
 backend/src/simulation/
 ├── __init__.py
 ├── config.py          # Data classes (SimulationConfig, GameResult, DeckConfig, etc.)
@@ -26,10 +27,12 @@ backend/src/simulation/
 ### Parallel Execution
 
 Games run in parallel using a ThreadPoolExecutor (default: 5 workers). This significantly speeds up large simulation runs:
+
 - Sequential: ~20 seconds/game → 160 games = ~53 minutes
 - Parallel (5x): ~20 seconds/game → 160 games = ~11 minutes
 
 Each parallel worker:
+
 - Creates its own SimulationRunner instance
 - Makes independent Gemini API calls
 - Uses a separate database session for persistence
@@ -68,6 +71,7 @@ Control_Ka,Board control with Ka strength boost,Ka,Wizard,Beary,Copy,Clean,Wake
 ```
 
 **To add a new deck:**
+
 1. Add a row to `simulation_decks.csv`
 2. Use exact card names from `backend/data/cards.csv`
 3. Deck will appear automatically in the Admin UI
@@ -91,6 +95,7 @@ The default model is `gemini-2.0-flash`.
 ### Starting a Simulation
 
 Via API:
+
 ```bash
 curl -X POST http://localhost:8000/admin/simulation/start \
   -H "Content-Type: application/json" \
@@ -103,6 +108,7 @@ curl -X POST http://localhost:8000/admin/simulation/start \
 ```
 
 Via Admin UI:
+
 1. Navigate to Admin Data Viewer → Simulation tab
 2. Select decks (1 for mirror match, 2+ for cross-deck testing)
 3. Choose models for each player
@@ -112,6 +118,7 @@ Via Admin UI:
 ### Understanding Results
 
 **Matchup Generation:**
+
 - N decks generate N² matchups (all permutations)
 - This treats A vs B and B vs A as different matchups since Player 1 goes first
 - Single deck: 1 matchup (mirror)
@@ -119,10 +126,12 @@ Via Admin UI:
 - Three decks: 9 matchups
 
 **Game Limit:**
+
 - Maximum 500 total games per simulation run
 - If iterations × matchups exceeds 500, iterations are automatically reduced
 
 **Results Matrix:**
+
 - Results are displayed in a heatmap matrix format
 - Rows = Player 1 deck, Columns = Player 2 deck
 - Cell shows P1 Win% with color coding (green = P1 favored, red = P2 favored)
@@ -130,6 +139,7 @@ Via Admin UI:
 
 **CC Tracking:**
 Each turn records both players' CC state:
+
 - `turn`: Turn number (odd = P1's turn, even = P2's turn)
 - For both `p1` and `p2`:
   - `cc_start`: CC at start of that player's action window
@@ -141,6 +151,7 @@ Note: Players can gain CC during their opponent's turn (e.g., Umbruh generates C
 
 **Action Log:**
 Each action records:
+
 - `turn`: Turn number
 - `player`: Player identifier
 - `action`: Action type (play_card, tussle, activate_ability, direct_attack, end_turn)
@@ -182,6 +193,7 @@ To compare LLM performance:
 ### Simulation Stalls
 
 If games don't complete:
+
 1. Check server logs for API errors (429 rate limits, timeouts)
 2. Verify the model is working in regular game mode first
 3. Check the `error_message` field in game results
@@ -189,6 +201,7 @@ If games don't complete:
 ### Rate Limiting
 
 Gemini API has rate limits. If hitting 429 errors:
+
 - The system automatically falls back to `gemini-2.5-flash-lite`
 - Reduce `iterations_per_matchup`
 - Add delays between runs
@@ -196,6 +209,7 @@ Gemini API has rate limits. If hitting 429 errors:
 ### Model Issues
 
 If a specific model isn't working:
+
 1. Test in regular AI game mode first (easier to debug)
 2. Check `backend/.env` for `GEMINI_API_KEY`
 3. Verify model name matches Gemini API exactly
@@ -216,6 +230,7 @@ The Simulation UI is in the Admin Data Viewer (`frontend/src/components/AdminDat
 ## Future Enhancements
 
 Potential improvements identified:
+
 - [ ] Parallel game execution (currently sequential)
 - [ ] Aggregate statistics across multiple runs
 - [ ] Export results to CSV
