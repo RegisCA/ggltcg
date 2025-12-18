@@ -142,6 +142,17 @@ async def list_available_decks() -> List[DeckInfo]:
         )
 
 
+@router.get("/models")
+async def list_supported_models() -> List[str]:
+    """
+    Get list of supported Gemini models for simulations.
+    
+    Returns:
+        List of model identifiers (e.g., ["gemini-2.0-flash", ...])
+    """
+    return SUPPORTED_MODELS
+
+
 @router.post("/start")
 async def start_simulation(
     request: StartSimulationRequest,

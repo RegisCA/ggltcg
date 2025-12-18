@@ -7,9 +7,8 @@ from enum import Enum
 # Supported AI models for simulation
 SUPPORTED_MODELS = [
     "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
+    "gemini-3-flash-preview"
 ]
 
 
@@ -105,7 +104,7 @@ class SimulationConfig:
     """Configuration for a simulation run."""
     deck_names: list[str]  # List of deck names to use (will run all combinations)
     player1_model: str = "gemini-2.0-flash"
-    player2_model: str = "gemini-2.5-flash"
+    player2_model: str = "gemini-2.5-flash-lite"
     iterations_per_matchup: int = 10  # Games per deck matchup
     max_turns: int = 40  # Turn limit before declaring draw
     
