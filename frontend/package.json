@@ -12,7 +12,7 @@
   "dependencies": {
     "@react-oauth/google": "^0.12.1",
     "@sentry/react": "^10.29.0",
-    "@tanstack/react-query": "^5.90.7",
+    "@tanstack/react-query": "^5.90.11",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "axios": "^1.13.2",
