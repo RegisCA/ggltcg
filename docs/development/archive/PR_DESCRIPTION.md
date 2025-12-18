@@ -2,7 +2,12 @@
 
 ## Summary
 
-This PR adds complete multiplayer functionality with a lobby system and polishes the target selection modal for a better user experience. Players can now choose between single-player (vs AI) and multiplayer (human vs human) modes, with a smooth lobby flow for game creation and joining. The target selection modal has been redesigned with proper centering, improved visibility, and better button placement.
+This PR adds complete multiplayer functionality with a lobby system and polishes
+the target selection modal for a better user experience. Players can now choose
+between single-player (vs AI) and multiplayer (human vs human) modes, with a
+smooth lobby flow for game creation and joining. The target selection modal has
+been redesigned with proper centering, improved visibility, and better button
+placement.
 
 ## 🎯 Features Added
 
@@ -14,18 +19,18 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
   - "Create Game" → Start new multiplayer game
   - "Join Game" → Join existing game with code
   - "Play vs AI" → Single-player mode
-  
+
 - **LobbyCreate.tsx** - Game creation flow:
   - Player name input
   - Game code generation (6-char uppercase)
   - Automatic transition to waiting room
-  
+
 - **LobbyJoin.tsx** - Join existing game:
   - Player name input
   - 6-character game code validation
   - Uppercase-only formatting
   - Error handling for invalid codes
-  
+
 - **LobbyWaiting.tsx** - Waiting room:
   - Real-time lobby status polling (2-second interval)
   - Deck selection for both players
@@ -40,7 +45,7 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
   - `joinLobby(gameCode, playerName, deckCards)` → Join as Player 2
   - `getLobbyStatus(gameCode)` → Poll lobby state
   - `startLobbyGame(gameCode)` → Initialize multiplayer game
-  
+
 - New TypeScript types in `types/api.ts`:
   - `CreateLobbyRequest`, `CreateLobbyResponse`
   - `JoinLobbyRequest`, `JoinLobbyResponse`
@@ -74,7 +79,8 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
 
 **Positioning & Centering:**
 - Changed from Tailwind classes to inline styles for reliable positioning
-- Fixed vertical centering using flexbox: `display: flex`, `alignItems: center`, `justifyContent: center`
+- Fixed vertical centering using flexbox: `display: flex`, `alignItems: center`,
+  `justifyContent: center`
 - Modal width: 700px with max-height: 80vh for scrollability
 - z-index: 9999 to ensure modal always on top
 
@@ -101,19 +107,20 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
 
 **New Documentation Files:**
 
-- **MULTIPLAYER_LOBBY_IMPLEMENTATION.md** - Complete guide to the multiplayer lobby system:
+- **MULTIPLAYER_LOBBY_IMPLEMENTATION.md** - Complete guide to the multiplayer
+  lobby system:
   - Architecture overview
   - Component responsibilities
   - API endpoints and data flow
   - State management approach
   - Testing scenarios
-  
+
 - **MULTIPLAYER_TEST_GUIDE.md** - Comprehensive testing checklist:
   - Basic lobby flow tests
   - Edge case scenarios
   - Error handling verification
   - Real-time sync testing
-  
+
 - **TARGET_SELECTION_MODAL_IMPLEMENTATION.md** - Modal design documentation:
   - Component architecture
   - Props interface
@@ -123,7 +130,8 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
 
 **Updated Documentation:**
 
-- **MVP_PROGRESS.md** - Added new features section with multiplayer and target selection modal
+- **MVP_PROGRESS.md** - Added new features section with multiplayer and target
+  selection modal
 - **COPILOT_CONTEXT.md** - (To be updated with multiplayer architecture)
 
 ## 🔧 Technical Changes
@@ -138,8 +146,10 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
 
 **Modified Files (5):**
 - `frontend/src/App.tsx` (+150 lines) - Game mode and phase management
-- `frontend/src/components/GameBoard.tsx` (+30 lines) - Multiplayer compatibility
-- `frontend/src/components/TargetSelectionModal.tsx` (~50 lines changed) - Modal redesign
+- `frontend/src/components/GameBoard.tsx` (+30 lines) - Multiplayer
+  compatibility
+- `frontend/src/components/TargetSelectionModal.tsx` (~50 lines changed) - Modal
+  redesign
 - `frontend/src/api/gameService.ts` (+90 lines) - 4 new lobby endpoints
 - `frontend/src/types/api.ts` (+60 lines) - Lobby type definitions
 
@@ -150,7 +160,9 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
 
 ### Backend Dependencies
 
-**No backend changes required** - This PR is entirely frontend implementation. The backend lobby endpoints are assumed to exist or will be implemented separately.
+**No backend changes required** - This PR is entirely frontend implementation.
+The backend lobby endpoints are assumed to exist or will be implemented
+separately.
 
 ## ✅ Testing Performed
 
@@ -340,7 +352,8 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
 
 ### Breaking Changes
 
-**None.** This PR is fully backward compatible. Existing single-player games continue to work without modification.
+**None.** This PR is fully backward compatible. Existing single-player games
+continue to work without modification.
 
 ## 🙏 Acknowledgments
 
@@ -353,4 +366,6 @@ This PR adds complete multiplayer functionality with a lobby system and polishes
 
 **Ready for Review and Merge!** 🎉
 
-This PR adds significant new functionality (multiplayer) while improving existing UX (target selection modal). All changes are tested, documented, and ready for production deployment.
+This PR adds significant new functionality (multiplayer) while improving
+existing UX (target selection modal). All changes are tested, documented, and
+ready for production deployment.

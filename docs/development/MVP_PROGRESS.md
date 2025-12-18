@@ -33,7 +33,7 @@
   - CC banking with 7 CC maximum cap
   - Turn bonus calculations
   - Cost modifiers (Dream, Wizard, Raggy)
-  
+
 - `TussleResolver` for combat resolution
   - Speed calculation with turn bonus (+1 for active player)
   - Strike order determination (first strike, simultaneous)
@@ -46,9 +46,13 @@
 
 **All 18 Card Effects Implemented:**
 
-- `ContinuousEffect` - Ka (+2 STR), Wizard (tussle cost 1), Demideca (+1 all stats), Raggy (cost +1 CC), Knight (auto-sleep 0-stamina), Beary (protection), Archer (no tussle)
-- `TriggeredEffect` - Umbruh (on-play shuffle), Snuggles (on-sleep draw), Beary (tussle cancel)
-- `ActionEffect` - All 10 action cards (Clean, Rush, Wake, Sun, Toynado, Twist, Copy, Ballaber, Dream, Shenanigans)
+- `ContinuousEffect` - Ka (+2 STR), Wizard (tussle cost 1), Demideca (+1 all
+  stats), Raggy (cost +1 CC), Knight (auto-sleep 0-stamina), Beary (protection),
+  Archer (no tussle)
+- `TriggeredEffect` - Umbruh (on-play shuffle), Snuggles (on-sleep draw), Beary
+  (tussle cancel)
+- `ActionEffect` - All 10 action cards (Clean, Rush, Wake, Sun, Toynado, Twist,
+  Copy, Ballaber, Dream, Shenanigans)
 - `EffectRegistry` - Maps card names to effect handlers
 - Full integration with game engine for automatic effect application
 
@@ -111,7 +115,8 @@
 **LLM-Powered Opponent with Dual Provider Support:**
 
 - `LLMPlayer` class (250 lines) - Strategic AI decision-making
-- **Gemini Integration** - Google Gemini API with gemini-2.0-flash-lite (30 RPM free tier)
+- **Gemini Integration** - Google Gemini API with gemini-2.0-flash-lite (30 RPM
+  free tier)
 - **Claude Integration** - Anthropic Claude API (optional, paid)
 - Automatic .env file loading with python-dotenv
 - Strategic prompting for aggressive, winning gameplay
@@ -137,7 +142,8 @@
 **Files:**
 
 - `backend/src/game_engine/ai/llm_player.py` - Main AI player class
-- `backend/src/game_engine/ai/prompts.py` - Strategic prompt templates (180 lines)
+- `backend/src/game_engine/ai/prompts.py` - Strategic prompt templates (180
+  lines)
 - `backend/tests/test_ai_player.py` - Comprehensive integration test (310 lines)
 - `backend/AI_SETUP.md` - Setup and usage documentation
 - `backend/.env.example` - Environment variable template
@@ -150,7 +156,8 @@
 - Vite 7.2.2 for fast development server
 - React Query (@tanstack/react-query) for server state management
 - Axios for HTTP client with configured base URL
-- Plain CSS utilities (Tailwind CSS v4 abandoned due to PostCSS compatibility issues)
+- Plain CSS utilities (Tailwind CSS v4 abandoned due to PostCSS compatibility
+  issues)
 
 **Type Definitions:**
 
@@ -161,7 +168,8 @@
 **API Client Layer:**
 
 - `api/client.ts` - Axios instance with <http://localhost:8000> base URL
-- `api/gameService.ts` - All game API calls (createGame, getGameState, playCard, initiateTussle, endTurn, aiTakeTurn, getValidActions)
+- `api/gameService.ts` - All game API calls (createGame, getGameState, playCard,
+  initiateTussle, endTurn, aiTakeTurn, getValidActions)
 
 **React Query Hooks:**
 
@@ -196,14 +204,16 @@
 
 **Styling:**
 
-- `index.css` - 200+ utility classes (manually written workaround for Tailwind v4 issues)
+- `index.css` - 200+ utility classes (manually written workaround for Tailwind
+  v4 issues)
 - Dark theme with blue/pink color scheme
 - Responsive layout
 
 **Known Issues (Tracked on GitHub):**
 
 - ~~Issue #4: Players able to tussle their own cards~~ ✅ FIXED
-- Issue #5: Additional UI/UX improvements (card names in zones, game log, animations)
+- Issue #5: Additional UI/UX improvements (card names in zones, game log,
+  animations)
 
 #### 8. Documentation
 
@@ -229,7 +239,8 @@ All backend development finished:
 **All frontend development finished:**
 
 - ✅ React + TypeScript setup with Vite
-- ✅ Complete UI components (DeckSelection, GameBoard, CardDisplay, PlayerZone, ActionPanel)
+- ✅ Complete UI components (DeckSelection, GameBoard, CardDisplay, PlayerZone,
+  ActionPanel)
 - ✅ React Query integration for server state
 - ✅ Full game flow from deck selection to victory
 - ✅ AI turn automation
@@ -241,25 +252,46 @@ All backend development finished:
 
 **Recent Bug Fixes (November 10, 2025):**
 
-1. ✅ **Card Stats Null in API Response** - Fixed CardType enum comparison in `_card_to_state()`. Was comparing enum to string "TOY" which always failed, causing all card stats to be null.
-2. ✅ **Defender Lookup Bug** - Fixed `find_card_by_name()` returning cards from any zone. Now searches specifically in opponent's play area to avoid finding cards with duplicate names in hand.
-3. ✅ **AI Player Improvements** - Added comprehensive logging, retry logic with exponential backoff for Gemini API, model fallback configuration
-4. ✅ **Rush Card Restriction** - Fixed to properly check each player's first turn (Turn 1 for first player, Turn 2 for second)
-5. ✅ **Duplicate AI Turn Calls** - Fixed React useEffect dependencies to prevent multiple AI turn triggers
+1. ✅ **Card Stats Null in API Response** - Fixed CardType enum comparison in
+   `_card_to_state()`. Was comparing enum to string "TOY" which always failed,
+   causing all card stats to be null.
+2. ✅ **Defender Lookup Bug** - Fixed `find_card_by_name()` returning cards from
+   any zone. Now searches specifically in opponent's play area to avoid finding
+   cards with duplicate names in hand.
+3. ✅ **AI Player Improvements** - Added comprehensive logging, retry logic with
+   exponential backoff for Gemini API, model fallback configuration
+4. ✅ **Rush Card Restriction** - Fixed to properly check each player's first
+   turn (Turn 1 for first player, Turn 2 for second)
+5. ✅ **Duplicate AI Turn Calls** - Fixed React useEffect dependencies to prevent
+   multiple AI turn triggers
 
 **Critical Bug Fixes (November 12, 2025) - PR #15:**
 
-1. ✅ **Issue #11 - Direct Attack Bug** - Direct attacks were incorrectly allowed when opponent had cards in play. Fixed with explicit `opponent.has_cards_in_play()` check in both `get_valid_actions` and `ai_take_turn` endpoints.
-2. ✅ **Issue #12 - AI Never Tussles** - AI was filtering out all tussles due to incorrect CardType enum comparison (`card.card_type.value == "TOY"` vs `CardType.TOY`). Also fixed turn bonus logic in `predict_winner()` - attackers always get +1 speed, defenders don't. Added `TussleResolver.predict_winner()` method to filter guaranteed-loss tussles.
-3. ✅ **Issue #7 - Copy Card Implementation** - Implemented complete Copy card functionality with `copy.deepcopy()` for cloning, dynamic cost calculation based on target card, and target selection support in UI.
-4. ✅ **Issue #13 - AI Turn Summary** - Added `ai_turn_summary` field to `ActionResponse` schema for better UX visibility of AI actions.
-5. ✅ **CardType Enum Audit** - Fixed all incorrect CardType comparisons throughout codebase (prompts.py, action_effects.py, routes_actions.py).
+1. ✅ **Issue #11 - Direct Attack Bug** - Direct attacks were incorrectly allowed
+   when opponent had cards in play. Fixed with explicit
+   `opponent.has_cards_in_play()` check in both `get_valid_actions` and
+   `ai_take_turn` endpoints.
+2. ✅ **Issue #12 - AI Never Tussles** - AI was filtering out all tussles due to
+   incorrect CardType enum comparison (`card.card_type.value == "TOY"` vs
+   `CardType.TOY`). Also fixed turn bonus logic in `predict_winner()` -
+   attackers always get +1 speed, defenders don't. Added
+   `TussleResolver.predict_winner()` method to filter guaranteed-loss tussles.
+3. ✅ **Issue #7 - Copy Card Implementation** - Implemented complete Copy card
+   functionality with `copy.deepcopy()` for cloning, dynamic cost calculation
+   based on target card, and target selection support in UI.
+4. ✅ **Issue #13 - AI Turn Summary** - Added `ai_turn_summary` field to
+   `ActionResponse` schema for better UX visibility of AI actions.
+5. ✅ **CardType Enum Audit** - Fixed all incorrect CardType comparisons
+   throughout codebase (prompts.py, action_effects.py, routes_actions.py).
 
 **UI/UX Improvements (November 13, 2025) - Issue #21:**
 
-1. ✅ **GameBoard Redesign** - Complete layout overhaul to horizontal 3-column design:
-   - Created new zone components: `PlayerInfoBar`, `InPlayZone`, `HandZone`, `SleepZoneDisplay`
-   - Restructured to 3-column grid: in-play zones (left) | sleep zones (center) | messages+actions (right)
+1. ✅ **GameBoard Redesign** - Complete layout overhaul to horizontal 3-column
+   design:
+   - Created new zone components: `PlayerInfoBar`, `InPlayZone`, `HandZone`,
+     `SleepZoneDisplay`
+   - Restructured to 3-column grid: in-play zones (left) | sleep zones (center)
+     | messages+actions (right)
    - Hand now spans full width at bottom for better card visibility
    - Sleep zones use stacked/overlapping card display to save vertical space
    - Added vertical labels for IN PLAY and HAND zones
@@ -274,8 +306,10 @@ All backend development finished:
    - LobbyHome component with 3 game modes (Create, Join, Play vs AI)
    - LobbyCreate for game code generation and waiting room
    - LobbyJoin with 6-character code validation
-   - LobbyWaiting with real-time polling (2s interval) and deck selection coordination
-   - Backend lobby endpoints (createLobby, joinLobby, getLobbyStatus, startLobbyGame)
+   - LobbyWaiting with real-time polling (2s interval) and deck selection
+     coordination
+   - Backend lobby endpoints (createLobby, joinLobby, getLobbyStatus,
+     startLobbyGame)
    - Auto-start when both players ready with decks
    - Proper cleanup on navigation
 
@@ -311,7 +345,7 @@ All backend development finished:
 - Backend models: 4 files
 - Game engine: 680 lines (main controller)
 - Effect system: 7 files, 1,433 lines
-- FastAPI routes: 5 files, 928 lines  
+- FastAPI routes: 5 files, 928 lines
 - AI player: 3 files, 620 lines
 - Tests: 3 comprehensive test suites
 - Data handling: 2 files
@@ -341,7 +375,8 @@ All backend development finished:
 
 **Target:** Playable single-player game vs AI in 4-6 weeks
 
-**Current Progress:** ~95% complete (Backend + Frontend complete, core bugs fixed!)
+**Current Progress:** ~95% complete (Backend + Frontend complete, core bugs
+fixed!)
 
 **What's Working:**
 
@@ -376,16 +411,14 @@ python -m venv venv
 source venv/bin/activate  # On macOS/Linux
 pip install -r requirements.txt
 python run_server.py
-```
-
+```text
 **Frontend:**
 
 ```bash
 cd frontend
 npm install
 npm run dev
-```
-
+```text
 Open <http://localhost:5175> in your browser and play!
 
 **First Game Complete:** November 10, 2025 🎉

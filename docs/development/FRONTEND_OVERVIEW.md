@@ -1,6 +1,7 @@
 # Frontend Overview
 
-This document describes the GGLTCG frontend architecture, its integration with the backend API, and how to run and work on the frontend locally.
+This document describes the GGLTCG frontend architecture, its integration with
+the backend API, and how to run and work on the frontend locally.
 
 ## Tech Stack
 
@@ -39,8 +40,7 @@ createRoot(document.getElementById('root')!).render(
     </GoogleOAuthProvider>
   </StrictMode>,
 );
-```
-
+```text
 Key points:
 
 - Google OAuth is configured via `VITE_GOOGLE_CLIENT_ID`.
@@ -49,7 +49,8 @@ Key points:
 
 ## High-Level Layout
 
-The main game UI is rendered from `App.tsx` and underlying components (see `docs/development/ARCHITECTURE.md` for full layout):
+The main game UI is rendered from `App.tsx` and underlying components (see
+`docs/development/ARCHITECTURE.md` for full layout):
 
 - Game board with both players' zones (hand, in-play, sleep zone)
 - Action panel for play/tussle/end-turn actions
@@ -61,11 +62,13 @@ Components are organized roughly as:
 - `src/components/ui/` – Reusable UI primitives (buttons, modals, panels)
 - `src/api/` – Axios client and typed API wrappers
 - `src/types/` – Shared TypeScript types for API responses and game objects
-- `src/hooks/` – React Query hooks for fetching game state and performing actions
+- `src/hooks/` – React Query hooks for fetching game state and performing
+  actions
 
 ## Backend Integration
 
-All backend calls go through a central Axios client in `src/api/client.ts` and typed wrappers (e.g. `src/api/game.ts`, `src/api/authService.ts`).
+All backend calls go through a central Axios client in `src/api/client.ts` and
+typed wrappers (e.g. `src/api/game.ts`, `src/api/authService.ts`).
 
 Environment variable `VITE_API_URL` controls the backend base URL, typically:
 
@@ -89,8 +92,10 @@ Authentication is handled via Google OAuth and JWTs:
 1. The frontend uses `@react-oauth/google` to obtain a Google ID token.
 2. The token is sent to the backend `POST /auth/google` endpoint.
 3. Backend verifies the Google token, creates/loads a user, and returns a JWT.
-4. `AuthContext` stores the JWT (currently in `localStorage`) and attaches it to API requests.
-5. Protected views/components can check the auth state and redirect to login as needed.
+4. `AuthContext` stores the JWT (currently in `localStorage`) and attaches it to
+   API requests.
+5. Protected views/components can check the auth state and redirect to login as
+   needed.
 
 See:
 
@@ -99,10 +104,13 @@ See:
 
 ## Styling and Design System
 
-The frontend uses a design-token-based system for spacing and typography (see `coding.instructions.md` and `TYPOGRAPHY_DESIGN_SYSTEM.md`):
+The frontend uses a design-token-based system for spacing and typography (see
+`coding.instructions.md` and `TYPOGRAPHY_DESIGN_SYSTEM.md`):
 
-- Spacing uses CSS custom properties (e.g. `var(--spacing-component-md)`) instead of hard-coded pixels or Tailwind spacing utilities.
-- Typography follows the defined heading/body hierarchy and font choices (Bangers, Lato).
+- Spacing uses CSS custom properties (e.g. `var(--spacing-component-md)`)
+  instead of hard-coded pixels or Tailwind spacing utilities.
+- Typography follows the defined heading/body hierarchy and font choices
+  (Bangers, Lato).
 
 When adding new components:
 
@@ -115,12 +123,14 @@ When adding new components:
 cd frontend
 npm install
 npm run dev
-```
-
-You also need the backend running (see project `README.md` and `docs/development/ARCHITECTURE.md`).
+```text
+You also need the backend running (see project `README.md` and
+`docs/development/ARCHITECTURE.md`).
 
 ## Where to Go Next
 
-- For effect and game engine details: `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md`.
-- For backend API and persistence: `docs/development/ARCHITECTURE.md`, `docs/development/DATABASE_SCHEMA.md`.
+- For effect and game engine details:
+  `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md`.
+- For backend API and persistence: `docs/development/ARCHITECTURE.md`,
+  `docs/development/DATABASE_SCHEMA.md`.
 - For auth specifics: `docs/development/AUTH_IMPLEMENTATION.md`.

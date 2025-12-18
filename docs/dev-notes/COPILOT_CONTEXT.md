@@ -3,6 +3,7 @@
 ## Project Status: Production-Ready MVP ✅
 
 The GGLTCG web application is **fully complete and production-ready** with polished features including:
+
 - Complete 18-card gameplay with all effects working
 - AI opponent powered by Google Gemini
 - Deck customization and player name editing
@@ -19,14 +20,17 @@ We are building a web application for the Googooland TCG (GGLTCG), a two-player 
 ## Core Game Rules Summary
 
 ### Objective
+
 Win immediately by putting all your opponent's cards into their Sleep Zone.
 
 ### Turn Structure
+
 1. **Start Phase:** Gain 4 CC (Player 1 on Turn 1 gains only 2 CC)
 2. **Main Phase:** Play cards, initiate tussles, activate abilities
 3. **End Phase:** Unspent CC is saved for next turn (max 7 CC cap)
 
 ### Key Mechanics
+
 - **Command Counters (CC):** Resource for playing cards and tussling
 - **Three Zones:** Hand (hidden), In Play (active), Sleep Zone (defeated)
 - **Tussle:** Combat between Toys. Higher speed strikes first (+1 speed bonus on your turn)
@@ -34,6 +38,7 @@ Win immediately by putting all your opponent's cards into their Sleep Zone.
 - **Card Types:** Toys (have stats) and Actions (resolve immediately, then sleep)
 
 ### Special Rules
+
 - CC is banked between turns (max 7)
 - Zone changes reset all modifications
 - "When sleeped" triggers only work if card was in play
@@ -59,6 +64,7 @@ Win immediately by putting all your opponent's cards into their Sleep Zone.
 - **Card Data:** Loaded from backend `/games/cards` endpoint
 
 ### Development Tools
+
 - **Version Control:** Git/GitHub
 - **IDE:** VS Code with GitHub Copilot
 - **Testing:** pytest (backend), Vitest (frontend - future)
@@ -130,7 +136,8 @@ GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
 ## Code Structure
 
 ### Backend Module Organization
-```
+
+```text
 backend/src/game_engine/
 ├── models/              # Data classes (Card, Player, GameState, Zone)
 ├── rules/               # Game logic (turn_manager, effects)
@@ -146,11 +153,13 @@ backend/src/game_engine/
 
 **Pattern**: Single source of truth for action validation and execution.
 
-**Key Classes:**
+### Key Classes
+
 - `ActionValidator`: Validates action legality (cost, targets, timing)
 - `ActionExecutor`: Executes validated actions with proper state updates
 
-**Usage in API Endpoints:**
+### Usage in API Endpoints
+
 ```python
 from game_engine.validation.action_validator import ActionValidator
 from game_engine.validation.action_executor import ActionExecutor
@@ -168,7 +177,8 @@ execution_result = executor.execute_play_card(card, player_id, target_ids, use_a
 # execution_result contains: success, message, description, cost, winner, target_info
 ```
 
-**Benefits:**
+### Benefits
+
 - Eliminated ~457 lines of duplicate code across 3 refactoring phases
 - Single source of truth for validation and execution logic
 - Consistent error messages and behavior
@@ -176,7 +186,9 @@ execution_result = executor.execute_play_card(card, player_id, target_ids, use_a
 - Clear separation of concerns
 
 ### Effect System Pattern
+
 Each card with special mechanics has a corresponding effect class:
+
 - `ContinuousEffect`: Ka, Wizard, Demideca (always active)
 - `TriggeredEffect`: Beary, Umbruh, Snuggles (condition-based)
 - `ActivatedEffect`: Archer (player-activated)
@@ -194,13 +206,15 @@ Each card with special mechanics has a corresponding effect class:
 ## Development Guidelines
 
 ### Python Backend
+
 - Use type hints for all function signatures
 - Follow PEP 8 style guide
 - Write docstrings for all classes and public methods
 - Keep game state immutable where possible
 - Use dataclasses for data models
 
-**Example:**
+### Python Example
+
 ```python
 @dataclass
 class Card:
@@ -215,13 +229,15 @@ class Card:
 ```
 
 ### React Frontend
+
 - Use functional components with hooks
 - Keep components small and focused
 - Follow Airbnb React style guide
 - Use meaningful component and variable names
 - Extract reusable logic into custom hooks
 
-**Example:**
+### React Example
+
 ```jsx
 function CardDisplay({ card, zone, onClick }) {
   const isToy = card.card_type === 'Toy';
@@ -242,14 +258,16 @@ function CardDisplay({ card, zone, onClick }) {
 ```
 
 ### API Design
+
 - Use RESTful conventions
 - Return consistent JSON structure
 - Include proper HTTP status codes
 - Validate all inputs
 - Serialize game state to JSON
 
-**Example Endpoints:**
-```
+### Example Endpoints
+
+```text
 POST /api/game/new          - Create new game
 GET  /api/game/{id}         - Get game state
 POST /api/game/{id}/play    - Play a card
@@ -283,29 +301,37 @@ POST /api/game/{id}/end     - End turn
 ## Critical Design Decisions
 
 ### Effect Extensibility
+
 **Problem:** How to add new cards without hardcoding logic everywhere
 
 **Solution:** Effect registration pattern
+
 - Card CSV contains only data (stats, cost, effect text)
 - Effect classes implement standard interfaces
 - Registry maps card names to effect handlers
 - Easy to audit, test, and extend
 
 ### AI Player Strategy
+
 **Approach:** Use LLM prompt as AI "brain"
+
 - Build dynamic prompt from current game state
 - Request structured JSON output for easy parsing
 - Include available actions and legal moves
 - Provide context on game rules and strategy
 
 ### CC Banking System
+
 **Key Rule:** Unspent CC is saved for next turn (max 7)
+
 - Tracks CC separately in game state
 - Validate CC cap on gain operations
 - Display available CC prominently in UI
 
 ### Tussle Resolution
-**Critical Logic:**
+
+### Critical Logic
+
 1. Calculate effective speed (base + turn bonus + modifiers)
 2. Determine strike order (higher speed first, ties simultaneous)
 3. Apply damage (Strength reduces Stamina)
@@ -315,18 +341,21 @@ POST /api/game/{id}/end     - End turn
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test each effect class in isolation
 - Test tussle resolution with various scenarios
 - Test CC calculations and constraints
 - Test zone transitions and state changes
 
 ### Integration Tests
+
 - Test complete turn sequences
 - Test card combinations and interactions
 - Test win conditions
 - Test AI decision making
 
 ### Manual Testing Checklist
+
 - All 18 cards playable and functional
 - Tussle resolution accurate
 - CC banking and cap working
@@ -337,13 +366,17 @@ POST /api/game/{id}/end     - End turn
 ## GitHub Copilot Usage Tips
 
 ### Context Setting
+
 When starting a coding session, reference:
+
 1. The specific game rule you're implementing
 2. The module/component you're working in
 3. Related classes or functions
 
 ### Function-Level Prompts
+
 Write clear docstrings describing what you want:
+
 ```python
 def resolve_tussle(attacker: Card, defender: Card, game_state: GameState) -> TussleResult:
     """
@@ -360,6 +393,7 @@ def resolve_tussle(attacker: Card, defender: Card, game_state: GameState) -> Tus
 ```
 
 ### Iterative Refinement
+
 1. Generate initial implementation
 2. Review for correctness against rules
 3. Use Copilot Chat to refactor and improve

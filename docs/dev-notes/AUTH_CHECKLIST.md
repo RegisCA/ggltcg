@@ -103,6 +103,7 @@ Quick checklist for implementing Google OAuth 2.0 authentication.
 ## Help & Troubleshooting
 
 If stuck, check:
+
 1. `docs/development/GOOGLE_OAUTH_SETUP.md` - Troubleshooting section
 2. Backend logs - `python run_server.py`
 3. Browser console - Network tab for API calls
@@ -117,4 +118,4 @@ If stuck, check:
 - Testing: 30 minutes
 - Deployment: 15 minutes
 
-**Total: ~3 hours**
+### Total: ~3 hours

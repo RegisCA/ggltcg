@@ -2,42 +2,54 @@
 
 ## Summary
 
-Successfully implemented AI target selection for complex card effects (Twist, Wake, Copy, Sun). AI can now intelligently choose targets and alternative costs. Major debugging session revealed architectural issues with code duplication between AI and human player paths.
+Successfully implemented AI target selection for complex card effects (Twist,
+Wake, Copy, Sun). AI can now intelligently choose targets and alternative costs.
+Major debugging session revealed architectural issues with code duplication
+between AI and human player paths.
 
 ## Completed Work
 
 ### 1. AI Target Selection Implementation ✅
 - **Issue**: AI couldn't select targets for cards like Twist, Wake, Copy, Sun
-- **Root Cause**: `target_options` field in `ValidAction` was not being populated during AI turn
-- **Solution**: 
-  - Updated AI turn endpoint in `routes_actions.py` to duplicate effect-checking logic from `get_valid_actions`
-  - Modified all `PlayEffect` implementations to accept optional `player` parameter
+- **Root Cause**: `target_options` field in `ValidAction` was not being
+  populated during AI turn
+- **Solution**:
+  - Updated AI turn endpoint in `routes_actions.py` to duplicate effect-checking
+    logic from `get_valid_actions`
+  - Modified all `PlayEffect` implementations to accept optional `player`
+    parameter
   - Enhanced AI prompts to display target IDs with `[ID: ...]` format
   - Updated `llm_player.py` to extract and return target_id from LLM response
 
 ### 2. Alternative Cost Implementation (Ballaber) ✅
 - **Issue**: Playing Ballaber with alternative cost caused infinite loop
-- **Root Causes**: 
+- **Root Causes**:
   1. AI turn endpoint didn't pass alternative cost kwargs to game engine
   2. `game_engine.py` had no logic to handle alternative costs
 - **Solutions**:
-  - Added alternative cost kwargs building in `routes_actions.py` AI turn handler
+  - Added alternative cost kwargs building in `routes_actions.py` AI turn
+    handler
   - Implemented alternative cost logic in `game_engine.py` `play_card()` method
   - Added proper card sleeping and CC payment bypass for alternative costs
 
 ### 3. Target Passing to Game Engine ✅
 - **Issue**: AI selected correct targets but Twist effect didn't execute
-- **Root Cause**: AI turn endpoint wasn't passing `target` to `engine.play_card()`
-- **Solution**: Added target finding and kwargs building (same as human player endpoint)
+- **Root Cause**: AI turn endpoint wasn't passing `target` to
+  `engine.play_card()`
+- **Solution**: Added target finding and kwargs building (same as human player
+  endpoint)
 
 ### 4. Play-by-Play Description Bug Fix ✅
-- **Issue**: AI card plays showed generic "Played {card}" instead of detailed descriptions
+- **Issue**: AI card plays showed generic "Played {card}" instead of detailed
+  descriptions
 - **Root Cause**: AI turn endpoint didn't build card-specific descriptions
-- **Solution**: Added same description building logic as human player endpoint (Wake, Sun, Copy, Twist details)
+- **Solution**: Added same description building logic as human player endpoint
+  (Wake, Sun, Copy, Twist details)
 
 ### 5. Environment Variable Loading ✅
 - **Issue**: `.env` file wasn't being loaded (python-dotenv not installed)
-- **Root Cause**: `python-dotenv` was in requirements.txt but not installed in venv
+- **Root Cause**: `python-dotenv` was in requirements.txt but not installed in
+  venv
 - **Solution**: Installed `python-dotenv==1.0.1`
 
 ## Technical Learnings
@@ -65,7 +77,7 @@ Successfully implemented AI target selection for complex card effects (Twist, Wa
 
 **Problem**: Three separate code paths for action execution:
 1. **Human player**: `play_card` endpoint (lines 53-250 in routes_actions.py)
-2. **AI player**: `ai_take_turn` endpoint (lines 555-950 in routes_actions.py)  
+2. **AI player**: `ai_take_turn` endpoint (lines 555-950 in routes_actions.py)
 3. **Valid actions generation**: `get_valid_actions` endpoint (lines 252-553)
 
 **Symptoms**:
@@ -83,7 +95,7 @@ Successfully implemented AI target selection for complex card effects (Twist, Wa
 - Violates DRY principle
 
 **Proposed Solution** (for next session):
-```
+```text
 Current Architecture:
   play_card(human) → engine.play_card()
   ai_take_turn() → [duplicate logic] → engine.play_card()
@@ -93,21 +105,20 @@ Desired Architecture:
   play_card(human) → action_executor.execute(action, player)
   ai_take_turn() → action_executor.execute(action, ai_player)
   get_valid_actions() → action_validator.get_actions(player)
-  
+
 Where:
   - action_validator: Single source of truth for what actions are valid
   - action_executor: Single source of truth for how to execute actions
   - Both paths use same validator and executor
   - AI-specific code ONLY in: action selection from valid list
-```
-
+```text
 ### Issue #2: Complex and Ambiguous Function Arguments
 
 **Problem**: Functions pass around complex sets of loosely-typed arguments:
 
 ```python
 # Current pattern (ambiguous):
-engine.play_card(player, card, 
+engine.play_card(player, card,
     target=card_obj,           # Sometimes present, sometimes not
     target_name=str,           # Why both target and target_name?
     targets=list,              # Plural version for Sun card
@@ -115,8 +126,7 @@ engine.play_card(player, card,
     alternative_cost_card=str, # Wait, this is a name not a card?
     **kwargs                   # More unknown args
 )
-```
-
+```text
 **Symptoms**:
 - Hard to know what arguments are required for each card
 - Mixing card objects and card names
@@ -130,7 +140,7 @@ engine.play_card(player, card,
 - Difficult to refactor or extend
 
 **Game Model is Simple**:
-```
+```text
 Game
 ├── Player (human)
 │   ├── hand: Card[]
@@ -147,8 +157,7 @@ Each Card has:
 - owner_id: str
 - controller_id: str
 - zone: enum
-```
-
+```text
 **Proposed Solution** (for next session):
 ```python
 # Option A: Structured action objects
@@ -170,8 +179,7 @@ ActionBuilder(game_state, player_id)
     .with_targets(target_ids)
     .with_alternative_cost(card_id)
     .execute()
-```
-
+```text
 ## Files Modified Today
 
 1. `/Users/regis/Projects/ggltcg/backend/src/api/routes_actions.py`
@@ -183,7 +191,8 @@ ActionBuilder(game_state, player_id)
 2. `/Users/regis/Projects/ggltcg/backend/src/game_engine/game_engine.py`
    - Added alternative cost handling to `play_card()` (lines 210-260)
 
-3. `/Users/regis/Projects/ggltcg/backend/src/game_engine/rules/effects/action_effects.py`
+3. `/Users/regis/Projects/ggltcg/backend/src/game_engine/rules/effects/action_ef
+   fects.py`
    - Updated all `get_valid_targets()` to accept optional `player` parameter
 
 4. `/Users/regis/Projects/ggltcg/backend/src/game_engine/ai/prompts.py`
@@ -259,8 +268,7 @@ ActionBuilder(game_state, player_id)
 cd backend
 source ../.venv/bin/activate  # Activate venv from project root
 python run_server.py           # Will load .env automatically
-```
-
+```text
 ### Common Issues
 1. **`.env` not loading**: Install `python-dotenv`
    ```bash
@@ -288,7 +296,8 @@ python run_server.py           # Will load .env automatically
 
 ## Positive Notes 🎉
 
-1. **Major Progress**: At start of day, NO complex effects worked. Now AI uses Twist AND Wake in same game!
+1. **Major Progress**: At start of day, NO complex effects worked. Now AI uses
+   Twist AND Wake in same game!
 2. **Card ID System**: Complete success, all targeting uses IDs
 3. **AI Quality**: Gemini makes smart strategic decisions with good reasoning
 4. **End-to-End**: Full game loop working for both human and AI players
@@ -296,8 +305,13 @@ python run_server.py           # Will load .env automatically
 
 ## Lessons Learned
 
-1. **Code Duplication is Dangerous**: When we duplicated effect-checking logic, bugs appeared in one path but not the other
-2. **Type Safety Matters**: Loose kwargs made it easy to forget required arguments (target not passed)
-3. **Environment Setup is Critical**: Missing python-dotenv caused hours of confusion
-4. **Documentation Saves Time**: Better setup docs would have prevented environment issues
-5. **Architecture Debt Accumulates**: Small duplications grow into major refactoring needs
+1. **Code Duplication is Dangerous**: When we duplicated effect-checking logic,
+   bugs appeared in one path but not the other
+2. **Type Safety Matters**: Loose kwargs made it easy to forget required
+   arguments (target not passed)
+3. **Environment Setup is Critical**: Missing python-dotenv caused hours of
+   confusion
+4. **Documentation Saves Time**: Better setup docs would have prevented
+   environment issues
+5. **Architecture Debt Accumulates**: Small duplications grow into major
+   refactoring needs

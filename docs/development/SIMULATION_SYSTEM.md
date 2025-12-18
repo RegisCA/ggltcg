@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Simulation System enables automated AI vs AI game testing to analyze game balance, deck performance, and LLM model behavior. It was implemented as part of GitHub Issue #243.
+The Simulation System enables automated AI vs AI game testing to analyze
+game balance, deck performance, and LLM model behavior. It was implemented
+as part of GitHub Issue #243.
 
 **Key Features:**
 
@@ -18,15 +20,15 @@ The Simulation System enables automated AI vs AI game testing to analyze game ba
 ```bash
 backend/src/simulation/
 ├── __init__.py
-├── config.py          # Data classes (SimulationConfig, GameResult, DeckConfig, etc.)
+├── config.py          # Data classes (SimulationConfig, GameResult, DeckConfig)
 ├── deck_loader.py     # Loads deck configurations from CSV
-├── orchestrator.py    # Manages batch runs with parallel execution, DB persistence
-└── runner.py          # Executes individual games with CC tracking & action logging
-```
-
+├── orchestrator.py    # Manages batch runs, parallel execution, DB persistence
+└── runner.py          # Executes games; CC tracking & action logging
+```text
 ### Parallel Execution
 
-Games run in parallel using a ThreadPoolExecutor (default: 5 workers). This significantly speeds up large simulation runs:
+Games run in parallel using a ThreadPoolExecutor (default: 5 workers).
+This significantly speeds up large simulation runs:
 
 - Sequential: ~20 seconds/game → 160 games = ~53 minutes
 - Parallel (5x): ~20 seconds/game → 160 games = ~11 minutes
@@ -42,21 +44,22 @@ Each parallel worker:
 
 Located in `backend/src/api/routes_simulation.py`:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/admin/simulation/decks` | GET | List available simulation decks |
-| `/admin/simulation/start` | POST | Start a new simulation run |
-| `/admin/simulation/runs` | GET | List all simulation runs |
-| `/admin/simulation/runs/{id}` | GET | Get run status/progress |
-| `/admin/simulation/runs/{id}/results` | GET | Get detailed results with matchup stats |
-| `/admin/simulation/runs/{id}/games/{num}` | GET | Get individual game details (CC tracking, action log) |
+- `GET  /admin/simulation/decks` — List available simulation decks
+- `POST /admin/simulation/start` — Start a new simulation run
+- `GET  /admin/simulation/runs` — List all simulation runs
+- `GET  /admin/simulation/runs/{id}` — Get run status/progress
+- `GET  /admin/simulation/runs/{id}/results` —
+  Get results & matchup stats
+- `GET  /admin/simulation/runs/{id}/games/{num}` —
+  Get individual game details (CC & action log)
 
 ### Database Models
 
 Located in `backend/src/api/db_models.py`:
 
 - `SimulationRunModel` - Tracks run metadata, status, config
-- `SimulationGameModel` - Individual game results with CC tracking and action log
+- `SimulationGameModel` - Individual game results with CC tracking and action
+  log
 
 ## Configuration
 
@@ -68,8 +71,7 @@ Decks are defined in `backend/data/simulation_decks.csv`:
 deck_name,description,card1,card2,card3,card4,card5,card6
 Aggro_Rush,Fast aggressive deck with charge generation,Dream,Knight,Raggy,Umbruh,Rush,Surge
 Control_Ka,Board control with Ka strength boost,Ka,Wizard,Beary,Copy,Clean,Wake
-```
-
+```text
 **To add a new deck:**
 
 1. Add a row to `simulation_decks.csv`
@@ -83,11 +85,10 @@ Supported models are defined in `backend/src/simulation/config.py`:
 ```python
 SUPPORTED_MODELS = [
     "gemini-2.0-flash",
-    "gemini-2.5-flash", 
+    "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
 ]
-```
-
+```text
 The default model is `gemini-2.0-flash`.
 
 ## Usage
@@ -105,8 +106,7 @@ curl -X POST http://localhost:8000/admin/simulation/start \
     "player1_model": "gemini-2.0-flash",
     "player2_model": "gemini-2.0-flash"
   }'
-```
-
+```text
 Via Admin UI:
 
 1. Navigate to Admin Data Viewer → Simulation tab
@@ -147,17 +147,20 @@ Each turn records both players' CC state:
   - `cc_spent`: CC spent on actions
   - `cc_end`: CC at end of turn
 
-Note: Players can gain CC during their opponent's turn (e.g., Umbruh generates CC when tussled).
+Note: Players can gain CC during their opponent's turn. For example, Umbruh
+can generate CC when it is tussled.
 
 **Action Log:**
 Each action records:
 
 - `turn`: Turn number
 - `player`: Player identifier
-- `action`: Action type (play_card, tussle, activate_ability, direct_attack, end_turn)
+- `action`: Action type (play_card, tussle, activate_ability,
+  direct_attack, end_turn)
 - `card`: Card name (if applicable)
 - `target`: Target card (if applicable)
-- `description`: Human-readable action description (e.g., "Spent 2 CC for Knight to tussle Umbruh")
+- `description`: Human-readable action description
+  (e.g., "Spent 2 CC for Knight to tussle Umbruh")
 - `reasoning`: AI's reasoning for the decision
 
 ## Testing Protocol
@@ -185,7 +188,8 @@ To compare LLM performance:
 
 1. Select single deck (mirror match)
 2. Set different models for P1 and P2
-3. **Important**: Run both configurations (swap models) to control for first-player effects
+3. **Important**: Run both configurations (swap models) to control for
+   first-player effects
 4. Compare aggregate results
 
 ## Troubleshooting
@@ -216,16 +220,18 @@ If a specific model isn't working:
 
 ## Frontend
 
-The Simulation UI is in the Admin Data Viewer (`frontend/src/components/AdminDataViewer.tsx`):
+The Simulation UI is in the Admin Data Viewer
+(`frontend/src/components/AdminDataViewer.tsx`):
 
 - **Simulation Tab**: Configure and start runs
 - **Run History**: View past runs with status
 - **Results Matrix**: Heatmap showing P1 win rates for all deck matchups
-- **Individual Games Table**: List of all games with P1/P2 decks, winner, total CC spent
+- **Individual Games Table**: List of all games with P1/P2 decks,
+  winner, and total CC spent
 - **Game Detail Panel**: Inline below clicked game row, showing:
   - Turn-by-turn CC tracking for both players
-  - Color-coded actions using play-by-play descriptions
-  - Turn highlighting (green for P1's turns, blue for P2's turns)
+  - Color-coded actions (play-by-play descriptions)
+  - Turn highlighting (green for P1 turns, blue for P2 turns)
 
 ## Future Enhancements
 

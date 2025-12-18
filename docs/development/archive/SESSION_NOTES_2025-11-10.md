@@ -1,8 +1,8 @@
 # Development Session Notes - November 10, 2025
 
 ## Session Overview
-**Duration:** ~3 hours  
-**Focus:** Debugging critical tussle mechanics bugs  
+**Duration:** ~3 hours
+**Focus:** Debugging critical tussle mechanics bugs
 **Outcome:** ✅ All core game mechanics now fully functional
 
 ## Bugs Discovered & Fixed
@@ -10,9 +10,12 @@
 ### 1. Card Stats Null in API Response (CRITICAL) ⚠️
 
 **Problem:**
-- All card stats (speed, strength, stamina, current_stamina) appeared as `null` in game state JSON
-- Tussle actions failed with "insufficient CC" error despite player having enough CC
-- Initial suspicion was CC calculation bug, but investigation revealed deeper issue
+- All card stats (speed, strength, stamina, current_stamina) appeared as `null`
+  in game state JSON
+- Tussle actions failed with "insufficient CC" error despite player having
+  enough CC
+- Initial suspicion was CC calculation bug, but investigation revealed deeper
+  issue
 
 **Root Cause:**
 ```python
@@ -20,9 +23,9 @@
 if card.card_type == "TOY":  # ❌ WRONG: Comparing enum to string
     current_speed = engine.get_card_stat(card, "speed")
     # ...
-```
-
-The `card.card_type` field is a `CardType.TOY` enum object, not the string `"TOY"`. This comparison **always failed**, so card stats were never populated.
+```text
+The `card.card_type` field is a `CardType.TOY` enum object, not the string
+`"TOY"`. This comparison **always failed**, so card stats were never populated.
 
 **Solution:**
 ```python
@@ -34,12 +37,12 @@ return CardState(
     card_type=card.card_type.value,  # ✅ Convert enum to string
     # ...
 )
-```
-
+```text
 **Files Changed:**
 - `backend/src/api/routes_games.py`
 
-**Commit:** `429c140` - "fix: Use is_toy() method instead of string comparison for card type checking in API serialization"
+**Commit:** `429c140` - "fix: Use is_toy() method instead of string comparison
+for card type checking in API serialization"
 
 ---
 
@@ -54,21 +57,23 @@ return CardState(
 ```python
 # In routes_actions.py - initiate_tussle endpoint
 defender = game_state.find_card_by_name(request.defender_name)  # ❌ Searches ALL zones
-```
-
-The `find_card_by_name()` method searches across all zones (hand, in_play, sleep) and returns the **first match**. When duplicate card names exist (e.g., "Ka" in hand AND in play), it often returned the card from hand instead of the one in play.
+```text
+The `find_card_by_name()` method searches across all zones (hand, in_play,
+sleep) and returns the **first match**. When duplicate card names exist (e.g.,
+"Ka" in hand AND in play), it often returned the card from hand instead of the
+one in play.
 
 **Solution:**
 ```python
 # Search specifically in opponent's in_play zone
 opponent = game_state.get_opponent(player.player_id)
 defender = next((c for c in opponent.in_play if c.name == request.defender_name), None)
-```
-
+```text
 **Files Changed:**
 - `backend/src/api/routes_actions.py`
 
-**Commit:** `c20b243` - "fix: Search for defender specifically in opponent's play area, not all zones"
+**Commit:** `c20b243` - "fix: Search for defender specifically in opponent's
+play area, not all zones"
 
 ---
 
@@ -79,23 +84,28 @@ defender = next((c for c in opponent.in_play if c.name == request.defender_name)
 - Added comprehensive DEBUG logging for AI decision-making
 - Implemented retry logic with exponential backoff (1s, 2s, 4s) for Gemini API
 - Added `GEMINI_MODEL` environment variable for model fallback configuration
-- Switched from `gemini-2.0-flash-lite` to `gemini-2.0-flash` for better capacity
+- Switched from `gemini-2.0-flash-lite` to `gemini-2.0-flash` for better
+  capacity
 
 ### 4. Frontend Timeout Fix
-**Commit:** `807cd00` - "fix: Increase API timeout to 30s to accommodate Gemini retries"
+**Commit:** `807cd00` - "fix: Increase API timeout to 30s to accommodate Gemini
+retries"
 - Increased Axios timeout from 10s to 30s
 - Prevents frontend timeout errors while waiting for Gemini API retries
 
 ### 5. Rush Card Bug Fix
-**Issue:** Rush could be played on Turn 2 by second player (should be restricted on each player's first turn)
-**Fix:** Check `game_state.first_player_id` to determine each player's first turn correctly
+**Issue:** Rush could be played on Turn 2 by second player (should be restricted
+on each player's first turn)
+**Fix:** Check `game_state.first_player_id` to determine each player's first
+turn correctly
 
 ### 6. AI Action Selection Bug
 **Issue:** AI prompt numbering didn't match action list indices
 **Fix:** Simplified `format_valid_actions_for_ai()` to use sequential numbering
 
 ### 7. Duplicate AI Turn Calls
-**Issue:** React useEffect firing multiple times causing 400 "not your turn" errors
+**Issue:** React useEffect firing multiple times causing 400 "not your turn"
+errors
 **Fix:** Added `turn_number` and `isPending` to useEffect dependencies
 
 ---
@@ -104,8 +114,10 @@ defender = next((c for c in opponent.in_play if c.name == request.defender_name)
 
 The debugging followed a systematic approach:
 
-1. **Initial Report:** User reported tussle failing with "insufficient CC" despite having 5 CC for 2 CC action
-2. **Added CC Logging:** Debug logs showed `has_enough=True` ✅ - CC calculation was correct
+1. **Initial Report:** User reported tussle failing with "insufficient CC"
+   despite having 5 CC for 2 CC action
+2. **Added CC Logging:** Debug logs showed `has_enough=True` ✅ - CC calculation
+   was correct
 3. **Examined JSON Response:** Discovered ALL card stats were `null` 🎯
 4. **Traced Card Pipeline:**
    - CSV loading ✅ - Cards parsed correctly
@@ -128,7 +140,8 @@ After bugs were fixed, removed all temporary debug code:
 - Removed debug logging and print statements from game service
 - Set logging back to INFO level (DEBUG only for AI module)
 
-**Commit:** `3d7679f` - "chore: Remove debug logging and update MVP progress documentation"
+**Commit:** `3d7679f` - "chore: Remove debug logging and update MVP progress
+documentation"
 
 ---
 
@@ -173,7 +186,8 @@ After bugs were fixed, removed all temporary debug code:
 ### Game Scenarios Tested
 1. **Standard Tussle:** Knight vs Ka - ✅ Works
 2. **Direct Attack:** When opponent has no cards in play - ✅ Works
-3. **Duplicate Card Names:** Multiple "Ka" cards in different zones - ✅ Correctly targets in_play
+3. **Duplicate Card Names:** Multiple "Ka" cards in different zones - ✅
+   Correctly targets in_play
 4. **AI Decision Making:** AI plays cards and initiates tussles - ✅ Works
 5. **Complete Game Flow:** Deck selection → multiple turns → victory - ✅ Works
 
@@ -185,8 +199,7 @@ After bugs were fixed, removed all temporary debug code:
 **Problem:** Direct comparison of enum to string fails silently
 ```python
 if card.card_type == "TOY":  # ❌ Always False
-```
-
+```text
 **Best Practices:**
 - Use enum comparison: `if card.card_type == CardType.TOY:`
 - Use helper methods: `if card.is_toy():`
@@ -319,6 +332,6 @@ if card.card_type == "TOY":  # ❌ Always False
 
 ---
 
-**Session Completed:** November 10, 2025 @ 6:15 PM  
-**Status:** ✅ All critical bugs resolved, MVP fully functional  
+**Session Completed:** November 10, 2025 @ 6:15 PM
+**Status:** ✅ All critical bugs resolved, MVP fully functional
 **Next Steps:** UI/UX polish and deployment preparation

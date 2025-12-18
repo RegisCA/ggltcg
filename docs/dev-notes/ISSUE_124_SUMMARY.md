@@ -176,23 +176,27 @@
 ## Files Created
 
 ### Backend
+
 - `backend/src/api/user_service.py` - User service layer
 - `backend/src/api/auth_routes.py` - Auth API endpoints
 - `backend/alembic/versions/003_create_users_table.py` - Database migration
 - `backend/tests/test_auth.py` - Authentication tests
 
 ### Frontend
+
 - `frontend/src/types/auth.ts` - TypeScript types
 - `frontend/src/contexts/AuthContext.tsx` - Auth context provider
 - `frontend/src/api/authService.ts` - Auth API client
 - `frontend/src/components/LoginPage.tsx` - Login UI
 
 ### Documentation
+
 - `docs/development/GOOGLE_OAUTH_SETUP.md` - Complete setup guide
 - `docs/development/AUTH_IMPLEMENTATION.md` - Implementation summary
 - `docs/development/ENV_VARS_AUTH.md` - Environment variables reference
 
 ### Modified Files
+
 - `backend/requirements.txt` - Added auth dependencies
 - `backend/src/api/db_models.py` - Added UserModel
 - `backend/src/api/app.py` - Registered auth routes
@@ -213,6 +217,7 @@
    - Production: Add to Render and Vercel dashboards
 
 3. **Install dependencies** (5 minutes)
+
    ```bash
    # Backend
    cd backend
@@ -224,6 +229,7 @@
    ```
 
 4. **Run database migration** (2 minutes)
+
    ```bash
    cd backend
    alembic upgrade head
@@ -267,6 +273,7 @@
 ## Support & Documentation
 
 All documentation is in `docs/development/`:
+
 - Setup: `GOOGLE_OAUTH_SETUP.md`
 - Implementation: `AUTH_IMPLEMENTATION.md`
 - Environment variables: `ENV_VARS_AUTH.md`

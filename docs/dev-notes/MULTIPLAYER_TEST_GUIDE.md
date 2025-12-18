@@ -3,6 +3,7 @@
 ## Local Testing Setup
 
 ### 1. Start Backend (if not already running)
+
 ```bash
 cd backend
 source ../.venv/bin/activate  # or your venv activation
@@ -11,6 +12,7 @@ python run_server.py
 ```
 
 ### 2. Start Frontend
+
 ```bash
 cd frontend
 npm run dev
@@ -21,7 +23,8 @@ npm run dev
 
 ### Scenario 1: Full Multiplayer Flow
 
-**Player 1 (Browser Window 1):**
+### Player 1 (Browser Window 1)
+
 1. Open `http://localhost:5174/`
 2. Click "Create Game"
 3. Enter name "Alice"
@@ -31,7 +34,8 @@ npm run dev
 7. Wait for Player 2's deck selection
 8. Game should start automatically
 
-**Player 2 (Browser Window 2 or Incognito):**
+### Player 2 (Browser Window 2 or Incognito)
+
 1. Open `http://localhost:5174/`
 2. Click "Join Game"
 3. Enter name "Bob"
@@ -39,7 +43,8 @@ npm run dev
 5. Select a deck
 6. Game should start automatically
 
-**Expected:**
+### Expected Result (Scenario 1)
+
 - Both players see the same game
 - Both can take turns (no AI auto-play)
 - Game state syncs between windows
@@ -52,19 +57,22 @@ npm run dev
 4. Select deck for AI
 5. Game starts with AI opponent
 
-**Expected:**
+### Expected Result (Scenario 2)
+
 - AI takes turns automatically
 - Everything works as before
 
 ### Scenario 3: Error Handling
 
-**Test Invalid Game Code:**
+### Test Invalid Game Code
+
 1. Click "Join Game"
 2. Enter name
 3. Enter invalid code "ABCDEF"
 4. Should show error: "Lobby not found" or similar
 
-**Test Already Full Lobby:**
+### Test Already Full Lobby
+
 1. Create a lobby
 2. Have Player 2 join
 3. Try to join with a 3rd player using same code
@@ -91,12 +99,14 @@ If backend is deployed to `https://ggltcg.onrender.com`:
 ## Common Issues
 
 ### Port Already in Use
+
 ```bash
 # Kill process on port 5173/5174
 lsof -ti:5173 | xargs kill -9
 ```
 
 ### Backend Not Responding
+
 ```bash
 # Check backend is running
 curl http://localhost:8000/docs
@@ -104,6 +114,7 @@ curl http://localhost:8000/docs
 ```
 
 ### CORS Errors
+
 - Backend should have CORS enabled for `http://localhost:5174`
 - Check browser console for specific errors
 
@@ -119,7 +130,8 @@ curl http://localhost:8000/docs
 
 ---
 
-**Next Steps After Testing:**
+### Next Steps After Testing
+
 1. Fix any bugs found
 2. Deploy frontend to Vercel
 3. Test production deployment

@@ -5,6 +5,7 @@ This guide explains how to set up Google OAuth 2.0 authentication for GGLTCG.
 ## Overview
 
 GGLTCG uses Google OAuth 2.0 for user authentication. This allows players to:
+
 - Sign in securely with their Google account
 - Maintain their identity across sessions
 - Set custom display names (with profanity filtering)
@@ -13,12 +14,15 @@ GGLTCG uses Google OAuth 2.0 for user authentication. This allows players to:
 ## Architecture
 
 ### Backend (FastAPI)
+
 - **User Model**: Stores Google ID, first name, and custom display name
-- **JWT Tokens**: Issues short-lived JWT tokens (24 hours) for API authentication
+- **JWT Tokens**: Issues short-lived JWT tokens (24 hours) for API
+  authentication
 - **Rate Limiting**: Protects auth endpoints from abuse
 - **Profanity Filter**: Validates custom display names
 
 ### Frontend (React)
+
 - **Google OAuth Provider**: Uses `@react-oauth/google` for OAuth flow
 - **Auth Context**: Manages authentication state across the app
 - **Auto Token Injection**: Axios interceptor adds JWT to all API requests
@@ -44,13 +48,14 @@ GGLTCG uses Google OAuth 2.0 for user authentication. This allows players to:
    - Name it "GGLTCG Web Client"
 
 4. **Configure Authorized Redirect URIs**
-   
+
    Add the following URIs:
-   ```
+
+   ```text
    # Production
    https://ggltcg.vercel.app
    https://ggltcg.vercel.app/login
-   
+
    # Development
    http://localhost:5173
    http://localhost:5173/login
@@ -80,12 +85,12 @@ DATABASE_URL=your_database_url
 
 # CORS (add frontend URLs)
 ALLOWED_ORIGINS=http://localhost:5173,https://ggltcg.vercel.app
-```
-
-**⚠️ SECURITY**: 
+```text
+**⚠️ SECURITY**:
 - Never commit `.env` to version control
 - Use different secrets for development and production
-- Generate JWT secret with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- Generate JWT secret with: `python -c "import secrets;
+  print(secrets.token_urlsafe(32))"`
 
 ### 3. Frontend Environment Variables
 
@@ -98,8 +103,7 @@ VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
 # API URL
 VITE_API_URL=http://localhost:8000  # Development
 # VITE_API_URL=https://ggltcg.onrender.com  # Production
-```
-
+```text
 **⚠️ SECURITY**:
 - Only include `GOOGLE_CLIENT_ID` in frontend
 - Never include `GOOGLE_CLIENT_SECRET` in frontend
@@ -121,8 +125,7 @@ alembic upgrade head
 
 # Start server
 python run_server.py
-```
-
+```text
 ### 5. Frontend Installation
 
 ```bash
@@ -133,8 +136,7 @@ npm install
 
 # Start dev server
 npm run dev
-```
-
+```text
 ## Deployment
 
 ### Render (Backend)
@@ -172,19 +174,21 @@ npm run dev
 ### Local Testing
 
 1. **Start Backend**
+
    ```bash
    cd backend
    source ../.venv/bin/activate
    python run_server.py
    ```
 
-2. **Start Frontend**
+1. **Start Frontend**
+
    ```bash
    cd frontend
    npm run dev
    ```
 
-3. **Test Login Flow**
+1. **Test Login Flow**
    - Open `http://localhost:5173/login`
    - Click "Sign in with Google"
    - Complete OAuth flow
@@ -215,8 +219,7 @@ curl -X PUT http://localhost:8000/auth/profile \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"display_name": "CoolPlayer123"}'
-```
-
+```text
 ## Security Features
 
 ### Backend Security
@@ -270,12 +273,14 @@ curl -X PUT http://localhost:8000/auth/profile \
 
 ## Migration from Unauthenticated System
 
-No migration needed! Current system uses in-memory games only. After authentication:
+No migration needed! Current system uses in-memory games only. After
+authentication:
 - Players can set persistent display names
 - Game statistics will be tracked (future feature)
 - Leaderboards can be implemented (future feature)
 
-Existing game sessions will continue to work but won't be associated with authenticated users until next game.
+Existing game sessions will continue to work but won't be associated with
+authenticated users until next game.
 
 ## API Reference
 
@@ -287,8 +292,7 @@ Authenticate with Google OAuth token
 {
   "token": "google_id_token_here"
 }
-```
-
+```text
 **Response:**
 ```json
 {
@@ -300,32 +304,28 @@ Authenticate with Google OAuth token
     "custom_display_name": null
   }
 }
-```
-
+```text
 ### GET `/auth/verify`
 Verify JWT token is valid
 
 **Headers:**
-```
+```text
 Authorization: Bearer <jwt_token>
-```
-
+```text
 **Response:**
 ```json
 {
   "valid": true,
   "google_id": "123456789"
 }
-```
-
+```text
 ### GET `/auth/me`
 Get current user profile
 
 **Headers:**
-```
+```text
 Authorization: Bearer <jwt_token>
-```
-
+```text
 **Response:**
 ```json
 {
@@ -336,23 +336,20 @@ Authorization: Bearer <jwt_token>
   "created_at": "2025-11-27T12:00:00Z",
   "updated_at": "2025-11-27T13:00:00Z"
 }
-```
-
+```text
 ### PUT `/auth/profile`
 Update display name
 
 **Headers:**
-```
+```text
 Authorization: Bearer <jwt_token>
-```
-
+```text
 **Request:**
 ```json
 {
   "display_name": "NewCoolName"
 }
-```
-
+```text
 **Response:**
 ```json
 {
@@ -364,8 +361,7 @@ Authorization: Bearer <jwt_token>
     "custom_display_name": "NewCoolName"
   }
 }
-```
-
+```text
 ## Next Steps
 
 After authentication is working:

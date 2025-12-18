@@ -1,16 +1,18 @@
 # Database Schema Design for GGLTCG
 
-**Version:** 1.0  
-**Date:** November 21, 2025  
+**Version:** 1.0
+**Date:** November 21, 2025
 **Purpose:** PostgreSQL persistence for multiplayer game sessions
 
 ---
 
 ## Overview
 
-This document defines the PostgreSQL schema for persisting GGLTCG game sessions. The design follows a phased approach:
+This document defines the PostgreSQL schema for persisting GGLTCG game sessions.
+The design follows a phased approach:
 
-- **Phase 1** (This Implementation): JSONB-based storage with minimal schema changes
+- **Phase 1** (This Implementation): JSONB-based storage with minimal schema
+  changes
 - **Phase 2** (Future): Normalized tables for advanced queries and analytics
 - **Phase 3** (Future): Event sourcing for replay and time-travel debugging
 
@@ -54,30 +56,30 @@ Primary table for storing active game sessions.
 CREATE TABLE games (
     -- Primary key
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
+
     -- Game metadata
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    
+
     -- Player information (for queries and matchmaking)
     player1_id VARCHAR(255) NOT NULL,
     player1_name VARCHAR(255) NOT NULL,
     player2_id VARCHAR(255) NOT NULL,
     player2_name VARCHAR(255) NOT NULL,
-    
+
     -- Game status
     status VARCHAR(50) NOT NULL DEFAULT 'active',
         -- 'active': Game in progress
         -- 'completed': Game finished
         -- 'abandoned': Player disconnected/timeout
-    
+
     winner_id VARCHAR(255),  -- NULL if game not finished
-    
+
     -- Current turn info (denormalized for queries)
     turn_number INTEGER NOT NULL DEFAULT 1,
     active_player_id VARCHAR(255) NOT NULL,
     phase VARCHAR(50) NOT NULL DEFAULT 'Start',
-    
+
     -- Full game state (JSONB)
     game_state JSONB NOT NULL,
         -- Serialized GameEngine state
@@ -93,7 +95,7 @@ CREATE TABLE games (
         --   "game_log": [...],
         --   "play_by_play": [...]
         -- }
-    
+
     -- Indexes
     CONSTRAINT games_status_check CHECK (status IN ('active', 'completed', 'abandoned'))
 );
@@ -106,7 +108,7 @@ CREATE INDEX idx_games_updated_at ON games(updated_at);
 CREATE INDEX idx_games_active_player ON games(active_player_id) WHERE status = 'active';
 
 -- Combined index for finding player's active games
-CREATE INDEX idx_games_player_active ON games(player1_id, player2_id, status) 
+CREATE INDEX idx_games_player_active ON games(player1_id, player2_id, status)
     WHERE status = 'active';
 
 -- Trigger to auto-update updated_at
@@ -118,12 +120,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_games_updated_at 
+CREATE TRIGGER update_games_updated_at
     BEFORE UPDATE ON games
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-```
-
+```text
 ### Table: `game_actions` (Optional - For Analytics)
 
 Stores individual game actions for future analytics and debugging.
@@ -132,26 +133,28 @@ Stores individual game actions for future analytics and debugging.
 CREATE TABLE game_actions (
     -- Primary key
     id BIGSERIAL PRIMARY KEY,
-    
+
     -- Foreign key to game
     game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-    
+
     -- Action metadata
     turn_number INTEGER NOT NULL,
     player_id VARCHAR(255) NOT NULL,
     action_type VARCHAR(50) NOT NULL,
-        -- 'play_card', 'tussle', 'end_turn', 'activate_ability'
-    
+        -- e.g., 'play_card', 'tussle', 'end_turn',
+        -- 'activate_ability'
+
     -- Action details (JSONB for flexibility)
     action_data JSONB NOT NULL,
         -- Structure depends on action_type:
-        -- play_card: {"card_id": "...", "card_name": "...", "target_ids": [...], "cost": 3}
+        -- play_card: {"card_id": "...", "card_name": "...",
+        --  "target_ids": [...], "cost": 3}
         -- tussle: {"attacker_id": "...", "defender_id": "...", "cost": 1}
         -- end_turn: {}
-    
+
     -- Result of action
     result_description TEXT,  -- Play-by-play text
-    
+
     -- Timestamp
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -161,8 +164,7 @@ CREATE INDEX idx_game_actions_game_id ON game_actions(game_id);
 CREATE INDEX idx_game_actions_player ON game_actions(player_id);
 CREATE INDEX idx_game_actions_type ON game_actions(action_type);
 CREATE INDEX idx_game_actions_turn ON game_actions(game_id, turn_number);
-```
-
+```text
 ### Table: `game_stats` (Optional - For Leaderboards)
 
 Aggregated statistics for completed games.
@@ -171,31 +173,31 @@ Aggregated statistics for completed games.
 CREATE TABLE game_stats (
     -- Primary key
     id BIGSERIAL PRIMARY KEY,
-    
+
     -- Foreign key to game
     game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-    
+
     -- Game outcome
     winner_id VARCHAR(255) NOT NULL,
     loser_id VARCHAR(255) NOT NULL,
-    
+
     -- Game metrics
     total_turns INTEGER NOT NULL,
     duration_seconds INTEGER,  -- Calculated from created_at to updated_at
-    
+
     -- Winner stats
     winner_cards_played INTEGER,
     winner_tussles_initiated INTEGER,
     winner_direct_attacks INTEGER,
-    
+
     -- Loser stats
     loser_cards_played INTEGER,
     loser_tussles_initiated INTEGER,
     loser_direct_attacks INTEGER,
-    
+
     -- Timestamp
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    
+
     -- Constraint: one stats record per game
     CONSTRAINT game_stats_unique_game UNIQUE (game_id)
 );
@@ -204,8 +206,7 @@ CREATE TABLE game_stats (
 CREATE INDEX idx_game_stats_winner ON game_stats(winner_id);
 CREATE INDEX idx_game_stats_loser ON game_stats(loser_id);
 CREATE INDEX idx_game_stats_created_at ON game_stats(created_at DESC);
-```
-
+```text
 ---
 
 ## Implementation Strategy
@@ -256,35 +257,32 @@ CREATE INDEX idx_game_stats_created_at ON game_stats(created_at DESC);
 
 ### Creating a Game
 
-```
+```text
 1. API receives POST /games request
 2. GameService.create_game() creates GameEngine instance
 3. GameEngine.state serialized to JSONB
 4. INSERT INTO games (player1_id, player2_id, game_state, ...)
 5. Return game_id to client
-```
-
+```text
 ### Loading a Game
 
-```
+```text
 1. API receives GET /games/{game_id} request
 2. SELECT game_state FROM games WHERE id = game_id
 3. Deserialize JSONB to GameState dataclass
 4. Reconstruct GameEngine instance
 5. Return to client
-```
-
+```text
 ### Updating a Game
 
-```
+```text
 1. API receives POST /games/{game_id}/play-card request
 2. Load game from database
 3. Execute action via GameEngine
 4. Serialize updated state to JSONB
 5. UPDATE games SET game_state = ..., updated_at = NOW() WHERE id = game_id
 6. Return updated state to client
-```
-
+```text
 ---
 
 ## Serialization Strategy
@@ -327,8 +325,7 @@ def deserialize_game_state(data: dict, card_loader: CardLoader) -> GameState:
         game_log=data.get("game_log", []),
         play_by_play=data.get("play_by_play", []),
     )
-```
-
+```text
 ### Card Serialization
 
 Cards will be serialized with their full state including modifications:
@@ -352,8 +349,7 @@ def serialize_card(card: Card) -> dict:
         "zone": card.zone.value,
         "modifications": card.modifications,
     }
-```
-
+```text
 ---
 
 ## Security Considerations
@@ -376,8 +372,7 @@ For multiplayer, we'll need to add:
 -- Add after implementing auth
 ALTER TABLE games ADD COLUMN player1_auth_id VARCHAR(255);
 ALTER TABLE games ADD COLUMN player2_auth_id VARCHAR(255);
-```
-
+```text
 ### Data Privacy
 
 - Player IDs should be non-guessable (UUIDs)
@@ -394,15 +389,14 @@ If we need to query game state contents:
 
 ```sql
 -- Example: Find games where a specific card is in play
-CREATE INDEX idx_games_state_cards ON games 
+CREATE INDEX idx_games_state_cards ON games
     USING GIN ((game_state->'players'));
 
 -- Example: Find games by winner
-CREATE INDEX idx_games_state_winner ON games 
+CREATE INDEX idx_games_state_winner ON games
     ((game_state->>'winner_id'))
     WHERE (game_state->>'winner_id') IS NOT NULL;
-```
-
+```text
 ### Connection Pooling
 
 Use SQLAlchemy's connection pooling with appropriate settings:
@@ -414,8 +408,7 @@ engine = create_engine(
     max_overflow=10,
     pool_pre_ping=True,  # Verify connections before use
 )
-```
-
+```text
 ### Caching Strategy (Future)
 
 For high-traffic games:
@@ -466,18 +459,16 @@ For high-traffic games:
 
 ```sql
 -- Delete games abandoned for >24 hours
-DELETE FROM games 
-WHERE status = 'active' 
+DELETE FROM games
+WHERE status = 'active'
   AND updated_at < NOW() - INTERVAL '24 hours';
-```
-
+```text
 **Completed Games:**
 
 ```sql
 -- Archive completed games after 30 days
 -- Move to archive table or export to S3
-```
-
+```text
 ---
 
 ## Testing Strategy
@@ -535,8 +526,7 @@ CREATE TABLE cards_in_game (
     zone VARCHAR(50),
     modifications JSONB
 );
-```
-
+```text
 **Benefits:**
 
 - Advanced queries (e.g., "Which cards win most often?")
@@ -561,8 +551,7 @@ CREATE TABLE game_events (
     event_data JSONB,
     created_at TIMESTAMP
 );
-```
-
+```text
 **Benefits:**
 
 - Complete audit trail
@@ -579,7 +568,10 @@ CREATE TABLE game_events (
 
 ## Conclusion
 
-This schema design provides a solid foundation for PostgreSQL persistence while minimizing changes to the existing codebase. The JSONB approach offers flexibility for rapid iteration while maintaining data integrity and enabling future enhancements.
+This schema design provides a solid foundation for PostgreSQL persistence while
+minimizing changes to the existing codebase. The JSONB approach offers
+flexibility for rapid iteration while maintaining data integrity and enabling
+future enhancements.
 
 **Next Steps:**
 
@@ -598,13 +590,12 @@ This schema design provides a solid foundation for PostgreSQL persistence while 
 
 ### Player Identification
 
-Players are identified by their **Google ID** (from OAuth authentication), not by randomly generated UUIDs or session-based IDs.
+Players are identified by their **Google ID** (from OAuth authentication), not
+by randomly generated UUIDs or session-based IDs.
 
-| Player Type | ID Format | Example |
-|-------------|-----------|---------|
-| Authenticated User | Google ID (numeric string) | `109662458516887657743` |
-| AI Opponent | Fixed string | `ai-gemiknight` |
-| Guest (future) | `guest-{uuid}` | `guest-a1b2c3d4-...` |
+- **Authenticated User** — ID: Google ID (numeric); Example: `10966245...`
+- **AI Opponent** — ID: Fixed string; Example: `ai-gemiknight`
+- **Guest (future)** — ID: `guest-{uuid}`; Example: `guest-a1b2...`
 
 **Why Google ID?**
 
@@ -634,8 +625,7 @@ CREATE TABLE player_stats (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-```
-
+```text
 **`card_stats` JSONB Structure:**
 
 ```json
@@ -653,25 +643,25 @@ CREATE TABLE player_stats (
     "tussles_won": 4
   }
 }
-```
-
+```text
 ### Migration Notes
 
-**Migration 005** (`005_merge_legacy_player_stats.py`) consolidated legacy records from before the Google ID fix:
+**Migration 005** (`005_merge_legacy_player_stats.py`) consolidated legacy
+records from before the Google ID fix:
 
 - Merged `human`, `player1` → Sully's Google ID
-- Merged `human-*`, `player2` → Régis's Google ID  
+- Merged `human-*`, `player2` → Régis's Google ID
 - Merged `ai`, `ai-*` → `ai-gemiknight`
 
 ### Alembic Migrations at Startup
 
-Since Render free tier doesn't support `preDeployCommand`, migrations run automatically at app startup via FastAPI's lifespan handler in `app.py`:
+Since Render free tier doesn't support `preDeployCommand`, migrations run
+automatically at app startup via FastAPI's lifespan handler in `app.py`:
 
 ```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     run_migrations()  # Runs 'alembic upgrade head'
     yield
-```
-
+```text
 This ensures database schema is always up-to-date when the app starts.

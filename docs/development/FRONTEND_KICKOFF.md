@@ -9,18 +9,16 @@
 
 ### Base URL
 
-```
+```text
 http://localhost:8000
-```
-
+```text
 ### Available Endpoints
 
 #### Game Management
 
 ```http
 POST /games
-```
-
+```text
 Creates a new game with two players.
 
 **Request Body:**
@@ -38,30 +36,26 @@ Creates a new game with two players.
     "deck": ["Demideca", "Beary", "Archer"]
   }
 }
-```
-
+```text
 **Response:** Full game state JSON
 
 ```http
 GET /games/{game_id}
-```
-
+```text
 Get current game state.
 
 **Response:** Full game state with all player zones, turn info, phase
 
 ```http
 DELETE /games/{game_id}
-```
-
+```text
 Delete a game session.
 
 #### Player Actions
 
 ```http
 POST /games/{game_id}/play-card
-```
-
+```text
 Play a card from hand.
 
 **Request Body:**
@@ -71,12 +65,10 @@ Play a card from hand.
   "player_id": "human",
   "card_name": "Ka"
 }
-```
-
+```text
 ```http
 POST /games/{game_id}/tussle
-```
-
+```text
 Initiate a tussle (combat).
 
 **Request Body:**
@@ -87,12 +79,10 @@ Initiate a tussle (combat).
   "attacker_name": "Ka",
   "defender_name": "Wizard"  // or null for direct attack
 }
-```
-
+```text
 ```http
 POST /games/{game_id}/end-turn
-```
-
+```text
 End the current player's turn.
 
 **Request Body:**
@@ -101,13 +91,12 @@ End the current player's turn.
 {
   "player_id": "human"
 }
-```
-
+```text
 ```http
 POST /games/{game_id}/ai-turn
-```
-
-Let the AI take its turn (AI will select and execute multiple actions until turn end).
+```text
+Let the AI take its turn (AI will select and execute multiple actions until turn
+end).
 
 **Request Body:**
 
@@ -115,12 +104,10 @@ Let the AI take its turn (AI will select and execute multiple actions until turn
 {
   "ai_player_id": "ai"
 }
-```
-
+```text
 ```http
 GET /games/{game_id}/valid-actions
-```
-
+```text
 Get list of all valid actions for a player.
 
 **Query Parameters:**
@@ -151,8 +138,7 @@ Get list of all valid actions for a player.
     }
   ]
 }
-```
-
+```text
 ### Game State Structure
 
 The game state JSON includes:
@@ -179,8 +165,7 @@ The game state JSON includes:
   game_log: string[];  // Event history
   winner: string | null;
 }
-```
-
+```text
 ### Card Structure
 
 ```typescript
@@ -188,20 +173,19 @@ The game state JSON includes:
   name: string;  // "Ka", "Knight", etc.
   card_type: "TOY" | "ACTION";
   cost: number;
-  
+
   // Toy-specific fields (null for Actions)
   speed: number | null;
   strength: number | null;
   stamina: number | null;
   current_stamina: number | null;
-  
+
   // Game state
   zone: "HAND" | "IN_PLAY" | "SLEEP";
   owner: string;  // player_id
   controller: string;  // player_id
 }
-```
-
+```text
 ## Recommended Tech Stack
 
 ### Core Framework
@@ -226,7 +210,7 @@ The game state JSON includes:
 
 ## Suggested Project Structure
 
-```
+```text
 frontend/
 ├── src/
 │   ├── components/
@@ -266,8 +250,7 @@ frontend/
 ├── tsconfig.json
 ├── tailwind.config.js
 └── vite.config.ts
-```
-
+```text
 ## Key Components to Build
 
 ### 1. GameBoard (Main Container)
@@ -322,8 +305,7 @@ npm install
 npm install axios @tanstack/react-query
 npm install -D tailwindcss postcss autoprefixer
 npx tailwindcss init -p
-```
-
+```text
 ### 2. Configure Tailwind
 
 ```typescript
@@ -338,8 +320,7 @@ export default {
   },
   plugins: [],
 }
-```
-
+```text
 ### 3. Create API Client
 
 ```typescript
@@ -352,8 +333,7 @@ export const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
-```
-
+```text
 ### 4. Define Types
 
 ```typescript
@@ -392,8 +372,7 @@ export interface GameState {
   game_log: string[];
   winner: string | null;
 }
-```
-
+```text
 ### 5. Build Step-by-Step
 
 1. Create basic GameBoard layout
@@ -446,7 +425,8 @@ export interface GameState {
 
 ## Pro Tips
 
-1. **Use React Query** for API state - it handles caching, refetching, and error states
+1. **Use React Query** for API state - it handles caching, refetching, and error
+   states
 2. **Poll game state** while AI is thinking to show real-time updates
 3. **Disable actions** when not active player or invalid
 4. **Show costs** before confirming expensive actions
@@ -463,7 +443,8 @@ export interface GameState {
 
 ### Spacing System
 
-**NEVER use hardcoded pixel values or Tailwind spacing utilities for component spacing.**
+**NEVER use hardcoded pixel values or Tailwind spacing utilities for component
+spacing.**
 
 Use CSS design tokens defined in `frontend/src/index.css`:
 
@@ -475,8 +456,7 @@ Use CSS design tokens defined in `frontend/src/index.css`:
 // ❌ WRONG
 <div style={{ padding: '16px' }}>
 <div className="p-4 gap-2">
-```
-
+```text
 **Tokens:**
 
 - `--spacing-component-xs`: 8px
@@ -500,8 +480,7 @@ All text must meet WCAG AA contrast standards. Use established color pairings:
 
 // Muted/metadata
 <span className="text-sm text-gray-400">
-```
-
+```text
 **Fonts:**
 
 - **Bangers:** Headings, card names, branding
@@ -514,7 +493,8 @@ See: `docs/development/TYPOGRAPHY_DESIGN_SYSTEM.md` for complete documentation.
 Use the unified component library:
 
 - **Button component** (`components/ui/Button.tsx`) - Consistent button variants
-- **Modal component** (`components/ui/Modal.tsx`) - Accessible modal wrapper with focus trap
+- **Modal component** (`components/ui/Modal.tsx`) - Accessible modal wrapper
+  with focus trap
 
 ### Responsive Design
 
@@ -524,11 +504,11 @@ Use the `useResponsive` hook for breakpoint detection:
 const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
 
 // Apply compact spacing on smaller screens
-const padding = isMobile 
-  ? 'var(--spacing-component-sm)' 
+const padding = isMobile
+  ? 'var(--spacing-component-sm)'
   : 'var(--spacing-component-md)';
-```
-
+```text
 ---
 
-**Ready to build!** The backend is solid, tested, and waiting for a beautiful React UI. 🚀
+**Ready to build!** The backend is solid, tested, and waiting for a beautiful
+React UI. 🚀

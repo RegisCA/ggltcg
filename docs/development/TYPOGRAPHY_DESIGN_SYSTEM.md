@@ -1,12 +1,15 @@
 # GGLTCG Typography Design System
 
-> **Last Updated**: December 5, 2025  
-> **Status**: Active  
-> **Location**: `frontend/src/index.css` (CSS variables), component files (Tailwind classes)
+> **Last Updated**: December 5, 2025
+> **Status**: Active
+> **Location**: `frontend/src/index.css` (CSS variables), component files
+(Tailwind classes)
 
 ## Overview
 
-This document defines the typography standards for GGLTCG's frontend. All text styling should follow these guidelines to ensure consistency, readability, and WCAG AA accessibility compliance.
+This document defines the typography standards for GGLTCG's frontend. All text
+styling should follow these guidelines to ensure consistency, readability, and
+WCAG AA accessibility compliance.
 
 ---
 
@@ -14,22 +17,27 @@ This document defines the typography standards for GGLTCG's frontend. All text s
 
 ### Primary Fonts
 
-| Font | CSS Variable | Tailwind Class | Usage |
-|------|--------------|----------------|-------|
-| **Bangers** | `--font-family-bangers` | `font-bangers` | Headings, card names, titles, game branding |
-| **Lato** | `--font-family-lato` | `font-lato` | Body text, labels, descriptions, UI text |
+- **Bangers**
+  - CSS Variable: `--font-family-bangers`
+  - Tailwind Class: `font-bangers`
+  - Usage: Headings, card names, titles, game branding
+- **Lato**
+  - CSS Variable: `--font-family-lato`
+  - Tailwind Class: `font-lato`
+  - Usage: Body text, labels, descriptions, UI text
 
 ### Fallback Stack
 
 ```css
 --font-family-bangers: 'Bangers', 'Impact', sans-serif;
 --font-family-lato: 'Lato', 'Arial', sans-serif;
-```
-
+```text
 ### Usage Guidelines
 
-- **Bangers**: Use for game-themed headings, victory screens, card names. Creates playful, bold aesthetic.
-- **Lato**: Use for all readable content - descriptions, labels, form fields, buttons.
+- **Bangers**: Use for game-themed headings, victory screens, card names.
+  Creates playful, bold aesthetic.
+- **Lato**: Use for all readable content - descriptions, labels, form fields,
+  buttons.
 
 ---
 
@@ -37,17 +45,42 @@ This document defines the typography standards for GGLTCG's frontend. All text s
 
 Using Tailwind's default type scale for consistency:
 
-| Size | Tailwind Class | Pixels | rem | Usage |
-|------|----------------|--------|-----|-------|
-| **4XL** | `text-4xl` | 36px | 2.25rem | Hero headings (Victory screen title) |
-| **3XL** | `text-3xl` | 30px | 1.875rem | Major section headings |
-| **2XL** | `text-2xl` | 24px | 1.5rem | Panel headings, modal titles |
-| **XL** | `text-xl` | 20px | 1.25rem | Subheadings, important labels |
-| **LG** | `text-lg` | 18px | 1.125rem | Large body text, emphasis |
-| **Base** | `text-base` | 16px | 1rem | Default body text |
-| **SM** | `text-sm` | 14px | 0.875rem | Secondary text, labels, captions |
-| **XS** | `text-xs` | 12px | 0.75rem | Badges, small labels, metadata |
-| **[10px]** | `text-[10px]` | 10px | 0.625rem | Compact mode only (keyboard shortcuts) |
+- **4XL**
+  - Tailwind Class: `text-4xl`
+  - Size: 36px (2.25rem)
+  - Usage: Hero headings (Victory screen title)
+- **3XL**
+  - Tailwind Class: `text-3xl`
+  - Size: 30px (1.875rem)
+  - Usage: Major section headings
+- **2XL**
+  - Tailwind Class: `text-2xl`
+  - Size: 24px (1.5rem)
+  - Usage: Panel headings, modal titles
+- **XL**
+  - Tailwind Class: `text-xl`
+  - Size: 20px (1.25rem)
+  - Usage: Subheadings, important labels
+- **LG**
+  - Tailwind Class: `text-lg`
+  - Size: 18px (1.125rem)
+  - Usage: Large body text, emphasis
+- **Base**
+  - Tailwind Class: `text-base`
+  - Size: 16px (1rem)
+  - Usage: Default body text
+- **SM**
+  - Tailwind Class: `text-sm`
+  - Size: 14px (0.875rem)
+  - Usage: Secondary text, labels, captions
+- **XS**
+  - Tailwind Class: `text-xs`
+  - Size: 12px (0.75rem)
+  - Usage: Badges, small labels, metadata
+- **[10px]**
+  - Tailwind Class: `text-[10px]`
+  - Size: 10px (0.625rem)
+  - Usage: Compact mode only (keyboard shortcuts)
 
 ### Responsive Typography
 
@@ -62,18 +95,27 @@ Use responsive variants for important text elements:
 
 // Compact mode text
 <span className={compact ? 'text-xs' : 'text-sm'}>Label</span>
-```
-
+```text
 ---
 
 ## Font Weights
 
-| Weight | Tailwind Class | Numeric | Usage |
-|--------|----------------|---------|-------|
-| **Bold** | `font-bold` | 700 | Headings, important labels, emphasis |
-| **Semibold** | `font-semibold` | 600 | Button text, subheadings |
-| **Medium** | `font-medium` | 500 | Slightly emphasized text |
-| **Normal** | `font-normal` | 400 | Body text (default) |
+- **Bold**
+  - Tailwind Class: `font-bold`
+  - Numeric: 700
+  - Usage: Headings, important labels, emphasis
+- **Semibold**
+  - Tailwind Class: `font-semibold`
+  - Numeric: 600
+  - Usage: Button text, subheadings
+- **Medium**
+  - Tailwind Class: `font-medium`
+  - Numeric: 500
+  - Usage: Slightly emphasized text
+- **Normal**
+  - Tailwind Class: `font-normal`
+  - Numeric: 400
+  - Usage: Body text (default)
 
 ### Usage Patterns
 
@@ -89,32 +131,60 @@ Use responsive variants for important text elements:
 
 // Label
 <span className="text-sm font-medium">Field Label</span>
-```
-
+```text
 ---
 
 ## Text Colors (WCAG AA Compliant)
 
-All text colors meet WCAG AA standards (4.5:1 for normal text, 3:1 for large text) on dark backgrounds.
+All text colors meet WCAG AA standards (4.5:1 for normal text, 3:1 for large
+text) on dark backgrounds.
 
 ### Semantic Text Colors
 
-| Color | CSS Variable | Tailwind Class | Contrast | Usage |
-|-------|--------------|----------------|----------|-------|
-| **Primary** | `--color-text-primary` | `text-white` | 21:1 | Main text, headings, important content |
-| **Secondary** | `--color-text-secondary` | `text-gray-300` | 9.7:1 | Softer text, descriptions |
-| **Muted** | `--color-text-muted` | `text-gray-400` | 5.8:1 | Subtle text, metadata, hints |
-| **Inverse** | `--color-text-inverse` | `text-gray-900` | N/A | Text on light backgrounds |
-| **Error** | `--color-text-error` | `text-red-300` | 6.2:1 | Error messages, warnings |
-| **Success** | `--color-text-success` | `text-green-300` | 10.1:1 | Success messages, positive states |
-| **Warning** | `--color-text-warning` | `text-yellow-300` | 11.8:1 | Warning messages, cautions |
+- **Primary**
+  - CSS Variable: `--color-text-primary`
+  - Tailwind Class: `text-white`
+  - Contrast: 21:1
+  - Usage: Main text, headings, important content
+- **Secondary**
+  - CSS Variable: `--color-text-secondary`
+  - Tailwind Class: `text-gray-300`
+  - Contrast: 9.7:1
+  - Usage: Softer text, descriptions
+- **Muted**
+  - CSS Variable: `--color-text-muted`
+  - Tailwind Class: `text-gray-400`
+  - Contrast: 5.8:1
+  - Usage: Subtle text, metadata, hints
+- **Inverse**
+  - CSS Variable: `--color-text-inverse`
+  - Tailwind Class: `text-gray-900`
+  - Contrast: N/A
+  - Usage: Text on light backgrounds
+- **Error**
+  - CSS Variable: `--color-text-error`
+  - Tailwind Class: `text-red-300`
+  - Contrast: 6.2:1
+  - Usage: Error messages, warnings
+- **Success**
+  - CSS Variable: `--color-text-success`
+  - Tailwind Class: `text-green-300`
+  - Contrast: 10.1:1
+  - Usage: Success messages, positive states
+- **Warning**
+  - CSS Variable: `--color-text-warning`
+  - Tailwind Class: `text-yellow-300`
+  - Contrast: 11.8:1
+  - Usage: Warning messages, cautions
 
 ### Game-Themed Colors
 
-| Color | Tailwind Class | Usage |
-|-------|----------------|-------|
-| **Highlight** | `text-game-highlight` | Branding, emphasis, CTA |
-| **Purple** | `text-purple-400` | AI-related text, special features |
+- **Highlight**
+  - Tailwind Class: `text-game-highlight`
+  - Usage: Branding, emphasis, CTA
+- **Purple**
+  - Tailwind Class: `text-purple-400`
+  - Usage: AI-related text, special features
 | **Blue** | `text-blue-400` | Stats, numbers, data |
 | **Green** | `text-green-400` | Positive stats, wins |
 | **Amber** | `text-amber-400` | Warnings, End Turn button |
@@ -136,8 +206,7 @@ All text colors meet WCAG AA standards (4.5:1 for normal text, 3:1 for large tex
 
 // Success message
 <p className="text-green-300">Game created successfully!</p>
-```
-
+```text
 ---
 
 ## Text Styles by Component Type
@@ -199,8 +268,7 @@ Use Tailwind's default line heights for appropriate text density:
 
 // Compact card text
 <span className="text-xs leading-tight">Card effect text</span>
-```
-
+```text
 ---
 
 ## Accessibility Requirements
@@ -247,8 +315,11 @@ When creating new components:
 
 ## Related Documentation
 
-- [Spacing Design System](../../.github/instructions/coding.instructions.md#frontend-spacing-design-system)
-- [WCAG AA Compliance](./UX_REMEDIATION_STATUS.md#issue-173-wcag-aa-contrast-compliance)
+- [Spacing Design
+  System](../../.github/instructions/coding.instructions.md#frontend-spacing-
+  design-system)
+- [WCAG AA Compliance](./UX_REMEDIATION_STATUS.md#issue-173-wcag-aa-contrast-
+  compliance)
 - [Button Component](../../frontend/src/components/ui/Button.tsx)
 
 ---
