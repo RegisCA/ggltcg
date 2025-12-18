@@ -1,1 +1,1 @@
-"""AI player implementation using Claude API."""
+"""AI player implementation using Gemini API."""

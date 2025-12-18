@@ -1,8 +1,8 @@
 """
-LLM-powered AI player using Claude or Gemini API.
+LLM-powered AI player using Gemini API.
 
-This module implements an AI player that uses either Anthropic's Claude
-or Google's Gemini to make strategic decisions in GGLTCG games.
+This module implements an AI player that uses Google's Gemini
+to make strategic decisions in GGLTCG games.
 
 Version 2.0 Changes:
 - Unified target_id to target_ids (array) for multi-target support (Sun card)
@@ -37,7 +37,7 @@ from api.schemas import ValidAction
 
 class LLMPlayer:
     """
-    AI player powered by LLM API (Claude or Gemini).
+    AI player powered by Gemini API.
     
     Uses an LLM to analyze game state and select optimal actions.
     Version 2.0: Now supports multi-target selection and Gemini structured output.
@@ -45,7 +45,7 @@ class LLMPlayer:
     
     def __init__(
         self,
-        provider: Literal["anthropic", "gemini"] = "gemini",
+        provider: Literal["gemini"] = "gemini",
         api_key: Optional[str] = None,
         model: Optional[str] = None
     ):
@@ -53,11 +53,11 @@ class LLMPlayer:
         Initialize the AI player.
         
         Args:
-            provider: LLM provider to use ("anthropic" or "gemini")
+            provider: LLM provider to use (only "gemini" supported)
             api_key: API key (reads from env var if not provided)
             model: Model to use (provider-specific defaults if not provided)
         """
-        self.provider = provider
+        self.provider = "gemini"
         
         # Store last target/alternative cost selections from LLM
         # v2.0: target_ids is now a list for multi-target support (Sun card)
@@ -70,49 +70,32 @@ class LLMPlayer:
         self._last_action_number: Optional[int] = None
         self._last_reasoning: Optional[str] = None
         
-        if provider == "anthropic":
-            from anthropic import Anthropic
-            
-            self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-            if not self.api_key:
-                raise ValueError(
-                    "Anthropic API key required. Set ANTHROPIC_API_KEY environment variable "
-                    "or pass api_key parameter."
-                )
-            
-            self.client = Anthropic(api_key=self.api_key)
-            self.model = model or "claude-sonnet-4-20250514"
+        from google import genai
         
-        elif provider == "gemini":
-            from google import genai
-            
-            self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
-            if not self.api_key:
-                raise ValueError(
-                    "Google API key required. Set GOOGLE_API_KEY environment variable "
-                    "or pass api_key parameter. Get a free key at: "
-                    "https://aistudio.google.com/apikey"
-                )
-            
-            # Create explicit client (new SDK pattern)
-            self.client = genai.Client(api_key=self.api_key)
-            
-            # Allow model override via environment variable or parameter
-            # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
-            # Alternative: gemini-2.5-flash (15 RPM, more stable, better capacity)
-            # Alternative: gemini-2.0-flash (10 RPM, stable)
-            default_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
-            self.model_name = model or default_model
-            
-            # Fallback model for capacity issues (configurable via env var)
-            # Default: gemini-2.5-flash-lite (15 RPM, better capacity availability)
-            self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
-            
-            logger.info(f"Initializing Gemini with model: {self.model_name}")
-            logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
+        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
+        if not self.api_key:
+            raise ValueError(
+                "Google API key required. Set GOOGLE_API_KEY environment variable "
+                "or pass api_key parameter. Get a free key at: "
+                "https://aistudio.google.com/apikey"
+            )
         
-        else:
-            raise ValueError(f"Unknown provider: {provider}. Use 'anthropic' or 'gemini'")
+        # Create explicit client (new SDK pattern)
+        self.client = genai.Client(api_key=self.api_key)
+        
+        # Allow model override via environment variable or parameter
+        # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
+        # Alternative: gemini-2.5-flash (15 RPM, more stable, better capacity)
+        # Alternative: gemini-2.0-flash (10 RPM, stable)
+        default_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
+        self.model_name = model or default_model
+        
+        # Fallback model for capacity issues (configurable via env var)
+        # Default: gemini-2.5-flash-lite (15 RPM, better capacity availability)
+        self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
+        
+        logger.info(f"Initializing Gemini with model: {self.model_name}")
+        logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
     
     def select_action(
         self,
@@ -153,12 +136,9 @@ class LLMPlayer:
         
         try:
             # Call LLM API based on provider
-            logger.info(f"Calling {self.provider} API ({self.model_name if self.provider == 'gemini' else self.model})...")
+            logger.info(f"Calling Gemini API ({self.model_name})...")
             
-            if self.provider == "anthropic":
-                response_text = self._call_anthropic(prompt)
-            else:  # gemini
-                response_text = self._call_gemini(prompt)
+            response_text = self._call_gemini(prompt)
             
             # Store raw response for logging
             self._last_response = response_text
@@ -276,27 +256,11 @@ class LLMPlayer:
         return {
             "prompt": self._last_prompt,
             "response": self._last_response,
-            "model_name": self.model_name if self.provider == "gemini" else self.model,
+            "model_name": self.model_name,
             "prompts_version": PROMPTS_VERSION,
             "action_number": self._last_action_number,
             "reasoning": self._last_reasoning,
         }
-    
-    def _call_anthropic(self, prompt: str) -> str:
-        """Call Anthropic Claude API."""
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.7,
-        )
-        return message.content[0].text.strip()
     
     def _call_gemini(self, prompt: str, retry_count: int = 3, allow_fallback: bool = True) -> str:
         """
@@ -335,7 +299,7 @@ class LLMPlayer:
                     ],
                     config=types.GenerateContentConfig(
                         temperature=0.7,
-                        max_output_tokens=1024,
+                        max_output_tokens=4096,
                         response_mime_type="application/json",
                         response_json_schema=AI_DECISION_JSON_SCHEMA,
                     )
@@ -392,7 +356,7 @@ class LLMPlayer:
                             logger.error(
                                 f"Gemini API capacity exhausted after {retry_count} retries. "
                                 f"This is a Google infrastructure issue, not a rate limit. "
-                                f"Consider: 1) Try again in a few minutes, 2) Use Anthropic Claude instead"
+                                f"Consider trying again in a few minutes."
                             )
                 else:
                     # Not a 429 error, don't retry
@@ -488,25 +452,16 @@ class LLMPlayer:
         Get a human-readable name for the AI endpoint being used.
         
         Returns:
-            String like "Gemini 2.0 Flash Lite" or "Claude Sonnet 4"
+            String like "Gemini 2.0 Flash Lite"
         """
-        if self.provider == "anthropic":
-            # Map model names to friendly names
-            model_map = {
-                "claude-sonnet-4-20250514": "Claude Sonnet 4",
-                "claude-3-5-sonnet-20241022": "Claude 3.5 Sonnet",
-                "claude-3-opus-20240229": "Claude 3 Opus",
-            }
-            return model_map.get(self.model, f"Claude ({self.model})")
-        else:  # gemini
-            # Map Gemini models to friendly names
-            model_map = {
-                "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",
-                "gemini-2.0-flash-exp": "Gemini 2.0 Flash (Experimental)",
-                "gemini-1.5-flash": "Gemini 1.5 Flash",
-                "gemini-1.5-pro": "Gemini 1.5 Pro",
-            }
-            return model_map.get(self.model_name, f"Gemini ({self.model_name})")
+        # Map Gemini models to friendly names
+        model_map = {
+            "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",
+            "gemini-2.0-flash-exp": "Gemini 2.0 Flash (Experimental)",
+            "gemini-1.5-flash": "Gemini 1.5 Flash",
+            "gemini-1.5-pro": "Gemini 1.5 Pro",
+        }
+        return model_map.get(self.model_name, f"Gemini ({self.model_name})")
 
 
 # Singleton instance
@@ -518,19 +473,15 @@ def get_ai_player(provider: str = None) -> LLMPlayer:
     Get the singleton AI player instance.
     
     Args:
-        provider: Optional provider override ("anthropic" or "gemini")
+        provider: Optional provider override (ignored, always uses "gemini")
     
     Returns:
         LLMPlayer instance
     """
     global _ai_player
     
-    # Determine provider from environment or default to Gemini (free tier)
-    if provider is None:
-        provider = os.getenv("AI_PROVIDER", "gemini")
-    
     if _ai_player is None:
-        _ai_player = LLMPlayer(provider=provider)
+        _ai_player = LLMPlayer(provider="gemini")
     return _ai_player
 
 
@@ -544,44 +495,27 @@ def get_llm_response(prompt: str, is_json: bool = True, provider: str = None) ->
     Args:
         prompt: The prompt to send to the LLM
         is_json: Whether to expect and parse JSON response (default: True)
-        provider: Optional provider override ("anthropic" or "gemini")
+        provider: Optional provider override (ignored, always uses "gemini")
     
     Returns:
         The LLM response text (parsed from JSON if is_json=True)
     """
     ai_player = get_ai_player(provider)
     
-    # Call the appropriate LLM
-    if ai_player.provider == "anthropic":
-        # For Anthropic, we need to call without system prompt for custom prompts
-        from anthropic import Anthropic
-        client = Anthropic(api_key=ai_player.api_key)
-        message = client.messages.create(
-            model=ai_player.model,
-            max_tokens=2048,  # Allow longer responses for narratives
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.8,  # Higher temperature for more creative narratives
+    # Call Gemini
+    from google import genai
+    from google.genai import types
+    # Create a new client for custom prompts (without system instruction in config)
+    client = genai.Client(api_key=ai_player.api_key)
+    response = client.models.generate_content(
+        model=ai_player.model_name,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.8,  # Higher temperature for creativity
+            max_output_tokens=2048,  # Allow longer responses
         )
-        response_text = message.content[0].text.strip()
-    else:  # gemini
-        from google import genai
-        from google.genai import types
-        # Create a new client for custom prompts (without system instruction in config)
-        client = genai.Client(api_key=ai_player.api_key)
-        response = client.models.generate_content(
-            model=ai_player.model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.8,  # Higher temperature for creativity
-                max_output_tokens=2048,  # Allow longer responses
-            )
-        )
-        response_text = response.text.strip()
+    )
+    response_text = response.text.strip()
     
     if is_json:
         # Parse JSON response
