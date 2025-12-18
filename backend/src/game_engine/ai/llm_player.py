@@ -4,10 +4,14 @@ LLM-powered AI player using Gemini API.
 This module implements an AI player that uses Google's Gemini
 to make strategic decisions in GGLTCG games.
 
+Version 2.1 Changes:
+- Enhanced decision priority to emphasize direct attacks over board building
+
 Version 2.0 Changes:
 - Unified target_id to target_ids (array) for multi-target support (Sun card)
 - Implemented Gemini structured output mode with JSON schema
 - Better error handling and logging
+
 """
 
 import json
@@ -85,9 +89,9 @@ class LLMPlayer:
         
         # Allow model override via environment variable or parameter
         # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
-        # Alternative: gemini-2.5-flash (15 RPM, more stable, better capacity)
         # Alternative: gemini-2.0-flash (10 RPM, stable)
-        default_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
+        # Default: gemini-2.5-flash-lite (15 RPM, production default)
+        default_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
         self.model_name = model or default_model
         
         # Fallback model for capacity issues (configurable via env var)
@@ -456,8 +460,10 @@ class LLMPlayer:
         """
         # Map Gemini models to friendly names
         model_map = {
+            "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite",
+            "gemini-2.0-flash": "Gemini 2.0 Flash",
             "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",
-            "gemini-2.0-flash-exp": "Gemini 2.0 Flash (Experimental)",
+            "gemini-3-flash-preview": "Gemini 3 Flash (Preview)",
             "gemini-1.5-flash": "Gemini 1.5 Flash",
             "gemini-1.5-pro": "Gemini 1.5 Pro",
         }

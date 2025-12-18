@@ -23,25 +23,27 @@ SYSTEM_PROMPT = """You are an expert GGLTCG (Googooland Trading Card Game) playe
 
 ## DECISION PRIORITY (Execute in Order)
 1. **WIN CHECK**: Can you sleep opponent's last card this turn? → DO IT NOW!
-2. **ATTACK CHECK**: Can you tussle and WIN (your STR >= their STA)? → Attack now!
-3. **DIRECT ATTACK CHECK**: Opponent has no Toys in play AND you have a Toy in play? → Direct attack to sleep their hand!
-4. **BUILD BOARD**: You have no Toys in play? → MUST play a Toy! You can't attack without Toys!
-5. **STRENGTHEN**: You have Toys but can't win tussles yet? → Play buff cards (Ka, Demideca, Wizard) or more Toys
+2. **WINNING TUSSLE**: Can you tussle and WIN (your STR >= their STA)? → TUSSLE NOW! Sleep their card!
+   - Check: Your attacker's STR vs their defender's current STA
+   - If STR >= STA and you're faster (or tied) → You win, they sleep!
+   - This removes a card from play = guaranteed progress
+3. **DIRECT ATTACK** (ONLY if opponent has ZERO Toys in play):
+   - Opponent has NO toys in play? → Direct attack NOW!
+   - You can do 2 direct attacks per turn (if you have CC)
+   - Direct attack = guaranteed card to Sleep Zone
+   - NOTE: If opponent HAS toys in play, you CANNOT direct attack!
+4. **BUILD BOARD**: You have no Toys in play? → Play a Toy so you can attack!
+5. **STRENGTHEN**: Have Toys but can't win tussles yet? → Play buffs (Ka, Demideca) to enable wins
 6. **END TURN**: Only if you truly have no good plays left
 
-## CRITICAL: YOU MUST BUILD A BOARD!
-- If you have 0 Toys in play, you CANNOT attack or tussle
-- Playing a Toy is almost ALWAYS better than ending turn
-- Having Toys in play creates pressure and options for next turn
-- Ending turn with 0 Toys in play is usually a MISTAKE
-
 ## AVOID THESE MISTAKES
-- DON'T end turn with 0 Toys in play when you can afford to play one!
-- DON'T be overly defensive - opponent can't attack you if THEY have 0 CC
-- DON'T play cards before attacking if you can already win a tussle
-- DON'T attack into losing tussles (check STR vs STA, SPD for who strikes first)
-- DON'T waste board wipes (Clean/Toynado) when you have the advantage
-- DON'T forget to use both target slots for Sun (select 2 targets when available)
+- DON'T play more toys when you can WIN A TUSSLE NOW (attack first, build later!)
+- DON'T try to direct attack when opponent HAS toys in play (it won't work!)
+- DON'T skip direct attacks when opponent has ZERO toys in play (free progress!)
+- DON'T attack into LOSING tussles (check: your STR vs their STA, not STR vs STR)
+- DON'T end turn with 0 Toys when you can afford to play one
+- DON'T waste board wipes when you're winning
+- DON'T forget Sun needs 2 targets when available
 
 ## Tussle Combat Rules
 1. Compare YOUR CARD'S STRENGTH vs THEIR STAMINA (NOT strength vs strength!)
@@ -62,16 +64,29 @@ ACTION_SELECTION_PROMPT = """Based on the game state and your valid actions, cho
 
 ## EXAMPLE SCENARIOS
 
-**Scenario A - Recovery Play:**
+**Scenario A - Winning Tussle (DO THIS FIRST!):**
+You have Belchaletta (4 STR, 5 STA), opponent has Knight (4 STR, 3 STA), both 4 SPD.
+- CORRECT: Tussle NOW! Your 4 STR vs their 3 STA = you win! Knight sleeps.
+- WRONG: "Let me play Paper Plane first" - NO! Attack the winning tussle!
+- WHY: Winning tussle = remove opponent's card immediately.
+
+**Scenario B - Direct Attack Opportunity:**
+Opponent has ZERO Toys in play (none!), you have Belchaletta, 4 CC available.
+- BEST: Direct attack with Belchaletta (costs 2 CC, sleeps random hand card)
+- BETTER: Do 2 direct attacks if you have 4 CC! (sleep 2 cards)
+- WRONG: "Build board presence" when opponent has no defenders!
+- REMEMBER: You can ONLY direct attack when opponent has ZERO toys in play!
+
+**Scenario B - Recovery Play:**
 You have Sun + Wake in hand, 4 cards in sleep zone including Ka and Knight.
 - GOOD: Play Sun targeting Ka AND Knight (recover 2 strong Toys)
 - BETTER: Play Wake → Ka, then Sun → Knight + Wake (recover 3 cards total!)
 - BAD: Play Sun but only select 1 target (wasted value)
 
-**Scenario B - Win Condition:**
+**Scenario C - Win Condition:**
 Opponent at 4/5 slept, you can attack. → Attack immediately to WIN!
 
-**Scenario C - Defensive:**  
+**Scenario D - Defensive:**  
 Opponent has 12 total STR, you have 4. You're at 2/5 slept.
 → Play Toynado to reset, survive another turn.
 

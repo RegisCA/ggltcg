@@ -198,8 +198,8 @@ const AdminDataViewer: React.FC = () => {
   
   // Simulation state
   const [selectedDecks, setSelectedDecks] = useState<string[]>([]);
-  const [player1Model, setPlayer1Model] = useState('gemini-2.0-flash');
-  const [player2Model, setPlayer2Model] = useState('gemini-2.5-flash');
+  const [player1Model, setPlayer1Model] = useState('gemini-2.5-flash-lite');
+  const [player2Model, setPlayer2Model] = useState('gemini-2.0-flash');
   const [iterationsPerMatchup, setIterationsPerMatchup] = useState(10);
   const [isRunningSimulation, setIsRunningSimulation] = useState(false);
   const [activeRunId, setActiveRunId] = useState<number | null>(null);
@@ -278,6 +278,16 @@ const AdminDataViewer: React.FC = () => {
     queryKey: ['simulation-decks'],
     queryFn: async () => {
       const response = await axios.get(`${API_BASE_URL}/admin/simulation/decks`);
+      return response.data;
+    },
+    enabled: activeTab === 'simulation',
+  });
+
+  // Fetch supported models
+  const { data: supportedModels } = useQuery<string[]>({
+    queryKey: ['simulation-models'],
+    queryFn: async () => {
+      const response = await axios.get(`${API_BASE_URL}/admin/simulation/models`);
       return response.data;
     },
     enabled: activeTab === 'simulation',
@@ -978,10 +988,9 @@ const AdminDataViewer: React.FC = () => {
                       className="w-full bg-gray-900 border border-gray-600 rounded text-white"
                       style={{ padding: 'var(--spacing-component-sm)' }}
                     >
-                      <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                      <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                      {supportedModels?.map(model => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -994,10 +1003,9 @@ const AdminDataViewer: React.FC = () => {
                       className="w-full bg-gray-900 border border-gray-600 rounded text-white"
                       style={{ padding: 'var(--spacing-component-sm)' }}
                     >
-                      <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                      <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                      {supportedModels?.map(model => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
