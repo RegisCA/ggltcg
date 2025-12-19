@@ -78,11 +78,13 @@ class PlannedAction(BaseModel):
     )
     cc_cost: int = Field(
         ...,
+        ge=0,
         description="CC cost for this action (0 for free cards, 2 for standard tussle)"
     )
     cc_after: int = Field(
         ...,
-        description="Expected CC remaining after this action completes"
+        ge=0,
+        description="Expected CC remaining after this action. Formula: cc_before - cc_cost + cc_gained"
     )
     reasoning: str = Field(
         ...,
@@ -152,7 +154,8 @@ class TurnPlan(BaseModel):
     # Overall reasoning
     plan_reasoning: str = Field(
         ...,
-        description="High-level explanation of why this plan was selected over alternatives"
+        description="Brief (1-3 sentences) explanation of why this plan was selected. Do NOT repeat analysis.",
+        max_length=500
     )
 
 
@@ -215,11 +218,13 @@ TURN_PLAN_JSON_SCHEMA = {
                     },
                     "cc_cost": {
                         "type": "integer",
-                        "description": "CC cost for this action"
+                        "description": "CC cost for this action",
+                        "minimum": 0
                     },
                     "cc_after": {
                         "type": "integer",
-                        "description": "Expected CC remaining after this action"
+                        "description": "Expected CC remaining after this action. MUST be >= 0. Formula: cc_before - cc_cost + cc_gained (Surge +1, Rush +2)",
+                        "minimum": 0
                     },
                     "reasoning": {
                         "type": "string",
@@ -248,7 +253,8 @@ TURN_PLAN_JSON_SCHEMA = {
         },
         "plan_reasoning": {
             "type": "string",
-            "description": "Why this plan was selected"
+            "description": "Brief (1-3 sentences) explanation of why this plan was selected. Do NOT repeat analysis.",
+            "maxLength": 500
         }
     },
     "required": [

@@ -15,7 +15,7 @@ Key responsibilities:
 import json
 import logging
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Set
 
 from game_engine.models.game_state import GameState
 from .prompts import (
@@ -23,11 +23,14 @@ from .prompts import (
     PlannedAction,
     TURN_PLAN_JSON_SCHEMA,
     PROMPTS_VERSION,
-    get_planning_prompt,
-    format_hand_for_planning,
-    format_in_play_for_planning,
     format_sleep_zone_for_planning,
     format_game_state_for_ai,
+)
+from .prompts.planning_prompt_v2 import (
+    get_planning_prompt_v2,
+    format_hand_for_planning_v2,
+    format_in_play_for_planning_v2,
+    collect_card_names,
 )
 
 logger = logging.getLogger(__name__)
@@ -86,30 +89,37 @@ class TurnPlanner:
         # Format game state for the prompt
         game_state_text = format_game_state_for_ai(game_state, player_id, game_engine)
         
-        # Format detailed card information with IDs
-        hand_details = format_hand_for_planning(ai_player.hand, game_engine)
+        # Format detailed card information with IDs (v2 compact format)
+        hand_details = format_hand_for_planning_v2(ai_player.hand, game_engine, player=ai_player)
         
         # Combine AI's in-play cards with opponent's for context
-        ai_in_play = format_in_play_for_planning(ai_player.in_play, game_engine, is_opponent=False)
-        opp_in_play = format_in_play_for_planning(opponent.in_play, game_engine, is_opponent=True)
+        ai_in_play = format_in_play_for_planning_v2(ai_player.in_play, game_engine, player=ai_player)
+        opp_in_play = format_in_play_for_planning_v2(opponent.in_play, game_engine, player=opponent)
         
-        in_play_details = f"""### Your Toys in Play:
+        in_play_details = f"""**Your Toys:**
 {ai_in_play}
 
-### Opponent's Cards in Play (THREATS):
+**Opponent's Toys (THREATS):**
 {opp_in_play}
 
-### Your Sleep Zone:
-{format_sleep_zone_for_planning(ai_player.sleep_zone)}
-
-### Opponent's Sleep Zone:
-{format_sleep_zone_for_planning(opponent.sleep_zone)}"""
+**Your Sleep Zone:** {format_sleep_zone_for_planning(ai_player.sleep_zone)}
+**Opponent's Sleep Zone:** {format_sleep_zone_for_planning(opponent.sleep_zone)}"""
         
-        # Generate the planning prompt
-        prompt = get_planning_prompt(game_state_text, hand_details, in_play_details)
+        # Collect card names for dynamic documentation (only include what's relevant)
+        card_names_in_game = collect_card_names(
+            ai_player.hand,
+            ai_player.in_play,
+            opponent.in_play,
+            opponent.sleep_zone  # Include opponent's sleep zone for context
+        )
+        
+        # Generate the compact v2 planning prompt
+        prompt = get_planning_prompt_v2(
+            game_state_text, hand_details, in_play_details, card_names_in_game
+        )
         self._last_prompt = prompt
         
-        logger.debug(f"Planning prompt:\n{prompt}")
+        logger.debug(f"Planning prompt ({len(prompt)} chars):\n{prompt}")
         
         try:
             # Call LLM to generate plan

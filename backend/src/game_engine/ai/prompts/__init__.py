@@ -10,6 +10,7 @@ Split into logical submodules for maintainability:
 - formatters.py: Functions to format game state and actions for AI
 - narrative.py: Prompts for generating story narratives
 - planning_prompt.py: v3 turn planning framework prompt (4-phase)
+- execution_prompt.py: v3 action execution prompt (plan → action matching)
 """
 
 from .schemas import (
@@ -40,6 +41,13 @@ from .planning_prompt import (
     THREAT_PRIORITIES,
     CC_COST_REFERENCE,
 )
+from .execution_prompt import (
+    get_execution_prompt,
+    get_replan_prompt,
+    find_matching_action_index,
+    extract_target_from_action,
+    EXECUTION_JSON_SCHEMA,
+)
 
 __all__ = [
     # Schemas (v2.x)
@@ -69,4 +77,10 @@ __all__ = [
     "format_sleep_zone_for_planning",
     "THREAT_PRIORITIES",
     "CC_COST_REFERENCE",
+    # v3 Execution
+    "get_execution_prompt",
+    "get_replan_prompt",
+    "find_matching_action_index",
+    "extract_target_from_action",
+    "EXECUTION_JSON_SCHEMA",
 ]
