@@ -23,10 +23,15 @@ from conftest import create_game_with_cards, create_basic_game, create_card
 from game_engine.models.card import Zone
 
 
-# Skip all tests if no API key (CI environment)
+# Skip all tests if no valid API key (CI environment uses dummy key)
+def _has_valid_api_key():
+    key = os.environ.get("GOOGLE_API_KEY", "")
+    # CI uses "dummy_key" which is not a valid key
+    return key and not key.startswith("dummy") and len(key) > 20
+
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("GOOGLE_API_KEY"),
-    reason="GOOGLE_API_KEY not set - skipping LLM tests"
+    not _has_valid_api_key(),
+    reason="Valid GOOGLE_API_KEY not set - skipping LLM tests"
 )
 
 
