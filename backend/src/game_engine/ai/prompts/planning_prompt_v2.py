@@ -11,7 +11,7 @@ Based on Gemini 3 Flash analysis with critical mechanics restored:
 Target: ~60% reduction from original while keeping decision quality
 """
 
-from typing import List, Optional, Set
+from typing import Set
 from .card_library import CARD_EFFECTS_LIBRARY
 
 
@@ -334,9 +334,6 @@ def get_planning_prompt_v2(
 
 def format_card_for_planning(card, game_engine=None, player=None, is_opponent: bool = False) -> str:
     """Format a single card with full details for planning."""
-    card_info = CARD_EFFECTS_LIBRARY.get(card.name, {})
-    effect = card_info.get("effect", "")
-    
     # Calculate effective cost
     if game_engine and player and card.cost >= 0:
         effective_cost = game_engine.calculate_card_cost(card, player)
@@ -348,12 +345,10 @@ def format_card_for_planning(card, game_engine=None, player=None, is_opponent: b
             spd = game_engine.get_card_stat(card, "speed")
             str_val = game_engine.get_card_stat(card, "strength")
             cur_sta = game_engine.get_effective_stamina(card)
-            max_sta = game_engine.get_card_stat(card, "stamina")
         else:
             spd = card.get_effective_speed()
             str_val = card.get_effective_strength()
             cur_sta = card.get_effective_stamina()
-            max_sta = card.stamina + card.modifications.get("stamina", 0)
         
         return f"[ID: {card.id}] {card.name} (cost {effective_cost}, {spd}/{str_val}/{cur_sta} STA)"
     else:

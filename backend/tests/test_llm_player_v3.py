@@ -5,13 +5,11 @@ Tests the full flow: plan creation -> action execution -> action matching.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
-from game_engine.ai.llm_player import LLMPlayer, LLMPlayerV3, get_ai_player, get_ai_player_v3
+from game_engine.ai.llm_player import LLMPlayer, LLMPlayerV3, get_ai_player_v3
 from game_engine.ai.prompts.schemas import TurnPlan, PlannedAction
 from game_engine.models.game_state import GameState
-from game_engine.models.card import Card
-from game_engine.game_engine import GameEngine
 from api.schemas import ValidAction
 
 
@@ -352,8 +350,6 @@ class TestV3Integration:
     
     def test_full_turn_flow(self):
         """Test complete turn: plan -> execute -> match."""
-        player = get_ai_player_v3()
-        
         # This would need a real game state and engine
         # Skipped by default, can be run manually for integration testing
-        pass
+        pytest.skip("Integration test requires real game state - run manually")

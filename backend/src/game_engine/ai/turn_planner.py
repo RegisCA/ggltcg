@@ -15,7 +15,7 @@ Key responsibilities:
 import json
 import logging
 import time
-from typing import Optional, Dict, Any, Set
+from typing import Optional, Dict, Any
 
 from game_engine.models.game_state import GameState
 from .prompts import (
@@ -208,9 +208,9 @@ class TurnPlanner:
                         logger.warning(f"API capacity issue. Retry {attempt + 1}/{retry_count} after {wait_time}s...")
                         time.sleep(wait_time)
                         continue
-                    elif allow_fallback and current_model != self.fallback_model:
+                    elif allow_fallback:
                         logger.warning(f"Switching to fallback model: {self.fallback_model}")
-                        current_model = self.fallback_model
+                        _current_model = self.fallback_model  # noqa: F841 - assigned for potential future use
                         return self._call_planning_api(prompt, retry_count=1, allow_fallback=False)
                 
                 raise last_exception
@@ -322,7 +322,7 @@ class TurnPlanner:
         ai_sleep_ids = {card.id for card in ai_player.sleep_zone}
         opp_in_play_ids = {card.id for card in opponent.in_play}
         
-        all_ai_ids = ai_hand_ids | ai_in_play_ids | ai_sleep_ids
+        _all_ai_ids = ai_hand_ids | ai_in_play_ids | ai_sleep_ids  # noqa: F841 - reserved for future validation
         all_targetable_ids = ai_in_play_ids | opp_in_play_ids | ai_sleep_ids
         
         for i, action in enumerate(plan.action_sequence):

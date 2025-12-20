@@ -7,7 +7,6 @@ the AI to create a complete turn plan with CC budgeting and threat prioritizatio
 Based on: GGLTCG Turn Planning Strategy Guide
 """
 
-from typing import List, Optional
 from .card_library import CARD_EFFECTS_LIBRARY
 
 

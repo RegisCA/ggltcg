@@ -12,15 +12,13 @@ Run with: pytest tests/test_turn_planner.py -v
 
 import pytest
 import os
-import json
 from pathlib import Path
 
 # Add backend/src to path
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from conftest import create_game_with_cards, create_basic_game, create_card
-from game_engine.models.card import Zone
+from conftest import create_game_with_cards
 
 
 # Skip all tests if no valid API key (CI environment uses dummy key)
@@ -376,13 +374,13 @@ class TestTurnPlannerCCBudgeting:
         print("SURGE CC GENERATION TEST:")
         print(f"Starting CC: {plan.cc_start}")
         
-        surge_found = False
+        _surge_found = False
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
             print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
             
             if action.card_name == "Surge":
-                surge_found = True
+                _surge_found = True  # noqa: F841 - flag for debugging output
                 # Surge costs 0 but gives +1, so cc_after should be cc_before + 1
                 # We check that cc_after > cc_cost (meaning CC was gained)
                 print(f"      >>> SURGE: Expected cc_after >= {action.cc_cost} (got {action.cc_after})")
@@ -417,14 +415,14 @@ class TestTurnPlannerCCBudgeting:
         print(f"Starting CC: {plan.cc_start}")
         print(f"Turn number: {setup.game_state.turn_number}")
         
-        raggy_tussle_found = False
+        _raggy_tussle_found = False
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
             print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
             
             # Check if Raggy is tussling
             if action.action_type == "tussle" and action.card_name == "Raggy":
-                raggy_tussle_found = True
+                _raggy_tussle_found = True  # noqa: F841 - flag for debugging output
                 print(f"      >>> RAGGY TUSSLE: Expected 0 CC (got {action.cc_cost})")
                 assert action.cc_cost == 0, f"Raggy tussle should cost 0 CC, got {action.cc_cost}"
         
@@ -453,13 +451,13 @@ class TestTurnPlannerCCBudgeting:
         print(f"Starting CC: {plan.cc_start}")
         print("Wizard in play = tussles should cost 1 CC instead of 2 CC")
         
-        tussle_found = False
+        _tussle_found = False
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
             print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
             
             if action.action_type == "tussle":
-                tussle_found = True
+                _tussle_found = True  # noqa: F841 - flag for debugging output
                 print(f"      >>> TUSSLE WITH WIZARD: Expected 1 CC (got {action.cc_cost})")
                 # Note: This is aspirational - model should recognize Wizard effect
         

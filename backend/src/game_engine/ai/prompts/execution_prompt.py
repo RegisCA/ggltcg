@@ -11,7 +11,7 @@ The execution prompt is simpler than planning - it just needs to:
 3. Handle edge cases (plan invalid, action not available)
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from .schemas import PlannedAction, TurnPlan
 
 
@@ -206,7 +206,7 @@ def find_matching_action_index(
     """
     action_type = planned_action.action_type
     card_name = planned_action.card_name
-    card_id = planned_action.card_id
+    _card_id = planned_action.card_id  # Reserved for future card ID matching
     
     for i, action in enumerate(valid_actions):
         desc_lower = action.description.lower()
