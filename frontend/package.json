@@ -13,7 +13,7 @@
     "@react-oauth/google": "^0.12.1",
     "@sentry/react": "^10.29.0",
     "@tanstack/react-query": "^5.90.11",
-    "@vercel/analytics": "^1.5.0",
+    "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^1.2.0",
     "axios": "^1.13.2",
     "framer-motion": "^12.23.24",
