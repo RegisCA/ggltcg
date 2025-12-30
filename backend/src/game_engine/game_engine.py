@@ -60,8 +60,9 @@ class GameEngine:
         Start a new turn.
         
         Phase 1 - Start of Turn:
-        1. Gain 4 CC (or 2 CC on Turn 1 for starting player)
-        2. Resolve "at start of turn" effects (e.g., Belchaletta)
+        1. Initialize CC tracking for this turn
+        2. Gain 4 CC (or 2 CC on Turn 1 for starting player)
+        3. Resolve "at start of turn" effects (e.g., Belchaletta)
         """
         player = self.game_state.get_active_player()
         self.game_state.phase = Phase.START
@@ -69,12 +70,20 @@ class GameEngine:
         # Reset turn counters
         player.reset_turn_counters()
         
+        # Initialize CC tracking BEFORE any CC changes
+        self.game_state.start_turn_cc_tracking()
+        
         # Determine CC gain
         # Only turn 1 gets 2 CC, all other turns get 4 CC
         cc_gain = 2 if self.game_state.turn_number == 1 else 4
         
         # Gain CC (respects 7 CC cap)
+        cc_before = player.cc
         player.gain_cc(cc_gain)
+        actual_gain = player.cc - cc_before
+        
+        # Record the CC gained from turn start
+        self.game_state.record_cc_gained(actual_gain)
         
         self.game_state.log_event(
             f"{player.name} gains {cc_gain} CC (now has {player.cc} CC)"
@@ -105,7 +114,13 @@ class GameEngine:
                 if isinstance(effect, TriggeredEffect):
                     if effect.trigger == TriggerTiming.START_OF_TURN:
                         if effect.should_trigger(self.game_state):
+                            # Track CC before effect for triggered effects that gain CC
+                            cc_before = player.cc
                             effect.apply(self.game_state, player=player, game_engine=self)
+                            cc_after = player.cc
+                            # Record any CC gained from the effect
+                            if cc_after > cc_before:
+                                self.game_state.record_cc_gained(cc_after - cc_before)
                             # Log the trigger
                             self.game_state.log_event(
                                 f"{card.name}'s start-of-turn effect triggered"
@@ -116,12 +131,16 @@ class GameEngine:
         End the current turn.
         
         Phase 3 - End of Turn:
-        1. Resolve "at end of turn" effects
-        2. Pass turn to opponent
-        3. Increment turn number
+        1. Finalize CC tracking for this turn
+        2. Resolve "at end of turn" effects
+        3. Pass turn to opponent
+        4. Increment turn number
         """
         player = self.game_state.get_active_player()
         self.game_state.phase = Phase.END
+        
+        # Finalize CC tracking before switching players
+        self.game_state.finalize_turn_cc_tracking()
         
         self.game_state.log_event(f"{player.name} ends their turn")
         
