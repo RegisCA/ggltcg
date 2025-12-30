@@ -494,6 +494,7 @@ class GameService:
                 play_by_play=game_state.play_by_play,
                 turn_count=game_state.turn_number,
                 game_started_at=game_started_at,
+                cc_tracking=[r.to_dict() for r in game_state.cc_history],
             )
         except Exception as e:
             logger.error(f"Failed to save game playback: {e}")

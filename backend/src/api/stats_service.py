@@ -128,6 +128,7 @@ class StatsService:
         play_by_play: list[dict],
         turn_count: int,
         game_started_at: Optional[datetime] = None,
+        cc_tracking: Optional[list[dict]] = None,
     ) -> None:
         """
         Record a completed game for playback and analysis.
@@ -145,6 +146,7 @@ class StatsService:
             play_by_play: List of play-by-play entries
             turn_count: Total number of turns
             game_started_at: When the game was created (for duration calculation)
+            cc_tracking: List of per-turn CC tracking records (Issue #252)
         """
         if not self.use_database:
             logger.debug(f"Game playback recorded (no-db): game={game_id}")
@@ -176,6 +178,7 @@ class StatsService:
                 first_player_id=first_player_id,
                 play_by_play=play_by_play,
                 turn_count=turn_count,
+                cc_tracking=cc_tracking,
                 completed_at=datetime.now(timezone.utc),
             )
             # Set created_at to game start time if provided (for duration calculation)

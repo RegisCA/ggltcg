@@ -202,6 +202,7 @@ async def get_game_playback(
         "starting_deck_p2": game.starting_deck_p2,
         "play_by_play": game.play_by_play,
         "turn_count": game.turn_count,
+        "cc_tracking": game.cc_tracking,
         "created_at": game.created_at.isoformat(),
         "completed_at": game.completed_at.isoformat() if game.completed_at else None,
     }

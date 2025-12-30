@@ -14,6 +14,45 @@ class Phase(Enum):
 
 
 @dataclass
+class TurnCCRecord:
+    """
+    CC tracking for a single turn.
+    
+    Records CC state at the start and end of a turn, along with
+    CC gained and spent during the turn.
+    """
+    turn: int
+    player_id: str
+    cc_start: int  # CC at start of turn
+    cc_gained: int  # CC gained during turn (from effects, start of turn, etc.)
+    cc_spent: int  # CC spent during turn
+    cc_end: int  # CC at end of turn
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "turn": self.turn,
+            "player_id": self.player_id,
+            "cc_start": self.cc_start,
+            "cc_gained": self.cc_gained,
+            "cc_spent": self.cc_spent,
+            "cc_end": self.cc_end,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'TurnCCRecord':
+        """Create from dictionary."""
+        return cls(
+            turn=data["turn"],
+            player_id=data["player_id"],
+            cc_start=data["cc_start"],
+            cc_gained=data["cc_gained"],
+            cc_spent=data["cc_spent"],
+            cc_end=data["cc_end"],
+        )
+
+
+@dataclass
 class GameState:
     """
     Represents the complete state of a game.
@@ -29,6 +68,7 @@ class GameState:
         game_log: List of game events for history
         play_by_play: List of detailed action records for end-game summary
         starting_decks: Dict mapping player_id to list of card names at game start
+        cc_history: List of CC tracking records per turn
     """
     game_id: str
     players: Dict[str, Player]
@@ -40,6 +80,10 @@ class GameState:
     game_log: List[str] = field(default_factory=list)
     play_by_play: List[Dict[str, Any]] = field(default_factory=list)
     starting_decks: Dict[str, List[str]] = field(default_factory=dict)
+    cc_history: List[TurnCCRecord] = field(default_factory=list)
+    # Internal: CC tracking for current turn (not serialized)
+    _turn_cc_snapshot: int = field(default=0, repr=False)
+    _turn_cc_gained: int = field(default=0, repr=False)
     
     def get_active_player(self) -> Player:
         """Get the active player object."""
@@ -75,6 +119,103 @@ class GameState:
     def log_event(self, message: str):
         """Add an event to the game log."""
         self.game_log.append(f"Turn {self.turn_number} ({self.phase.value}): {message}")
+    
+    # ========================================================================
+    # CC TRACKING (simple design - only 3 method calls per turn)
+    # ========================================================================
+    
+    def start_turn_cc_tracking(self) -> None:
+        """
+        Initialize CC tracking at turn start (BEFORE any CC gains).
+        
+        Called once at the very beginning of start_turn().
+        """
+        player = self.get_active_player()
+        self._turn_cc_snapshot = player.cc
+        self._turn_cc_gained = 0
+    
+    def record_cc_gained(self, amount: int) -> None:
+        """
+        Record CC gained during the current turn.
+        
+        Called when CC is gained from:
+        - Turn start (2 or 4 CC)
+        - Effects (e.g., Belchaletta's +2 CC)
+        
+        Args:
+            amount: Amount of CC gained
+        """
+        self._turn_cc_gained += amount
+    
+    def finalize_turn_cc_tracking(self) -> None:
+        """
+        Record CC tracking for the completed turn.
+        
+        Called at end of turn. Calculates cc_spent from the difference:
+        cc_spent = cc_start + cc_gained - cc_end
+        """
+        player = self.get_active_player()
+        cc_end = player.cc
+        cc_start = self._turn_cc_snapshot
+        cc_gained = self._turn_cc_gained
+        # Simple math: what we started with + what we gained - what we have = what we spent
+        cc_spent = max(0, cc_start + cc_gained - cc_end)
+        
+        record = TurnCCRecord(
+            turn=self.turn_number,
+            player_id=self.active_player_id,
+            cc_start=cc_start,
+            cc_gained=cc_gained,
+            cc_spent=cc_spent,
+            cc_end=cc_end,
+        )
+        self.cc_history.append(record)
+    
+    def get_cc_efficiency(self, player_id: str) -> Dict[str, Any]:
+        """
+        Calculate CC efficiency metrics for a player.
+        
+        Args:
+            player_id: Player to calculate efficiency for
+            
+        Returns:
+            Dictionary with:
+            - total_cc_spent: Total CC spent by this player
+            - total_cc_gained: Total CC gained by this player
+            - opponent_cards_slept: Number of opponent cards in sleep zone
+            - cc_per_card_slept: CC efficiency (None if 0 cards slept)
+        """
+        # Calculate totals from CC history
+        total_cc_spent = sum(
+            record.cc_spent 
+            for record in self.cc_history 
+            if record.player_id == player_id
+        )
+        total_cc_gained = sum(
+            record.cc_gained 
+            for record in self.cc_history 
+            if record.player_id == player_id
+        )
+        
+        # Count opponent cards slept
+        opponent = self.get_opponent(player_id)
+        opponent_cards_slept = len(opponent.sleep_zone)
+        
+        # Calculate efficiency
+        cc_per_card_slept = None
+        if opponent_cards_slept > 0:
+            cc_per_card_slept = round(total_cc_spent / opponent_cards_slept, 2)
+        
+        return {
+            "total_cc_spent": total_cc_spent,
+            "total_cc_gained": total_cc_gained,
+            "opponent_cards_slept": opponent_cards_slept,
+            "cc_per_card_slept": cc_per_card_slept,
+        }
+    
+    # ========================================================================
+    # PLAY-BY-PLAY
+    # ========================================================================
     
     def add_play_by_play(
         self,
@@ -351,11 +492,16 @@ class GameState:
             },
             "game_log": self.game_log[-20:],  # Last 20 events only
             "play_by_play": self.play_by_play,  # Full play-by-play for victory screen
+            "cc_history": [record.to_dict() for record in self.cc_history],
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'GameState':
         """Deserialize game state from dictionary."""
+        cc_history = [
+            TurnCCRecord.from_dict(record) 
+            for record in data.get("cc_history", [])
+        ]
         return cls(
             game_id=data["game_id"],
             players={
@@ -369,4 +515,5 @@ class GameState:
             winner_id=data.get("winner_id"),
             game_log=data.get("game_log", []),
             play_by_play=data.get("play_by_play", []),
+            cc_history=cc_history,
         )

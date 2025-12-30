@@ -310,6 +310,10 @@ class GamePlaybackModel(Base):
     play_by_play = Column(JSONType, nullable=False)  # List of action entries
     turn_count = Column(Integer, nullable=False)
     
+    # CC tracking per turn (Issue #252)
+    # List of {turn, player_id, cc_start, cc_gained, cc_spent, cc_end}
+    cc_tracking = Column(JSONType, nullable=True)
+    
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
