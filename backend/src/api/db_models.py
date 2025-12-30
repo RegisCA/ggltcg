@@ -244,6 +244,13 @@ class AIDecisionLogModel(Base):
     
     Stores Gemini prompts and responses for debugging AI behavior.
     Retention: 6 hours (cleaned up by scheduled task).
+    
+    v3 additions (Issue #260):
+    - ai_version: Which AI version (2 or 3)
+    - turn_plan: Full TurnPlan JSON for v3 (logged once per turn)
+    - plan_execution_status: "complete", "partial", "fallback"
+    - fallback_reason: Why fallback occurred (if any)
+    - planned_action_index: Which action in the plan this log represents
     """
     __tablename__ = "ai_decision_logs"
     
@@ -267,6 +274,13 @@ class AIDecisionLogModel(Base):
     action_number = Column(Integer, nullable=True)
     reasoning = Column(Text, nullable=True)
     
+    # v3 Turn Planning fields (Issue #260)
+    ai_version = Column(Integer, nullable=True, default=2)  # 2 or 3
+    turn_plan = Column(JSONType, nullable=True)  # Full TurnPlan JSON for v3
+    plan_execution_status = Column(String(20), nullable=True)  # "complete", "partial", "fallback"
+    fallback_reason = Column(Text, nullable=True)  # Why fallback occurred
+    planned_action_index = Column(Integer, nullable=True)  # Which action in the plan (0-based)
+    
     # Timestamp for retention cleanup
     created_at = Column(
         DateTime(timezone=True),
@@ -276,7 +290,7 @@ class AIDecisionLogModel(Base):
     )
     
     def __repr__(self):
-        return f"<AIDecisionLog(id={self.id}, game_id={self.game_id}, turn={self.turn_number})>"
+        return f"<AIDecisionLog(id={self.id}, game_id={self.game_id}, turn={self.turn_number}, v={self.ai_version})>"
 
 
 class GamePlaybackModel(Base):

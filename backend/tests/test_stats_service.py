@@ -240,3 +240,115 @@ class TestStatsServiceSingleton:
         service2 = get_stats_service()
         
         assert service1 is service2
+
+
+class TestV3AILogging:
+    """Tests for v3 AI logging fields."""
+    
+    def test_log_ai_decision_with_v3_fields_no_db(self):
+        """Test that logging with v3 fields works without database."""
+        from api.stats_service import StatsService
+        
+        service = StatsService(use_database=False)
+        
+        v3_plan = {
+            "strategy": "aggressive",
+            "action_sequence": [
+                {"action_number": 1, "card_name": "Knight", "action": "play"},
+                {"action_number": 2, "card_name": "Knight", "action": "attack"},
+            ],
+            "cc_start": 5,
+            "cc_after_plan": 2,
+            "expected_cards_slept": 3,
+            "cc_efficiency": 1.0,
+            "current_action": 0,
+        }
+        
+        # Should not raise even without database
+        service.log_ai_decision(
+            game_id=str(uuid.uuid4()),
+            turn_number=1,
+            player_id="ai-player-1",
+            model_name="gemini-2.0-flash",
+            prompts_version="1.0",
+            prompt="Test prompt",
+            response='{"action_number": 1, "reasoning": "Test"}',
+            action_number=1,
+            reasoning="[v3 Plan] Test strategy",
+            # V3 fields
+            ai_version=3,
+            turn_plan=v3_plan,
+            plan_execution_status="complete",
+            fallback_reason=None,
+            planned_action_index=0,
+        )
+    
+    def test_log_ai_decision_v3_fallback_no_db(self):
+        """Test that logging v3 fallback works without database."""
+        from api.stats_service import StatsService
+        
+        service = StatsService(use_database=False)
+        
+        v3_plan = {
+            "strategy": "aggressive",
+            "action_sequence": [
+                {"action_number": 1, "card_name": "Knight", "action": "play"},
+            ],
+            "current_action": 0,
+        }
+        
+        # Should not raise even without database
+        service.log_ai_decision(
+            game_id=str(uuid.uuid4()),
+            turn_number=1,
+            player_id="ai-player-1",
+            model_name="gemini-2.0-flash",
+            prompts_version="1.0",
+            prompt="Test prompt",
+            response='{"action_number": 1, "reasoning": "Fallback action"}',
+            action_number=1,
+            reasoning="[v3 Fallback] Plan failed: Invalid target",
+            # V3 fields
+            ai_version=3,
+            turn_plan=v3_plan,
+            plan_execution_status="fallback",
+            fallback_reason="Invalid target",
+            planned_action_index=0,
+        )
+    
+    def test_ai_decision_log_model_has_v3_fields(self):
+        """Test that AIDecisionLogModel has v3 fields defined."""
+        from api.db_models import AIDecisionLogModel
+        
+        # Check v3 columns exist
+        columns = [col.name for col in AIDecisionLogModel.__table__.columns]
+        
+        assert "ai_version" in columns, "ai_version column missing"
+        assert "turn_plan" in columns, "turn_plan column missing"
+        assert "plan_execution_status" in columns, "plan_execution_status column missing"
+        assert "fallback_reason" in columns, "fallback_reason column missing"
+        assert "planned_action_index" in columns, "planned_action_index column missing"
+    
+    def test_v3_migration_file_exists(self):
+        """Test that v3 migration file exists."""
+        migration_path = Path(__file__).parent.parent / "alembic" / "versions" / "011_add_v3_fields_to_ai_decision_logs.py"
+        assert migration_path.exists(), f"Migration file not found at {migration_path}"
+    
+    def test_v3_migration_imports(self):
+        """Test that v3 migration can be imported."""
+        import importlib.util
+        migration_path = Path(__file__).parent.parent / "alembic" / "versions" / "011_add_v3_fields_to_ai_decision_logs.py"
+        
+        spec = importlib.util.spec_from_file_location("migration_011", str(migration_path))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        # Check revision info
+        assert module.revision == "011"
+        assert module.down_revision == "010"
+        
+        # Check upgrade and downgrade functions exist
+        assert hasattr(module, "upgrade")
+        assert hasattr(module, "downgrade")
+        assert callable(module.upgrade)
+        assert callable(module.downgrade)
