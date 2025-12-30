@@ -4,6 +4,11 @@ LLM-powered AI player using Gemini API.
 This module implements an AI player that uses Google's Gemini
 to make strategic decisions in GGLTCG games.
 
+Version 3.0 Changes:
+- Two-phase architecture: Plan entire turn first, then execute actions
+- CC budgeting and efficiency tracking
+- Action ordering optimization (HLK, Surge, VVAJ combos)
+
 Version 2.1 Changes:
 - Enhanced decision priority to emphasize direct attacks over board building
 
@@ -37,6 +42,19 @@ except ImportError:
 from .prompts import SYSTEM_PROMPT, get_ai_turn_prompt, PROMPTS_VERSION, AI_DECISION_JSON_SCHEMA
 from game_engine.models.game_state import GameState
 from api.schemas import ValidAction
+
+
+# AI Version Configuration
+# Set AI_VERSION=3 to enable turn planning (v3)
+# Default is v2 (per-action decisions)
+def get_default_ai_version() -> int:
+    """Get the default AI version from environment."""
+    version_str = os.getenv("AI_VERSION", "2")
+    try:
+        return int(version_str)
+    except ValueError:
+        logger.warning(f"Invalid AI_VERSION '{version_str}', defaulting to 2")
+        return 2
 
 
 class LLMPlayer:
@@ -470,25 +488,339 @@ class LLMPlayer:
         return model_map.get(self.model_name, f"Gemini ({self.model_name})")
 
 
-# Singleton instance
+class LLMPlayerV3(LLMPlayer):
+    """
+    AI player v3 with two-phase turn planning.
+    
+    Phase 1: Generate complete turn plan with CC budgeting
+    Phase 2: Execute each action from the plan sequentially
+    
+    Inherits from LLMPlayer for API calls and action execution.
+    """
+    
+    def __init__(self, **kwargs):
+        """Initialize v3 player with turn planning support."""
+        super().__init__(**kwargs)
+        
+        # v3: Turn plan state
+        self._current_plan: Optional['TurnPlan'] = None
+        self._plan_action_index: int = 0
+        self._completed_actions: List['PlannedAction'] = []
+        self._plan_turn_number: Optional[int] = None  # Track which turn the plan is for
+        
+        # Import turn planner
+        from .turn_planner import TurnPlanner
+        self.turn_planner = TurnPlanner(
+            client=self.client,
+            model_name=self.model_name,
+            fallback_model=self.fallback_model
+        )
+        
+        logger.info(f"Initialized LLMPlayerV3 (two-phase planning)")
+    
+    def select_action(
+        self,
+        game_state: 'GameState',
+        ai_player_id: str,
+        valid_actions: list['ValidAction'],
+        game_engine=None
+    ) -> Optional[tuple[int, str]]:
+        """
+        Select the best action using two-phase planning.
+        
+        Phase 1: If no plan exists for this turn, create one
+        Phase 2: Execute the next action from the plan
+        
+        Args:
+            game_state: Current game state
+            ai_player_id: ID of the AI player
+            valid_actions: List of valid actions
+            game_engine: Optional GameEngine for stats
+            
+        Returns:
+            Tuple of (action_index, reasoning) or None
+        """
+        if not valid_actions:
+            logger.warning("No valid actions available for AI")
+            return None
+        
+        logger.info(f"🤖 AI v3 Turn {game_state.turn_number} - {len(valid_actions)} actions available")
+        
+        # Check if we need a new plan
+        if self._needs_new_plan(game_state):
+            self._create_turn_plan(game_state, ai_player_id, game_engine)
+        
+        # Execute next action from plan
+        if self._current_plan and self._plan_action_index < len(self._current_plan.action_sequence):
+            return self._execute_planned_action(valid_actions, game_state, ai_player_id, game_engine)
+        else:
+            # Plan exhausted or no plan - fall back to v2 behavior
+            logger.warning("No plan available, falling back to v2 action selection")
+            return super().select_action(game_state, ai_player_id, valid_actions, game_engine)
+    
+    def _needs_new_plan(self, game_state: 'GameState') -> bool:
+        """Check if we need to create a new turn plan."""
+        # No plan yet
+        if self._current_plan is None:
+            return True
+        
+        # Plan is exhausted
+        if self._plan_action_index >= len(self._current_plan.action_sequence):
+            return True
+        
+        # Turn number changed (new turn started)
+        if self._plan_turn_number != game_state.turn_number:
+            logger.info(f"🔄 New turn detected ({self._plan_turn_number} → {game_state.turn_number}), creating new plan")
+            return True
+        
+        return False
+    
+    def _create_turn_plan(
+        self,
+        game_state: 'GameState',
+        ai_player_id: str,
+        game_engine
+    ) -> None:
+        """Create a new turn plan."""
+        logger.info("📋 Creating new turn plan...")
+        
+        try:
+            plan = self.turn_planner.create_plan(
+                game_state=game_state,
+                player_id=ai_player_id,
+                game_engine=game_engine
+            )
+            
+            if plan:
+                self._current_plan = plan
+                self._plan_action_index = 0
+                self._completed_actions = []
+                self._plan_turn_number = game_state.turn_number
+                
+                # Log plan summary
+                logger.info(f"✅ Plan created: {len(plan.action_sequence)} actions")
+                logger.info(f"📊 CC: {plan.cc_start} → {plan.cc_after_plan}")
+                logger.info(f"🎯 Expected cards slept: {plan.expected_cards_slept}")
+                logger.info(f"💡 Strategy: {plan.selected_strategy[:100]}...")
+                
+                for i, action in enumerate(plan.action_sequence):
+                    logger.info(f"  {i+1}. {action.action_type}: {action.card_name or 'N/A'} ({action.cc_cost} CC)")
+            else:
+                logger.warning("Failed to create plan, will use fallback")
+                self._current_plan = None
+                
+        except Exception as e:
+            logger.exception(f"Error creating turn plan: {e}")
+            self._current_plan = None
+    
+    def _execute_planned_action(
+        self,
+        valid_actions: list['ValidAction'],
+        game_state: 'GameState',
+        ai_player_id: str,
+        game_engine
+    ) -> Optional[tuple[int, str]]:
+        """Execute the next action from the current plan."""
+        from .prompts import (
+            find_matching_action_index,
+            get_execution_prompt,
+            format_valid_actions_for_ai,
+            EXECUTION_JSON_SCHEMA,
+        )
+        
+        planned_action = self._current_plan.action_sequence[self._plan_action_index]
+        
+        logger.info(f"🎬 Executing plan step {self._plan_action_index + 1}/{len(self._current_plan.action_sequence)}")
+        logger.info(f"   Planned: {planned_action.action_type} {planned_action.card_name or ''}")
+        
+        # First, try heuristic matching (no LLM call needed)
+        action_index = find_matching_action_index(planned_action, valid_actions)
+        
+        if action_index is not None:
+            # Found match without LLM
+            selected_action = valid_actions[action_index]
+            reasoning = f"[v3 Plan] {planned_action.reasoning}"
+            
+            # Handle targets from plan
+            if planned_action.target_ids:
+                self._last_target_ids = planned_action.target_ids
+            
+            self._advance_plan(planned_action)
+            
+            logger.info(f"✅ Matched action (heuristic): {selected_action.description}")
+            return (action_index, reasoning)
+        
+        # Heuristic didn't match - use LLM to find action
+        logger.info("   Using LLM to match action...")
+        
+        ai_player = game_state.players[ai_player_id]
+        valid_actions_text = format_valid_actions_for_ai(
+            valid_actions, game_state, ai_player_id, game_engine
+        )
+        
+        execution_prompt = get_execution_prompt(
+            planned_action=planned_action,
+            action_index=self._plan_action_index,
+            total_actions=len(self._current_plan.action_sequence),
+            valid_actions_text=valid_actions_text,
+            current_cc=ai_player.cc,
+            num_valid_actions=len(valid_actions),
+        )
+        
+        try:
+            response_text = self._call_execution_api(execution_prompt)
+            response_data = json.loads(response_text)
+            
+            action_number = response_data.get("action_number")
+            reasoning = response_data.get("reasoning", "No reasoning")
+            target_ids = response_data.get("target_ids")
+            alternative_cost_id = response_data.get("alternative_cost_id")
+            
+            if action_number is None or action_number < 1 or action_number > len(valid_actions):
+                logger.error(f"Invalid action number from LLM: {action_number}")
+                return self._handle_plan_failure(valid_actions, planned_action, "Invalid action number")
+            
+            action_index = action_number - 1
+            selected_action = valid_actions[action_index]
+            
+            # Store target selections
+            if target_ids:
+                self._last_target_ids = target_ids
+            if alternative_cost_id:
+                self._last_alternative_cost_id = alternative_cost_id
+            
+            self._advance_plan(planned_action)
+            
+            logger.info(f"✅ Matched action (LLM): {selected_action.description}")
+            return (action_index, f"[v3 Plan] {reasoning}")
+            
+        except Exception as e:
+            logger.exception(f"Error executing planned action: {e}")
+            return self._handle_plan_failure(valid_actions, planned_action, str(e))
+    
+    def _call_execution_api(self, prompt: str) -> str:
+        """Call LLM API for action execution matching."""
+        from google.genai import types
+        from .prompts import EXECUTION_JSON_SCHEMA
+        
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=prompt)]
+                )
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.3,  # Lower temperature for execution (more deterministic)
+                max_output_tokens=1024,
+                response_mime_type="application/json",
+                response_json_schema=EXECUTION_JSON_SCHEMA,
+            )
+        )
+        
+        return response.text.strip()
+    
+    def _advance_plan(self, completed_action: 'PlannedAction') -> None:
+        """Move to the next action in the plan."""
+        self._completed_actions.append(completed_action)
+        self._plan_action_index += 1
+        
+        if self._plan_action_index >= len(self._current_plan.action_sequence):
+            logger.info("📋 Plan completed!")
+    
+    def _handle_plan_failure(
+        self,
+        valid_actions: list['ValidAction'],
+        failed_action: 'PlannedAction',
+        failure_reason: str
+    ) -> Optional[tuple[int, str]]:
+        """Handle when a planned action can't be executed."""
+        logger.warning(f"Plan deviation: {failure_reason}")
+        
+        # Skip to end_turn if available
+        for i, action in enumerate(valid_actions):
+            if "end turn" in action.description.lower():
+                logger.info("Falling back to end_turn")
+                self._current_plan = None  # Invalidate plan
+                return (i, f"[v3 Fallback] Plan failed: {failure_reason}")
+        
+        # Fall back to v2 selection
+        logger.info("Falling back to v2 action selection")
+        self._current_plan = None
+        return None
+    
+    def reset_plan(self) -> None:
+        """Reset the current plan (call at start of turn if needed)."""
+        self._current_plan = None
+        self._plan_action_index = 0
+        self._completed_actions = []
+        self._plan_turn_number = None
+    
+    def get_last_decision_info(self) -> Dict[str, Any]:
+        """Get information about the last AI decision including plan info."""
+        info = super().get_last_decision_info()
+        
+        # Add v3 plan info
+        if self._current_plan:
+            info["v3_plan"] = {
+                "strategy": self._current_plan.selected_strategy,
+                "total_actions": len(self._current_plan.action_sequence),
+                "current_action": self._plan_action_index,
+                "cc_start": self._current_plan.cc_start,
+                "cc_after_plan": self._current_plan.cc_after_plan,
+                "expected_cards_slept": self._current_plan.expected_cards_slept,
+                "cc_efficiency": self._current_plan.cc_efficiency,
+            }
+        
+        return info
+
+
+# Singleton instances
 _ai_player: Optional[LLMPlayer] = None
+_ai_player_v3: Optional[LLMPlayerV3] = None
 
 
-def get_ai_player(provider: str = None) -> LLMPlayer:
+def get_ai_player(provider: str = None, version: int = None) -> LLMPlayer:
     """
     Get the singleton AI player instance.
     
     Args:
         provider: Optional provider override (ignored, always uses "gemini")
+        version: AI version to use (2 for classic, 3 for turn planning).
+                 If None, reads from AI_VERSION env var (default: 2)
     
     Returns:
-        LLMPlayer instance
+        LLMPlayer or LLMPlayerV3 instance
     """
-    global _ai_player
+    global _ai_player, _ai_player_v3
     
-    if _ai_player is None:
-        _ai_player = LLMPlayer(provider="gemini")
-    return _ai_player
+    # Use environment default if version not specified
+    if version is None:
+        version = get_default_ai_version()
+    
+    if version >= 3:
+        if _ai_player_v3 is None:
+            logger.info(f"🤖 Initializing AI player v{version} (turn planning)")
+            _ai_player_v3 = LLMPlayerV3(provider="gemini")
+        return _ai_player_v3
+    else:
+        if _ai_player is None:
+            logger.info(f"🤖 Initializing AI player v{version} (per-action)")
+            _ai_player = LLMPlayer(provider="gemini")
+        return _ai_player
+
+
+def get_ai_player_v3(provider: str = None) -> LLMPlayerV3:
+    """
+    Get the singleton v3 AI player instance.
+    
+    Convenience function for getting the two-phase planning AI.
+    
+    Returns:
+        LLMPlayerV3 instance
+    """
+    return get_ai_player(provider=provider, version=3)
 
 
 def get_llm_response(prompt: str, is_json: bool = True, provider: str = None) -> str:

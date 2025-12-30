@@ -29,9 +29,10 @@ class TestAIMultiTargetSelection:
     - AI should select 2 targets for Sun (Ka + Knight preferred)
     """
     
-    def test_prompts_version_is_2_x(self):
-        """Verify we're testing the v2.x prompts (2.0 or later)."""
-        assert PROMPTS_VERSION.startswith("2."), f"This test requires prompts v2.x, got {PROMPTS_VERSION}"
+    def test_prompts_version_is_current(self):
+        """Verify we're testing the current prompts version (2.x or 3.x)."""
+        # v3.0 added turn planning architecture, v2.x was per-action decision
+        assert PROMPTS_VERSION.startswith(("2.", "3.")), f"Expected prompts v2.x or v3.x, got {PROMPTS_VERSION}"
     
     def test_ai_decision_schema_has_target_ids_array(self):
         """Verify the JSON schema uses target_ids (array) not target_id (string)."""

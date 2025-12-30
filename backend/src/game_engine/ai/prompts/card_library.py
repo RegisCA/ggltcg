@@ -140,8 +140,8 @@ CARD_EFFECTS_LIBRARY = {
     },
     "Jumpscare": {
         "type": "Action",
-        "effect": "Target: Return any card in play to owner's hand (no sleep trigger)",
-        "strategic_use": "TEMPO BOUNCE - Return a threat without triggering when-sleeped. Great vs Umbruh! Opponent must replay the card.",
+        "effect": "Target: Return any card in play to owner's hand (no sleep trigger). Can target YOUR cards or opponent's.",
+        "strategic_use": "TEMPO BOUNCE - Return opponent's threat without triggering when-sleeped. Great vs Umbruh! Can also bounce your own card to replay it (advanced).",
         "threat_level": "LOW - Can bounce your key card back to hand"
     },
     "Sock Sorcerer": {

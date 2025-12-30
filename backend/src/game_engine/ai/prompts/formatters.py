@@ -170,14 +170,20 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
     actions_text = "## YOUR VALID ACTIONS (Choose ONE):\n\n"
     
     # Helper to get card details with ID
-    def get_card_details(card_id: str) -> tuple[str, str]:
-        """Returns (display_name, actual_id) tuple"""
+    def get_card_details(card_id: str) -> tuple[str, str, str]:
+        """Returns (display_name, actual_id, owner_label) tuple"""
         if not game_state:
-            return (card_id, card_id)
+            return (card_id, card_id, "")
         # Search all zones for the card
         for player in game_state.players.values():
             for card in player.hand + player.in_play + player.sleep_zone:
                 if card.id == card_id:
+                    # Determine ownership label
+                    if player.player_id == ai_player_id:
+                        owner_label = "YOUR"
+                    else:
+                        owner_label = "OPPONENT'S"
+                    
                     if card.is_toy():
                         if game_engine:
                             # Use GameEngine to get stats with continuous effects
@@ -194,8 +200,8 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
                         display = f"{card.name} ({spd} SPD, {str_val} STR, {cur_sta}/{max_sta} STA)"
                     else:
                         display = card.name
-                    return (display, card.id)
-        return (card_id, card_id)
+                    return (display, card.id, owner_label)
+        return (card_id, card_id, "")
     
     # Number actions 1-based (action_number will be converted to 0-based index)
     for i, action in enumerate(valid_actions, start=1):
@@ -211,9 +217,13 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
             else:
                 target_details = []
                 for target_id in action.target_options:
-                    display_name, actual_id = get_card_details(target_id)
+                    display_name, actual_id, owner_label = get_card_details(target_id)
                     # Put the UUID first so LLM clearly sees it's the ID to use
-                    target_details.append(f"[ID: {actual_id}] {display_name}")
+                    # Add owner label to clarify whose card this is
+                    if owner_label:
+                        target_details.append(f"[ID: {actual_id}] {owner_label} {display_name}")
+                    else:
+                        target_details.append(f"[ID: {actual_id}] {display_name}")
                 # Format targets list (extract join logic to avoid backslash in f-string)
                 targets_list = '\n   - '.join(target_details)
                 
@@ -228,21 +238,18 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
         if action.alternative_cost_options is not None and len(action.alternative_cost_options) > 0:
             alt_cost_details = []
             for alt_id in action.alternative_cost_options:
-                display_name, actual_id = get_card_details(alt_id)
+                display_name, actual_id, owner_label = get_card_details(alt_id)
                 # Put the UUID first so LLM clearly sees it's the ID to use
+                # Note: Alternative costs are always from your own cards
                 alt_cost_details.append(f"[ID: {actual_id}] {display_name}")
             # Format alternative cost list (extract join logic to avoid backslash in f-string)
             alt_cost_list = '\n   - '.join(alt_cost_details)
             action_text += f"\n   Can pay alternative cost by sleeping (use the UUID from [ID: ...]):\n   - {alt_cost_list}"
         
-        # Add strategic hint for card plays
-        if action.action_type == "play_card" and action.card_id:
-            # Try to find card name from action description
-            for card_name in CARD_EFFECTS_LIBRARY.keys():
-                if card_name in action.description:
-                    card_info = CARD_EFFECTS_LIBRARY[card_name]
-                    action_text += f"\n   → {card_info.get('strategic_use', '')}"
-                    break
+        # NOTE: Strategic hints removed from action list to avoid confusion
+        # Generic hints like "Return opponent's threat" contradict specific targets like "YOUR Knight"
+        # Strategic hints are shown in the hand section instead, where they provide context
+        # without conflicting with specific targeting choices
         
         actions_text += action_text + "\n"
     
