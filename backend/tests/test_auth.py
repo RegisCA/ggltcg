@@ -5,8 +5,8 @@ Tests user creation, JWT token generation/verification, and profile management.
 """
 
 import os
-# MUST set JWT_SECRET_KEY before importing UserService
-os.environ.setdefault("JWT_SECRET_KEY", "test_secret_key_for_auth_tests")
+# MUST set JWT_SECRET_KEY before importing UserService (use CI value if set)
+os.environ.setdefault("JWT_SECRET_KEY", "test_secret_key_for_ci")
 
 import pytest
 from datetime import datetime, timedelta
