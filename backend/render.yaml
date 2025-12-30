@@ -8,8 +8,8 @@ services:
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     # Run database migrations before starting the server
-    preDeployCommand: alembic upgrade head
-    startCommand: cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT
+    # Note: preDeployCommand requires paid tier, so migrations run in startCommand
+    startCommand: alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.0
