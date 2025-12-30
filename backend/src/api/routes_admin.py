@@ -79,7 +79,13 @@ async def get_ai_logs(
                 "response": log.response,
                 "action_number": log.action_number,
                 "reasoning": log.reasoning,
-                "created_at": log.created_at.isoformat()
+                "created_at": log.created_at.isoformat(),
+                # V3 fields
+                "ai_version": log.ai_version,
+                "turn_plan": log.turn_plan,
+                "plan_execution_status": log.plan_execution_status,
+                "fallback_reason": log.fallback_reason,
+                "planned_action_index": log.planned_action_index,
             }
             for log in logs
         ]
@@ -117,7 +123,13 @@ async def get_ai_log(
         "response": log.response,
         "action_number": log.action_number,
         "reasoning": log.reasoning,
-        "created_at": log.created_at.isoformat()
+        "created_at": log.created_at.isoformat(),
+        # V3 fields
+        "ai_version": log.ai_version,
+        "turn_plan": log.turn_plan,
+        "plan_execution_status": log.plan_execution_status,
+        "fallback_reason": log.fallback_reason,
+        "planned_action_index": log.planned_action_index,
     }
 
 

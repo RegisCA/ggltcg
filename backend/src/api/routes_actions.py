@@ -540,6 +540,23 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         try:
             decision_info = ai_player.get_last_decision_info()
             stats_service = get_stats_service()
+            
+            # Extract v3 plan info if available
+            v3_plan = decision_info.get("v3_plan")
+            ai_version = 3 if v3_plan else 2
+            
+            # Determine execution status from reasoning prefix
+            plan_execution_status = None
+            fallback_reason = None
+            if reasoning:
+                if "[v3 Fallback]" in reasoning:
+                    plan_execution_status = "fallback"
+                    # Extract fallback reason (only if "Plan failed:" marker exists)
+                    if "Plan failed:" in reasoning:
+                        fallback_reason = reasoning.split("Plan failed:", 1)[-1].strip()
+                elif "[v3 Plan]" in reasoning:
+                    plan_execution_status = "complete"
+            
             stats_service.log_ai_decision(
                 game_id=game_id,
                 turn_number=game_state.turn_number,
@@ -550,6 +567,12 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 response=decision_info["response"] or "",
                 action_number=decision_info["action_number"],
                 reasoning=decision_info["reasoning"],
+                # v3 fields
+                ai_version=ai_version,
+                turn_plan=v3_plan,  # Will be dict with strategy, actions, etc.
+                plan_execution_status=plan_execution_status,
+                fallback_reason=fallback_reason,
+                planned_action_index=v3_plan.get("current_action") if v3_plan else None,
             )
         except Exception as e:
             # Don't fail the action if logging fails
@@ -569,11 +592,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         # Execute the selected action
         if action_details["action_type"] == "end_turn":
             # Log to play-by-play BEFORE ending turn
+            # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
             game_state.add_play_by_play(
                 player_name=player.name,
                 action_type="end_turn",
                 description="Ended turn",
-                reasoning=reasoning,
                 ai_endpoint=ai_endpoint_name,
             )
             
@@ -622,11 +645,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     raise HTTPException(status_code=500, detail=result.message)
                 
                 # Log to play-by-play
+                # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
                     player_name=player.name,
                     action_type="play_card",
                     description=result.description,
-                    reasoning=reasoning,
                     ai_endpoint=ai_endpoint_name,
                 )
                 
@@ -689,11 +712,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     raise HTTPException(status_code=500, detail=result.message)
                 
                 # Log to play-by-play
+                # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
                     player_name=player.name,
                     action_type="tussle",
                     description=result.description,
-                    reasoning=reasoning,
                     ai_endpoint=ai_endpoint_name,
                 )
                 
@@ -826,11 +849,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if amount > 1:
                     description += f" (amount: {amount})"
                 
+                # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
                     player_name=player.name,
                     action_type="activate_ability",
                     description=description,
-                    reasoning=reasoning,
                     ai_endpoint=ai_endpoint_name,
                 )
                 

@@ -65,6 +65,12 @@ class StatsService:
         response: str,
         action_number: Optional[int] = None,
         reasoning: Optional[str] = None,
+        # v3 fields (Issue #260)
+        ai_version: int = 2,
+        turn_plan: Optional[dict] = None,
+        plan_execution_status: Optional[str] = None,
+        fallback_reason: Optional[str] = None,
+        planned_action_index: Optional[int] = None,
     ) -> None:
         """
         Log an AI decision for debugging and analysis.
@@ -79,9 +85,14 @@ class StatsService:
             response: Raw response from the AI
             action_number: Parsed action number (if successful)
             reasoning: AI's reasoning (if parsed)
+            ai_version: AI version (2 or 3)
+            turn_plan: Full TurnPlan dict for v3 (stored with each action log entry)
+            plan_execution_status: "complete" or "fallback"
+            fallback_reason: Why fallback occurred (if any)
+            planned_action_index: Which action in the plan (0-based)
         """
         if not self.use_database:
-            logger.debug(f"AI decision logged (no-db): game={game_id}, turn={turn_number}")
+            logger.debug(f"AI decision logged (no-db): game={game_id}, turn={turn_number}, v={ai_version}")
             return
         
         SessionLocal = _get_session_local()
@@ -99,10 +110,16 @@ class StatsService:
                 response=response,
                 action_number=action_number,
                 reasoning=reasoning,
+                # v3 fields
+                ai_version=ai_version,
+                turn_plan=turn_plan,
+                plan_execution_status=plan_execution_status,
+                fallback_reason=fallback_reason,
+                planned_action_index=planned_action_index,
             )
             db.add(log_entry)
             db.commit()
-            logger.debug(f"AI decision logged: game={game_id}, turn={turn_number}, model={model_name}")
+            logger.debug(f"AI decision logged: game={game_id}, turn={turn_number}, model={model_name}, v={ai_version}")
         except Exception as e:
             db.rollback()
             logger.error(f"Failed to log AI decision: {e}")
