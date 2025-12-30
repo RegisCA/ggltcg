@@ -17,6 +17,7 @@ interface AuthContextType {
   login: (token: string, user: User) => void;
   logout: () => void;
   updateUser: (user: User) => void;
+  refreshToken: (newToken: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,12 +29,28 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Check if a JWT token is expired.
+ * @param token - JWT token string
+ * @returns true if token is expired or invalid
+ */
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const exp = payload.exp * 1000; // Convert to milliseconds
+    // Check if token is expired (add 60s buffer to refresh before actual expiry)
+    return Date.now() >= (exp - 60000);
+  } catch {
+    return true; // Invalid token format
+  }
+};
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load auth state from localStorage on mount
+  // Load auth state from localStorage on mount and validate token
   useEffect(() => {
     const loadAuthState = () => {
       try {
@@ -41,8 +58,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storedUser = localStorage.getItem(USER_KEY);
 
         if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          // Check if token is expired
+          if (isTokenExpired(storedToken)) {
+            console.log('Token expired on load, clearing auth state');
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+          } else {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+          }
         }
       } catch (error) {
         console.error('Failed to load auth state:', error);
@@ -55,6 +79,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     loadAuthState();
+  }, []);
+
+  // Validate token periodically (every 5 minutes)
+  useEffect(() => {
+    if (!token) return;
+
+    const intervalId = setInterval(() => {
+      if (isTokenExpired(token)) {
+        console.log('Token expired during session, logging out');
+        logout();
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(intervalId);
+  }, [token]);
+
+  // Listen for token refresh events from axios interceptor
+  useEffect(() => {
+    const handleTokenRefresh = (event: CustomEvent<{ token: string }>) => {
+      const newToken = event.detail.token;
+      console.log('Token refreshed automatically');
+      setToken(newToken);
+    };
+
+    window.addEventListener('token-refreshed', handleTokenRefresh as EventListener);
+    return () => window.removeEventListener('token-refreshed', handleTokenRefresh as EventListener);
   }, []);
 
   const login = (newToken: string, newUser: User) => {
@@ -76,6 +126,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
   };
 
+  const refreshToken = (newToken: string) => {
+    setToken(newToken);
+    localStorage.setItem(TOKEN_KEY, newToken);
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -84,6 +139,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     updateUser,
+    refreshToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
