@@ -4,7 +4,6 @@ Tests for CC (Charge Counter) tracking per turn.
 Issue #252: Track CC efficiency to measure AI performance.
 """
 
-import pytest
 from conftest import create_game_with_cards, create_basic_game
 from game_engine.models.game_state import TurnCCRecord
 
@@ -78,6 +77,40 @@ class TestCCTracking:
         assert record.cc_gained == 2  # Turn 1 gain
         assert record.cc_spent == 0  # Didn't spend
         assert record.cc_end == 2  # Left with 2
+
+    def test_cc_tracking_with_cc_cap(self):
+        """
+        CC tracking correctly handles the 7 CC cap.
+        
+        When a player is near the cap and gains CC, only the actual gain
+        (after capping) should be recorded, not the intended gain.
+        """
+        setup = create_basic_game(
+            player1_cc=5,  # Near cap
+            active_player="player1",
+            turn_number=2,
+        )
+        
+        # Initialize CC tracking (captures cc_start = 5)
+        setup.game_state.start_turn_cc_tracking()
+        
+        # Gain 4 CC, but cap at 7 - actual gain is only 2
+        cc_before = setup.player1.cc
+        setup.player1.gain_cc(4)  # Would be 9, but capped at 7
+        actual_gain = setup.player1.cc - cc_before
+        setup.game_state.record_cc_gained(actual_gain)
+        
+        # Verify CC is capped at 7
+        assert setup.player1.cc == 7
+        
+        # End turn without spending
+        setup.game_state.finalize_turn_cc_tracking()
+        
+        record = setup.game_state.cc_history[0]
+        assert record.cc_start == 5
+        assert record.cc_gained == 2  # Only 2 actual gain, not 4 intended
+        assert record.cc_spent == 0
+        assert record.cc_end == 7
 
     def test_cc_tracking_with_spending(self):
         """CC tracking correctly calculates spent CC."""

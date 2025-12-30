@@ -20,15 +20,18 @@ class TurnCCRecord:
     
     Records CC state at the start and end of a turn, along with
     CC gained and spent during the turn.
+    
+    Note: cc_spent is calculated as: cc_start + cc_gained - cc_end
+    This captures all spending without needing to track individual actions.
     """
     turn: int
     player_id: str
-    cc_start: int  # CC at start of turn
+    cc_start: int  # CC at start of turn (BEFORE any gains)
     cc_gained: int  # CC gained during turn (from effects, start of turn, etc.)
-    cc_spent: int  # CC spent during turn
+    cc_spent: int  # CC spent during turn (calculated at end)
     cc_end: int  # CC at end of turn
     
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "turn": self.turn,
@@ -40,7 +43,7 @@ class TurnCCRecord:
         }
     
     @classmethod
-    def from_dict(cls, data: dict) -> 'TurnCCRecord':
+    def from_dict(cls, data: Dict[str, Any]) -> 'TurnCCRecord':
         """Create from dictionary."""
         return cls(
             turn=data["turn"],
@@ -81,7 +84,11 @@ class GameState:
     play_by_play: List[Dict[str, Any]] = field(default_factory=list)
     starting_decks: Dict[str, List[str]] = field(default_factory=dict)
     cc_history: List[TurnCCRecord] = field(default_factory=list)
-    # Internal: CC tracking for current turn (not serialized)
+    # Internal: CC tracking for current turn (not serialized).
+    # Note: If GameState is serialized mid-turn and deserialized,
+    # these fields reset to defaults. Mid-turn serialization is not
+    # supported for CC tracking - finalize_turn_cc_tracking() must
+    # be called before serialization to preserve accurate CC data.
     _turn_cc_snapshot: int = field(default=0, repr=False)
     _turn_cc_gained: int = field(default=0, repr=False)
     
@@ -184,6 +191,11 @@ class GameState:
             - total_cc_gained: Total CC gained by this player
             - opponent_cards_slept: Number of opponent cards in sleep zone
             - cc_per_card_slept: CC efficiency (None if 0 cards slept)
+        
+        Note: opponent_cards_slept counts ALL cards in opponent's sleep zone,
+        regardless of how they got there. This includes cards the opponent
+        slept themselves (e.g., Ballaber alternative cost, played Actions).
+        For more precise metrics, analyze individual game events.
         """
         # Calculate totals from CC history
         total_cc_spent = sum(
