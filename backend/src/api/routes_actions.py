@@ -569,11 +569,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         # Execute the selected action
         if action_details["action_type"] == "end_turn":
             # Log to play-by-play BEFORE ending turn
+            # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
             game_state.add_play_by_play(
                 player_name=player.name,
                 action_type="end_turn",
                 description="Ended turn",
-                reasoning=reasoning,
                 ai_endpoint=ai_endpoint_name,
             )
             
@@ -622,11 +622,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     raise HTTPException(status_code=500, detail=result.message)
                 
                 # Log to play-by-play
+                # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
                     player_name=player.name,
                     action_type="play_card",
                     description=result.description,
-                    reasoning=reasoning,
                     ai_endpoint=ai_endpoint_name,
                 )
                 
@@ -689,11 +689,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     raise HTTPException(status_code=500, detail=result.message)
                 
                 # Log to play-by-play
+                # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
                     player_name=player.name,
                     action_type="tussle",
                     description=result.description,
-                    reasoning=reasoning,
                     ai_endpoint=ai_endpoint_name,
                 )
                 
@@ -826,11 +826,11 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if amount > 1:
                     description += f" (amount: {amount})"
                 
+                # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
                     player_name=player.name,
                     action_type="activate_ability",
                     description=description,
-                    reasoning=reasoning,
                     ai_endpoint=ai_endpoint_name,
                 )
                 
