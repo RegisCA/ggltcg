@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column('ai_version', sa.Integer(), nullable=True, server_default='2')
     )
     
-    # turn_plan: Full TurnPlan JSON for v3 (logged once per turn at plan creation)
+    # turn_plan: Full TurnPlan JSON for v3 (stored on each action log entry)
     op.add_column(
         'ai_decision_logs',
         sa.Column(
@@ -38,7 +38,7 @@ def upgrade() -> None:
         )
     )
     
-    # plan_execution_status: "complete", "partial", "fallback"
+    # plan_execution_status: "complete" or "fallback"
     op.add_column(
         'ai_decision_logs',
         sa.Column('plan_execution_status', sa.String(20), nullable=True)

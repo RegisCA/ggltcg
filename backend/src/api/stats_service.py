@@ -86,8 +86,8 @@ class StatsService:
             action_number: Parsed action number (if successful)
             reasoning: AI's reasoning (if parsed)
             ai_version: AI version (2 or 3)
-            turn_plan: Full TurnPlan dict for v3 (logged once per turn)
-            plan_execution_status: "complete", "partial", or "fallback"
+            turn_plan: Full TurnPlan dict for v3 (stored with each action log entry)
+            plan_execution_status: "complete" or "fallback"
             fallback_reason: Why fallback occurred (if any)
             planned_action_index: Which action in the plan (0-based)
         """

@@ -551,9 +551,9 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             if reasoning:
                 if "[v3 Fallback]" in reasoning:
                     plan_execution_status = "fallback"
-                    # Extract fallback reason
+                    # Extract fallback reason (only if "Plan failed:" marker exists)
                     if "Plan failed:" in reasoning:
-                        fallback_reason = reasoning.split("Plan failed:")[-1].strip()
+                        fallback_reason = reasoning.split("Plan failed:", 1)[-1].strip()
                 elif "[v3 Plan]" in reasoning:
                     plan_execution_status = "complete"
             

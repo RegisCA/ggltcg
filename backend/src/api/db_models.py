@@ -247,8 +247,8 @@ class AIDecisionLogModel(Base):
     
     v3 additions (Issue #260):
     - ai_version: Which AI version (2 or 3)
-    - turn_plan: Full TurnPlan JSON for v3 (logged once per turn)
-    - plan_execution_status: "complete", "partial", "fallback"
+    - turn_plan: Full TurnPlan JSON for v3 (stored with each action log entry)
+    - plan_execution_status: "complete" or "fallback"
     - fallback_reason: Why fallback occurred (if any)
     - planned_action_index: Which action in the plan this log represents
     """
@@ -277,7 +277,7 @@ class AIDecisionLogModel(Base):
     # v3 Turn Planning fields (Issue #260)
     ai_version = Column(Integer, nullable=True, default=2)  # 2 or 3
     turn_plan = Column(JSONType, nullable=True)  # Full TurnPlan JSON for v3
-    plan_execution_status = Column(String(20), nullable=True)  # "complete", "partial", "fallback"
+    plan_execution_status = Column(String(20), nullable=True)  # "complete" or "fallback"
     fallback_reason = Column(Text, nullable=True)  # Why fallback occurred
     planned_action_index = Column(Integer, nullable=True)  # Which action in the plan (0-based)
     
