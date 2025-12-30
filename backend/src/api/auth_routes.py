@@ -207,6 +207,7 @@ async def verify_token(
 
 @router.post("/refresh")
 async def refresh_token(
+    request: Request,
     google_id: str = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -216,6 +217,11 @@ async def refresh_token(
     Issues a new token with extended expiration time.
     The old token must still be valid to refresh.
     """
+    # Rate limiting
+    client_ip = request.client.host
+    if not auth_rate_limiter.is_allowed(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+    
     user = UserService.get_user_by_google_id(db, google_id)
     
     if not user:

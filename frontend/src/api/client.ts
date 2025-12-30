@@ -91,6 +91,7 @@ apiClient.interceptors.response.use(
             throw new Error('No token to refresh');
           }
 
+          // Use raw axios instead of apiClient to avoid triggering this interceptor recursively
           const response = await axios.post(
             `${apiClient.defaults.baseURL}/auth/refresh`,
             {},
@@ -103,14 +104,19 @@ apiClient.interceptors.response.use(
 
           const newToken = response.data.jwt_token;
           
-          // Update token in localStorage
-          localStorage.setItem('ggltcg_auth_token', newToken);
-          
-          // Update the auth context via custom event
-          window.dispatchEvent(new CustomEvent('token-refreshed', { detail: { token: newToken } }));
-          
-          // Notify all queued requests
-          onTokenRefreshed(newToken);
+          try {
+            // Update token in localStorage
+            localStorage.setItem('ggltcg_auth_token', newToken);
+            
+            // Update the auth context via custom event
+            window.dispatchEvent(new CustomEvent('token-refreshed', { detail: { token: newToken } }));
+            
+            // Notify all queued requests
+            onTokenRefreshed(newToken);
+          } catch (notifyError) {
+            console.error('Failed to update token after refresh:', notifyError);
+            // Continue anyway - the new token is valid even if notification failed
+          }
           
           // Retry the original request with new token
           if (originalRequest.headers) {

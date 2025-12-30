@@ -4,7 +4,7 @@ Test token refresh functionality.
 
 import os
 # MUST set JWT_SECRET_KEY before importing UserService
-os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_tokens"
+os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_auth_tests"
 
 import pytest
 from datetime import datetime, timedelta
@@ -37,7 +37,7 @@ def test_create_and_verify_new_token():
 def test_expired_token_verification():
     """Test that expired tokens are rejected."""
     google_id = "test_user_expired"
-    jwt_secret = os.getenv("JWT_SECRET_KEY", "test_secret_key_for_tokens")
+    jwt_secret = os.getenv("JWT_SECRET_KEY", "test_secret_key_for_auth_tests")
     
     # Create an expired token (expired 1 hour ago)
     expiration = datetime.utcnow() - timedelta(hours=1)
@@ -61,7 +61,7 @@ def test_token_has_24_hour_expiration():
     """Test that new tokens have 24-hour expiration."""
     google_id = "test_user_expiry"
     token = UserService.create_jwt_token(google_id)
-    jwt_secret = os.getenv("JWT_SECRET_KEY", "test_secret_key_for_tokens")
+    jwt_secret = os.getenv("JWT_SECRET_KEY", "test_secret_key_for_auth_tests")
     
     # Decode without verification to check expiration time
     decoded = jwt.decode(

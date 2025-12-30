@@ -5,7 +5,7 @@
  * Provides authentication state, login/logout functions, and JWT token management.
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../types/auth';
 
@@ -36,7 +36,13 @@ interface AuthProviderProps {
  */
 const isTokenExpired = (token: string): boolean => {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    // Validate JWT format (header.payload.signature)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return true; // Invalid JWT format
+    }
+    
+    const payload = JSON.parse(atob(parts[1]));
     const exp = payload.exp * 1000; // Convert to milliseconds
     // Check if token is expired (add 60s buffer to refresh before actual expiry)
     return Date.now() >= (exp - 60000);
@@ -49,6 +55,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Define callbacks before useEffect hooks that reference them
+  const logout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  }, []);
+
+  const updateUser = useCallback((updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+  }, []);
+
+  const refreshToken = useCallback((newToken: string) => {
+    setToken(newToken);
+    localStorage.setItem(TOKEN_KEY, newToken);
+  }, []);
+
+  const login = (newToken: string, newUser: User) => {
+    setToken(newToken);
+    setUser(newUser);
+    localStorage.setItem(TOKEN_KEY, newToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+  };
 
   // Load auth state from localStorage on mount and validate token
   useEffect(() => {
@@ -93,43 +124,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, 5 * 60 * 1000); // Check every 5 minutes
 
     return () => clearInterval(intervalId);
-  }, [token]);
+  }, [token, logout]);
 
   // Listen for token refresh events from axios interceptor
   useEffect(() => {
     const handleTokenRefresh = (event: CustomEvent<{ token: string }>) => {
       const newToken = event.detail.token;
       console.log('Token refreshed automatically');
-      setToken(newToken);
+      refreshToken(newToken);
     };
 
     window.addEventListener('token-refreshed', handleTokenRefresh as EventListener);
     return () => window.removeEventListener('token-refreshed', handleTokenRefresh as EventListener);
-  }, []);
-
-  const login = (newToken: string, newUser: User) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem(TOKEN_KEY, newToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-  };
-
-  const updateUser = (updatedUser: User) => {
-    setUser(updatedUser);
-    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
-  };
-
-  const refreshToken = (newToken: string) => {
-    setToken(newToken);
-    localStorage.setItem(TOKEN_KEY, newToken);
-  };
+  }, [refreshToken]);
 
   const value: AuthContextType = {
     user,
