@@ -4,6 +4,10 @@ Integration tests for authentication system.
 Tests user creation, JWT token generation/verification, and profile management.
 """
 
+import os
+# MUST set JWT_SECRET_KEY before importing UserService
+os.environ.setdefault("JWT_SECRET_KEY", "test_secret_key_for_auth_tests")
+
 import pytest
 from datetime import datetime, timedelta
 import jwt
@@ -13,6 +17,7 @@ from unittest.mock import patch, MagicMock
 
 from api.db_models import Base, UserModel
 from api.user_service import UserService
+import api.user_service as user_service_module
 
 
 # Test database setup
@@ -87,8 +92,8 @@ class TestUserService:
             "iat": datetime.utcnow()
         }
         
-        import os
-        jwt_secret = os.getenv("JWT_SECRET_KEY", "test_secret")
+        # Use the same JWT_SECRET_KEY that UserService will use for verification
+        jwt_secret = user_service_module.JWT_SECRET_KEY or "test_secret"
         token = jwt.encode(payload, jwt_secret, algorithm="HS256")
         
         with pytest.raises(ValueError, match='Token has expired'):
