@@ -507,6 +507,7 @@ class LLMPlayerV3(LLMPlayer):
         self._plan_action_index: int = 0
         self._completed_actions: List['PlannedAction'] = []
         self._plan_turn_number: Optional[int] = None  # Track which turn the plan is for
+        self._execution_log: List[Dict[str, Any]] = []  # Track execution attempts
         
         # Import turn planner
         from .turn_planner import TurnPlanner
@@ -596,6 +597,7 @@ class LLMPlayerV3(LLMPlayer):
                 self._plan_action_index = 0
                 self._completed_actions = []
                 self._plan_turn_number = game_state.turn_number
+                self._execution_log = []  # Reset execution log for new plan
                 
                 # Log plan summary
                 logger.info(f"✅ Plan created: {len(plan.action_sequence)} actions")
@@ -647,11 +649,27 @@ class LLMPlayerV3(LLMPlayer):
             
             self._advance_plan(planned_action)
             
+            # Log successful execution
+            self._execution_log.append({
+                "action_index": self._plan_action_index - 1,  # Already advanced
+                "planned_action": f"{planned_action.action_type} {planned_action.card_name or ''}",
+                "status": "success",
+                "method": "heuristic",
+            })
+            
             logger.info(f"✅ Matched action (heuristic): {selected_action.description}")
             return (action_index, reasoning)
         
         # Heuristic didn't match - use LLM to find action
         logger.info("   Using LLM to match action...")
+        
+        # Log that heuristic matching failed
+        self._execution_log.append({
+            "action_index": self._plan_action_index,
+            "planned_action": f"{planned_action.action_type} {planned_action.card_name or ''}",
+            "status": "fallback_to_llm",
+            "reason": "Action not available (heuristic match failed)",
+        })
         
         ai_player = game_state.players[ai_player_id]
         valid_actions_text = format_valid_actions_for_ai(
@@ -691,11 +709,23 @@ class LLMPlayerV3(LLMPlayer):
             
             self._advance_plan(planned_action)
             
+            # Update execution log with LLM success
+            self._execution_log[-1].update({
+                "status": "success",
+                "method": "llm",
+            })
+            
             logger.info(f"✅ Matched action (LLM): {selected_action.description}")
             return (action_index, f"[v3 Plan] {reasoning}")
             
         except Exception as e:
             logger.exception(f"Error executing planned action: {e}")
+            # Update execution log with failure
+            if self._execution_log and self._execution_log[-1]["action_index"] == self._plan_action_index:
+                self._execution_log[-1].update({
+                    "status": "failed",
+                    "reason": f"Action not available: {str(e)}",
+                })
             return self._handle_plan_failure(valid_actions, planned_action, str(e))
     
     def _call_execution_api(self, prompt: str) -> str:
@@ -728,6 +758,28 @@ class LLMPlayerV3(LLMPlayer):
         
         if self._plan_action_index >= len(self._current_plan.action_sequence):
             logger.info("📋 Plan completed!")
+    
+    def record_execution_result(self, success: bool, error_message: str = None) -> None:
+        """Record the actual execution result for the last attempted action."""
+        if not self._execution_log:
+            return
+        
+        # Find the most recent log entry that was attempted (not 'not attempted')
+        last_attempted_idx = None
+        for i in range(len(self._execution_log) - 1, -1, -1):
+            if self._execution_log[i].get("status") in ("success", "failed", "fallback_to_llm"):
+                last_attempted_idx = i
+                break
+        
+        if last_attempted_idx is not None:
+            if success:
+                # Keep success status, but add confirmation
+                self._execution_log[last_attempted_idx]["execution_confirmed"] = True
+            else:
+                # Update to show execution failure
+                self._execution_log[last_attempted_idx]["status"] = "execution_failed"
+                self._execution_log[last_attempted_idx]["reason"] = error_message or "Action execution failed"
+                logger.warning(f"Action execution failed: {error_message}")
     
     def _handle_plan_failure(
         self,
@@ -763,6 +815,17 @@ class LLMPlayerV3(LLMPlayer):
         
         # Add v3 plan info
         if self._current_plan:
+            # Format action sequence for logging
+            action_sequence = []
+            for action in self._current_plan.action_sequence:
+                action_sequence.append({
+                    "action_type": action.action_type,
+                    "card_name": action.card_name,
+                    "target_names": action.target_names,
+                    "cc_cost": action.cc_cost,
+                    "reasoning": action.reasoning,
+                })
+            
             info["v3_plan"] = {
                 "strategy": self._current_plan.selected_strategy,
                 "total_actions": len(self._current_plan.action_sequence),
@@ -771,6 +834,13 @@ class LLMPlayerV3(LLMPlayer):
                 "cc_after_plan": self._current_plan.cc_after_plan,
                 "expected_cards_slept": self._current_plan.expected_cards_slept,
                 "cc_efficiency": self._current_plan.cc_efficiency,
+                # Full action sequence for debugging
+                "action_sequence": action_sequence,
+                # Planning prompt and response (from turn planner)
+                "planning_prompt": self.turn_planner._last_prompt if hasattr(self.turn_planner, '_last_prompt') else None,
+                "planning_response": self.turn_planner._last_response if hasattr(self.turn_planner, '_last_response') else None,
+                # Execution tracking
+                "execution_log": self._execution_log if self._execution_log else None,
             }
         
         return info

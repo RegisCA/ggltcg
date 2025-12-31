@@ -60,3 +60,25 @@ export async function getCardLeaderboard(
   );
   return response.data;
 }
+// ============================================================================
+// AI LOGS
+// ============================================================================
+
+interface AILogsResponse {
+  count: number;
+  logs: any[];
+}
+
+/**
+ * Get AI decision logs for a specific game
+ */
+export async function fetchAILogsForGame(gameId: string): Promise<any[]> {
+  const response = await apiClient.get<AILogsResponse>('/admin/ai-logs', {
+    params: {
+      game_id: gameId,
+      limit: 50, // Should be enough for any game
+    },
+  });
+  // Extract the logs array from the response object
+  return response.data.logs || [];
+}
