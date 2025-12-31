@@ -2,6 +2,37 @@
 
 The GGLTCG AI player uses **Google Gemini's native structured output** mode for reliable JSON responses. This eliminates parsing errors and ensures the AI always returns valid, schema-compliant decisions.
 
+## AI Version Configuration
+
+GGLTCG supports two AI architectures:
+
+| Version | Description | Best For |
+|---------|-------------|----------|
+| **v2** (default) | Single-action mode: LLM selects one action at a time | Debugging, baseline comparison |
+| **v3** | Turn planning mode: LLM generates complete turn plan, then executes | Production, faster games |
+
+### Enable v3 Turn Planning
+
+```bash
+export AI_VERSION=3
+```
+
+When `AI_VERSION=3`, the AI uses a two-phase approach:
+
+1. **Planning Phase**: At turn start, generates a complete `TurnPlan` with:
+   - Threat assessment of opponent's board
+   - Resource summary (CC, cards in hand/play)
+   - Selected strategy with reasoning
+   - Full action sequence with CC budgeting
+   - Expected CC efficiency
+
+2. **Execution Phase**: Heuristic matching executes planned actions:
+   - Each action matched to valid game actions
+   - Falls back to LLM if plan doesn't match game state
+   - Tracks execution status (complete/partial/fallback)
+
+---
+
 ## Supported Providers
 
 ### Option 1: Google Gemini (FREE - Recommended)
@@ -134,10 +165,38 @@ export AI_PROVIDER='anthropic'
 - The code has fallbacks (default to ending turn)
 - Improve prompts in `prompts.py` to reduce errors
 
+**v3 plan execution issues:**
+- Check AI logs in admin UI for fallback reasons
+- Plan may not match game state (opponent played unexpectedly)
+- See GitHub issues #267, #268, #271-#273 for known prompt bugs
+
+---
+
+## Viewing AI Logs in Admin
+
+The admin interface (`/admin`) provides detailed AI decision logs:
+
+1. **AI Logs Tab**: View all AI decisions with:
+   - v3 turn plans: threat assessment, strategy, action sequence
+   - Prompts and responses
+   - Execution status (complete, partial, fallback)
+   - CC efficiency metrics
+
+2. **Filter by Game**: From Playbacks tab, click "View AI Logs for this Game"
+
+3. **v3 Log Details**:
+   - **Threat Assessment**: AI's analysis of opponent's board
+   - **Strategy**: Selected approach for the turn
+   - **Action Sequence**: Planned actions with CC budgeting
+   - **Execution Status**: Whether plan was fully executed
+
+---
+
 ## Next Steps
 
 Once you have an API key set up:
 1. Test the AI with `python tests/test_ai_player.py`
 2. Play against it via the API
-3. Observe its strategy and reasoning (logged to console)
-4. Tune the prompts to improve play quality
+3. Observe its strategy and reasoning in admin AI logs
+4. Try `AI_VERSION=3` for turn planning mode
+5. Tune the prompts to improve play quality

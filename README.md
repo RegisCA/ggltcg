@@ -9,7 +9,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06B6D4.svg?logo=tailwindcss&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI-4285F4.svg?logo=google&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI%20v3-4285F4.svg?logo=google&logoColor=white)
 ![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-EB5424.svg)
 
 A tactical two-player card game with no randomness in draws—only skill
@@ -60,8 +60,12 @@ for lobby, gameplay, and stats.
 - **Quick Play vs AI**: Start a game against the AI with a single click.
 - **Google OAuth Authentication**: Secure sign-in with Google, user
   profiles, and display names.
-- **LLM-Powered AI Opponent**: Uses Google Gemini with **native
-  structured output** for reliable, strategic play.
+- **LLM-Powered AI Opponent (v3)**: Two-phase turn planning—the LLM 
+  generates a complete turn plan with threat assessment and action 
+  sequence at turn start, then heuristic matching executes actions.
+  Uses Google Gemini with **native structured output** for reliable play.
+- **CC Efficiency Tracking**: Monitors command counter usage per turn
+  to analyze AI performance and strategy effectiveness.
 - **Persistent Stats**: PostgreSQL-backed tracking of game results and
   high-level stats.
 - **Deterministic Gameplay**: No random draws – only visible information
