@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 # Version tracking for AI decision logs
 # Increment this when making significant changes to prompts or strategy
 # Format: MAJOR.MINOR (MAJOR = strategy overhaul, MINOR = tweaks/fixes)
-PROMPTS_VERSION = "3.0"
+PROMPTS_VERSION = "3.1"
 
 
 # =============================================================================
@@ -144,11 +144,11 @@ class TurnPlan(BaseModel):
     # Efficiency calculation
     expected_cards_slept: int = Field(
         ...,
-        description="Number of opponent cards expected to be slept by this plan"
+        description="Total opponent cards expected to sleep by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
     )
     cc_efficiency: str = Field(
         ...,
-        description="CC efficiency calculation (e.g., '4 CC to sleep 2 cards = 2.0 CC per card')"
+        description="CC efficiency: 'X CC spent to sleep Y cards = Z.ZZ CC/card'. Count ALL sleeping methods!"
     )
     
     # Overall reasoning
@@ -156,6 +156,12 @@ class TurnPlan(BaseModel):
         ...,
         description="Brief (1-3 sentences) explanation of why this plan was selected. Do NOT repeat analysis.",
         max_length=500
+    )
+    
+    # Residual CC justification (v3.1)
+    residual_cc_justification: Optional[str] = Field(
+        default=None,
+        description="If ending with CC >= 2, explain why no further attacks were possible"
     )
 
 
@@ -245,16 +251,20 @@ TURN_PLAN_JSON_SCHEMA = {
         },
         "expected_cards_slept": {
             "type": "integer",
-            "description": "Number of opponent cards expected to sleep"
+            "description": "Total opponent cards expected to sleep by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
         },
         "cc_efficiency": {
             "type": "string",
-            "description": "CC efficiency calculation"
+            "description": "CC efficiency: 'X CC spent to sleep Y cards = Z.ZZ CC/card'. Count ALL sleeping methods!"
         },
         "plan_reasoning": {
             "type": "string",
             "description": "Brief (1-3 sentences) explanation of why this plan was selected. Do NOT repeat analysis.",
             "maxLength": 500
+        },
+        "residual_cc_justification": {
+            "type": ["string", "null"],
+            "description": "If ending with CC >= 2, explain why no further attacks were possible"
         }
     },
     "required": [
@@ -279,7 +289,8 @@ TURN_PLAN_JSON_SCHEMA = {
         "cc_after_plan",
         "expected_cards_slept",
         "cc_efficiency",
-        "plan_reasoning"
+        "plan_reasoning",
+        "residual_cc_justification"
     ]
 }
 
