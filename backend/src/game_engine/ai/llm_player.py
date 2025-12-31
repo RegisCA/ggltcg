@@ -650,11 +650,14 @@ class LLMPlayerV3(LLMPlayer):
             self._advance_plan(planned_action)
             
             # Log successful execution
+            # For end_turn, mark as confirmed immediately since there's no execution step that can fail
+            execution_confirmed = planned_action.action_type == "end_turn"
             self._execution_log.append({
                 "action_index": self._plan_action_index - 1,  # Already advanced
                 "planned_action": f"{planned_action.action_type} {planned_action.card_name or ''}",
                 "status": "success",
                 "method": "heuristic",
+                "execution_confirmed": execution_confirmed,
             })
             
             logger.info(f"✅ Matched action (heuristic): {selected_action.description}")
@@ -710,10 +713,14 @@ class LLMPlayerV3(LLMPlayer):
             self._advance_plan(planned_action)
             
             # Update execution log with LLM success
-            self._execution_log[-1].update({
+            # For end_turn, mark as confirmed immediately since there's no execution step that can fail
+            update_data = {
                 "status": "success",
                 "method": "llm",
-            })
+            }
+            if planned_action.action_type == "end_turn":
+                update_data["execution_confirmed"] = True
+            self._execution_log[-1].update(update_data)
             
             logger.info(f"✅ Matched action (LLM): {selected_action.description}")
             return (action_index, f"[v3 Plan] {reasoning}")
