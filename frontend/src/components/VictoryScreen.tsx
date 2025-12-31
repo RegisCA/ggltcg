@@ -13,18 +13,8 @@ interface VictoryScreenProps {
   onPlayAgain: () => void;
 }
 
-interface AILogData {
-  turn_number: number;
-  player_id: string;
-  ai_version: number | null;
-  turn_plan: {
-    strategy: string;
-    cc_efficiency: string;
-    plan_execution_status?: string;
-  } | null;
-  plan_execution_status: 'complete' | 'fallback' | null;
-  fallback_reason: string | null;
-}
+// Import shared type from statsService
+import type { AILogData } from '../api/statsService';
 
 export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
   const winnerPlayer = gameState.players[gameState.winner || ''];

@@ -491,7 +491,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     # Use ActionValidator for single source of truth
     # V2: Enable AI filtering to remove strategically bad moves (losing tussles)
     # V3: Disable filtering - v3 does strategic planning and may need tactical sacrifices
-    is_v3 = isinstance(ai_player, type(ai_player)) and ai_player.__class__.__name__ == 'LLMPlayerV3'
+    is_v3 = ai_player.__class__.__name__ == 'LLMPlayerV3'
     filter_for_ai = not is_v3  # False for v3, True for v2
     
     validator = ActionValidator(engine)
@@ -648,10 +648,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 
                 if not result.success:
                     raise HTTPException(status_code=500, detail=result.message)
-                                # Record successful execution for v3 tracking
-                if hasattr(ai_player, 'record_execution_result'):
-                    ai_player.record_execution_result(success=True)
-                                # Record successful execution for v3 tracking
+                
+                # Record successful execution for v3 tracking
                 if hasattr(ai_player, 'record_execution_result'):
                     ai_player.record_execution_result(success=True)
                 
