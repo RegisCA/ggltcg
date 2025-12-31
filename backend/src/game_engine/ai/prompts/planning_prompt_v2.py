@@ -41,12 +41,21 @@ COMPACT_RULES = """## Quick Rules Reference
 
 ### Combat Resolution (Tussle)
 1. **Compare SPD**: Attacker gets +1 SPD bonus
-2. **Higher SPD attacks first**: STR reduces opponent's STA
-3. **STA ≤ 0 → sleeped** (moved to sleep zone, cannot counter-attack)
-4. **Survivor counter-attacks** using their STR
-5. **SPD TIE = simultaneous**: Both attack at same time (both can be sleeped!)
+2. **Higher SPD attacks first**: Deals damage = their STR
+3. **Damage reduces STA**: Target's STA = STA - attacker's STR
+4. **STA ≤ 0 → sleeped** (moved to sleep zone, cannot counter-attack)
+5. **Survivor counter-attacks** using their STR (reduces attacker's STA)
+6. **SPD TIE = simultaneous**: Both deal damage at same time (both can be sleeped!)
 
-**"Win tussle" = opponent's toy sleeped. Knight auto-wins on YOUR turn (0 damage to Knight).**
+**TUSSLE MATH EXAMPLE**:
+- Your Umbruh (4 SPD, 4 STR, 4 STA) vs opponent Archer (0 SPD, 0 STR, 5 STA)
+- Umbruh SPD: 4 + 1 (attacker bonus) = 5 > Archer's 0 → Umbruh attacks first
+- Umbruh deals 4 STR damage → Archer STA: 5 - 4 = 1 STA remaining → **NOT SLEEPED!**
+- Archer counter-attacks with 0 STR → Umbruh takes 0 damage
+- Result: Archer survives with 1 STA! Need another attack to sleep it.
+
+**"Win tussle" = opponent's toy reaches 0 STA and is sleeped.**
+- Knight on YOUR turn = auto-wins (opponent sleeped, Knight takes 0 damage)
 
 ### CC Math
 ```
