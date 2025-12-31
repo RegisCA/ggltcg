@@ -35,8 +35,8 @@ COMPACT_RULES = """## Quick Rules Reference
 | Action | Cost | Requirement |
 |--------|------|-------------|
 | Play card | Card's cost | Card in hand |
-| Tussle | 2 CC | **TOY** in your IN PLAY vs opponent toy |
-| Direct Attack | 2 CC | **TOY** in your IN PLAY + opponent has 0 toys (max 2/turn) |
+| Tussle | 2 CC | **TOY** in your IN PLAY vs opponent toy **IN PLAY** |
+| Direct Attack | 2 CC | **TOY** in your IN PLAY + **opponent has 0 toys in play** (max 2/turn). **NO TARGET** - sleeps random card from opponent's HAND! |
 | Activate Ability | Varies | TOY with ability in your IN PLAY (e.g., Archer: 1 CC per use) |
 
 ### Combat Resolution (Tussle)
@@ -239,9 +239,12 @@ Generate actions until BOTH conditions are met:
 
 ### Decision Priority (in order)
 1. **WIN CHECK**: Can you sleep opponent's LAST cards this turn? → Do it!
-2. **DIRECT ATTACK**: You have toy in play + opponent has 0 toys? → Attack! (2 CC each, max 2/turn)
+2. **TUSSLE**: Opponent has toys in play? → **MUST use TUSSLE** to attack them! (2 CC each)
+   - Tussle targets a specific opponent toy IN PLAY
+3. **DIRECT ATTACK**: Opponent has **exactly 0 toys** in play? → Direct attack their HAND! (2 CC, max 2/turn)
+   - **⚠️ CANNOT direct attack if opponent has ANY toys in play!**
+   - **⚠️ Direct attack has NO TARGET** - it randomly sleeps a card from opponent's HAND
    - **Check this AFTER every tussle!** Sleeping their last toy enables direct attacks!
-3. **TUSSLE**: Can you win and sleep their toy? → Tussle! Then check if direct attack available!
 4. **REMOVE THREATS**: Use Archer ability, Drop, Monster, tussle on CRITICAL/HIGH threats
    - **Gibbers active?** → Priority target! (1 STA = easy kill, removes +1 cost tax)
 5. **DEFEND**: No toys in play? → Play ONE toy (preferably with good STA)
@@ -258,8 +261,11 @@ Generate actions until BOTH conditions are met:
 - ✅ cc_after >= 0 after EVERY action (never go negative!)
 - ✅ Only TOY cards can tussle/direct attack (check for SPD/STR/STA stats!)
 - ✅ ACTION cards go to sleep zone after use - they're gone, can't attack with them!
+- ✅ **TUSSLE vs DIRECT ATTACK**:
+  - Opponent has toys in play → use **TUSSLE** (targets their toy)
+  - Opponent has 0 toys in play → use **DIRECT ATTACK** (NO target, hits their hand)
+  - **NEVER use direct_attack with target_ids** - it has no target!
 - ✅ **Drop/Archer REQUIRE targets IN PLAY NOW** - if opponent has 0 toys, these are USELESS!
-- ✅ **Targets must EXIST NOW** - opponent doesn't play during YOUR turn!
 - ✅ **Copy can ONLY copy YOUR OWN toys** - not opponent's!
 
 ### Turn 1 Traps (2 CC only!)
@@ -279,13 +285,15 @@ Result: 3 CC spent → 1 card slept
 ```
 
 ### Example: Tussle → Direct Attack Combo
-Start: 4 CC, your Knight in play, opponent has 1 toy (their Knight)
+Start: 6 CC, your Umbruh in play, opponent has 2 toys (Paper Plane, Archer)
 ```
-1. Tussle with Knight (Cost: 2). **New CC: 2** → opponent's Knight sleeped → 0 TOYS LEFT!
-2. Direct Attack (Cost: 2). **New CC: 0** → 1 card from hand sleeped
-3. end_turn
-Result: 4 CC → 2 cards sleeped = 2.0 CC/card efficiency ✓
+1. Tussle Umbruh vs Paper Plane (Cost: 2). **New CC: 4** → Paper Plane sleeped. Opponent still has Archer!
+2. Tussle Umbruh vs Archer (Cost: 2). **New CC: 2** → Archer sleeped → **0 TOYS LEFT!**
+3. Direct Attack with Umbruh (Cost: 2). **New CC: 0** → NO TARGET NEEDED, random card from hand sleeped
+4. end_turn
+Result: 6 CC → 3 cards sleeped = 2.0 CC/card efficiency ✓
 ```
+**⚠️ WRONG**: Direct attack while opponent has toys → use TUSSLE instead!
 
 ### SELF-CHECK (Before submitting plan)
 □ CC ≥ 2 remaining? → Did I miss a Tussle or Direct Attack?
