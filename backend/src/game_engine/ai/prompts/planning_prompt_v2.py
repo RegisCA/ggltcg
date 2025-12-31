@@ -56,6 +56,7 @@ COMPACT_RULES = """## Quick Rules Reference
 
 **"Win tussle" = opponent's toy reaches 0 STA and is sleeped.**
 - Knight on YOUR turn = auto-wins (opponent sleeped, Knight takes 0 damage)
+- **⚠️ SLEEPED = GONE FROM PLAY**: Card moves to sleep zone, cannot be targeted again!
 
 ### CC Math (CRITICAL - calculate after EVERY action!)
 ```
@@ -277,6 +278,7 @@ Generate actions until BOTH conditions are met:
 - ✅ cc_after >= 0 after EVERY action (never go negative!)
 - ✅ Only TOY cards can tussle/direct attack (check for SPD/STR/STA stats!)
 - ✅ ACTION cards go to sleep zone after use - they're gone, can't attack with them!
+- ✅ **SLEEPED cards are GONE** - don't plan to target a card you already sleeped!
 - ✅ **TUSSLE vs DIRECT ATTACK**:
   - Opponent has toys in play → use **TUSSLE** (targets their toy)
   - Opponent has 0 toys in play → use **DIRECT ATTACK** (NO target, hits their hand)
