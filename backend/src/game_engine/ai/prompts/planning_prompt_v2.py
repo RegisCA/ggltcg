@@ -57,12 +57,19 @@ COMPACT_RULES = """## Quick Rules Reference
 **"Win tussle" = opponent's toy reaches 0 STA and is sleeped.**
 - Knight on YOUR turn = auto-wins (opponent sleeped, Knight takes 0 damage)
 
-### CC Math
+### CC Math (CRITICAL - calculate after EVERY action!)
 ```
 cc_after = cc_before - cc_cost + cc_gained
 ```
-- Surge: +1 CC | Rush: +2 CC (not turn 1)
-- Wizard in play: All tussles cost 1 CC
+**CC-gaining cards ADD to your total:**
+- Surge: costs 0, **ADDS +1 CC** → cc_after = cc_before + 1
+- Rush: costs 0, **ADDS +2 CC** → cc_after = cc_before + 2 (not turn 1)
+- HLK in play: **ADDS +1 CC** when you play other cards
+
+**Example**: Start 2 CC → Play Surge → cc_after = 2 - 0 + 1 = **3 CC** (not 2!)
+
+**Cost reductions:**
+- Wizard in play: All tussles cost 1 CC instead of 2
 - Raggy: Its own tussles cost 0 CC
 
 ### Key Constraints
@@ -283,15 +290,16 @@ Generate actions until BOTH conditions are met:
 - **DON'T play Drop** if opponent has 0 toys in play (no valid target!)
 - **DO play 1 defensive toy** (Umbruh 1 CC or Beary 1 CC) → blocks direct attacks
 
-### Example: CC-Gaining Sequence (FOLLOW THIS FORMAT)
-Start: 2 CC, Hand: [Surge, Umbruh], Opponent has: Knight in play
+### Example: Turn 1 with Surge (FOLLOW THIS MATH!)
+Start: 2 CC, Hand: [Surge, Knight], Opponent has: 0 toys in play
 ```
-1. Play Surge (Cost: 0, Gain: +1). **New CC: 3**
-2. Play Umbruh (Cost: 1). **New CC: 2**
-3. Tussle Umbruh vs Knight (Cost: 2). **New CC: 0**
+1. Play Surge (Cost: 0, Gain: +1). cc_after = 2 - 0 + 1 = **3 CC**
+2. Play Knight (Cost: 1). cc_after = 3 - 1 = **2 CC**
+3. Direct Attack with Knight (Cost: 2). cc_after = 2 - 2 = **0 CC** → 1 card slept from hand!
 4. end_turn
-Result: 3 CC spent → 1 card slept
+Result: 2 CC spent (Surge is free +1) → 1 card slept = 2.0 efficiency ✓
 ```
+**⚠️ WRONG MATH**: Saying cc_after = 2 after Surge is WRONG! Surge ADDS +1, so it's 3!
 
 ### Example: Tussle → Direct Attack Combo
 Start: 6 CC, your Umbruh in play, opponent has 2 toys (Paper Plane, Archer)
