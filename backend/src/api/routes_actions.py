@@ -607,6 +607,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             engine.end_turn()
             
+            # Record successful execution for v3 tracking
+            if hasattr(ai_player, 'record_execution_result'):
+                ai_player.record_execution_result(success=True)
+            
             # Save updated game state to database
             service.update_game(game_id, engine)
             
