@@ -31,13 +31,15 @@ COMPACT_RULES = """## Quick Rules Reference
 - **TOY**: Has SPD/STR/STA stats. Can tussle and direct attack.
 - **ACTION**: No stats. Effect triggers, then card goes to YOUR sleep zone. **Cannot attack!**
 
-### Core Actions
+### Core Actions (COSTS ARE FIXED!)
 | Action | Cost | Requirement |
 |--------|------|-------------|
 | Play card | Card's cost | Card in hand |
-| Tussle | 2 CC | **TOY** in your IN PLAY vs opponent toy **IN PLAY** |
-| Direct Attack | 2 CC | **TOY** in your IN PLAY + **opponent has 0 toys in play** (max 2/turn). **NO TARGET** - sleeps random card from opponent's HAND! |
+| Tussle | **2 CC** (always!) | **TOY** in your IN PLAY vs opponent toy **IN PLAY** |
+| Direct Attack | **2 CC** (always!) | **TOY** in your IN PLAY + **opponent has 0 toys in play** (max 2/turn). **NO TARGET** - sleeps random card from opponent's HAND! |
 | Activate Ability | Varies | TOY with ability in your IN PLAY (e.g., Archer: 1 CC per use) |
+
+**⚠️ COSTS DO NOT CHANGE based on remaining CC!** If you have 1 CC left, you CANNOT direct attack (costs 2)!
 
 ### Combat Resolution (Tussle)
 1. **Compare SPD**: Attacker gets +1 SPD bonus
@@ -275,7 +277,8 @@ Generate actions until BOTH conditions are met:
 
 ### Critical Checks
 - ✅ Every card in plan must be in YOUR HAND or IN PLAY (check IDs!)
-- ✅ cc_after >= 0 after EVERY action (never go negative!)
+- ✅ **cc_after >= 0 after EVERY action** (never go negative! If action costs 2 and you have 1 CC, you CANNOT do it!)
+- ✅ **Costs are FIXED** - tussle/direct attack always cost 2 CC, never less!
 - ✅ Only TOY cards can tussle/direct attack (check for SPD/STR/STA stats!)
 - ✅ ACTION cards go to sleep zone after use - they're gone, can't attack with them!
 - ✅ **SLEEPED cards are GONE** - don't plan to target a card you already sleeped!
