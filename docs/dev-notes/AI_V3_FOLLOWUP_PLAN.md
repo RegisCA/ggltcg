@@ -10,7 +10,7 @@ This document outlines the implementation plan for issues #252, #259, and #260, 
 |-------|-------|--------|--------|
 | [#252](https://github.com/RegisCA/ggltcg/issues/252) | Add CC efficiency tracking to game logging | backend, enhancement | ✅ Complete |
 | [#259](https://github.com/RegisCA/ggltcg/issues/259) | Admin - Playbacks enhancement/consolidation | frontend, simulations, refactor | Not Started |
-| [#260](https://github.com/RegisCA/ggltcg/issues/260) | Update play by play and AI logs for Gemiknight v3 | AI, backend, enhancement | Not Started |
+| [#260](https://github.com/RegisCA/ggltcg/issues/260) | Update play by play and AI logs for Gemiknight v3 | AI, backend, enhancement | 🔄 In Progress |
 
 ## Implementation Dependencies
 

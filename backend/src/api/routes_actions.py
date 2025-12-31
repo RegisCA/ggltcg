@@ -485,20 +485,25 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
+    # Get AI player first to determine version
+    ai_player = get_ai_player()
+    
     # Use ActionValidator for single source of truth
-    # Enable AI filtering to remove strategically bad moves
+    # V2: Enable AI filtering to remove strategically bad moves (losing tussles)
+    # V3: Disable filtering - v3 does strategic planning and may need tactical sacrifices
+    is_v3 = ai_player.__class__.__name__ == 'LLMPlayerV3'
+    filter_for_ai = not is_v3  # False for v3, True for v2
+    
     validator = ActionValidator(engine)
-    valid_actions = validator.get_valid_actions(player_id, filter_for_ai=True)
+    valid_actions = validator.get_valid_actions(player_id, filter_for_ai=filter_for_ai)
     
     # Log available actions for debugging
-    logger.debug(f"Available actions after filtering/prioritizing: {[a.description for a in valid_actions]}")
+    logger.debug(f"Available actions (filtered={filter_for_ai}): {[a.description for a in valid_actions]}")
     
     # Get AI player and have it select an action
     try:
-        logger.info(f"🤖 AI turn starting for player {player_id} in game {game_id}")
+        logger.info(f"🤖 AI turn starting for player {player_id} in game {game_id} (v{'3' if is_v3 else '2'})")
         logger.debug(f"Available actions: {[a.description for a in valid_actions]}")
-        
-        ai_player = get_ai_player()
         result = ai_player.select_action(game_state, player_id, valid_actions, engine)
         
         if result is None:
@@ -644,6 +649,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if not result.success:
                     raise HTTPException(status_code=500, detail=result.message)
                 
+                # Record successful execution for v3 tracking
+                if hasattr(ai_player, 'record_execution_result'):
+                    ai_player.record_execution_result(success=True)
+                
                 # Log to play-by-play
                 # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
@@ -711,6 +720,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if not result.success:
                     raise HTTPException(status_code=500, detail=result.message)
                 
+                # Record successful execution for v3 tracking
+                if hasattr(ai_player, 'record_execution_result'):
+                    ai_player.record_execution_result(success=True)
+                
                 # Log to play-by-play
                 # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
@@ -748,6 +761,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 )
                 
             except ValueError as e:
+                # Record execution failure for v3 tracking
+                if hasattr(ai_player, 'record_execution_result'):
+                    ai_player.record_execution_result(success=False, error_message=str(e))
+                
                 # AI-specific error handling - likely LLM hallucination
                 error_msg = str(e)
                 if "not found" in error_msg.lower():
@@ -842,6 +859,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     game_engine=engine
                 )
                 
+                # Record successful execution for v3 tracking
+                if hasattr(ai_player, 'record_execution_result'):
+                    ai_player.record_execution_result(success=True)
+                
                 # Log to play-by-play
                 description = f"Activated {source_card.name}'s ability"
                 if target_card:
@@ -886,6 +907,9 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 )
                 
             except Exception as e:
+                # Record execution failure for v3 tracking
+                if hasattr(ai_player, 'record_execution_result'):
+                    ai_player.record_execution_result(success=False, error_message=str(e))
                 raise HTTPException(status_code=500, detail=f"AI activate_ability failed: {str(e)}")
         
         else:

@@ -60,3 +60,40 @@ export async function getCardLeaderboard(
   );
   return response.data;
 }
+// ============================================================================
+// AI LOGS
+// ============================================================================
+
+/**
+ * AI Log data returned from the admin API
+ */
+export interface AILogData {
+  turn_number: number;
+  player_id: string;
+  ai_version: number | null;
+  turn_plan: {
+    strategy: string;
+    cc_efficiency: string;
+  } | null;
+  plan_execution_status: 'complete' | 'fallback' | null;
+  fallback_reason: string | null;
+}
+
+interface AILogsResponse {
+  count: number;
+  logs: AILogData[];
+}
+
+/**
+ * Get AI decision logs for a specific game
+ */
+export async function fetchAILogsForGame(gameId: string): Promise<AILogData[]> {
+  const response = await apiClient.get<AILogsResponse>('/admin/ai-logs', {
+    params: {
+      game_id: gameId,
+      limit: 50, // Should be enough for any game
+    },
+  });
+  // Extract the logs array from the response object
+  return response.data.logs || [];
+}

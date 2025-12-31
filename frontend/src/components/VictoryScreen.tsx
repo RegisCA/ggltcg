@@ -6,11 +6,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { GameState } from '../types/game';
 import { generateNarrative } from '../api/gameService';
+import { fetchAILogsForGame } from '../api/statsService';
 
 interface VictoryScreenProps {
   gameState: GameState;
   onPlayAgain: () => void;
 }
+
+// Import shared type from statsService
+import type { AILogData } from '../api/statsService';
 
 export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
   const winnerPlayer = gameState.players[gameState.winner || ''];
@@ -18,6 +22,27 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
   const [narrativeMode, setNarrativeMode] = useState(false);
   const [narrative, setNarrative] = useState<string>('');
   const [isLoadingNarrative, setIsLoadingNarrative] = useState(false);
+  const [aiLogs, setAiLogs] = useState<AILogData[]>([]);
+
+  // Fetch AI logs for this game
+  useEffect(() => {
+    if (gameState.game_id) {
+      console.log('[VictoryScreen] Fetching AI logs for game:', gameState.game_id);
+      fetchAILogsForGame(gameState.game_id)
+        .then((logs) => {
+          console.log('[VictoryScreen] Received AI logs:', logs);
+          // Ensure logs is an array
+          const validLogs = Array.isArray(logs) ? logs : [];
+          console.log('[VictoryScreen] Valid logs count:', validLogs.length);
+          setAiLogs(validLogs);
+        })
+        .catch((error) => {
+          console.error('[VictoryScreen] Failed to fetch AI logs:', error);
+          // Silently fail - AI logs are supplementary
+          setAiLogs([]);
+        });
+    }
+  }, [gameState.game_id]);
 
   // Load narrative when mode is switched
   useEffect(() => {
@@ -38,15 +63,41 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
     }
   }, [narrativeMode, narrative, playByPlay]);
 
-  // Group actions by turn and player
-  const groupedActions: Record<string, typeof playByPlay> = {};
-  playByPlay.forEach((entry) => {
-    const key = `${entry.turn}-${entry.player}`;
-    if (!groupedActions[key]) {
-      groupedActions[key] = [];
+  // Group actions by turn and player, merging with AI logs
+  // useMemo ensures this recomputes when aiLogs changes
+  const groupedActions = useMemo(() => {
+    const grouped: Record<string, { actions: typeof playByPlay; aiLog?: AILogData }> = {};
+    
+    // First, group play-by-play actions
+    playByPlay.forEach((entry) => {
+      const key = `${entry.turn}-${entry.player}`;
+      if (!grouped[key]) {
+        grouped[key] = { actions: [] };
+      }
+      grouped[key].actions.push(entry);
+    });
+    
+    // Then merge AI logs into grouped actions (only if aiLogs is an array)
+    if (Array.isArray(aiLogs) && aiLogs.length > 0) {
+      console.log('[VictoryScreen] Merging AI logs. Total logs:', aiLogs.length);
+      console.log('[VictoryScreen] Available players:', Object.keys(gameState.players));
+      aiLogs.forEach((log) => {
+        // Find matching player name from gameState
+        const playerName = gameState.players[log.player_id]?.name;
+        console.log('[VictoryScreen] Log turn', log.turn_number, 'player_id:', log.player_id, 'playerName:', playerName);
+        if (playerName) {
+          const key = `${log.turn_number}-${playerName}`;
+          console.log('[VictoryScreen] Trying to merge with key:', key, 'exists:', !!grouped[key]);
+          if (grouped[key]) {
+            grouped[key].aiLog = log;
+            console.log('[VictoryScreen] Merged AI log for', key);
+          }
+        }
+      });
     }
-    groupedActions[key].push(entry);
-  });
+    
+    return grouped;
+  }, [playByPlay, aiLogs, gameState.players]);
 
   return (
     <div 
@@ -145,9 +196,12 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
             ) : (
               /* Factual Mode */
               <div className="content-spacing">
-              {Object.entries(groupedActions).map(([key, actions]) => {
+              {Object.entries(groupedActions).map(([key, { actions, aiLog }]) => {
                 const firstAction = actions[0];
-                const isAI = firstAction.reasoning !== undefined;
+                const isAI = firstAction.reasoning !== undefined || aiLog !== undefined;
+                const isV3 = aiLog?.ai_version === 3;
+                const hasPlan = isV3 && aiLog?.turn_plan;
+                const isFallback = aiLog?.plan_execution_status === 'fallback';
                 
                 return (
                   <div
@@ -159,18 +213,58 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                     }`}
                   >
                     {/* Turn and Player Header */}
-                    <div className="flex items-center border-b border-gray-700" style={{ gap: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)', paddingBottom: 'var(--spacing-component-xs)' }}>
+                    <div className="flex items-center flex-wrap border-b border-gray-700" style={{ gap: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)', paddingBottom: 'var(--spacing-component-xs)' }}>
                       <span className="bg-gray-700 text-gray-300 text-xs font-mono rounded" style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-xs)' }}>
                         Turn {firstAction.turn}
                       </span>
                       <span className="font-bold text-white text-base sm:text-lg">
                         {firstAction.player}
                       </span>
+                      {/* AI Version Badge */}
+                      {aiLog && (
+                        <span className={`text-xs font-semibold rounded ${
+                          isV3 ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-200'
+                        }`} style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}>
+                          {isV3 ? 'v3' : 'v2'}
+                        </span>
+                      )}
+                      {/* Fallback Badge */}
+                      {isFallback && (
+                        <span className="bg-yellow-600 text-white text-xs font-semibold rounded" style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}>
+                          ⚠️ Fallback
+                        </span>
+                      )}
                     </div>
+                    
+                    {/* v3 Turn Plan */}
+                    {hasPlan && aiLog.turn_plan && (
+                      <div className="bg-purple-900 bg-opacity-40 rounded border border-purple-700" style={{ marginBottom: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)' }}>
+                        <div className="text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                          <span className="text-purple-300 font-semibold">📋 Plan:</span>
+                        </div>
+                        <p className="text-purple-100 text-sm leading-relaxed" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                          {aiLog.turn_plan.strategy}
+                        </p>
+                        <div className="text-xs text-purple-300">
+                          Efficiency: {aiLog.turn_plan.cc_efficiency}
+                        </div>
+                        {isFallback && aiLog.fallback_reason && (
+                          <div className="bg-yellow-900 bg-opacity-30 border-t border-yellow-700 rounded" style={{ marginTop: 'var(--spacing-component-xs)', paddingTop: 'var(--spacing-component-xs)' }}>
+                            <span className="text-yellow-300 text-xs">⚠️ {aiLog.fallback_reason}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Actions for this turn/player */}
                     <div className="content-spacing">
-                      {actions.map((entry, index) => (
+                      {actions
+                        .filter(entry => {
+                          // Filter out generic "ended their turn" messages
+                          const desc = entry.description.toLowerCase();
+                          return !(desc.includes('ended their turn') || desc.includes('ended turn'));
+                        })
+                        .map((entry, index) => (
                         <div key={index}>
                           {/* Action Description */}
                           <p className="text-gray-100 leading-relaxed" style={{ paddingLeft: 'var(--spacing-component-xs)' }}>

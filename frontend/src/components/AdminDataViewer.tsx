@@ -39,6 +39,40 @@ interface AILog {
   action_number: number | null;
   reasoning: string | null;
   created_at: string;
+  // V3 fields
+  ai_version: number | null;
+  turn_plan: {
+    strategy: string;
+    total_actions: number;
+    current_action: number;
+    cc_start: number;
+    cc_after_plan: number;
+    expected_cards_slept: number;
+    cc_efficiency: string;
+    // Full action sequence (new)
+    action_sequence?: Array<{
+      action_type: string;
+      card_name: string | null;
+      target_names: string[] | null;
+      cc_cost: number;
+      reasoning: string;
+    }>;
+    // Planning prompt/response (new)
+    planning_prompt?: string;
+    planning_response?: string;
+    // Execution tracking (new)
+    execution_log?: Array<{
+      action_index: number;
+      planned_action: string;
+      status: 'success' | 'failed' | 'fallback_to_llm' | 'execution_failed';
+      method?: 'heuristic' | 'llm';
+      reason?: string;
+      execution_confirmed?: boolean;
+    }>;
+  } | null;
+  plan_execution_status: 'complete' | 'fallback' | null;
+  fallback_reason: string | null;
+  planned_action_index: number | null;
 }
 
 interface GamePlayback {
@@ -194,6 +228,7 @@ interface SimulationResults {
 const AdminDataViewer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users' | 'simulation'>('summary');
   const [selectedLog, setSelectedLog] = useState<AILog | null>(null);
+  const [expandedTurns, setExpandedTurns] = useState<Set<string>>(new Set());
   const [selectedPlayback, setSelectedPlayback] = useState<GamePlaybackDetail | null>(null);
   
   // Simulation state
@@ -304,6 +339,79 @@ const AdminDataViewer: React.FC = () => {
     enabled: activeTab === 'simulation',
   });
 
+  // Group AI logs by turn for v3 display
+  interface TurnGroup {
+    key: string;
+    game_id: string;
+    turn_number: number;
+    player_id: string;
+    model_name: string;
+    prompts_version: string;
+    ai_version: number;
+    turn_plan: AILog['turn_plan'];
+    created_at: string;
+    logs: AILog[];
+    has_fallback: boolean;
+    fallback_reason: string | null;
+  }
+
+  const groupLogsByTurn = (logs: AILog[]): (TurnGroup | AILog)[] => {
+    const v3Groups = new Map<string, TurnGroup>();
+    const v2Logs: AILog[] = [];
+
+    for (const log of logs) {
+      if (log.ai_version === 3 && log.turn_plan) {
+        const key = `${log.game_id}-${log.turn_number}-${log.player_id}`;
+        if (!v3Groups.has(key)) {
+          v3Groups.set(key, {
+            key,
+            game_id: log.game_id,
+            turn_number: log.turn_number,
+            player_id: log.player_id,
+            model_name: log.model_name,
+            prompts_version: log.prompts_version,
+            ai_version: 3,
+            turn_plan: log.turn_plan,
+            created_at: log.created_at,
+            logs: [],
+            has_fallback: false,
+            fallback_reason: null,
+          });
+        }
+        const group = v3Groups.get(key)!;
+        group.logs.push(log);
+        if (log.plan_execution_status === 'fallback') {
+          group.has_fallback = true;
+          group.fallback_reason = log.fallback_reason;
+        }
+      } else {
+        v2Logs.push(log);
+      }
+    }
+
+    // Combine and sort by created_at (most recent first)
+    const result: (TurnGroup | AILog)[] = [...v3Groups.values(), ...v2Logs];
+    result.sort((a, b) => {
+      const aDate = 'logs' in a ? a.created_at : a.created_at;
+      const bDate = 'logs' in b ? b.created_at : b.created_at;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
+
+    return result;
+  };
+
+  const toggleTurnExpanded = (key: string) => {
+    setExpandedTurns(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString();
@@ -345,10 +453,7 @@ const AdminDataViewer: React.FC = () => {
     }
   };
 
-  const truncate = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
+
 
   // Simulation functions
   const toggleDeckSelection = (deckName: string) => {
@@ -595,71 +700,240 @@ const AdminDataViewer: React.FC = () => {
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
             <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
               <p className="text-gray-400 text-sm">
-                Showing {aiLogsData?.count || 0} most recent AI decision logs
+                Showing {aiLogsData?.count || 0} most recent AI decisions (v3 grouped by turn)
               </p>
             </div>
-            {aiLogsData?.logs.map((log: AILog) => (
-              <div key={log.id} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
-                <div className="flex justify-between items-start" style={{ marginBottom: 'var(--spacing-component-md)' }}>
-                  <div>
-                    <h3 className="text-xl font-semibold">
-                      AI Log #{log.id}
-                      <span className="text-sm text-gray-400" style={{ marginLeft: 'var(--spacing-component-xs)' }}>
-                        {log.model_name} v{log.prompts_version}
-                      </span>
-                    </h3>
-                    <p className="text-sm text-gray-400">
-                      Game: {log.game_id.substring(0, 8)}... · Turn {log.turn_number} · {formatDate(log.created_at)}
-                    </p>
-                  </div>
-                  <button
-                    className="bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                    style={{ padding: '4px var(--spacing-component-sm)' }}
-                    onClick={() => setSelectedLog(selectedLog?.id === log.id ? null : log)}
-                  >
-                    {selectedLog?.id === log.id ? 'Hide' : 'View Full'}
-                  </button>
-                </div>
+            {aiLogsData?.logs && groupLogsByTurn(aiLogsData.logs).map((item) => {
+              // V3 Turn Group
+              if ('logs' in item) {
+                const turnGroup = item;
+                const isExpanded = expandedTurns.has(turnGroup.key);
+                const completedActions = turnGroup.logs.length;
+                const totalActions = turnGroup.turn_plan?.total_actions || completedActions;
+                const planCompleted = completedActions === totalActions && !turnGroup.has_fallback;
                 
-                {selectedLog?.id === log.id ? (
-                  <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
-                    <div>
-                      <h4 className="font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Prompt:</h4>
-                      <pre className="bg-gray-900 rounded overflow-x-auto text-sm text-gray-300 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-md)' }}>
-                        {log.prompt}
-                      </pre>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Response:</h4>
-                      <pre className="bg-gray-900 rounded overflow-x-auto text-sm text-gray-300 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-md)' }}>
-                        {log.response}
-                      </pre>
-                    </div>
-                    {log.reasoning && (
-                      <div>
-                        <h4 className="font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Reasoning:</h4>
-                        <p className="text-gray-300">{log.reasoning}</p>
+                return (
+                  <div key={turnGroup.key} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
+                    {/* Compact Turn Header */}
+                    <div 
+                      className="flex justify-between items-center cursor-pointer"
+                      onClick={() => toggleTurnExpanded(turnGroup.key)}
+                    >
+                      <div className="flex items-center flex-wrap" style={{ gap: 'var(--spacing-component-sm)' }}>
+                        <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }}>v3</span>
+                        <span className="font-semibold">Turn {turnGroup.turn_number}</span>
+                        <span className="text-gray-400 text-sm">Game: {turnGroup.game_id.substring(0, 8)}...</span>
+                        <span className="text-gray-500 text-sm">{turnGroup.model_name}</span>
+                        {planCompleted ? (
+                          <span className="text-xs rounded bg-green-600" style={{ padding: '2px var(--spacing-component-xs)' }}>
+                            ✓ {completedActions} actions
+                          </span>
+                        ) : turnGroup.has_fallback ? (
+                          <span className="text-xs rounded bg-yellow-600" style={{ padding: '2px var(--spacing-component-xs)' }}>
+                            ⚠ Fallback after {completedActions}/{totalActions}
+                          </span>
+                        ) : (
+                          <span className="text-xs rounded bg-blue-600" style={{ padding: '2px var(--spacing-component-xs)' }}>
+                            {completedActions}/{totalActions} actions
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {log.action_number !== null && (
-                      <div>
-                        <h4 className="font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Action Chosen:</h4>
-                        <p className="text-gray-300">Action #{log.action_number}</p>
+                      <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                    </div>
+                    
+                    {/* Expanded Turn Details */}
+                    {isExpanded && turnGroup.turn_plan && (
+                      <div style={{ marginTop: 'var(--spacing-component-md)' }}>
+                        {/* Strategy */}
+                        <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                          <span className="text-purple-400 font-semibold">Strategy: </span>
+                          <span className="text-gray-300">{turnGroup.turn_plan.strategy}</span>
+                        </div>
+                        
+                        {/* Turn Metrics */}
+                        <div className="flex flex-wrap text-sm" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-sm)' }}>
+                          <span><span className="text-gray-500">CC:</span> {turnGroup.turn_plan.cc_start} → {turnGroup.turn_plan.cc_after_plan}</span>
+                          <span><span className="text-gray-500">Target:</span> Sleep {turnGroup.turn_plan.expected_cards_slept} cards</span>
+                          {turnGroup.turn_plan.cc_efficiency && (
+                            <span><span className="text-gray-500">Efficiency:</span> {turnGroup.turn_plan.cc_efficiency}</span>
+                          )}
+                        </div>
+                        
+                        {/* Fallback Warning */}
+                        {turnGroup.has_fallback && turnGroup.fallback_reason && (
+                          <div className="bg-yellow-900/30 border border-yellow-600 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                            <span className="text-yellow-400 font-semibold">⚠️ Fallback: </span>
+                            <span className="text-yellow-200">{turnGroup.fallback_reason}</span>
+                          </div>
+                        )}
+                        
+                        {/* Planned Action Sequence (from first log with action_sequence) */}
+                        {turnGroup.turn_plan.action_sequence && turnGroup.turn_plan.action_sequence.length > 0 && (
+                          <div className="text-sm" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                            <span className="text-gray-500">Planned actions:</span>
+                            <ol className="list-decimal list-inside" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                              {turnGroup.turn_plan.action_sequence.map((action, idx) => {
+                                // Find execution log entry for this action
+                                const execLog = turnGroup.turn_plan?.execution_log?.find(log => log.action_index === idx);
+                                // Only show success if execution was explicitly confirmed
+                                const isSuccess = execLog?.status === 'success' && execLog?.execution_confirmed === true;
+                                const isMatchedButNotExecuted = execLog?.status === 'success' && execLog?.execution_confirmed !== true;
+                                const isExecutionFailed = execLog?.status === 'execution_failed';
+                                const isMatchFailed = execLog?.status === 'failed';
+                                const isLLMFallback = execLog?.status === 'fallback_to_llm' && execLog?.method === 'llm';
+                                const notAttempted = !execLog; // No log entry means never attempted
+                                
+                                return (
+                                  <li key={idx} className={notAttempted ? "text-gray-500" : "text-gray-300"}>
+                                    {/* Execution status indicator */}
+                                    {isSuccess && <span className="text-green-400">✅ </span>}
+                                    {isMatchedButNotExecuted && <span className="text-yellow-600">⚠️ </span>}
+                                    {(isExecutionFailed || isMatchFailed) && <span className="text-red-400">❌ </span>}
+                                    {isLLMFallback && <span className="text-yellow-400">⚠️ </span>}
+                                    {notAttempted && <span className="text-gray-600">⊘ </span>}
+                                    
+                                    <span className="text-blue-400">{action.action_type}</span>
+                                    {action.card_name && <span> {action.card_name}</span>}
+                                    {action.target_names && action.target_names.length > 0 && (
+                                      <span className="text-gray-400"> → {action.target_names.join(', ')}</span>
+                                    )}
+                                    <span className="text-gray-500"> ({action.cc_cost} CC)</span>
+                                    
+                                    {/* Matched but not executed */}
+                                    {isMatchedButNotExecuted && (
+                                      <span className="text-yellow-600 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
+                                        ⚠️ Matched to available action but execution not confirmed
+                                      </span>
+                                    )}
+                                    
+                                    {/* Not attempted indicator */}
+                                    {notAttempted && (
+                                      <span className="text-gray-600 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
+                                        Plan execution stopped before this action
+                                      </span>
+                                    )}
+                                    
+                                    {/* Execution failure reason - show for any failure */}
+                                    {execLog?.reason && (isExecutionFailed || isMatchFailed) && (
+                                      <span className="text-red-300 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
+                                        ❌ {isExecutionFailed ? 'Execution failed: ' : 'Match failed: '}{execLog.reason}
+                                      </span>
+                                    )}
+                                    
+                                    {action.reasoning && !notAttempted && (
+                                      <span className="text-gray-500 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
+                                        {action.reasoning}
+                                      </span>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ol>
+                          </div>
+                        )}
+                        
+                        {/* Planning Prompt (collapsible) */}
+                        {turnGroup.turn_plan.planning_prompt && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View planning prompt ({turnGroup.turn_plan.planning_prompt.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {turnGroup.turn_plan.planning_prompt}
+                            </pre>
+                          </details>
+                        )}
+                        
+                        {/* Planning Response (TurnPlan JSON - collapsible) */}
+                        {turnGroup.turn_plan.planning_response && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View planning response ({turnGroup.turn_plan.planning_response.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {turnGroup.turn_plan.planning_response}
+                            </pre>
+                          </details>
+                        )}
+                        
+                        {/* Executed actions (from logs - fallback if no action_sequence) */}
+                        {(!turnGroup.turn_plan.action_sequence || turnGroup.turn_plan.action_sequence.length === 0) && (
+                          <div className="text-sm">
+                            <span className="text-gray-500">Actions executed:</span>
+                            <ol className="list-decimal list-inside" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                              {turnGroup.logs
+                                .sort((a, b) => (a.turn_plan?.current_action || 0) - (b.turn_plan?.current_action || 0))
+                                .map((log) => (
+                                  <li key={log.id} className="text-gray-300">
+                                    {log.reasoning || `Action #${log.turn_plan?.current_action || '?'}`}
+                                    {log.plan_execution_status === 'fallback' && (
+                                      <span className="text-yellow-400 text-xs" style={{ marginLeft: 'var(--spacing-component-xs)' }}>(fallback)</span>
+                                    )}
+                                  </li>
+                                ))}
+                            </ol>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
-                    <p className="text-sm text-gray-400">
-                      Prompt: {truncate(log.prompt, 200)}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Response: {truncate(log.response, 200)}
-                    </p>
+                );
+              }
+              
+              // V2 Individual Log (unchanged display)
+              const log = item;
+              return (
+                <div key={log.id} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center flex-wrap" style={{ gap: 'var(--spacing-component-sm)' }}>
+                        <span className="text-xs rounded bg-gray-600" style={{ padding: '2px var(--spacing-component-xs)' }}>v2</span>
+                        <span className="font-semibold">Turn {log.turn_number}</span>
+                        <span className="text-gray-400 text-sm">Game: {log.game_id.substring(0, 8)}...</span>
+                        <span className="text-gray-500 text-sm">{log.model_name}</span>
+                      </div>
+                      <p className="text-sm text-gray-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                        {formatDate(log.created_at)}
+                      </p>
+                    </div>
+                    <button
+                      className="bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                      style={{ padding: '4px var(--spacing-component-sm)' }}
+                      onClick={() => setSelectedLog(selectedLog?.id === log.id ? null : log)}
+                    >
+                      {selectedLog?.id === log.id ? 'Hide' : 'Details'}
+                    </button>
                   </div>
-                )}
-              </div>
-            ))}
+                  
+                  {selectedLog?.id === log.id && (
+                    <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-md)' }}>
+                      {log.reasoning && (
+                        <div>
+                          <span className="text-gray-500 text-sm">Reasoning: </span>
+                          <span className="text-gray-300 text-sm">{log.reasoning}</span>
+                        </div>
+                      )}
+                      {log.prompt && (
+                        <div>
+                          <h4 className="font-semibold text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Prompt:</h4>
+                          <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-300 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', maxHeight: '200px', overflow: 'auto' }}>
+                            {log.prompt}
+                          </pre>
+                        </div>
+                      )}
+                      {log.response && (
+                        <div>
+                          <h4 className="font-semibold text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Response:</h4>
+                          <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-300 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)' }}>
+                            {log.response}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
