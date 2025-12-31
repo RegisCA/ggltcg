@@ -263,6 +263,8 @@ class TestDecisionInfo:
             player._current_plan = None
             player._plan_action_index = 0
             player._completed_actions = []
+            player._execution_log = []  # Track execution attempts
+            player.turn_planner = None  # Will be None in test context
             # Base LLMPlayer attributes for get_last_decision_info
             player._last_reasoning = "Test"
             player._last_action = None

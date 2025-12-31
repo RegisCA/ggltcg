@@ -836,9 +836,9 @@ class LLMPlayerV3(LLMPlayer):
                 "cc_efficiency": self._current_plan.cc_efficiency,
                 # Full action sequence for debugging
                 "action_sequence": action_sequence,
-                # Planning prompt and response (from turn planner)
-                "planning_prompt": self.turn_planner._last_prompt if hasattr(self.turn_planner, '_last_prompt') else None,
-                "planning_response": self.turn_planner._last_response if hasattr(self.turn_planner, '_last_response') else None,
+                # Planning prompt and response (from turn planner, if available)
+                "planning_prompt": getattr(self, 'turn_planner', None) and getattr(self.turn_planner, '_last_prompt', None),
+                "planning_response": getattr(self, 'turn_planner', None) and getattr(self.turn_planner, '_last_response', None),
                 # Execution tracking
                 "execution_log": self._execution_log if self._execution_log else None,
             }
