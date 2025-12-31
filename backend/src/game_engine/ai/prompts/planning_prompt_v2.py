@@ -90,9 +90,10 @@ THREAT_TABLE = """## Threat Priority
 CARD_SPECIAL_DOCS = {
     "Archer": """**Archer** (0 CC, 0/0/5): CANNOT tussle or direct attack!
   - Ability: Spend 1 CC → Remove 1 STA from target opponent toy **IN PLAY**. **Counts toward efficiency!**
-  - ⚠️ **ONLY targets toys IN PLAY** - cannot target opponent's hand!
-  - ❌ If opponent has 0 toys in play, Archer ability has NO VALID TARGETS
-  - ✅ Use Direct Attack instead when opponent board is empty!
+  - ⚠️ **ONLY targets toys IN PLAY RIGHT NOW** - cannot target opponent's hand!
+  - ❌ **0 opponent toys in play = CANNOT USE ABILITY** (no valid targets exist!)
+  - ❌ **DO NOT plan Archer ability hoping opponent "might play something"** - they won't play during YOUR turn!
+  - ✅ If opponent has 0 toys: Just play Archer (0 CC) and end turn - ability unusable!
   - **Step 0: Play Archer (0 CC) → Archer now in IN PLAY**
   - Each use is a SEPARATE action: action_type: "activate_ability", cc_cost: 1
   - **FINISH what you start!** If target has 1-3 STA, use Archer to sleep it completely!
@@ -257,7 +258,8 @@ Generate actions until BOTH conditions are met:
 - ✅ cc_after >= 0 after EVERY action (never go negative!)
 - ✅ Only TOY cards can tussle/direct attack (check for SPD/STR/STA stats!)
 - ✅ ACTION cards go to sleep zone after use - they're gone, can't attack with them!
-- ✅ **Drop/Archer REQUIRE targets IN PLAY** - useless if opponent has 0 toys!
+- ✅ **Drop/Archer REQUIRE targets IN PLAY NOW** - if opponent has 0 toys, these are USELESS!
+- ✅ **Targets must EXIST NOW** - opponent doesn't play during YOUR turn!
 - ✅ **Copy can ONLY copy YOUR OWN toys** - not opponent's!
 
 ### Turn 1 Traps (2 CC only!)
