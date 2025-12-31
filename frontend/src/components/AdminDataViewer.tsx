@@ -98,6 +98,7 @@ interface GamePlaybackDetail extends GamePlayback {
     action_type: string;
     description: string;
   }>;
+  cc_tracking: TurnCC[] | null;
 }
 
 interface Game {
@@ -230,6 +231,7 @@ const AdminDataViewer: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<AILog | null>(null);
   const [expandedTurns, setExpandedTurns] = useState<Set<string>>(new Set());
   const [selectedPlayback, setSelectedPlayback] = useState<GamePlaybackDetail | null>(null);
+  const [aiLogsGameIdFilter, setAiLogsGameIdFilter] = useState<string | null>(null);
   
   // Simulation state
   const [selectedDecks, setSelectedDecks] = useState<string[]>([]);
@@ -270,9 +272,13 @@ const AdminDataViewer: React.FC = () => {
 
   // Fetch AI logs
   const { data: aiLogsData } = useQuery({
-    queryKey: ['admin-ai-logs'],
+    queryKey: ['admin-ai-logs', aiLogsGameIdFilter],
     queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/ai-logs?limit=50`);
+      const params = new URLSearchParams({ limit: '100' });
+      if (aiLogsGameIdFilter) {
+        params.append('game_id', aiLogsGameIdFilter);
+      }
+      const response = await axios.get(`${API_BASE_URL}/admin/ai-logs?${params}`);
       return response.data;
     },
     refetchInterval: activeTab === 'ai-logs' ? 10000 : 30000, // Faster refresh when viewing
@@ -453,7 +459,14 @@ const AdminDataViewer: React.FC = () => {
     }
   };
 
+  const viewAILogsForGame = (gameId: string) => {
+    setAiLogsGameIdFilter(gameId);
+    setActiveTab('ai-logs');
+  };
 
+  const clearAILogsFilter = () => {
+    setAiLogsGameIdFilter(null);
+  };
 
   // Simulation functions
   const toggleDeckSelection = (deckName: string) => {
@@ -699,9 +712,26 @@ const AdminDataViewer: React.FC = () => {
         {activeTab === 'ai-logs' && (
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
             <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
-              <p className="text-gray-400 text-sm">
-                Showing {aiLogsData?.count || 0} most recent AI decisions (v3 grouped by turn)
-              </p>
+              {aiLogsGameIdFilter ? (
+                <div className="flex justify-between items-center">
+                  <p className="text-sm">
+                    <span className="text-purple-400 font-semibold">Filtered by Game: </span>
+                    <span className="text-gray-300 font-mono">{aiLogsGameIdFilter}</span>
+                    <span className="text-gray-400"> ({aiLogsData?.count || 0} logs)</span>
+                  </p>
+                  <button
+                    onClick={clearAILogsFilter}
+                    className="bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                    style={{ padding: '4px var(--spacing-component-sm)' }}
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">
+                  Showing {aiLogsData?.count || 0} most recent AI decisions (v3 grouped by turn)
+                </p>
+              )}
             </div>
             {aiLogsData?.logs && groupLogsByTurn(aiLogsData.logs).map((item) => {
               // V3 Turn Group
@@ -989,13 +1019,22 @@ const AdminDataViewer: React.FC = () => {
             </div>
             {selectedPlayback ? (
               <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
-                <button
-                  onClick={() => setSelectedPlayback(null)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded"
-                  style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
-                >
-                  ← Back to Playbacks List
-                </button>
+                <div className="flex" style={{ gap: 'var(--spacing-component-sm)' }}>
+                  <button
+                    onClick={() => setSelectedPlayback(null)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded"
+                    style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
+                  >
+                    ← Back to Playbacks List
+                  </button>
+                  <button
+                    onClick={() => viewAILogsForGame(selectedPlayback.game_id)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white rounded"
+                    style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
+                  >
+                    View AI Logs for this Game →
+                  </button>
+                </div>
                 <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
                   {/* Header - Player vs Player */}
                   <h2 className="text-2xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
@@ -1054,6 +1093,120 @@ const AdminDataViewer: React.FC = () => {
                       </table>
                     </div>
                   </div>
+
+                  {/* CC Tracking with Actions - Compact timeline view like Simulation */}
+                  {selectedPlayback.cc_tracking && selectedPlayback.cc_tracking.length > 0 && (
+                    <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                      <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Turn-by-Turn Summary</h3>
+                      <div className="bg-gray-900 rounded overflow-x-auto">
+                        <table className="w-full text-sm border-collapse">
+                          <thead className="bg-gray-950">
+                            <tr>
+                              <th className="px-3 py-2 text-center border-b border-gray-700 w-16">Turn</th>
+                              <th className="px-3 py-2 text-center text-green-400 border-b border-gray-700 w-24">
+                                {selectedPlayback.player1_name.length > 8 ? 'P1' : selectedPlayback.player1_name} CC
+                              </th>
+                              <th className="px-3 py-2 text-center text-blue-400 border-b border-gray-700 w-24">
+                                {selectedPlayback.player2_name.length > 8 ? 'P2' : selectedPlayback.player2_name} CC
+                              </th>
+                              <th className="px-3 py-2 text-left border-b border-gray-700">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(() => {
+                              // Group CC tracking by turn, using actual player IDs
+                              const p1Id = selectedPlayback.player1_id;
+                              const p2Id = selectedPlayback.player2_id;
+                              const turnMap = new Map<number, { p1?: TurnCC, p2?: TurnCC }>();
+                              selectedPlayback.cc_tracking!.forEach(cc => {
+                                if (!turnMap.has(cc.turn)) turnMap.set(cc.turn, {});
+                                const entry = turnMap.get(cc.turn)!;
+                                if (cc.player_id === p1Id) entry.p1 = cc;
+                                else if (cc.player_id === p2Id) entry.p2 = cc;
+                              });
+                              const turns = Array.from(turnMap.keys()).sort((a, b) => a - b);
+                              
+                              // Group play-by-play actions by turn
+                              const actionsByTurn = new Map<number, typeof selectedPlayback.play_by_play>();
+                              selectedPlayback.play_by_play?.forEach(action => {
+                                if (!actionsByTurn.has(action.turn)) actionsByTurn.set(action.turn, []);
+                                actionsByTurn.get(action.turn)!.push(action);
+                              });
+                              
+                              // Format CC: simple start-spent→end format
+                              const formatCC = (data: TurnCC | undefined, isActive: boolean): React.ReactNode => {
+                                if (!data) return <span className="text-gray-600">—</span>;
+                                return (
+                                  <span className={`font-mono ${isActive ? '' : 'opacity-60'}`}>
+                                    {data.cc_start}
+                                    {data.cc_gained > 0 && <span className="text-yellow-400">+{data.cc_gained}</span>}
+                                    {data.cc_spent > 0 && <span className="text-red-400">-{data.cc_spent}</span>}
+                                    <span className="text-gray-500">→</span>
+                                    <span className="font-bold">{data.cc_end}</span>
+                                  </span>
+                                );
+                              };
+                              
+                              return turns.map(turn => {
+                                const data = turnMap.get(turn)!;
+                                const turnActions = actionsByTurn.get(turn) || [];
+                                const isP1Turn = turn % 2 === 1;
+                                
+                                // Filter out end_turn actions for cleaner display
+                                const visibleActions = turnActions.filter(a => a.action_type !== 'end_turn');
+                                
+                                return (
+                                  <tr key={turn} className="border-t border-gray-800 hover:bg-gray-850">
+                                    <td className="px-3 py-2 text-center font-bold">{turn}</td>
+                                    <td className={`px-3 py-2 text-center ${isP1Turn ? 'bg-green-900/20' : ''}`}>
+                                      {formatCC(data.p1, isP1Turn)}
+                                    </td>
+                                    <td className={`px-3 py-2 text-center ${!isP1Turn ? 'bg-blue-900/20' : ''}`}>
+                                      {formatCC(data.p2, !isP1Turn)}
+                                    </td>
+                                    <td className="px-3 py-2 text-left text-xs">
+                                      {visibleActions.slice(0, 8).map((a, i) => (
+                                        <React.Fragment key={i}>
+                                          {i > 0 && <span className="text-gray-600">, </span>}
+                                          <span className={a.player === selectedPlayback.player1_name ? 'text-green-400' : 'text-blue-400'}>
+                                            {a.description}
+                                          </span>
+                                        </React.Fragment>
+                                      ))}
+                                      {visibleActions.length > 8 && <span className="text-gray-500"> +{visibleActions.length - 8} more</span>}
+                                    </td>
+                                  </tr>
+                                );
+                              });
+                            })()}
+                            {/* Summary row */}
+                            {(() => {
+                              const p1Id = selectedPlayback.player1_id;
+                              const p2Id = selectedPlayback.player2_id;
+                              const p1Gained = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p1Id).reduce((sum, cc) => sum + cc.cc_gained, 0);
+                              const p1Spent = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p1Id).reduce((sum, cc) => sum + cc.cc_spent, 0);
+                              const p2Gained = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p2Id).reduce((sum, cc) => sum + cc.cc_gained, 0);
+                              const p2Spent = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p2Id).reduce((sum, cc) => sum + cc.cc_spent, 0);
+                              return (
+                                <tr className="border-t border-gray-700 bg-gray-900/50">
+                                  <td className="px-3 py-2 text-center text-xs text-gray-400">Total</td>
+                                  <td className="px-3 py-2 text-center text-green-400 text-xs">
+                                    <span className="text-yellow-400">+{p1Gained}</span>
+                                    <span className="text-red-400">·{p1Spent}</span>
+                                  </td>
+                                  <td className="px-3 py-2 text-center text-blue-400 text-xs">
+                                    <span className="text-yellow-400">+{p2Gained}</span>
+                                    <span className="text-red-400">·{p2Spent}</span>
+                                  </td>
+                                  <td></td>
+                                </tr>
+                              );
+                            })()}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Play-by-Play */}
                   <div>
