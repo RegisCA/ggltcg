@@ -2,124 +2,126 @@
 
 ## Date: January 1, 2026
 
-## Objective
-Implement Gemini's "Protocol-style" recommendations to improve AI decision-making, addressing issues #267, #268, #271, #272, #273, #275, #276.
+## Current Status: NEEDS CONSOLIDATION
 
-## Gemini's Original Recommendations
+**Prompt size**: 514 lines (growing)
+**Tests**: 8 tests, all passing but validating wrong things
+**Core issues remaining**:
+1. ❌ Combat math wrong - AI thinks trades are mutual destruction (ignores attacker SPD bonus)
+2. ❌ Efficiency calculation counts own cards (should only count OPPONENT's cards slept)
+3. ❌ Prompt growing without consolidation - adding fixes on top of fixes
+4. ⚠️ May have overwritten working Gemini recommendations
 
-1. **Dynamic State Tagging** - Inject `[NO TUSSLE]` restrictions at card level
-2. **ACTION REGISTRY** - Consolidate action types with costs in a table
-3. **PRE-ACTION CHECKLIST** - Permission → Resource → Target checks
-4. **HARD CONSTRAINTS** - Numbered list of violations
-5. **ZERO-ACTION AUDIT** - Require justification if ending with CC >= 2
+## Gemini's Original Recommendations (from AI_V3_FOLLOWUP_PLAN.md)
 
-## What Was Working (Commit 8cb654e)
+1. **Sequential CC State-Tracking** - `cc_after_action` field per action ✅ Implemented
+2. **Persona: Aggressive Board Maximizer** - Goal: sleep opponent cards ✅ Implemented
+3. **Exhaustive Action Loop** - Continue until CC<2 AND no targets ✅ Implemented
+4. **Card Targeting Constraints** - Drop/Archer require in-play targets ✅ Implemented
+5. **residual_cc_justification** - Explain leftover CC ✅ Implemented
+6. **Few-Shot Examples** - Worked examples ✅ Have examples
 
-The committed Protocol restructure had:
-- ACTION REGISTRY with clear table format
-- PRE-ACTION CHECKLIST with 3 categories
-- EXECUTION PROTOCOL with Priority Order (1-6)
-- HARD CONSTRAINTS (9 numbered rules)
-- ZERO-ACTION AUDIT requirement
-- ~464 lines, structured and comprehensive
+## Changes Made This Session
 
-**Successful Turn 1 Example** (from earlier in session):
+### Commit 8f5e03b - CC Math Improvements
+- Strengthened CC MATH section with step-by-step verification
+- Added "STOP AND VERIFY" warning
+- Created Turn 1 test suite (5 tests)
+
+### Commit 2ff8d2e - Sleep Zone Constraint
+- Added HARD CONSTRAINT #10: play_card from SLEEP ZONE is illegal
+- Added Wake example showing proper card recovery
+- Added ZONE CHECK section
+- New test: TestSleepZoneTrap
+
+### Uncommitted Changes (Current)
+- Fixed opponent hand display: "0 cards - EMPTY, no hand cards to attack!" 
+- Added BOARD REALITY CHECK step (verify opponent toys before planning)
+- Expanded WIN CHECK priority with TRADING WINS explanation
+- Added trade example in combat math
+- New test: TestWinningTussle
+
+## Known Bugs Still Present
+
+### 1. Combat Math - Attacker Advantage Not Understood
+AI said "Cards Slept: 2 (both Umbruh)" when in fact:
+- Attacker gets +1 SPD bonus (5 vs 4)
+- Attacker strikes first
+- Defender sleeped before counter-attack
+- **Only defender dies, attacker takes 0 damage**
+
+The prompt says "Higher SPD (attacker +1 bonus) attacks first" but AI doesn't apply it.
+
+### 2. Efficiency Counts Own Cards
+AI reported efficiency as "2 CC / 2 cards" counting its own Umbruh.
+Should be: "2 CC / 1 opponent card = 2.0 efficiency"
+
+The prompt header says "Maximize CC efficiency (target: <=2.5 CC per opponent card slept)" but this isn't reinforced.
+
+## Prompt Size Analysis
+
 ```
-CC: 2 → 0  Target: Sleep 1 cards  Efficiency: 2.00 CC/card
-1. ✅ play_card Surge (0 CC)
-2. ✅ play_card Knight (1 CC)
-3. ✅ direct_attack Knight (2 CC)
-4. ✅ end_turn (0 CC)
+Current: 514 lines
+Baseline (8cb654e): ~464 lines
+Growth: +50 lines (10% increase)
 ```
 
-## Changes Made After Commit (Uncommitted)
+Added sections this session:
+- HARD CONSTRAINT #10 (3 lines)
+- Wake example (8 lines)
+- ZONE CHECK (4 lines)
+- BOARD REALITY CHECK step (5 lines)
+- WIN CHECK expansion (4 lines)
+- Trade example (6 lines)
+- Opponent toys count in post-action audit (1 line)
 
-| Change | Intent | Result |
-|--------|--------|--------|
-| Paper Plane doc rewrite | Clarify direct attack targets HAND not toys | May have introduced confusion |
-| Drop, Twist, Copy, Sun - added `target_ids` requirements | Fix Wake targeting issue | Good - needed |
-| Removed ACTION REGISTRY columns | Simplify | Lost important info (attacker requirements) |
-| Removed PRE-ACTION CHECKLIST | Simplify | Lost systematic validation |
-| Replaced EXECUTION PROTOCOL with TURN PLANNING ALGORITHM | Simplify | Lost Priority Order |
-| Removed HARD CONSTRAINTS section | Absorbed into other sections | Lost numbered rules |
-| Removed ZERO-ACTION AUDIT | Replaced with STOP condition | Lost explicit justification requirement |
-| Added "DIRECT ATTACK BLOCKER" section | Fix bypass confusion | Added but may conflict |
-| Changed tussle math format | Show "Will I sleep them?" | Good simplification |
-| Reduced from 464 to 436 lines | Efficiency | But lost structure |
+## Test Coverage
 
-## Problems Identified
+| Test | What It Validates | Blind Spots |
+|------|-------------------|-------------|
+| TestTurn1WithSurge | Surge CC bridge works | Doesn't check expected_cards_slept accuracy |
+| TestTurn1DropTrap | Drop not played without targets | - |
+| TestTurn1ArcherTrap | Archer ability not used without targets | - |
+| TestSleepZoneTrap | Wake used before sleep zone cards | - |
+| TestWinningTussle | Tussle used when opponent has toys | Doesn't validate combat math reasoning |
+| TestTurn1CCMathValidation | CC math doesn't go negative | - |
+| TestTurn1Regression | Combined regression | Same blind spots |
 
-### 1. Loss of Structure
-The committed version had clear, numbered sections. The current version is more prose-like and harder to follow systematically.
+**Missing test coverage**:
+- Combat math accuracy (attacker advantage)
+- Efficiency calculation (opponent cards only)
+- Mid-game exhaustive planning (#268)
 
-### 2. Conflicting Instructions
-- Multiple sections mention tussle vs direct attack rules
-- "DIRECT ATTACK BLOCKER" section repeats attack loop content
-- No single source of truth
+## Recommendation
 
-### 3. Lost Systematic Validation
-The PRE-ACTION CHECKLIST forced step-by-step validation:
-1. PERMISSION CHECK
-2. RESOURCE CHECK  
-3. TARGET CHECK
+### Option A: Continue Iterating (Current Path)
+- Fix combat math clarity in prompt
+- Fix efficiency definition
+- Run tests, commit
+- Risk: Prompt keeps growing, may lose coherence
 
-This was replaced with a less structured algorithm.
+### Option B: Consolidate and Optimize
+- Review entire prompt for redundancy
+- Remove duplicate explanations
+- Tighten language for Gemini 2.5 Flash Lite
+- May break things temporarily but results in cleaner prompt
 
-### 4. Lost Priority Order
-The original had explicit priority:
-1. WIN CHECK
-2. TUSSLE
-3. DIRECT ATTACK
-4. ABILITIES
-5. DEFEND
-6. END TURN
+### Option C: User Testing First
+- Commit current changes
+- User tests real games
+- Gather more failure cases
+- Prioritize based on real-world impact
 
-This guided decision-making sequentially.
+## Files Modified This Session
 
-### 5. CC Math Issues
-The AI is outputting `cc_start: 0` when game state shows `CC: 2/7`. This suggests the AI isn't correctly reading the game state, which is a schema/extraction issue separate from prompt content.
+- `backend/src/game_engine/ai/prompts/planning_prompt_v2.py` - Main prompt
+- `backend/src/game_engine/ai/prompts/formatters.py` - Opponent hand display
+- `backend/tests/test_ai_turn1_planning.py` - Test suite (8 tests)
+- `docs/dev-notes/ai-v3.1-session-analysis.md` - This file
 
-## Recommendation: Revert and Selectively Re-apply
+## Commits Made
 
-### Keep from Current Changes:
-1. ✅ `target_ids` requirements for Wake, Drop, Twist, Copy, Sun
-2. ✅ Paper Plane clarification (direct attack targets HAND)
-3. ✅ Simplified tussle math ("Will I sleep them?")
+1. `8f5e03b` - CC math tracking and Turn 1 tests
+2. `2ff8d2e` - Sleep Zone card constraint and test
+3. (uncommitted) - Winning tussle, board reality check, hand display fix
 
-### Restore from Commit 8cb654e:
-1. ACTION REGISTRY with attacker requirements column
-2. PRE-ACTION CHECKLIST structure
-3. EXECUTION PROTOCOL with Priority Order
-4. HARD CONSTRAINTS numbered list
-5. ZERO-ACTION AUDIT section
-
-### New Approach:
-Instead of constantly editing PLANNING_INSTRUCTIONS, we should:
-1. Revert to the working committed version
-2. Apply ONLY the `target_ids` documentation fixes
-3. Test thoroughly before making further changes
-4. Make one change at a time with testing between
-
-## Action Plan
-
-1. **Revert** `planning_prompt_v2.py` to commit 8cb654e
-2. **Re-apply** only the `target_ids` documentation for Wake, Drop, Twist, Copy, Sun
-3. **Test** Turn 1 to verify Surge+Knight+direct_attack works
-4. **Commit** if working
-5. **Then** address any remaining issues one at a time
-
-## Root Cause of Regressions
-
-The session started well but degraded because:
-1. Each fix was applied without re-testing basic scenarios
-2. Changes accumulated without understanding interactions
-3. Structure was lost in favor of adding more explanatory text
-4. No baseline test suite to catch regressions immediately
-
-## Lesson Learned
-
-Prompt engineering requires:
-- A stable baseline to compare against
-- Minimal changes per iteration
-- Testing the same scenarios after each change
-- Preserving working structure rather than rewriting
