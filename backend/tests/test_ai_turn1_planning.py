@@ -448,6 +448,81 @@ class TestSleepZoneTrap:
             print("\n⚠️ AI didn't try to play any cards from sleep zone (may have chosen a different valid strategy)")
 
 
+class TestWinningTussle:
+    """
+    Tests for endgame scenarios where the AI should tussle to win.
+    
+    Issue: AI hallucinated "opponent has no toys" when opponent clearly had Umbruh.
+    This led to invalid direct_attack when tussle was the winning move.
+    
+    Key insight: Trading toys (mutual destruction) is WINNING if it sleeps
+    the opponent's last card!
+    """
+    
+    def test_must_tussle_to_win_not_direct_attack(self, turn_planner):
+        """
+        Test that AI recognizes tussle is required when opponent has toys.
+        
+        Scenario: Turn 8, both players have 5/6 cards sleeped.
+        - AI has Umbruh (4/4/4) in play, empty hand
+        - Opponent has Umbruh (4/4/4) in play, empty hand
+        
+        CORRECT: Tussle Umbruh→Umbruh (trade, both die) = OPPONENT LOSES (6 cards sleeped)!
+        WRONG: Direct attack (illegal when opponent has toys in play!)
+        """
+        # This is the exact scenario from the user's bug report
+        setup, cards = create_game_with_cards(
+            player1_hand=[],  # Empty hand
+            player1_in_play=["Umbruh"],
+            player1_sleep=["Archer", "Surge", "Paper Plane", "Wake", "Knight"],  # 5 sleeped
+            player2_hand=[],  # Empty hand
+            player2_in_play=["Umbruh"],
+            player2_sleep=["Surge", "Wake", "Knight", "Paper Plane", "Archer"],  # 5 sleeped
+            player1_cc=4,  # Plenty of CC
+            player2_cc=1,
+            active_player="player1",
+            turn_number=8,
+        )
+        
+        plan = turn_planner.create_plan(
+            setup.game_state,
+            "player1",
+            setup.engine
+        )
+        
+        assert plan is not None
+        log_plan(plan, "WINNING TUSSLE: Must Tussle When Opponent Has Toys")
+        
+        # Check that AI correctly identified opponent has toys
+        has_direct_attack = any(
+            action.action_type == "direct_attack" 
+            for action in plan.action_sequence
+        )
+        
+        has_tussle = any(
+            action.action_type == "tussle"
+            for action in plan.action_sequence
+        )
+        
+        # Critical check: direct_attack is ILLEGAL when opponent has toys!
+        if has_direct_attack:
+            print("\n❌ CRITICAL: AI used direct_attack when opponent has toys in play!")
+            print("   This is ILLEGAL - must use tussle when opponent has toys!")
+        
+        assert not has_direct_attack, \
+            "AI used direct_attack when opponent has toys in play! " \
+            "Direct attack is only legal when opponent has 0 toys. " \
+            "The AI hallucinated 'opponent has no toys' - this is a game state reading error."
+        
+        # The winning play is to tussle
+        assert has_tussle, \
+            "AI should have used tussle to attack opponent's Umbruh! " \
+            "With 5/6 cards sleeped, one tussle (even a trade) wins the game."
+        
+        print("\n✓ AI correctly chose tussle over direct_attack")
+        print("  This scenario sleeps opponent's 6th card = VICTORY!")
+
+
 class TestTurn1CCMathValidation:
     """
     Tests that CC math is calculated correctly throughout the plan.
@@ -593,3 +668,97 @@ def validate_cc_math(plan):
         running_cc = max(0, expected_cc)
     
     return errors
+
+class TestCopyTrap:
+    def test_copy_only_targets_own_toys(self, turn_planner):
+        """Verify Copy cannot target opponent's toys."""
+        setup, cards = create_game_with_cards(
+            player1_hand=["Copy"],
+            player1_in_play=["Umbruh"],
+            player2_hand=[],
+            player2_in_play=["Ballaber"],
+            player1_cc=2,
+            player2_cc=0,
+            active_player="player1",
+            turn_number=2,
+        )
+        
+        plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
+        assert plan is not None
+        log_plan(plan, "COPY TRAP: Must Target Own Toy")
+        
+        copy_action = next((a for a in plan.action_sequence if a.card_name == "Copy"), None)
+        if copy_action:
+            # Verify target is NOT Ballaber
+            assert "Ballaber" not in copy_action.target_names, \
+                "AI tried to Copy opponent's Ballaber! Illegal!"
+            assert "Umbruh" in copy_action.target_names, \
+                "AI should copy its own Umbruh."
+
+class TestKnightEfficiency:
+    def test_no_wasted_archer_before_knight(self, turn_planner):
+        """Verify AI doesn't waste Archer shots before Knight tussle."""
+        setup, cards = create_game_with_cards(
+            player1_hand=[],
+            player1_in_play=["Knight", "Archer"],
+            player2_hand=[],
+            player2_in_play=["Umbruh"],
+            player1_cc=4,
+            player2_cc=0,
+            active_player="player1",
+            turn_number=2,
+        )
+        
+        plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
+        assert plan is not None
+        log_plan(plan, "KNIGHT EFFICIENCY: No Wasted Archer Shots")
+        
+        archer_use = next((a for a in plan.action_sequence if a.action_type == "activate_ability" and "Umbruh" in a.target_names), None)
+        knight_tussle = next((a for a in plan.action_sequence if a.action_type == "tussle" and a.card_name == "Knight"), None)
+        
+        if knight_tussle and archer_use:
+             pytest.fail("AI wasted Archer ability on a target that Knight was going to auto-sleep!")
+
+class TestExhaustivePlanning:
+    def test_uses_all_available_cc(self, turn_planner):
+        """Verify AI continues attacking until CC < 2."""
+        setup, cards = create_game_with_cards(
+            player1_hand=[],
+            player1_in_play=["Umbruh"],
+            player2_hand=[],
+            player2_in_play=["Knight", "Wizard"],
+            player1_cc=5, # Enough for 2 tussles (2+2=4)
+            player2_cc=0,
+            active_player="player1",
+            turn_number=2,
+        )
+        
+        plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
+        assert plan is not None
+        log_plan(plan, "EXHAUSTIVE PLANNING: Use All CC")
+        
+        tussles = [a for a in plan.action_sequence if a.action_type == "tussle"]
+        assert len(tussles) >= 2, \
+            f"AI should tussle at least twice with 5 CC! Found {len(tussles)} tussles."
+
+class TestCombatMath:
+    def test_attacker_wins_clean(self, turn_planner):
+        """Verify AI predicts only 1 card sleeped in attacker-advantage tussle."""
+        setup, cards = create_game_with_cards(
+            player1_hand=[],
+            player1_in_play=["Umbruh"], # 4/4/4
+            player2_hand=[],
+            player2_in_play=["Umbruh"], # 4/4/4
+            player1_cc=2,
+            player2_cc=0,
+            active_player="player1",
+            turn_number=2,
+        )
+        
+        plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
+        assert plan is not None
+        log_plan(plan, "COMBAT MATH: Attacker Advantage")
+        
+        # Expect 1 card slept (opponent), not 2
+        assert plan.expected_cards_slept == 1, \
+            f"AI predicted {plan.expected_cards_slept} cards slept. Should be 1 (attacker wins clean due to SPD bonus)."

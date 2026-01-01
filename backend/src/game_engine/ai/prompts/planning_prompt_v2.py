@@ -62,15 +62,10 @@ THREAT_TABLE = """## Threat Priority
 # Only include documentation for cards that need special explanation
 CARD_SPECIAL_DOCS = {
     "Archer": """**Archer** (0 CC, 0/0/5): CANNOT tussle or direct attack!
-  - Ability: Spend 1 CC → Remove 1 STA from target opponent toy **IN PLAY**. **Counts toward efficiency!**
-  - ⚠️ **ONLY targets toys IN PLAY RIGHT NOW** - cannot target opponent's hand!
-  - ❌ **0 opponent toys in play = CANNOT USE ABILITY** (no valid targets exist!)
-  - ❌ **DO NOT plan Archer ability hoping opponent "might play something"** - they won't play during YOUR turn!
-  - ✅ If opponent has 0 toys: Just play Archer (0 CC) and end turn - ability unusable!
-  - **Step 0: Play Archer (0 CC) → Archer now in IN PLAY**
-  - Each use is a SEPARATE action: action_type: "activate_ability", cc_cost: 1
-  - **FINISH what you start!** If target has 1-3 STA, use Archer to sleep it completely!
-  - When target reaches 0 STA → sleeped! Include in expected_cards_slept!""",
+  - Ability: 1 CC → Remove 1 STA from target opponent toy **IN PLAY**
+  - ⚠️ ONLY targets toys IN PLAY - cannot target hand!
+  - ❌ 0 opponent toys = CANNOT USE ABILITY (no valid target!)
+  - ❌ DO NOT plan Archer ability if opponent has 0 toys!""",
     
     "Paper Plane": """**Paper Plane** (1 CC, 2/2/1): Can direct attack EVEN IF opponent has toys!
   - Use action_type: "direct_attack", NOT tussle
@@ -86,12 +81,11 @@ CARD_SPECIAL_DOCS = {
   - Even if you can't sleep the target, chip damage is free
   - Example: Raggy in play, opponent has damaged toy → tussle for FREE!""",
     
-    "Knight": """**Knight** (1 CC, 4/4/3):
-  - **Active Effect**: On the CONTROLLER's turn, Knight wins ALL tussles.
-  - **Resolution**: Opponent toy sleeped instantly; Knight takes 0 damage.
-  - **Constraint**: If NOT the controller's turn, Knight uses normal SPD/STR/STA combat.
-  - YOUR Knight on YOUR turn = guaranteed tussle win!
-  - OPPONENT's Knight on YOUR turn = fights normally (use stats)""",
+    "Knight": """**Knight** (1 CC, 4/4/3): On YOUR turn, Knight auto-wins ALL tussles.
+  - Opponent toy ALWAYS sleeped, Knight takes 0 damage
+  - ✅ No need to reduce target STA first - Knight wins regardless!
+  - ⚠️ Only works on Knight's CONTROLLER's turn
+  - If OPPONENT has Knight and it's YOUR turn: Knight fights normally""",
     
     "Gibbers": """**Gibbers** (1 CC, 1/1/1): While in OPPONENT's play, YOUR cards cost +1 CC.
   - **CRITICAL PRIORITY**: Remove FIRST to restore normal costs!
@@ -121,11 +115,10 @@ CARD_SPECIAL_DOCS = {
     
     "Rush": """**Rush** (ACTION, 0 CC): Gain 2 CC. Net +2 CC. Cannot play turn 1. Play FIRST!""",
     
-    "Drop": """**Drop** (ACTION, 2 CC): Sleep 1 target toy **IN PLAY**. **Counts toward efficiency!**
-  - ⚠️ **REQUIRES VALID TARGET**: Opponent must have ≥1 toy IN PLAY
-  - ❌ Turn 1 trap: If opponent has 0 toys in play, Drop is USELESS!
-  - Cannot target cards in hand or sleep zone.
-  - This IS sleeping an opponent card → include in expected_cards_slept!""",
+    "Drop": """**Drop** (ACTION, 2 CC): Sleep 1 target toy IN PLAY.
+⚠️ REQUIRES TARGET IN PLAY: Opponent must have 1+ toys NOW!
+❌ 0 opponent toys = Drop is USELESS (no valid target!)
+❌ Turn 1 trap: As Player 1, opponent has 0 toys - DON'T play Drop!""",
     
     "Wake": """**Wake** (ACTION, 1 CC): Return 1 card from YOUR sleep zone to YOUR HAND (not play!).
   - Must then PAY CC and PLAY the card to use it.
@@ -142,10 +135,10 @@ CARD_SPECIAL_DOCS = {
   - Example: Your 3 STR toy vs 4 STA opponent → normally can't sleep
     - VVAJ first → 4 STR vs 4 STA → opponent sleeped! ✓""",
     
-    "Copy": """**Copy** (ACTION, 0 CC): Becomes exact copy of one of YOUR toys **IN PLAY**.
-  - ⚠️ **CAN ONLY COPY YOUR OWN TOYS** - NOT opponent's!
-  - ❌ Cannot copy if YOU have no toys in play
-  - Cost becomes the copied toy's original cost.""",
+    "Copy": """**Copy** (ACTION, 0 CC): Create exact copy of one of YOUR toys in play.
+⚠️ Can ONLY target YOUR toys - NOT opponent's!
+❌ Copy on opponent's toy → ILLEGAL!
+Cost to play = cost of the toy being copied.""",
     
     "Beary": """**Beary** (1 CC, 5/3/3): Cannot be targeted by opponent's Action cards.
   - Immune to opponent's Drop, Clean, Twist
@@ -234,7 +227,12 @@ You are an AGGRESSIVE BOARD MAXIMIZER. Goal: SLEEP AS MANY OPPONENT CARDS AS POS
 **STEP 1: Calculate MAXIMUM POTENTIAL CC**
 - Starting CC + Surge (+1) + Rush (+2, not turn 1) + HLK (+1 per other card played)
 
-**STEP 2: Generate Actions (EXHAUSTIVE LOOP)**
+**STEP 2: VERIFY OPPONENT BOARD**
+Count opponent toys IN PLAY from "Opponent's Toys (THREATS)" section:
+- 1+ toys → MUST use tussle (direct_attack is illegal!)
+- 0 toys → direct_attack is legal (no target_ids needed)
+
+**STEP 3: Generate Actions (EXHAUSTIVE LOOP)**
 Repeat until BOTH true:
 1. CC < 2 (or < 1 with Wizard, or 0 with Raggy)
 2. No valid attackers OR no valid targets
@@ -256,41 +254,34 @@ After each action, update:
 ---
 ## TUSSLE COMBAT MATH
 
-```
-Damage dealt = Attacker's STR
-Target sleeped when: Target's STA - Damage <= 0
-```
+Damage = Attacker's STR
+Target sleeped when: STA - Damage <= 0
 
-**Example**: Umbruh (4 STR) vs Archer (5 STA) → 5 - 4 = 1 STA left → NOT sleeped!
+**SPD RESOLUTION** (CRITICAL!):
+1. Compare SPD: Attacker gets +1 bonus
+2. Higher SPD attacks FIRST
+3. If first attack kills target → NO COUNTER-ATTACK!
+4. SPD tie → simultaneous damage (both may die)
 
-- Higher SPD (attacker +1 bonus) attacks first
-- Survivor counter-attacks
-- SPD tie = simultaneous damage
-- Knight on YOUR turn = auto-win (opponent sleeped, 0 damage to Knight)
+**Example - Attacker Wins Clean**:
+Your Umbruh (4/4/4) attacks Opponent's Umbruh (4/4/4)
+- Your SPD: 4+1 = 5 (attacker bonus)
+- Opponent SPD: 4
+- You attack first: 4 STR vs 4 STA → Opponent SLEEPED
+- Opponent cannot counter-attack (already sleeped!)
+- Result: 1 opponent card sleeped, your Umbruh takes 0 damage
 
 ---
-## CC MATH (CRITICAL - Calculate BEFORE writing each action!)
+## CC MATH (Calculate after EVERY action!)
 
-**⚠️ STOP AND VERIFY**: Before writing ANY action, mentally compute:
 ```
 cc_after = cc_before - cc_cost + cc_gained
 ```
-**If cc_after < 0, you CANNOT afford this action! Pick something cheaper or end turn.**
 
-**Fixed Costs (memorize!):**
-- Tussle: **2 CC** (always, unless Wizard in play: 1 CC, or Raggy self: 0 CC)
-- Direct Attack: **2 CC** (always)
-- Surge: 0 cost, **ADDS +1** → cc_after = cc_before + 1
-- Rush: 0 cost, **ADDS +2** → cc_after = cc_before + 2
+**Surge**: costs 0, ADDS +1 → cc_after = cc_before + 1
+**Rush**: costs 0, ADDS +2 → cc_after = cc_before + 2
 
-**Step-by-step verification example:**
-```
-Start: 2 CC
-→ Action 1: Play Surge. Cost 0, Gain +1. NEW CC: 2 - 0 + 1 = 3 ✓
-→ Action 2: Play Knight. Cost 1, Gain 0. NEW CC: 3 - 1 + 0 = 2 ✓
-→ Action 3: Direct Attack. Cost 2, Gain 0. NEW CC: 2 - 2 + 0 = 0 ✓
-```
-**Each action's cc_after becomes the next action's cc_before!**
+**Example**: 2 CC → Play Surge → 2 - 0 + 1 = **3 CC** (not 2!)
 
 ---
 ## HARD CONSTRAINTS (Violations = Invalid Plan!)
@@ -304,9 +295,7 @@ Start: 2 CC
 7. **Direct attack when opponent has toys** → ILLEGAL! Use tussle instead!
 8. **Drop/Archer ability with 0 opponent toys** → ILLEGAL! No valid targets!
 9. **Copy on opponent's toy** → ILLEGAL! Copy only YOUR toys!
-10. **play_card from SLEEP ZONE** → ILLEGAL! Sleep zone cards are NOT in your hand!
-    - ⚠️ **WAKE REQUIRED**: To use a sleeped card: Wake (1 CC) → card goes to HAND → then play_card (pay cost)
-    - Check the **Hand:** section for valid play_card targets, NOT Sleep Zone!
+10. **play_card from SLEEP ZONE** → ILLEGAL! Use Wake first to return card to hand.
 
 ---
 ## EXAMPLES
@@ -331,18 +320,6 @@ Start: 6 CC, Your Umbruh in play, Opponent: Paper Plane, Knight
 Result: 6 CC → 3 cards slept (same toy tussled twice!)
 ```
 
-**Recovering a Sleeped Card with Wake**:
-```
-Start: 6 CC, Hand: [Wake, Surge], Sleep Zone: [Knight], Opponent: Knight in play
-1. play_card Wake (1 CC) → cc_after=5, Knight returns to HAND (not play!)
-2. play_card Knight (1 CC) → cc_after=4, Knight now IN PLAY
-3. tussle Knight→Opponent Knight (2 CC) → cc_after=2, Opponent Knight sleeped
-4. direct_attack Knight (2 CC) → cc_after=0 → 1 card slept from hand
-5. end_turn
-Result: 6 CC → 2 cards slept
-⚠️ WRONG: Trying to play_card Knight directly from sleep zone WITHOUT Wake first!
-```
-
 ---
 ## ZERO-ACTION AUDIT
 
@@ -355,18 +332,7 @@ If ending with CC >= 2, you MUST provide `residual_cc_justification`:
 ---
 ## OUTPUT
 Respond with TurnPlan JSON only. Use [ID: xxx] UUIDs for all card references.
-Keep plan_reasoning CONCISE (1-3 sentences). Do NOT repeat analysis.
-
-**cc_cost MUST be EXACT**:
-- play_card: Use the card's actual cost from hand (shown in parentheses)
-- tussle: Always 2 (or 1 with Wizard, 0 for Raggy)
-- direct_attack: Always 2
-- activate_ability: Use ability cost (e.g., Archer: 1)
-
-**ZONE CHECK for card_id**:
-- play_card: card_id MUST be from **Hand:** section
-- tussle/direct_attack/activate_ability: card_id MUST be from **Your Toys:** (In Play) section
-- Sleep Zone cards CANNOT be used until recovered with Wake!"""
+Keep plan_reasoning CONCISE (1-3 sentences). Do NOT repeat analysis."""
 
 
 # =============================================================================
@@ -391,7 +357,9 @@ def get_planning_prompt_v2(
     card_docs = get_relevant_card_docs(card_names_in_game)
     
     # Game state FIRST (most important for decision-making)
-    prompt = f"""You are a GGLTCG turn planner. Maximize CC efficiency (target: <=2.5 CC per opponent card slept).
+    prompt = f"""You are a GGLTCG turn planner.
+CC EFFICIENCY = CC spent / OPPONENT cards sleeped (your own cards don't count!)
+Target: <=2.5 CC per opponent card slept.
 
 ---
 ## CURRENT GAME STATE

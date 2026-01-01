@@ -291,8 +291,10 @@ class SleepTargetEffect(PlayEffect):
             if owner:
                 if game_engine:
                     game_engine._sleep_card(target, owner, was_in_play=True)
+                    game_state.log_event(f"{target.name} is sleeped by {self.source_card.name}!")
                 else:
                     game_state.sleep_card(target, was_in_play=True)
+                    game_state.log_event(f"{target.name} is sleeped by {self.source_card.name}!")
 
 
 class ReturnTargetToHandEffect(PlayEffect):

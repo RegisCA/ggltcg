@@ -130,7 +130,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
 
 ### OPPONENT STATUS ({opponent.name})
 - CC: {opponent.cc}/7
-- Hand: {len(opponent.hand)} cards (hidden - could have Action cards!)
+- Hand: {len(opponent.hand)} cards{' (hidden)' if len(opponent.hand) > 0 else ' - EMPTY, no hand cards to attack!'}
 - In Play ({len(opponent.in_play)}):
     {opp_in_play}
 - Sleep Zone ({len(opponent.sleep_zone)} cards): {', '.join([c.name for c in opponent.sleep_zone])}
