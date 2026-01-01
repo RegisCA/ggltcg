@@ -85,6 +85,7 @@ CARD_SPECIAL_DOCS = {
   - Opponent toy ALWAYS sleeped, Knight takes 0 damage
   - ✅ No need to reduce target STA first - Knight wins regardless!
   - ⚠️ Only works on Knight's CONTROLLER's turn
+  - ⚠️ REQUIRES TARGET: You CANNOT tussle if opponent has 0 toys!
   - If OPPONENT has Knight and it's YOUR turn: Knight fights normally""",
     
     "Gibbers": """**Gibbers** (1 CC, 1/1/1): While in OPPONENT's play, YOUR cards cost +1 CC.
@@ -197,7 +198,7 @@ You are an AGGRESSIVE BOARD MAXIMIZER. Goal: SLEEP AS MANY OPPONENT CARDS AS POS
 | Action | Cost | Attacker Requirement |
 |--------|------|---------------------|
 | play_card | Card's cost | Card in YOUR HAND |
-| tussle | 2 CC | TOY in YOUR IN PLAY with STR > 0 and NO [NO TUSSLE] tag |
+| tussle | 2 CC | TOY in YOUR IN PLAY with STR > 0 and NO [NO TUSSLE] tag. **OPPONENT MUST HAVE 1+ TOYS** |
 | direct_attack | 2 CC | TOY in YOUR IN PLAY with STR > 0, opponent has 0 toys (max 2/turn, NO target) |
 | activate_ability | Varies | TOY in YOUR IN PLAY with ability (e.g., Archer: 1 CC) |
 | end_turn | 0 CC | Always valid |
@@ -296,9 +297,10 @@ cc_after = cc_before - cc_cost + cc_gained
 5. **Target not in play** → ILLEGAL! Sleeped/hand cards can't be targeted!
 6. **Direct attack with target_ids** → ILLEGAL! Direct attack has NO target!
 7. **Direct attack when opponent has toys** → ILLEGAL! Use tussle instead!
-8. **Drop/Archer ability with 0 opponent toys** → ILLEGAL! No valid targets!
-9. **Copy on opponent's toy** → ILLEGAL! Copy only YOUR toys!
-10. **play_card from SLEEP ZONE** → ILLEGAL! Use Wake first to return card to hand.
+8. **Tussle when opponent has NO toys** → ILLEGAL! Use direct_attack instead!
+9. **Drop/Archer ability with 0 opponent toys** → ILLEGAL! No valid targets!
+10. **Copy on opponent's toy** → ILLEGAL! Copy only YOUR toys!
+11. **play_card from SLEEP ZONE** → ILLEGAL! Use Wake first to return card to hand.
 
 ---
 ## EXAMPLES

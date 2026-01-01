@@ -27,6 +27,7 @@ We successfully consolidated the AI prompt and fixed 7 critical issues. The prom
 | **#275** Copy Targeting | Added "Can ONLY target YOUR toys" warning | `TestCopyTrap` | ✅ FIXED |
 | **#276** Knight Efficiency | Added "Knight auto-wins" clarification | `TestKnightEfficiency` | ✅ FIXED |
 | **CC Tracking Bug** | Added "MANDATORY MATH" in reasoning | `TestTurn1CCMathValidation` | ✅ FIXED |
+| **Tussle Hallucination** | Added "Tussle requires 1+ opponent toys" constraint | `TestTurn1Overspending` | ✅ FIXED |
 
 ### 3. New Tests Created
 
