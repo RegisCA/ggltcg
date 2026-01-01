@@ -35,7 +35,7 @@ COMPACT_RULES = """## Quick Rules Reference
 | Action | Cost | Requirement |
 |--------|------|-------------|
 | Play card | Card's cost | Card in hand |
-| Tussle | **2 CC** (always!) | **TOY** in your IN PLAY vs opponent toy **IN PLAY** |
+| Tussle | **2 CC** (always!) | **TOY** in your IN PLAY vs opponent toy **IN PLAY**. **Same toy can tussle multiple times per turn!** |
 | Direct Attack | **2 CC** (always!) | **TOY** in your IN PLAY + **opponent has 0 toys in play** (max 2/turn). **NO TARGET** - sleeps random card from opponent's HAND! |
 | Activate Ability | Varies | TOY with ability in your IN PLAY (e.g., Archer: 1 CC per use) |
 
@@ -59,6 +59,9 @@ COMPACT_RULES = """## Quick Rules Reference
 **"Win tussle" = opponent's toy reaches 0 STA and is sleeped.**
 - Knight on YOUR turn = auto-wins (opponent sleeped, Knight takes 0 damage)
 - **⚠️ SLEEPED = GONE FROM PLAY**: Card moves to sleep zone, cannot be targeted again!
+- **⚠️ CHOOSE ATTACKERS WISELY**: Don't send weak toys against strong ones!
+  - Paper Plane (2/2/1) vs Knight (4/4/3) = Paper Plane DIES (Knight faster, hits harder)
+  - Use your STRONGEST available toy to tussle! One toy can tussle multiple times!
 
 ### CC Math (CRITICAL - calculate after EVERY action!)
 ```
