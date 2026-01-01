@@ -269,16 +269,28 @@ Target sleeped when: Target's STA - Damage <= 0
 - Knight on YOUR turn = auto-win (opponent sleeped, 0 damage to Knight)
 
 ---
-## CC MATH (Calculate after EVERY action!)
+## CC MATH (CRITICAL - Calculate BEFORE writing each action!)
 
+**⚠️ STOP AND VERIFY**: Before writing ANY action, mentally compute:
 ```
 cc_after = cc_before - cc_cost + cc_gained
 ```
+**If cc_after < 0, you CANNOT afford this action! Pick something cheaper or end turn.**
 
-**Surge**: costs 0, ADDS +1 → cc_after = cc_before + 1
-**Rush**: costs 0, ADDS +2 → cc_after = cc_before + 2
+**Fixed Costs (memorize!):**
+- Tussle: **2 CC** (always, unless Wizard in play: 1 CC, or Raggy self: 0 CC)
+- Direct Attack: **2 CC** (always)
+- Surge: 0 cost, **ADDS +1** → cc_after = cc_before + 1
+- Rush: 0 cost, **ADDS +2** → cc_after = cc_before + 2
 
-**Example**: 2 CC → Play Surge → 2 - 0 + 1 = **3 CC** (not 2!)
+**Step-by-step verification example:**
+```
+Start: 2 CC
+→ Action 1: Play Surge. Cost 0, Gain +1. NEW CC: 2 - 0 + 1 = 3 ✓
+→ Action 2: Play Knight. Cost 1, Gain 0. NEW CC: 3 - 1 + 0 = 2 ✓
+→ Action 3: Direct Attack. Cost 2, Gain 0. NEW CC: 2 - 2 + 0 = 0 ✓
+```
+**Each action's cc_after becomes the next action's cc_before!**
 
 ---
 ## HARD CONSTRAINTS (Violations = Invalid Plan!)
@@ -328,10 +340,13 @@ If ending with CC >= 2, you MUST provide `residual_cc_justification`:
 ---
 ## OUTPUT
 Respond with TurnPlan JSON only. Use [ID: xxx] UUIDs for all card references.
-Keep plan_reasoning CONCISE (1-3 sentences). Do NOT repeat analysis."""
-Respond with TurnPlan JSON only. Use [ID: xxx] UUIDs for all card references.
-Keep plan_reasoning CONCISE (1-3 sentences max). Do NOT repeat analysis.
-"""
+Keep plan_reasoning CONCISE (1-3 sentences). Do NOT repeat analysis.
+
+**cc_cost MUST be EXACT**:
+- play_card: Use the card's actual cost from hand (shown in parentheses)
+- tussle: Always 2 (or 1 with Wizard, 0 for Raggy)
+- direct_attack: Always 2
+- activate_ability: Use ability cost (e.g., Archer: 1)"""
 
 
 # =============================================================================
@@ -356,7 +371,7 @@ def get_planning_prompt_v2(
     card_docs = get_relevant_card_docs(card_names_in_game)
     
     # Game state FIRST (most important for decision-making)
-    prompt = f"""You are a GGLTCG turn planner. Maximize CC efficiency (target: ≤2.5 CC per opponent card slept).
+    prompt = f"""You are a GGLTCG turn planner. Maximize CC efficiency (target: <=2.5 CC per opponent card slept).
 
 ---
 ## CURRENT GAME STATE
