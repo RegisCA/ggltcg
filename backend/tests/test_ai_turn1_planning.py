@@ -370,6 +370,84 @@ class TestTurn1ArcherTrap:
             print("\n✓ AI correctly played Archer without using its ability (no targets)")
 
 
+class TestSleepZoneTrap:
+    """
+    Tests for Sleep Zone card trap detection.
+    
+    Bug found: AI tried to play_card Knight directly from Sleep Zone
+    without using Wake first. This is ILLEGAL - you can only play cards
+    from your HAND.
+    
+    The AI should recognize:
+    - Sleep Zone cards are NOT playable directly
+    - Wake (1 CC) returns a card to HAND
+    - Then you must PAY CC to play the card from hand
+    """
+    
+    def test_cannot_play_card_from_sleep_zone(self, turn_planner):
+        """
+        Test that AI uses Wake before trying to play a sleeped card.
+        
+        Scenario: Knight in sleep zone, Wake in hand, opponent has Knight.
+        CORRECT: Wake → Knight returns to hand → play Knight → tussle
+        WRONG: Directly try to play_card Knight from sleep zone (without Wake first)
+        """
+        # Set up a mid-game scenario where player needs to recover cards
+        setup, cards = create_game_with_cards(
+            player1_hand=["Wake", "Surge", "Archer"],
+            player1_in_play=[],
+            player1_sleep=["Knight", "Umbruh"],  # Cards in sleep zone
+            player2_hand=["Ka", "Wizard", "Drop"],
+            player2_in_play=["Knight"],
+            player1_cc=6,  # Mid-game CC
+            player2_cc=0,
+            active_player="player1",
+            turn_number=4,
+        )
+        
+        # Get the sleep zone card IDs for checking
+        sleep_zone_ids = {card.id for card in setup.player1.sleep_zone}
+        
+        plan = turn_planner.create_plan(
+            setup.game_state,
+            "player1",
+            setup.engine
+        )
+        
+        assert plan is not None
+        log_plan(plan, "SLEEP ZONE TRAP: Must Use Wake Before Playing Sleeped Card")
+        
+        # Track if Wake was played before any sleep zone card is played
+        wake_played = False
+        sleep_zone_card_played_without_wake = False
+        
+        for action in plan.action_sequence:
+            if action.action_type == "play_card":
+                if action.card_name == "Wake":
+                    wake_played = True
+                elif action.card_id in sleep_zone_ids:
+                    # This card was originally in sleep zone
+                    if not wake_played:
+                        sleep_zone_card_played_without_wake = True
+                        print(f"\n❌ CRITICAL: AI tried to play {action.card_name} (ID: {action.card_id}) "
+                              f"directly from Sleep Zone WITHOUT using Wake first!")
+        
+        assert not sleep_zone_card_played_without_wake, \
+            "AI tried to play a card from Sleep Zone without using Wake first! " \
+            "Cards in Sleep Zone CANNOT be played directly - must use Wake to return to hand first."
+        
+        # If a sleep zone card was played after Wake, that's correct behavior
+        sleep_zone_card_played_after_wake = any(
+            action.action_type == "play_card" and action.card_id in sleep_zone_ids
+            for action in plan.action_sequence
+        ) and wake_played
+        
+        if sleep_zone_card_played_after_wake:
+            print("\n✓ AI correctly used Wake before playing a card from sleep zone")
+        elif not any(action.card_id in sleep_zone_ids for action in plan.action_sequence if action.action_type == "play_card"):
+            print("\n⚠️ AI didn't try to play any cards from sleep zone (may have chosen a different valid strategy)")
+
+
 class TestTurn1CCMathValidation:
     """
     Tests that CC math is calculated correctly throughout the plan.

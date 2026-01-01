@@ -304,6 +304,9 @@ Start: 2 CC
 7. **Direct attack when opponent has toys** → ILLEGAL! Use tussle instead!
 8. **Drop/Archer ability with 0 opponent toys** → ILLEGAL! No valid targets!
 9. **Copy on opponent's toy** → ILLEGAL! Copy only YOUR toys!
+10. **play_card from SLEEP ZONE** → ILLEGAL! Sleep zone cards are NOT in your hand!
+    - ⚠️ **WAKE REQUIRED**: To use a sleeped card: Wake (1 CC) → card goes to HAND → then play_card (pay cost)
+    - Check the **Hand:** section for valid play_card targets, NOT Sleep Zone!
 
 ---
 ## EXAMPLES
@@ -328,6 +331,18 @@ Start: 6 CC, Your Umbruh in play, Opponent: Paper Plane, Knight
 Result: 6 CC → 3 cards slept (same toy tussled twice!)
 ```
 
+**Recovering a Sleeped Card with Wake**:
+```
+Start: 6 CC, Hand: [Wake, Surge], Sleep Zone: [Knight], Opponent: Knight in play
+1. play_card Wake (1 CC) → cc_after=5, Knight returns to HAND (not play!)
+2. play_card Knight (1 CC) → cc_after=4, Knight now IN PLAY
+3. tussle Knight→Opponent Knight (2 CC) → cc_after=2, Opponent Knight sleeped
+4. direct_attack Knight (2 CC) → cc_after=0 → 1 card slept from hand
+5. end_turn
+Result: 6 CC → 2 cards slept
+⚠️ WRONG: Trying to play_card Knight directly from sleep zone WITHOUT Wake first!
+```
+
 ---
 ## ZERO-ACTION AUDIT
 
@@ -346,7 +361,12 @@ Keep plan_reasoning CONCISE (1-3 sentences). Do NOT repeat analysis.
 - play_card: Use the card's actual cost from hand (shown in parentheses)
 - tussle: Always 2 (or 1 with Wizard, 0 for Raggy)
 - direct_attack: Always 2
-- activate_ability: Use ability cost (e.g., Archer: 1)"""
+- activate_ability: Use ability cost (e.g., Archer: 1)
+
+**ZONE CHECK for card_id**:
+- play_card: card_id MUST be from **Hand:** section
+- tussle/direct_attack/activate_ability: card_id MUST be from **Your Toys:** (In Play) section
+- Sleep Zone cards CANNOT be used until recovered with Wake!"""
 
 
 # =============================================================================
