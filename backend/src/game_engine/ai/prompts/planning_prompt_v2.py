@@ -240,12 +240,12 @@ Repeat until BOTH true:
 **Priority Order**:
 1. WIN CHECK → Sleep opponent's last cards?
 2. TUSSLE → Opponent has toys? Attack with your strongest STR > 0 toy!
-3. DIRECT ATTACK → Opponent has 0 toys? Attack their hand! (no target needed)
+3. DIRECT ATTACK → Opponent has 0 toys? Attack their hand! (no target_ids needed)
 4. ABILITIES → Archer ability (1 CC) to chip damage
 5. DEFEND → No toys? Play one.
 6. END TURN → Nothing else possible.
 
-**STEP 3: Post-Action Audit**
+**STEP 4: Post-Action Audit**
 After each action, update:
 - CC remaining (subtract cost, add gains)
 - Board state (sleeped cards are GONE from play!)
@@ -278,6 +278,9 @@ Your Umbruh (4/4/4) attacks Opponent's Umbruh (4/4/4)
 cc_after = cc_before - cc_cost + cc_gained
 ```
 
+**CRITICAL RULE**: If `cc_after` becomes 0, you CANNOT take any more actions that cost CC!
+**STOP IMMEDIATELY** if you run out of CC. Do not hallucinate extra CC.
+
 **Surge**: costs 0, ADDS +1 → cc_after = cc_before + 1
 **Rush**: costs 0, ADDS +2 → cc_after = cc_before + 2
 
@@ -288,7 +291,7 @@ cc_after = cc_before - cc_cost + cc_gained
 
 1. **[NO TUSSLE] tag** → Card CANNOT be attacker for tussle/direct_attack
 2. **STR = 0** → Card CANNOT be attacker (no damage dealt!)
-3. **cc_after < 0** → ILLEGAL! You don't have enough CC!
+3. **cc_after < 0** → ILLEGAL! You don't have enough CC! STOP PLANNING!
 4. **Costs are FIXED** → Tussle/Direct always 2 CC (exceptions: Wizard -1, Raggy free)
 5. **Target not in play** → ILLEGAL! Sleeped/hand cards can't be targeted!
 6. **Direct attack with target_ids** → ILLEGAL! Direct attack has NO target!
@@ -332,7 +335,9 @@ If ending with CC >= 2, you MUST provide `residual_cc_justification`:
 ---
 ## OUTPUT
 Respond with TurnPlan JSON only. Use [ID: xxx] UUIDs for all card references.
-Keep plan_reasoning CONCISE (1-3 sentences). Do NOT repeat analysis."""
+**MANDATORY**: In `plan_reasoning`, you MUST list the CC cost of each action and the running total.
+Example: "Surge(+1) -> 3 CC. Knight(-1) -> 2 CC. Attack(-2) -> 0 CC."
+Do NOT repeat analysis."""
 
 
 # =============================================================================

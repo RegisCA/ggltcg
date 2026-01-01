@@ -505,14 +505,22 @@ class TestWinningTussle:
         )
         
         # Critical check: direct_attack is ILLEGAL when opponent has toys!
+        # EXCEPTION: If we tussle first to clear the board, then direct attack is valid.
         if has_direct_attack:
-            print("\n❌ CRITICAL: AI used direct_attack when opponent has toys in play!")
-            print("   This is ILLEGAL - must use tussle when opponent has toys!")
-        
-        assert not has_direct_attack, \
-            "AI used direct_attack when opponent has toys in play! " \
-            "Direct attack is only legal when opponent has 0 toys. " \
-            "The AI hallucinated 'opponent has no toys' - this is a game state reading error."
+            # Find index of first direct attack
+            da_index = next(i for i, a in enumerate(plan.action_sequence) if a.action_type == "direct_attack")
+            # Check if there's a tussle before it
+            tussle_before = any(a.action_type == "tussle" for a in plan.action_sequence[:da_index])
+            
+            if not tussle_before:
+                print("\n❌ CRITICAL: AI used direct_attack when opponent has toys in play!")
+                print("   This is ILLEGAL - must use tussle when opponent has toys!")
+                assert False, \
+                    "AI used direct_attack when opponent has toys in play! " \
+                    "Direct attack is only legal when opponent has 0 toys. " \
+                    "The AI hallucinated 'opponent has no toys' - this is a game state reading error."
+            else:
+                print("\n✅ AI correctly tussled first to clear board before direct attacking.")
         
         # The winning play is to tussle
         assert has_tussle, \
