@@ -112,15 +112,35 @@ CC Efficiency = CC spent / OPPONENT cards slept (YOUR cards don't count!)
 
 ---
 
-## GitHub Issues Being Addressed
+## GitHub Issues - HONEST STATUS
 
-| Issue | Title | Status |
-|-------|-------|--------|
-| #267 | CC budgeting - sequential state-tracking | ✅ Fixed (cc_after field) |
-| #268 | Exhaustive planning loop | ⚠️ Partial (priority order exists) |
-| #271 | CC efficiency for Drop card | ❌ Not fixed |
-| #272 | Drop action card not understood | ✅ Fixed (target constraints) |
-| #273 | Archer action card not understood | ✅ Fixed (target constraints) |
+**NONE of these issues have been fixed or commented on in GitHub.**
+
+| Issue | Title | GitHub Status | Actual Status | Comments |
+|-------|-------|---------------|---------------|----------|
+| #267 | CC budgeting - sequential state-tracking | OPEN | Prompt has cc_after field, NOT VERIFIED | 0 |
+| #268 | Exhaustive planning loop | OPEN | **NOT FIXED** - AI still ends turns early | 0 |
+| #271 | CC efficiency for Drop card | OPEN | **NOT FIXED** - Backend bug, not prompt | 0 |
+| #272 | Drop action card not understood | OPEN | Prompt has warning, NOT VERIFIED | 0 |
+| #273 | Archer action card not understood | OPEN | Prompt has warning, NOT VERIFIED | 0 |
+| #275 | Copy card not understood | OPEN | **NOT ADDRESSED** | 0 |
+| #276 | Knight card not understood | OPEN | **NOT ADDRESSED** | 0 |
+
+### Issue Details (From GitHub)
+
+**#267 - CC budgeting**: AI doesn't track that Surge adds CC mid-turn. Plans sequences without accounting for gained CC.
+
+**#268 - Exhaustive Planning Loop**: AI ends turn with CC remaining when it could attack more. Example: 5 CC, plays Umbruh+Drop (3 CC), ends with 2 CC left instead of adding a tussle.
+
+**#271 - CC efficiency for Drop**: BACKEND BUG - action card sleeps not counted in efficiency tracking. Not a prompt issue.
+
+**#272 - Drop not understood**: AI plays Drop on Turn 1 when opponent has 0 toys. Reasoning: "Use Drop to sleep an opponent's toy if they played one" - but they haven't!
+
+**#273 - Archer not understood**: AI uses Archer ability when opponent has 0 toys. Reasoning: "this action will target a card in their hand" - WRONG, Archer only targets IN PLAY.
+
+**#275 - Copy not understood**: AI tries to copy opponent's toys. Reasoning: "create a copy of the opponent's strongest toy (Ballaber)" - WRONG, Copy only targets YOUR toys.
+
+**#276 - Knight not understood**: AI wastes Archer shots reducing STA before Knight tussle. Knight auto-wins regardless of target STA!
 
 ---
 
@@ -236,40 +256,121 @@ Count opponent toys IN PLAY from "Opponent's Toys (THREATS)" section:
 - tussle/direct_attack/activate_ability: card_id MUST be from Your Toys (In Play)
 ```
 
-### Step 3: Remove Redundancy
+#### Fix F: Copy Card Targeting (#275)
+Add to CARD_SPECIAL_DOCS:
+```python
+"Copy": """**Copy** (ACTION, 0 CC): Create exact copy of one of YOUR toys in play.
+⚠️ Can ONLY target YOUR toys - NOT opponent's!
+❌ Copy on opponent's toy → ILLEGAL!
+Cost to play = cost of the toy being copied.""",
+```
+
+#### Fix G: Knight Efficiency (#276)
+Update CARD_SPECIAL_DOCS for Knight:
+```python
+"Knight": """**Knight** (1 CC, 4/4/3): On YOUR turn, Knight auto-wins ALL tussles.
+  - Opponent toy ALWAYS sleeped, Knight takes 0 damage
+  - ✅ No need to reduce target STA first - Knight wins regardless!
+  - ⚠️ Only works on Knight's CONTROLLER's turn
+  - If OPPONENT has Knight and it's YOUR turn: Knight fights normally""",
+```
+
+#### Fix H: Drop Targeting (#272)
+Update CARD_SPECIAL_DOCS for Drop:
+```python
+"Drop": """**Drop** (ACTION, 2 CC): Sleep 1 target toy IN PLAY.
+⚠️ REQUIRES TARGET IN PLAY: Opponent must have 1+ toys NOW!
+❌ 0 opponent toys = Drop is USELESS (no valid target!)
+❌ Turn 1 trap: As Player 1, opponent has 0 toys - DON'T play Drop!""",
+```
+
+#### Fix I: Archer Targeting (#273)
+Update CARD_SPECIAL_DOCS for Archer to be clearer:
+```python
+"Archer": """**Archer** (0 CC, 0/0/5): CANNOT tussle or direct attack!
+  - Ability: 1 CC → Remove 1 STA from target opponent toy **IN PLAY**
+  - ⚠️ ONLY targets toys IN PLAY - cannot target hand!
+  - ❌ 0 opponent toys = CANNOT USE ABILITY (no valid target!)
+  - ❌ DO NOT plan Archer ability if opponent has 0 toys!""",
+```
+
+### Step 3: Backend Fix for #271
+This is NOT a prompt issue. In `game_engine.py`, when action card effects sleep opponent cards, must call the tracking method.
+
+### Step 4: Remove Redundancy
 After applying fixes, search for and remove:
 - Duplicate explanations of tussle vs direct_attack
 - Repeated mentions of "opponent must have 0 toys"
 - Any section that says the same thing twice
 
-### Step 4: Test
-Run full test suite:
+### Step 5: Test After EACH Fix
+Run test suite after each individual fix:
 ```bash
 pytest backend/tests/test_ai_turn1_planning.py -v
 ```
 
-All 8 tests should pass. Then run 2-3 real games to verify.
+### Step 6: Comment on GitHub Issues
+For EACH issue addressed, add a GitHub comment documenting:
+1. What was changed in the prompt
+2. What test verifies the fix
+3. Test results
+
+### Step 7: Close Issues Only When Verified
+Only close an issue when:
+- Test exists and passes
+- GitHub comment documents the fix
 
 ---
 
 ## Test Gaps to Address
 
-### Missing Test: Combat Math Accuracy
+### Existing Tests (Keep)
+1. `TestTurn1WithSurge` - Surge CC bridge (#267)
+2. `TestTurn1DropTrap` - Drop targeting (#272)
+3. `TestTurn1ArcherTrap` - Archer targeting (#273)
+4. `TestSleepZoneTrap` - Wake requirement
+5. `TestWinningTussle` - Tussle vs direct attack
+6. `TestTurn1CCMathValidation` - CC math
+
+### Tests to Create
+
+#### For #275 - Copy Card
 ```python
-def test_combat_math_attacker_wins_clean(self, turn_planner):
-    """Verify AI understands attacker advantage means no counter-attack."""
-    # Setup: Your Umbruh vs Opponent Umbruh (identical stats)
-    # Expected: AI says 1 card sleeped (not 2!)
-    # Expected: AI understands attacker takes 0 damage
+class TestCopyTrap:
+    def test_copy_only_targets_own_toys(self, turn_planner):
+        """Verify Copy cannot target opponent's toys."""
+        # Setup: AI has Copy, opponent has Ballaber in play, AI has Umbruh in play
+        # Expected: If Copy used, targets AI's Umbruh, NOT opponent's Ballaber
 ```
 
-### Missing Test: Efficiency Only Counts Opponent
+#### For #276 - Knight Efficiency
 ```python
-def test_efficiency_only_counts_opponent_cards(self, turn_planner):
-    """Verify efficiency calculation excludes own cards."""
-    # Setup: Trade scenario where both cards die
-    # Expected: efficiency = CC / 1 (not CC / 2)
+class TestKnightEfficiency:
+    def test_no_wasted_archer_before_knight(self, turn_planner):
+        """Verify AI doesn't waste Archer shots before Knight tussle."""
+        # Setup: AI has Knight and Archer in play, opponent has Umbruh
+        # Expected: AI tussles with Knight directly (auto-wins)
+        # NOT: Archer ability + Knight tussle (wastes CC)
 ```
+
+#### For #268 - Exhaustive Planning
+```python
+class TestExhaustivePlanning:
+    def test_uses_all_available_cc(self, turn_planner):
+        """Verify AI continues attacking until CC < 2."""
+        # Setup: AI has 5 CC, Umbruh in play, opponent has Knight + Wizard
+        # Expected: Multiple tussles until CC exhausted
+        # NOT: Single action then end turn with CC remaining
+```
+
+#### For Combat Math
+```python
+class TestCombatMath:
+    def test_attacker_wins_clean(self, turn_planner):
+        """Verify AI predicts only 1 card sleeped in attacker-advantage tussle."""
+        # Setup: AI Umbruh vs Opponent Umbruh (identical 4/4/4 stats)
+        # Expected: expected_cards_slept = 1 (attacker wins, no counter)
+        # NOT: expected_cards_slept = 2 (mutual destruction is WRONG)
 
 ---
 
@@ -286,13 +387,14 @@ def test_efficiency_only_counts_opponent_cards(self, turn_planner):
 ## Success Criteria
 
 After consolidation:
-- [ ] Prompt is ≤450 lines
-- [ ] All 8 existing tests pass
-- [ ] New combat math test passes
-- [ ] New efficiency test passes
-- [ ] 3 real games played without hallucinations
-- [ ] AI correctly identifies winning tussle opportunities
-- [ ] AI never tries direct_attack when opponent has toys
+- [ ] Prompt restored from baseline 8cb654e
+- [ ] Fixes A-I applied ONE AT A TIME with tests between
+- [ ] Prompt is ≤500 lines
+- [ ] All existing tests pass
+- [ ] Tests created for #275 (Copy), #276 (Knight), #268 (exhaustive)
+- [ ] GitHub comments added to ALL 7 issues documenting fixes
+- [ ] Issues closed ONLY when test passes and comment added
+- [ ] 2-3 real games played without hallucinations
 
 ---
 
@@ -301,39 +403,51 @@ After consolidation:
 Use this to start a new session:
 
 ```
-I need help consolidating my AI prompt for a card game. The prompt has grown messy over two debugging sessions and needs to be cleaned up.
+I need help consolidating my AI prompt for a card game. Two previous sessions made things worse. I need a methodical approach.
 
 **Context:**
 - Game: GGLTCG (card battle game)
-- AI Model: Gemini 2.5 Flash Lite (fast, lightweight - needs clear, structured prompts)
+- AI Model: Gemini 2.5 Flash Lite (needs clear, structured prompts)
 - Stable baseline: Git commit 8cb654e
-- Current state: 514 lines with patches and bugs
+- Current state: 514 lines with patches and bugs, NO issues actually fixed
 
-**What I need:**
-1. Restore prompt from baseline commit 8cb654e
-2. Apply ONLY these specific fixes (documented in docs/dev-notes/AI_V3_PROMPT_CONSOLIDATION_PLAN.md):
-   - Fix A: HARD CONSTRAINT #10 (Sleep Zone cards need Wake)
-   - Fix B: Combat math clarity (attacker SPD bonus = no counter-attack)
-   - Fix C: Efficiency only counts opponent cards
-   - Fix D: BOARD REALITY CHECK step
-   - Fix E: Zone check (already exists, keep it)
-3. Remove any redundant/duplicate explanations
-4. Ensure prompt stays under 450 lines
-5. Run test suite to verify nothing broke
+**CRITICAL: Work methodically!**
+1. Restore prompt from baseline commit 8cb654e FIRST
+2. Apply fixes ONE AT A TIME
+3. Run tests after EACH fix
+4. Comment on GitHub issues when fixes verified
+5. Do NOT claim fixed until test passes
+
+**The 7 open GitHub issues (NONE are fixed):**
+- #267: CC budgeting - AI doesn't track Surge adds CC mid-turn
+- #268: Exhaustive loop - AI ends turn early when it could attack more  
+- #271: Backend bug - action card sleeps not counted (NOT a prompt fix)
+- #272: Drop played without valid targets
+- #273: Archer ability used without valid targets
+- #275: Copy targets opponent's toys (should only target own)
+- #276: Knight - AI wastes actions before Knight auto-win tussle
+
+**Additional bugs found this session:**
+- Combat math: AI thinks trades kill both (ignores attacker SPD bonus)
+- Efficiency: AI counts own sleeped cards (should only count opponent's)
+- Hallucination: AI tried direct_attack when opponent had toys
+- Zone error: AI tried to play card from Sleep Zone without Wake
 
 **Key files:**
 - Main prompt: backend/src/game_engine/ai/prompts/planning_prompt_v2.py
 - Tests: backend/tests/test_ai_turn1_planning.py
-- Plan doc: docs/dev-notes/AI_V3_PROMPT_CONSOLIDATION_PLAN.md
+- Full plan: docs/dev-notes/AI_V3_PROMPT_CONSOLIDATION_PLAN.md
 - Gemini recommendations: docs/dev-notes/AI_V3_FOLLOWUP_PLAN.md (lines 190-300)
 
-**Critical rules:**
-- Do NOT add explanatory prose - use tables and bullet points
-- Do NOT duplicate information
-- Make ONE change at a time and run tests between changes
-- The prompt must be optimized for Gemini 2.5 Flash Lite
+**MUST READ the consolidation plan document before starting.**
+It contains exact text for each fix (A through I) and what test to run.
 
-Please read the consolidation plan document first, then proceed step by step.
+**Rules:**
+- Do NOT add explanatory prose - use tables and bullet points
+- Do NOT duplicate information - single source of truth  
+- Make ONE change at a time with tests between
+- Comment on GitHub issues when fixes verified
+- Prompt must stay under 500 lines
 ```
 
 ---
