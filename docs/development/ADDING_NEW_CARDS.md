@@ -212,23 +212,64 @@ Import and add to the registry if using class-based effects.
 
 ## Step 3: Add to AI Prompts
 
-**File**: `backend/src/game_engine/ai/prompts.py`
+When adding a new card, you need to provide guidance for the AI in two places:
 
-Add entry to `CARD_EFFECTS_LIBRARY`:
+### 3a. Card-Specific Guidance (Optional but Recommended)
+
+**File**: `backend/src/game_engine/ai/prompts/card_guidance.yaml`
+
+Add an entry if your card has common AI traps or strategic nuances:
+
+```yaml
+MyNewCard:
+  trap: "Key gotcha that AI might miss (e.g., 'Cannot play turn 1' or 'Requires opponent toys')"
+  reminder: "Strategic guidance and action_type specification (e.g., 'Use action_type: activate_ability')"
+  threat: "CRITICAL/HIGH/MEDIUM/LOW"
+```
+
+**Action Type Specifications** (critical for abilities):
+- **Passive effects** (automatic): `"No activate_ability - happens on play"`
+- **Activated abilities**: `"Use action_type: activate_ability (costs N CC)"`
+- **Combat abilities**: `"Can tussle (action_type: tussle) OR direct_attack"`
+
+**Examples**:
+```yaml
+Paper Plane:
+  trap: "PASSIVE bypass: Can direct_attack with opponent toys present (NO activate_ability!)"
+  reminder: "Action types: direct_attack (2 CC) OR regular tussle (2 CC). Has NO activated ability"
+  threat: "MEDIUM"
+
+Wake:
+  trap: "ACTIVATED_ABILITY! Use action_type: activate_ability (NOT play_card after playing)"
+  reminder: "1. play_card Wake → in play. 2. activate_ability Wake (1CC) → target returns to hand. Then play that card"
+  threat: "LOW"
+```
+
+### 3b. Effect Metadata (Required for New Effect Types)
+
+**File**: `backend/src/game_engine/ai/prompts/effect_metadata.py`
+
+If your card introduces a new effect type, add metadata to the `EFFECT_METADATA_REGISTRY`:
 
 ```python
-CARD_EFFECTS_LIBRARY = {
-    # ... existing cards ...
-
-    "MyNewCard": {
-        "type": "Toy",  # or "Action"
-        "effect": "Description of effect for AI understanding",
-        "strategic_use": "CATEGORY - When/why to play this card strategically.",
-        "threat_level": "HIGH/MEDIUM/LOW - How dangerous the card is to opponents"
-    },
-}
-
+"my_new_effect": EffectMetadata(
+    effect_type="my_new_effect:N",
+    classification="continuous",  # or "triggered", "activated", "passive", "temporary"
+    action_type=None,  # or "activate_ability" for activated effects
+    requires_targets=False,  # True if effect needs target selection
+    target_description=None,  # Description of valid targets if requires_targets=True
+    strategic_note="How to use this effect strategically",
+),
 ```
+
+**Classifications**:
+- `continuous` - Always active while in play (stat boosts, opponent_immunity)
+- `triggered` - Automatic on game events (start_of_turn_gain_cc, gain_cc_when_sleeped)
+- `activated` - Requires `action_type: activate_ability` (sleep_target, unsleep)
+- `passive` - Triggers on play automatically (gain_cc, sleep_all)
+- `temporary` - Lasts this turn only (turn_stat_boost)
+
+**Important**: The effect metadata is dynamically loaded based on cards in play, so the AI only sees guidance for effects actually present in the game.
 
 ### Strategic Use Categories
 

@@ -6,6 +6,7 @@ models and deck compositions, tracking CC usage per turn for analysis.
 """
 
 import logging
+import os
 import time
 from copy import deepcopy
 from typing import Optional
@@ -16,7 +17,8 @@ from game_engine.models.game_state import GameState, Phase
 from game_engine.models.player import Player
 from game_engine.models.card import Card, Zone
 from game_engine.data.card_loader import load_cards_dict
-from game_engine.ai.llm_player import LLMPlayer
+from game_engine.ai.llm_player import LLMPlayer, LLMPlayerV3
+from game_engine.ai.turn_planner import TurnPlanner
 from game_engine.validation.action_validator import ActionValidator
 from api.schemas import ValidAction
 
@@ -89,14 +91,21 @@ class SimulationRunner:
         error_message: Optional[str] = None
         game_initialized = False  # Track successful game initialization
         
+        # Get AI version and reset V4 metrics if using V4
+        ai_version = os.getenv("AI_VERSION", "3")
+        if ai_version == "4":
+            TurnPlanner.reset_v4_metrics()
+        
         try:
             # Create game state
             game_state = self._create_game_state(deck1, deck2)
             engine = GameEngine(game_state)
             
             # Create AI players with specified models
-            self._player1_ai = LLMPlayer(provider="gemini", model=self.player1_model)
-            self._player2_ai = LLMPlayer(provider="gemini", model=self.player2_model)
+            # Use LLMPlayerV3 for AI versions 3 and 4 (turn planning)
+            PlayerClass = LLMPlayerV3 if ai_version in ("3", "4") else LLMPlayer
+            self._player1_ai = PlayerClass(provider="gemini", model=self.player1_model)
+            self._player2_ai = PlayerClass(provider="gemini", model=self.player2_model)
             
             logger.info(
                 f"Starting game {game_number}: {deck1.name} ({self.player1_model}) vs "
@@ -281,6 +290,19 @@ class SimulationRunner:
             f"({duration_ms}ms)"
         )
         
+        # Capture V4 metrics if using V4
+        v2_fallback_count = 0
+        illegal_action_count = 0
+        if ai_version == "4":
+            v4_metrics = TurnPlanner.get_v4_metrics()
+            v2_fallback_count = v4_metrics.get("v2_fallback", 0)
+            illegal_action_count = v4_metrics.get("validation_rejections", 0)
+            logger.info(
+                f"V4 Metrics: v4_success={v4_metrics.get('v4_success', 0)}, "
+                f"v2_fallback={v2_fallback_count}, "
+                f"fallback_rate={v4_metrics.get('v2_fallback_rate', 'N/A')}"
+            )
+        
         return GameResult(
             game_number=game_number,
             deck1_name=deck1.name,
@@ -294,6 +316,8 @@ class SimulationRunner:
             cc_tracking=cc_tracking,
             action_log=action_log,
             error_message=error_message,
+            v2_fallback_count=v2_fallback_count,
+            illegal_action_count=illegal_action_count,
         )
     
     def _create_game_state(

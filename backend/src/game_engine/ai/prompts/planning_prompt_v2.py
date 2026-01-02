@@ -30,6 +30,7 @@ COMPACT_RULES = """## Quick Rules Reference
 
 ### Card Types
 - **TOY**: Has SPD/STR/STA stats. Can tussle and direct attack **IF STR > 0**.
+- **DEFENSE**: ALL toys (even 0 STR like Archer) block opponent direct attacks!
 - **ACTION**: No stats. Effect triggers on play, then goes to YOUR sleep zone. **Cannot attack!**
 
 ### Key Constraints
@@ -62,14 +63,17 @@ THREAT_TABLE = """## Threat Priority
 # Only include documentation for cards that need special explanation
 CARD_SPECIAL_DOCS = {
     "Archer": """**Archer** (0 CC, 0/0/5): CANNOT tussle or direct attack!
+  - **DEFENDER**: Still counts as a toy! Blocks opponent direct attacks.
   - Ability: 1 CC → Remove 1 STA from target opponent toy **IN PLAY**
+  - ⚠️ REQUIRES TARGET ID: You MUST specify which opponent toy to target (target_ids=["card_id"]).
   - ⚠️ ONLY targets toys IN PLAY - cannot target hand!
   - ❌ 0 opponent toys = CANNOT USE ABILITY (no valid target!)
   - ❌ DO NOT plan Archer ability if opponent has 0 toys!""",
     
     "Paper Plane": """**Paper Plane** (1 CC, 2/2/1): Can direct attack EVEN IF opponent has toys!
-  - Use action_type: "direct_attack", NOT tussle
-  - Bypasses the normal "opponent must have 0 toys" requirement""",
+  - Use action_type: "direct_attack" (COST: 2 CC)
+  - Bypasses the normal "opponent must have 0 toys" requirement
+  - STILL COSTS 2 CC!""",
     
     "Wizard": """**Wizard** (2 CC, 1/3/3): While in YOUR play, all YOUR tussles cost 1 CC instead of 2.
   - Must be in play BEFORE tussle to get discount
@@ -110,26 +114,34 @@ CARD_SPECIAL_DOCS = {
     
     "Surge": """**Surge** (ACTION, 0 CC): Gain 1 CC.
   - **CC BRIDGE**: Transforms 0 CC into 1 CC for your NEXT action!
-  - After Surge → Your CC increases → NOW you can afford more attacks!
-  - Play FIRST if it enables an attack you couldn't otherwise afford!
-  - ❌ Wasted if: You play Surge then just end turn (save it for later)""",
+  - **COMBO ENABLER**: If you have 4 CC, Surge gives you 5 CC.
+    - 4 CC = Knight(1) + Tussle(2) = 3 CC used (1 wasted).
+    - 5 CC = Knight(1) + Tussle(2) + Direct Attack(2) = 5 CC used (PERFECT!).
+  - ALWAYS play Surge if it allows you to fit ONE MORE ACTION into your turn!""",
     
     "Rush": """**Rush** (ACTION, 0 CC): Gain 2 CC. Net +2 CC. Cannot play turn 1. Play FIRST!""",
     
     "Drop": """**Drop** (ACTION, 2 CC): Sleep 1 target toy IN PLAY.
+⚠️ REQUIRES TARGET ID: You MUST specify which opponent toy to sleep (target_ids=["card_id"]).
 ⚠️ REQUIRES TARGET IN PLAY: Opponent must have 1+ toys NOW!
 ❌ 0 opponent toys = Drop is USELESS (no valid target!)
 ❌ Turn 1 trap: As Player 1, opponent has 0 toys - DON'T play Drop!""",
     
     "Wake": """**Wake** (ACTION, 1 CC): Return 1 card from YOUR sleep zone to YOUR HAND (not play!).
+  - ⚠️ REQUIRES TARGET ID: You MUST specify which card to wake (target_ids=["card_id"]).
+  - ❌ target_ids: null is ILLEGAL!
   - Must then PAY CC and PLAY the card to use it.
   - Example: Wake (1 CC) + Play Knight (1 CC) = 2 CC total to get Knight ready.""",
     
-    "Twist": """**Twist** (ACTION, 3 CC): Take control of 1 opponent toy (stays in play, you control it).""",
+    "Twist": """**Twist** (ACTION, 3 CC): Take control of 1 opponent toy (stays in play, you control it).
+  - ⚠️ REQUIRES TARGET ID: You MUST specify which opponent toy to steal (target_ids=["card_id"]).
+  - ❌ 0 opponent toys = Twist is USELESS!""",
     
-    "Clean": """**Clean** (ACTION, 3 CC): Sleep ALL toys in play (yours too!).""",
+    "Clean": """**Clean** (ACTION, 3 CC): Sleep ALL toys in play (yours too!).
+  - NO TARGET ID NEEDED (affects board).""",
     
     "VeryVeryAppleJuice": """**VeryVeryAppleJuice** (ACTION, 0 CC): +1/+1/+1 to YOUR toys THIS TURN ONLY.
+  - NO TARGET ID NEEDED (affects all your toys).
   - **BUFF EXPIRES AT END OF TURN** - does NOT carry to next turn!
   - ONLY play if you will tussle/attack THIS turn
   - Wasted if: no toys in play, no targets, or no CC to attack
@@ -137,6 +149,7 @@ CARD_SPECIAL_DOCS = {
     - VVAJ first → 4 STR vs 4 STA → opponent sleeped! ✓""",
     
     "Copy": """**Copy** (ACTION, 0 CC): Create exact copy of one of YOUR toys in play.
+⚠️ REQUIRES TARGET ID: You MUST specify which of YOUR toys to copy (target_ids=["card_id"]).
 ⚠️ Can ONLY target YOUR toys - NOT opponent's!
 ❌ Copy on opponent's toy → ILLEGAL!
 Cost to play = cost of the toy being copied.""",
@@ -165,6 +178,7 @@ Cost to play = cost of the toy being copied.""",
   - Low stats (1 STR, 2 STA) - mainly for buff support""",
     
     "Sun": """**Sun** (ACTION, 3 CC): Return up to 2 cards from YOUR sleep zone to YOUR HAND.
+  - ⚠️ REQUIRES TARGET IDs: You MUST specify 1 or 2 cards to return (target_ids=["id1", "id2"]).
   - Recovered cards go to HAND, not into play
   - Must PLAY them (pay their cost) to use them
   - Useless if sleep zone is empty!""",
@@ -188,18 +202,54 @@ def get_relevant_card_docs(card_names: Set[str]) -> str:
 # Compact Planning Instructions (with decision framework)
 # =============================================================================
 
-PLANNING_INSTRUCTIONS = """## Your Task: Create Turn Plan
+PLANNING_INSTRUCTIONS = """## EXECUTION PROTOCOL: AGGRESSIVE BOARD MAXIMIZER
 
-You are an AGGRESSIVE BOARD MAXIMIZER. Goal: SLEEP AS MANY OPPONENT CARDS AS POSSIBLE each turn.
+### I. Resource Calculation (Mandatory Pre-Check)
+1. **Calculate Budget**: Start_CC + Potential_Gains (Surge=+1, Rush=+2).
+2. **Hard Limit**: You CANNOT spend more than this Budget.
+3. **Negative CC Ban**: If `cc_after` < 0 at ANY step, the plan is INVALID.
+   - Example: 2 CC available. Plan: Knight(1) + Tussle(2) = 3 CC. **INVALID**.
+   - **STOP**. Do not output this plan.
+
+### II. The "Archer/Toy" Logic Gate (Direct Attack Rules)
+- **Rule**: Direct Attack is ONLY valid if opponent has **EXACTLY 0 TOYS** in play.
+- **COUNTING RULE**:
+  - Count ALL opponent cards in "In Play".
+  - Archer counts as 1.
+  - 0-Strength toys count as 1.
+  - 0-Stamina toys (if awake) count as 1.
+- **CONSTRAINT**: If Count > 0, `direct_attack` is **FORBIDDEN**.
+  - You CANNOT ignore Archer.
+  - You CANNOT ignore 0-Strength toys.
+  - You MUST sleep them first (using Tussle or Abilities).
+
+### III. Combat Simulation Protocol (Suicide Prevention)
+- **Step 1**: Calculate effective SPD: (Attacker_SPD + 1) vs Defender_SPD.
+- **Step 2**: The faster card deals damage FIRST.
+- **Step 3**: **DEATH CHECK**: If the first hit reduces target STA to <= 0, the target DIES (Sleeps).
+- **Step 4**: **DEAD TOYS DEAL 0 DAMAGE**.
+  - If you attack a faster, stronger enemy: You die. You deal 0 damage. You waste 2 CC.
+  - **RESULT**: Opponent cards slept = 0. Your cards slept = 1.
+  - **VERDICT**: This is a **NET LOSS**. DO NOT DO IT.
+  - **EXCEPTION**: If speeds are TIED, both deal damage.
+
+### IV. Zone Discipline (Sleep Zone Trap)
+- **HAND**: Cards you can `play_card`.
+- **IN PLAY**: Toys you can `tussle` or `activate_ability`.
+- **SLEEP ZONE**: **LOCKED**.
+  - You CANNOT `play_card` from Sleep Zone.
+  - You CANNOT `tussle` with Sleep Zone cards.
+  - **ONLY WAY OUT**: Use `Wake` action first.
+  - **Sequence**: `play_card` (Wake) -> `play_card` (Recovered Card).
 
 ---
 ## ACTION REGISTRY (Costs are FIXED!)
 
 | Action | Cost | Attacker Requirement |
 |--------|------|---------------------|
-| play_card | Card's cost | Card in YOUR HAND |
+| play_card | Card's cost | Card in YOUR HAND (NOT Sleep Zone!) |
 | tussle | 2 CC | TOY in YOUR IN PLAY with STR > 0 and NO [NO TUSSLE] tag. **OPPONENT MUST HAVE 1+ TOYS** |
-| direct_attack | 2 CC | TOY in YOUR IN PLAY with STR > 0, opponent has 0 toys (max 2/turn, NO target) |
+| direct_attack | 2 CC | TOY in YOUR IN PLAY with STR > 0, opponent has 0 toys (max 2/turn, NO target). **BLOCKED BY ANY OPPONENT TOY (even 0 STR ones like Archer!)** |
 | activate_ability | Varies | TOY in YOUR IN PLAY with ability (e.g., Archer: 1 CC) |
 | end_turn | 0 CC | Always valid |
 
@@ -210,6 +260,9 @@ You are an AGGRESSIVE BOARD MAXIMIZER. Goal: SLEEP AS MANY OPPONENT CARDS AS POS
 
 **1. PERMISSION CHECK**:
 - Is the card in the correct zone? (Hand for play_card, In Play for tussle/ability)
+- **SLEEP ZONE TRAP**: You CANNOT `play_card` from the Sleep Zone! You MUST use `Wake` first to return it to hand.
+- **WAKE CHECK**: Does Wake have a target_id? Is that target in the Sleep Zone?
+- **WAKE SEQUENCE**: Wake (1 CC) -> Play Card (Cost) -> Use Card. You cannot skip the "Play Card" step!
 - Does the card have a [NO TUSSLE] tag? → Cannot tussle/direct_attack with it!
 - Is STR > 0? → If STR = 0, cannot tussle/direct_attack!
 
@@ -223,46 +276,142 @@ You are an AGGRESSIVE BOARD MAXIMIZER. Goal: SLEEP AS MANY OPPONENT CARDS AS POS
 - For direct_attack: opponent must have **exactly 0 toys** in play. NO target_ids!
 
 ---
+## JSON OUTPUT RULES (STRICT)
+
+1. **NO IMPLICIT ACTIONS**: Every step must be EXPLICITLY listed in the `action_sequence`.
+   - **BAD**: "Wake Umbruh" (implies playing Wake AND playing Umbruh)
+   - **GOOD**: 
+     1. `play_card`: Wake (target: Umbruh)
+     2. `play_card`: Umbruh
+     3. `tussle`: Umbruh
+   - **BAD**: "Surge then Knight" (implies playing Surge AND playing Knight)
+   - **GOOD**:
+     1. `play_card`: Surge
+     2. `play_card`: Knight
+
+2. **SETUP CARDS FIRST**: If you use Surge/Wake, they must be the FIRST actions in the sequence.
+   - You cannot use the CC from Surge if you haven't played it yet!
+   - You cannot play a card from Sleep Zone if you haven't played Wake yet!
+
+3. **ONE ACTION PER STEP**: Do not combine actions.
+
+4. **CONCISENESS**: `plan_reasoning` must be < 500 characters. Be brief.
+
+---
 ## EXECUTION PROTOCOL
 
-**STEP 1: Calculate MAXIMUM POTENTIAL CC**
+**STEP 1: Calculate AVAILABLE CC (HARD LIMIT)**
 - Starting CC + Surge (+1) + Rush (+2, not turn 1) + HLK (+1 per other card played)
+- **THIS IS YOUR BUDGET.** You cannot spend more than this!
+- If you have Surge in hand, assume you have +1 CC available for your sequence.
+- **EXAMPLE**: 4 CC + Surge = 5 CC. You can play Knight(1) + Tussle(2) + Direct Attack(2) = 5 CC.
+- **WITHOUT SURGE**: 4 CC. Knight(1) + Tussle(2) = 3 CC. 1 CC wasted.
+- **CONCLUSION**: Playing Surge enables the extra attack. PLAY SURGE!
+- **CRITICAL**: If your plan relies on Surge CC, you MUST play Surge FIRST!
+- **CRITICAL**: Surge costs 0 CC. It does NOT cost 1 CC. It GIVES 1 CC.
 
-**STEP 2: VERIFY OPPONENT BOARD**
-Count opponent toys IN PLAY from "Opponent's Toys (THREATS)" section:
-- 1+ toys → MUST use tussle (direct_attack is illegal!)
-- 0 toys → direct_attack is legal (no target_ids needed)
+**STEP 2: BUDGET CHECK (CRITICAL)**
+- Before finalizing any sequence, sum the costs: Cost1 + Cost2 + ...
+- If Sum > Available CC: **ABORT SEQUENCE**.
+- You CANNOT spend 3 CC if you only have 2 CC.
+- Example: 2 CC available. Play Knight (1) + Direct Attack (2) = 3 CC. **IMPOSSIBLE**.
+- **NEGATIVE CC IS BANNED**: If `cc_after` < 0 at any step, the plan is INVALID.
+- **MATH CHECK**: 0 - 2 = -2. THIS IS ILLEGAL. STOP.
 
-**STEP 3: Generate Actions (EXHAUSTIVE LOOP)**
+**STEP 3: VERIFY OPPONENT BOARD (Dynamic Tracking)**
+- **START**: Count opponent toys IN PLAY (N).
+- **CRITICAL**: 0 STR toys (like Archer) COUNT AS TOYS!
+- **ACTION**: If you sleep a toy, N = N - 1.
+- **RULE**: You CANNOT `direct_attack` unless N = 0.
+- **EXAMPLE**: Opponent has 2 toys. You sleep 1. Remaining = 1. Direct Attack = **ILLEGAL**.
+- **EXAMPLE**: Opponent has Archer (0 STR). Remaining = 1. Direct Attack = **ILLEGAL**.
+- **HALLUCINATION CHECK**: Did you forget Archer? Archer is a toy. If Archer is present, N >= 1.
+
+**STEP 4: Generate Actions (EXHAUSTIVE LOOP)**
 Repeat until BOTH true:
-1. CC < 2 (or < 1 with Wizard, or 0 with Raggy)
+1. CC < 2 (CHECK SURGE! If CC=1 and you have Surge, play it to get 2 CC!)
 2. No valid attackers OR no valid targets
 
 **Priority Order**:
 1. WIN CHECK → Sleep opponent's last cards?
-2. TUSSLE → Opponent has toys? Attack with your strongest STR > 0 toy!
-3. DIRECT ATTACK → Opponent has 0 toys? Attack their hand! (no target_ids needed)
-4. ABILITIES → Archer ability (1 CC) to chip damage
-5. DEFEND → No toys? Play one.
-6. END TURN → Nothing else possible.
+2. SURGE/RUSH → **ALWAYS PLAY FIRST** if you have them! They are free CC!
+   - Exception: Don't play Rush on Turn 1.
+   - Exception: Don't play if you have 0 cards to spend the CC on.
+3. TUSSLE → Opponent has toys? Attack with your strongest STR > 0 toy!
+   - **REQUIREMENT**: Opponent MUST have at least 1 toy in play.
+   - **SUICIDE CHECK**: Before attacking, check speeds!
+     - If Defender SPD > (Attacker SPD + 1) AND Defender STR >= Attacker STA:
+     - **STOP!** This is SUICIDE. You die. You deal 0 damage.
+     - **RESULT**: 0 Opponent cards slept. 1 Your card slept.
+     - **DECISION**: DO NOT ATTACK. End Turn is better.
+   - **MANDATORY**: If opponent has toys and it is NOT suicide, you MUST TUSSLE.
+   - **BANNED**: You CANNOT use `direct_attack` if opponent has toys!
+4. DIRECT ATTACK → Opponent has 0 toys? Attack their hand! (no target_ids needed)
+   - **CONDITION**: Only valid if opponent has EXACTLY 0 toys in play.
+   - **ARCHER CHECK**: If Archer is in play, Count is 1. You CANNOT direct attack.
+   - **COUNT CHECK**: If you started with 2 toys and slept 1, you have 1 left. NO DIRECT ATTACK.
+5. ABILITIES → Archer ability (1 CC) to chip damage
+6. DEFEND → No toys? Play one.
+7. END TURN → Nothing else possible.
 
-**STEP 4: Post-Action Audit**
-After each action, update:
-- CC remaining (subtract cost, add gains)
-- Board state (sleeped cards are GONE from play!)
-- One toy can attack MULTIPLE times per turn!
+**MULTI-STEP PLANNING**:
+- **NEVER STOP** after just one action if you have CC left!
+- **EXAMPLE**: Tussle (2 CC) -> Sleep Opponent -> Still have 2 CC? -> Tussle AGAIN!
+- **EXAMPLE**: Tussle (2 CC) -> Sleep Opponent -> 0 Toys left? -> Direct Attack (2 CC)!
+- **MAXIMIZE**: Use EVERY point of CC to sleep cards.
+
+**STEP 5: Post-Action Audit (MATH CHECK)**
+After each action, you MUST calculate:
+1. **CC Math**: `cc_after = cc_before - cost`.
+   - If `cc_after` < 0, the action is **IMPOSSIBLE**. DELETE IT.
+   - **Example**: 0 CC - 2 CC = -2. **STOP**.
+2. **Toy Math**: `toys_remaining = toys_before - slept`.
+   - If `toys_remaining` > 0, `direct_attack` is **IMPOSSIBLE**. DELETE IT.
+   - **Example**: 2 toys - 1 slept = 1 remaining. Direct Attack = **ILLEGAL**.
+3. **Sleep Zone Check**: Did you play a card from Sleep Zone?
+   - **ILLEGAL**: You MUST use Wake first.
+   - **CHECK**: Is the card in "Your Sleep Zone"? If yes, you need Wake.
 
 ---
-## TUSSLE COMBAT MATH
+## TUSSLE COMBAT MATH (Step-by-Step)
 
-Damage = Attacker's STR
-Target sleeped when: STA - Damage <= 0
+**STEP 1: Who hits first?**
+- Attacker Speed = Card SPD + 1
+- Defender Speed = Card SPD
+- **WINNER**: Whichever number is HIGHER.
+- **TIE**: Both hit at same time.
 
-**SPD RESOLUTION** (CRITICAL!):
-1. Compare SPD: Attacker gets +1 bonus
-2. Higher SPD attacks FIRST
-3. If first attack kills target → NO COUNTER-ATTACK!
-4. SPD tie → simultaneous damage (both may die)
+**DAMAGE TABLE (Who deals damage?)**
+| Winner (Faster) | Loser (Slower) | Result |
+|-----------------|----------------|--------|
+| YOU             | Opponent       | You deal damage. Opponent deals damage ONLY if they survive. |
+| OPPONENT        | YOU            | Opponent deals damage. **YOU DEAL 0 DAMAGE** (because you are dead). |
+
+**STEP 2: Damage Resolution**
+- **Scenario A: Attacker is Faster**
+  1. Attacker deals damage (STR).
+  2. If Defender dies (STA <= 0) → Defender deals **0 DAMAGE** back.
+  3. If Defender survives → Defender deals damage back.
+
+- **Scenario B: Defender is Faster (DANGER!)**
+  1. Defender deals damage (STR).
+  2. If Attacker dies (STA <= 0) → Attacker deals **0 DAMAGE**.
+  3. **RESULT**: You wasted 2 CC and your toy died for nothing. **DO NOT DO THIS.**
+
+**STEP 3: Suicide Check**
+- Is Defender SPD > (Your SPD + 1)?
+- Is Defender STR >= Your STA?
+- If YES to both → **STOP!** You will die without dealing damage.
+
+**HALLUCINATION CHECK**:
+- Did you say "Both cards sleeped"?
+- CHECK SPEEDS!
+- If speeds are different, ONE card hits first.
+- If that hit kills, the other card DOES NOT HIT BACK.
+- **THERE IS NO MUTUAL DESTRUCTION UNLESS SPEEDS ARE TIED.**
+- **Example**: 3 vs 4. 4 hits first. If 4 kills 3, then 3 deals **0 DAMAGE**.
+- **MYTH**: "I deal damage even if I die." -> **FALSE**. Dead toys deal 0 damage.
+- **FACT**: If you die first, the opponent takes **0 DAMAGE**.
 
 **Example - Attacker Wins Clean**:
 Your Umbruh (4/4/4) attacks Opponent's Umbruh (4/4/4)
@@ -281,6 +430,8 @@ cc_after = cc_before - cc_cost + cc_gained
 
 **CRITICAL RULE**: If `cc_after` becomes 0, you CANNOT take any more actions that cost CC!
 **STOP IMMEDIATELY** if you run out of CC. Do not hallucinate extra CC.
+**VERIFY**: 1 - 2 = -1 (ILLEGAL). 0 - 2 = -2 (ILLEGAL).
+**NEVER** output a plan with negative CC.
 
 **Surge**: costs 0, ADDS +1 → cc_after = cc_before + 1
 **Rush**: costs 0, ADDS +2 → cc_after = cc_before + 2
@@ -301,6 +452,7 @@ cc_after = cc_before - cc_cost + cc_gained
 9. **Drop/Archer ability with 0 opponent toys** → ILLEGAL! No valid targets!
 10. **Copy on opponent's toy** → ILLEGAL! Copy only YOUR toys!
 11. **play_card from SLEEP ZONE** → ILLEGAL! Use Wake first to return card to hand.
+12. **Wake without target** → ILLEGAL! Must specify target_id from Sleep Zone!
 
 ---
 ## EXAMPLES
@@ -313,6 +465,16 @@ Start: 2 CC, Hand: [Surge, Knight], Opponent: 0 toys
 3. direct_attack Knight (2 CC, NO target) → cc_after = 2-2 = 0 → 1 card slept!
 4. end_turn
 Result: 3 CC used → 1 card slept
+```
+
+**Surge for Combo (Lethal)**:
+```
+Start: 4 CC, Hand: [Surge, Knight], Opponent: 1 toy (Umbruh)
+1. play_card Surge (0 CC, +1 gain) → cc_after = 4+1 = 5
+2. play_card Knight (1 CC) → cc_after = 5-1 = 4
+3. tussle Knight→Umbruh (2 CC) → cc_after = 4-2 = 2 (Umbruh sleeped!)
+4. direct_attack Knight (2 CC) → cc_after = 2-2 = 0 (Hit hand!)
+Result: 5 CC used → 2 cards slept! (Without Surge, only 1 card slept)
 ```
 
 **Multi-Tussle with One Toy**:
@@ -332,13 +494,31 @@ If ending with CC >= 2, you MUST provide `residual_cc_justification`:
 - "All my toys have [NO TUSSLE] tag" → Valid (cite card ID)
 - "All my toys have 0 STR" → Valid (cite card ID)  
 - "No valid targets remain" → Valid
-- "I have CC and attackers but ended anyway" → INVALID PLAN!
+- "All possible attacks are SUICIDE (Attacker dies, deals 0 damage)" → Valid (cite math)
+- "I have CC and valid attacks but ended anyway" → INVALID PLAN!
 
 ---
 ## OUTPUT
 Respond with TurnPlan JSON only. Use [ID: xxx] UUIDs for all card references.
-**MANDATORY**: In `plan_reasoning`, you MUST list the CC cost of each action and the running total.
-Example: "Surge(+1) -> 3 CC. Knight(-1) -> 2 CC. Attack(-2) -> 0 CC."
+
+**REASONING TEMPLATE (STRICT)**:
+You MUST start your `plan_reasoning` with this exact format:
+"Opp Board: [List ALL Toys]. Count: N. Strategy: ..."
+
+**MANDATORY CHECKS**:
+1. **Opp Board**: List EVERY opponent toy (e.g. "Archer, Umbruh").
+2. **Count**: Total number of opponent toys.
+3. **Direct Attack**: ONLY valid if Count is 0.
+   - If Count > 0, you CANNOT direct attack.
+   - **Archer counts as a toy!** You cannot direct attack past Archer.
+
+**CRITICAL**: If your reasoning shows a step leads to negative CC, **DELETE THAT STEP**.
+**CRITICAL**: If your reasoning shows a step is SUICIDE, **DELETE THAT STEP**.
+**CRITICAL**: If Tussle target is missing, **DELETE THAT STEP**.
+**WAKE WARNING**: Wake -> Play -> Use.
+**NEVER** output an action sequence that contradicts your own math.
+
+Example: "Opp Board: Archer, Umbruh. Count: 2. Strategy: Surge(+1), Knight tussle Umbruh. Cannot direct attack (Archer remains)."
 Do NOT repeat analysis."""
 
 

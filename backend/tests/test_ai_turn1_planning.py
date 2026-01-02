@@ -770,3 +770,72 @@ class TestCombatMath:
         # Expect 1 card slept (opponent), not 2
         assert plan.expected_cards_slept == 1, \
             f"AI predicted {plan.expected_cards_slept} cards slept. Should be 1 (attacker wins clean due to SPD bonus)."
+
+    def test_suicide_attack_prevention(self, turn_planner):
+        """
+        Verify AI does NOT attack if it will die before dealing damage.
+        Scenario: Paper Plane (2/2/1) vs Knight (4/4/3).
+        Paper Plane SPD (2+1=3) < Knight SPD (4).
+        Knight attacks first -> Paper Plane sleeps.
+        Paper Plane deals 0 damage.
+        Result: 0 opponent cards slept, 1 own card slept.
+        """
+        setup, cards = create_game_with_cards(
+            player1_hand=[],
+            player1_in_play=["Paper Plane"], # 2/2/1
+            player2_hand=[],
+            player2_in_play=["Knight"], # 4/4/3
+            player1_cc=2,
+            player2_cc=0,
+            active_player="player1",
+            turn_number=2,
+        )
+        
+        plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
+        assert plan is not None
+        log_plan(plan, "COMBAT MATH: Suicide Prevention")
+        
+        tussles = [a for a in plan.action_sequence if a.action_type == "tussle"]
+        
+        # Should NOT tussle because it's a suicide mission with 0 benefit
+        assert len(tussles) == 0, \
+            f"AI should NOT tussle! Paper Plane dies before dealing damage. Actions: {plan.action_sequence}"
+
+
+class TestMultiToyDefense:
+    def test_cannot_direct_attack_if_second_toy_remains(self, turn_planner):
+        """
+        Regression Test for Hallucination:
+        Opponent has 2 toys (Umbruh, Archer).
+        AI sleeps Umbruh.
+        AI MUST NOT direct attack afterwards, because Archer is still there.
+        """
+        setup, cards = create_game_with_cards(
+            player1_hand=["Surge", "Knight"],
+            player1_in_play=[],
+            player2_hand=["Knight", "Ka", "Archer", "Wizard"],
+            player2_in_play=["Umbruh", "Archer"],  # Two toys!
+            player1_cc=4,
+            player2_cc=1,
+            active_player="player1",
+            turn_number=1,
+        )
+        
+        plan = turn_planner.create_plan(
+            setup.game_state,
+            "player1",
+            setup.engine
+        )
+        
+        # Check actions
+        actions = plan.action_sequence
+        
+        # Should play Surge (optional but likely) and Knight
+        # Should Tussle Umbruh (High threat)
+        # Should NOT Direct Attack
+        
+        direct_attacks = [a for a in actions if a.action_type == "direct_attack"]
+        
+        assert len(direct_attacks) == 0, \
+            f"AI performed Direct Attack despite Archer remaining in play! Actions: {actions}"
+
