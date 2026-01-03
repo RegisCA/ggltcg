@@ -367,7 +367,7 @@ const AdminDataViewer: React.FC = () => {
 
     for (const log of logs) {
       // Group v3+ logs that have turn plans
-      if (log.ai_version >= 3 && log.turn_plan) {
+      if (log.ai_version !== null && log.ai_version >= 3 && log.turn_plan) {
         const key = `${log.game_id}-${log.turn_number}-${log.player_id}`;
         if (!planGroups.has(key)) {
           planGroups.set(key, {
