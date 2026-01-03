@@ -9,6 +9,7 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 ## 🔴 Active Issues
 
 ### 1. Logging Override Prevents LOG_LEVEL Control
+Jan 3 update: https://github.com/RegisCA/ggltcg/issues/283
 
 **Severity**: Medium (affects developer experience, not functionality)  
 **Affected**: Simulations, local development  
@@ -51,6 +52,7 @@ python run_server.py 2>/dev/null
 ---
 
 ## 🟡 Monitoring Issues
+Jan 3 update: https://github.com/RegisCA/ggltcg/issues/284
 
 ### 2. CC Spend Summary Statistics May Be Incorrect
 
@@ -99,7 +101,7 @@ python run_server.py 2>/dev/null
 ---
 
 ## 📋 Future Improvements
-
+Jan 3: logged as https://github.com/RegisCA/ggltcg/issues/285
 See [SIMULATION_IMPROVEMENTS.md](./SIMULATION_IMPROVEMENTS.md) for planned enhancements:
 1. Simulation CLI with presets (High priority)
 2. Deck validation before starting runs (High priority)

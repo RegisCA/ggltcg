@@ -133,10 +133,10 @@ SEQUENCE_PLANNING = """# SEQUENCE PLANNING (Validator handles CC/combat math)
 - If Sum > Available CC: **PLAN IS IMPOSSIBLE**
 
 **ACTION COSTS (FIXED - MEMORIZE THESE):**
-- play_card: card's cost (varies)
+- play_card: card's cost (varies) - includes ACTION cards like Wake (1 CC), Clean (3 CC)
 - **tussle: 2 CC** (always, unless Wizard/Raggy modifier)
 - **direct_attack: 2 CC** (always, no exceptions)
-- activate_ability: 1 CC (Archer), 1 CC (Wake), varies by card
+- activate_ability: 1 CC (Archer), varies by card
 - end_turn: 0 CC
 
 **Example:** Knight (1) + Direct Attack (2) = 3 CC total

@@ -28,7 +28,6 @@ from pathlib import Path
 
 # Configure logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 # Load environment variables from .env file
 try:
@@ -116,8 +115,8 @@ class LLMPlayer:
         # Default: gemini-2.5-flash-lite (15 RPM, better capacity availability)
         self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
         
-        logger.info(f"Initializing Gemini with model: {self.model_name}")
-        logger.info(f"Fallback model (for 429 errors): {self.fallback_model}")
+        logger.debug(f"Initializing Gemini with model: {self.model_name}")
+        logger.debug(f"Fallback model (for 429 errors): {self.fallback_model}")
     
     def select_action(
         self,
@@ -143,7 +142,7 @@ class LLMPlayer:
             logger.warning("No valid actions available for AI")
             return None
         
-        logger.info(f"🤖 AI Turn {game_state.turn_number} - {len(valid_actions)} actions available")
+        logger.debug(f"🤖 AI Turn {game_state.turn_number} - {len(valid_actions)} actions available")
         
         # Build the prompt
         prompt = get_ai_turn_prompt(game_state, ai_player_id, valid_actions, game_engine)
@@ -158,7 +157,7 @@ class LLMPlayer:
         
         try:
             # Call LLM API based on provider
-            logger.info(f"Calling Gemini API ({self.model_name})...")
+            logger.debug(f"Calling Gemini API ({self.model_name})...")
             
             response_text = self._call_gemini(prompt)
             
@@ -210,28 +209,28 @@ class LLMPlayer:
             if target_ids is None and target_id_legacy:
                 if target_id_legacy not in ("null", "None"):
                     target_ids = [target_id_legacy]
-                    logger.info("Using legacy target_id field (migrating to target_ids)")
+                    logger.debug("Using legacy target_id field (migrating to target_ids)")
             
             # Normalize alternative_cost_id
             if alternative_cost_id == "null" or alternative_cost_id == "None":
                 alternative_cost_id = None
             
             # DEBUG: Log all actions with their numbers
-            logger.info("=" * 60)
-            logger.info("DEBUG - Valid Actions List:")
+            logger.debug("=" * 60)
+            logger.debug("DEBUG - Valid Actions List:")
             for i, action in enumerate(valid_actions):
-                logger.info(f"  Prompt number {i+1} -> Index {i}: {action.description}")
-            logger.info("=" * 60)
+                logger.debug(f"  Prompt number {i+1} -> Index {i}: {action.description}")
+            logger.debug("=" * 60)
             
             if action_number is None:
                 logger.error(f"AI response missing action_number: {response_data}")
                 return None
             
-            logger.info(f"DEBUG - AI returned action_number: {action_number} (type: {type(action_number)})")
+            logger.debug(f"DEBUG - AI returned action_number: {action_number} (type: {type(action_number)})")
             
             # Convert to 0-based index
             action_index = action_number - 1
-            logger.info(f"DEBUG - Converted to action_index: {action_index}")
+            logger.debug(f"DEBUG - Converted to action_index: {action_index}")
             
             # Validate index
             if action_index < 0 or action_index >= len(valid_actions):
@@ -240,14 +239,14 @@ class LLMPlayer:
             
             # Log the decision
             selected_action = valid_actions[action_index]
-            logger.info(f"✅ AI Decision: {selected_action.description}")
-            logger.info(f"💭 Reasoning: {reasoning}")
+            logger.debug(f"✅ AI Decision: {selected_action.description}")
+            logger.debug(f"💭 Reasoning: {reasoning}")
             if target_ids:
-                logger.info(f"🎯 Targets ({len(target_ids)}): {target_ids}")
+                logger.debug(f"🎯 Targets ({len(target_ids)}): {target_ids}")
             if alternative_cost_id:
-                logger.info(f"💰 Alternative Cost: {alternative_cost_id}")
-            logger.info(f"DEBUG - Returning action_index: {action_index}")
-            logger.info("=" * 60)
+                logger.debug(f"💰 Alternative Cost: {alternative_cost_id}")
+            logger.debug(f"DEBUG - Returning action_index: {action_index}")
+            logger.debug("=" * 60)
             
             # Store target and alternative cost selections
             self._last_target_ids = target_ids
@@ -413,7 +412,7 @@ class LLMPlayer:
             # This enables Sun card to select 2 targets
             if self._last_target_ids:
                 result["target_ids"] = self._last_target_ids
-                logger.info(f"Using AI-selected targets ({len(self._last_target_ids)}): {self._last_target_ids}")
+                logger.debug(f"Using AI-selected targets ({len(self._last_target_ids)}): {self._last_target_ids}")
             elif selected_action.target_options:
                 # Fallback: Use first available target if AI didn't specify
                 result["target_ids"] = [selected_action.target_options[0]]
@@ -422,7 +421,7 @@ class LLMPlayer:
             # Handle alternative cost (for Ballaber)
             if self._last_alternative_cost_id:
                 result["alternative_cost_card_id"] = self._last_alternative_cost_id
-                logger.info(f"Using AI-selected alternative cost: {self._last_alternative_cost_id}")
+                logger.debug(f"Using AI-selected alternative cost: {self._last_alternative_cost_id}")
             elif selected_action.alternative_cost_options and len(selected_action.alternative_cost_options) > 0:
                 # Fallback: Use first available alternative cost card if AI didn't specify
                 result["alternative_cost_card_id"] = selected_action.alternative_cost_options[0]
@@ -435,7 +434,7 @@ class LLMPlayer:
             # Handle target selection for tussles (still single target)
             if self._last_target_ids and len(self._last_target_ids) > 0:
                 result["defender_id"] = self._last_target_ids[0]  # Use first target for tussle
-                logger.info(f"Using AI-selected tussle target: {self._last_target_ids[0]}")
+                logger.debug(f"Using AI-selected tussle target: {self._last_target_ids[0]}")
             elif selected_action.target_options:
                 # Check if this is a direct attack or targeted tussle
                 if selected_action.target_options[0] == "direct_attack":
@@ -454,7 +453,7 @@ class LLMPlayer:
             # Handle target selection for activated abilities (still single target)
             if self._last_target_ids and len(self._last_target_ids) > 0:
                 result["target_id"] = self._last_target_ids[0]  # Use first target for ability
-                logger.info(f"Using AI-selected ability target: {self._last_target_ids[0]}")
+                logger.debug(f"Using AI-selected ability target: {self._last_target_ids[0]}")
             elif selected_action.target_options:
                 # Fallback: Use first available target if AI didn't specify
                 result["target_id"] = selected_action.target_options[0]
@@ -498,9 +497,19 @@ class LLMPlayerV3(LLMPlayer):
     Inherits from LLMPlayer for API calls and action execution.
     """
     
-    def __init__(self, **kwargs):
-        """Initialize v3 player with turn planning support."""
+    def __init__(self, ai_version: int = None, **kwargs):
+        """
+        Initialize v3 player with turn planning support.
+        
+        Args:
+            ai_version: AI version to use (3 or 4). If None, reads from AI_VERSION env var.
+            **kwargs: Passed to LLMPlayer (provider, api_key, model)
+        """
         super().__init__(**kwargs)
+        
+        # Determine AI version - parameter overrides env var
+        import os
+        self.ai_version = ai_version if ai_version is not None else int(os.getenv("AI_VERSION", "3"))
         
         # v3: Turn plan state
         self._current_plan: Optional['TurnPlan'] = None
@@ -514,10 +523,11 @@ class LLMPlayerV3(LLMPlayer):
         self.turn_planner = TurnPlanner(
             client=self.client,
             model_name=self.model_name,
-            fallback_model=self.fallback_model
+            fallback_model=self.fallback_model,
+            ai_version=self.ai_version
         )
         
-        logger.info(f"Initialized LLMPlayerV3 (two-phase planning)")
+        logger.debug(f"Initialized LLMPlayerV3 (AI v{self.ai_version}, model: {self.model_name})")
     
     def select_action(
         self,
@@ -545,7 +555,7 @@ class LLMPlayerV3(LLMPlayer):
             logger.warning("No valid actions available for AI")
             return None
         
-        logger.info(f"🤖 AI v3 Turn {game_state.turn_number} - {len(valid_actions)} actions available")
+        logger.debug(f"🤖 AI v3 Turn {game_state.turn_number} - {len(valid_actions)} actions available")
         
         # Check if we need a new plan
         if self._needs_new_plan(game_state):
@@ -571,7 +581,7 @@ class LLMPlayerV3(LLMPlayer):
         
         # Turn number changed (new turn started)
         if self._plan_turn_number != game_state.turn_number:
-            logger.info(f"🔄 New turn detected ({self._plan_turn_number} → {game_state.turn_number}), creating new plan")
+            logger.debug(f"🔄 New turn detected ({self._plan_turn_number} → {game_state.turn_number}), creating new plan")
             return True
         
         return False
@@ -583,7 +593,7 @@ class LLMPlayerV3(LLMPlayer):
         game_engine
     ) -> None:
         """Create a new turn plan."""
-        logger.info("📋 Creating new turn plan...")
+        logger.debug("📋 Creating new turn plan...")
         
         try:
             plan = self.turn_planner.create_plan(
@@ -600,13 +610,13 @@ class LLMPlayerV3(LLMPlayer):
                 self._execution_log = []  # Reset execution log for new plan
                 
                 # Log plan summary
-                logger.info(f"✅ Plan created: {len(plan.action_sequence)} actions")
-                logger.info(f"📊 CC: {plan.cc_start} → {plan.cc_after_plan}")
-                logger.info(f"🎯 Expected cards slept: {plan.expected_cards_slept}")
-                logger.info(f"💡 Strategy: {plan.selected_strategy[:100]}...")
+                logger.debug(f"✅ Plan created: {len(plan.action_sequence)} actions")
+                logger.debug(f"📊 CC: {plan.cc_start} → {plan.cc_after_plan}")
+                logger.debug(f"🎯 Expected cards slept: {plan.expected_cards_slept}")
+                logger.debug(f"💡 Strategy: {plan.selected_strategy[:100]}...")
                 
                 for i, action in enumerate(plan.action_sequence):
-                    logger.info(f"  {i+1}. {action.action_type}: {action.card_name or 'N/A'} ({action.cc_cost} CC)")
+                    logger.debug(f"  {i+1}. {action.action_type}: {action.card_name or 'N/A'} ({action.cc_cost} CC)")
             else:
                 logger.warning("Failed to create plan, will use fallback")
                 self._current_plan = None
@@ -632,8 +642,8 @@ class LLMPlayerV3(LLMPlayer):
         
         planned_action = self._current_plan.action_sequence[self._plan_action_index]
         
-        logger.info(f"🎬 Executing plan step {self._plan_action_index + 1}/{len(self._current_plan.action_sequence)}")
-        logger.info(f"   Planned: {planned_action.action_type} {planned_action.card_name or ''}")
+        logger.debug(f"🎬 Executing plan step {self._plan_action_index + 1}/{len(self._current_plan.action_sequence)}")
+        logger.debug(f"   Planned: {planned_action.action_type} {planned_action.card_name or ''}")
         
         # First, try heuristic matching (no LLM call needed)
         action_index = find_matching_action_index(planned_action, valid_actions)
@@ -660,11 +670,11 @@ class LLMPlayerV3(LLMPlayer):
                 "execution_confirmed": execution_confirmed,
             })
             
-            logger.info(f"✅ Matched action (heuristic): {selected_action.description}")
+            logger.debug(f"✅ Matched action (heuristic): {selected_action.description}")
             return (action_index, reasoning)
         
         # Heuristic didn't match - use LLM to find action
-        logger.info("   Using LLM to match action...")
+        logger.debug("   Using LLM to match action...")
         
         # Log that heuristic matching failed
         self._execution_log.append({
@@ -722,7 +732,7 @@ class LLMPlayerV3(LLMPlayer):
                 update_data["execution_confirmed"] = True
             self._execution_log[-1].update(update_data)
             
-            logger.info(f"✅ Matched action (LLM): {selected_action.description}")
+            logger.debug(f"✅ Matched action (LLM): {selected_action.description}")
             return (action_index, f"[v3 Plan] {reasoning}")
             
         except Exception as e:
@@ -764,7 +774,7 @@ class LLMPlayerV3(LLMPlayer):
         self._plan_action_index += 1
         
         if self._plan_action_index >= len(self._current_plan.action_sequence):
-            logger.info("📋 Plan completed!")
+            logger.debug("📋 Plan completed!")
     
     def record_execution_result(self, success: bool, error_message: str = None) -> None:
         """Record the actual execution result for the last attempted action."""
@@ -800,12 +810,12 @@ class LLMPlayerV3(LLMPlayer):
         # Skip to end_turn if available
         for i, action in enumerate(valid_actions):
             if "end turn" in action.description.lower():
-                logger.info("Falling back to end_turn")
+                logger.debug("Falling back to end_turn")
                 self._current_plan = None  # Invalidate plan
                 return (i, f"[v3 Fallback] Plan failed: {failure_reason}")
         
         # Fall back to v2 selection
-        logger.info("Falling back to v2 action selection")
+        logger.debug("Falling back to v2 action selection")
         self._current_plan = None
         return None
     
@@ -883,12 +893,12 @@ def get_ai_player(provider: str = None, version: int = None) -> LLMPlayer:
     
     if version >= 3:
         if _ai_player_v3 is None:
-            logger.info(f"🤖 Initializing AI player v{version} (turn planning)")
+            logger.debug(f"🤖 Initializing AI player v{version} (turn planning)")
             _ai_player_v3 = LLMPlayerV3(provider="gemini")
         return _ai_player_v3
     else:
         if _ai_player is None:
-            logger.info(f"🤖 Initializing AI player v{version} (per-action)")
+            logger.debug(f"🤖 Initializing AI player v{version} (per-action)")
             _ai_player = LLMPlayer(provider="gemini")
         return _ai_player
 

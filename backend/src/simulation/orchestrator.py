@@ -29,7 +29,8 @@ from .runner import SimulationRunner
 logger = logging.getLogger(__name__)
 
 # Default number of parallel games
-DEFAULT_PARALLEL_GAMES = 5
+# Note: gemini-2.5-flash-lite has 4K RPM limit - can safely run 10+ parallel
+DEFAULT_PARALLEL_GAMES = 10
 
 
 class SimulationOrchestrator:
@@ -192,6 +193,8 @@ class SimulationOrchestrator:
                 runner = SimulationRunner(
                     player1_model=config.player1_model,
                     player2_model=config.player2_model,
+                    player1_ai_version=config.player1_ai_version,
+                    player2_ai_version=config.player2_ai_version,
                     max_turns=config.max_turns,
                 )
                 result = runner.run_game(
