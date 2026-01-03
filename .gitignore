@@ -49,6 +49,12 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Simulation reports (generated output)
+backend/reports/*.md
+backend/reports/*.txt
+backend/reports/*.json
+!backend/reports/README.md
+
 # Logs
 logs/
 *.log

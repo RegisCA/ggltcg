@@ -8,10 +8,21 @@ as part of GitHub Issue #243.
 
 **Key Features:**
 
-- Parallel game execution (5 games by default) for faster completion
+- Parallel game execution (10 workers by default) for faster completion
 - N² matchup matrix (all deck permutations)
 - CC tracking for both players per turn
 - Action logging with human-readable descriptions
+- Command-line interface (CLI) for easy local testing
+- Web-based Admin UI for browser-based simulations
+
+**Quick Start:**
+
+```bash
+cd backend/src
+python -m simulation.cli baseline --iterations 10
+```
+
+For comprehensive CLI documentation, see [backend/src/simulation/README.md](../../backend/src/simulation/README.md).
 
 ## Architecture
 
@@ -20,18 +31,21 @@ as part of GitHub Issue #243.
 ```bash
 backend/src/simulation/
 ├── __init__.py
+├── __main__.py        # CLI entry point (python -m simulation.cli)
+├── cli.py             # Command-line interface with Click
 ├── config.py          # Data classes (SimulationConfig, GameResult, DeckConfig)
 ├── deck_loader.py     # Loads deck configurations from CSV
 ├── orchestrator.py    # Manages batch runs, parallel execution, DB persistence
-└── runner.py          # Executes games; CC tracking & action logging
+├── runner.py          # Executes games; CC tracking & action logging
+└── README.md          # Comprehensive CLI documentation
 ```text
 ### Parallel Execution
 
-Games run in parallel using a ThreadPoolExecutor (default: 5 workers).
+Games run in parallel using a ThreadPoolExecutor (default: 10 workers).
 This significantly speeds up large simulation runs:
 
 - Sequential: ~20 seconds/game → 160 games = ~53 minutes
-- Parallel (5x): ~20 seconds/game → 160 games = ~11 minutes
+- Parallel (10x): ~20 seconds/game → 160 games = ~5-6 minutes
 
 Each parallel worker:
 
@@ -95,7 +109,29 @@ The default model is `gemini-2.0-flash`.
 
 ### Starting a Simulation
 
-Via API:
+#### Via CLI (Recommended for Local Testing)
+
+The CLI provides a streamlined interface for running simulations locally:
+
+```bash
+cd backend/src
+
+# List available decks
+python -m simulation.cli list-decks
+
+# Run baseline V4 vs V4 test
+python -m simulation.cli baseline --iterations 10
+
+# Compare V4 vs V3
+python -m simulation.cli compare --v1 4 --v2 3
+
+# Quick test between two decks
+python -m simulation.cli quick Aggro_Rush Control_Ka
+```
+
+For all CLI commands and options, see [backend/src/simulation/README.md](../../backend/src/simulation/README.md).
+
+#### Via API
 
 ```bash
 curl -X POST http://localhost:8000/admin/simulation/start \
@@ -237,7 +273,8 @@ The Simulation UI is in the Admin Data Viewer
 
 Potential improvements identified:
 
-- [ ] Parallel game execution (currently sequential)
+- [x] Parallel game execution (✅ implemented with 10 workers default)
+- [x] Command-line interface (✅ implemented via simulation.cli)
 - [ ] Aggregate statistics across multiple runs
 - [ ] Export results to CSV
 - [ ] Configurable delays between API calls

@@ -159,6 +159,24 @@ graph TD
 
 See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for complete rules.
 
+## Simulation System
+
+The simulation system enables automated AI vs AI gameplay for testing and analysis. Key use cases:
+
+- **AI Testing**: Validate AI performance and identify bugs across many games
+- **Model Comparison**: Compare different LLM models (e.g., Gemini 2.0 Flash vs 2.5 Flash Lite)
+- **Deck Balancing**: Test deck matchups to identify imbalances
+- **Performance Analysis**: Track command counter (CC) efficiency and turn-by-turn decisions
+
+**Quick Example:**
+
+```bash
+cd backend/src
+python -m simulation.cli baseline --iterations 10
+```
+
+This runs a baseline V4 vs V4 test across standard decks. For detailed documentation, see [Simulation System Guide](docs/development/SIMULATION_SYSTEM.md) and the [CLI README](backend/src/simulation/README.md).
+
 ## Play Now
 
 **Live Game:** <https://ggltcg.vercel.app>

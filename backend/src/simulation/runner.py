@@ -50,6 +50,7 @@ class SimulationRunner:
         player1_ai_version: int = 4,
         player2_ai_version: int = 4,
         max_turns: int = 40,
+        log_level: str = "WARNING",
     ):
         """
         Initialize the simulation runner.
@@ -60,12 +61,16 @@ class SimulationRunner:
             player1_ai_version: AI planning version for player 1 (2, 3, or 4)
             player2_ai_version: AI planning version for player 2 (2, 3, or 4)
             max_turns: Maximum turns before declaring draw
+            log_level: Logging level for simulation-related loggers (default: WARNING)
         """
         self.player1_model = player1_model
         self.player2_model = player2_model
         self.player1_ai_version = player1_ai_version
         self.player2_ai_version = player2_ai_version
         self.max_turns = max_turns
+        
+        # Configure logging for simulation
+        self._configure_simulation_logging(log_level)
         
         # Load all card templates
         self.card_templates = load_cards_dict()
@@ -519,6 +524,32 @@ class SimulationRunner:
                         )
         
         return False
+    
+    def _configure_simulation_logging(self, log_level: str) -> None:
+        """
+        Configure logging levels for simulation-related modules.
+        
+        This suppresses DEBUG logs from game engine internals while preserving
+        ERROR and WARNING messages.
+        
+        Args:
+            log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        """
+        # Convert string to logging level
+        numeric_level = getattr(logging, log_level.upper(), logging.WARNING)
+        
+        # Configure loggers for modules that generate verbose output during simulation
+        logger_names = [
+            "game_engine",
+            "game_engine.ai",
+            "game_engine.ai.turn_planner",
+            "game_engine.ai.llm_player",
+            "game_engine.game_engine",
+            "simulation",
+        ]
+        
+        for logger_name in logger_names:
+            logging.getLogger(logger_name).setLevel(numeric_level)
     
     def _execute_end_turn(self, engine: GameEngine, game_state: GameState) -> None:
         """End the current turn and start the next.
