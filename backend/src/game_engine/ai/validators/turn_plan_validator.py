@@ -314,16 +314,9 @@ class DependencyValidator:
         starting_hand_ids = {card.id for card in ai_player.hand}
         
         for i, action in enumerate(plan.action_sequence):
-            # Detect incorrect Wake usage (trying to play_card Wake instead of activate_ability)
-            if action.card_name == "Wake" and action.action_type == "play_card":
-                errors.append(ValidationError(
-                    action_index=i,
-                    error_type="dependency",
-                    message="Wake is an ACTIVATED ABILITY, not a play_card action. Use action_type='activate_ability' with target_ids=[card_to_wake]"
-                ))
-            
-            # Track Wake targets (Wake is an activate_ability, not play_card)
-            if action.card_name == "Wake" and action.action_type == "activate_ability" and action.target_ids:
+            # Track Wake targets - Wake is a play_card action (played from hand with target)
+            # The target is the card to unsleep from your sleep zone
+            if action.card_name == "Wake" and action.action_type == "play_card" and action.target_ids:
                 woken_card_ids.update(action.target_ids)
             
             # Check if playing a card that wasn't in starting hand
@@ -408,11 +401,11 @@ class TurnPlanValidator:
         
         # Log validation results
         if all_errors:
-            logger.warning(f"Plan validation found {len(all_errors)} error(s)")
+            logger.debug(f"Plan validation found {len(all_errors)} error(s)")
             for error in all_errors:
-                logger.warning(f"  {error.to_llm_feedback()}")
+                logger.debug(f"  {error.to_llm_feedback()}")
         else:
-            logger.info("✅ Plan passed all validators")
+            logger.debug("✅ Plan passed all validators")
         
         return all_errors
     

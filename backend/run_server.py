@@ -14,11 +14,21 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# Configure logging
+# Configure logging - use LOG_LEVEL env var (default: INFO for cleaner output)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, log_level, logging.INFO),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# Reduce noise from HTTP libraries unless in DEBUG mode
+if log_level != "DEBUG":
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("google_genai").setLevel(logging.WARNING)
+    # Also reduce AI module noise - these have many debug logs
+    logging.getLogger("game_engine.ai").setLevel(logging.WARNING)
+    logging.getLogger("simulation").setLevel(logging.WARNING)
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))

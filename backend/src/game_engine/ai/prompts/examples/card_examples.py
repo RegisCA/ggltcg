@@ -77,15 +77,15 @@ Result: Board presence. Drop stays in hand for when opponent plays toys.
 
     "Wake": """<example card="Wake">
 <situation>
-Wake toy in play. Your sleep zone has Knight (slept earlier).
+Hand: [Wake, Knight]. Your sleep zone has Beary (slept earlier).
 CC: 4.
 </situation>
-<key_rule>Wake ability (1 CC): Return target card from YOUR sleep zone to hand. Then you can play it.</key_rule>
+<key_rule>Wake (1 CC): ACTION card that returns target card from YOUR sleep zone to hand. Then you can play it.</key_rule>
 <optimal_sequence>
-1. activate_ability Wake → Knight (1 CC) → 3 CC [Knight returns to hand]
-2. play_card Knight (1 CC) → 2 CC [Knight now in play]
+1. play_card Wake → target Beary (1 CC) → 3 CC [Beary returns to hand]
+2. play_card Beary (2 CC) → 1 CC [Beary now in play]
 3. tussle/direct_attack as needed
 </optimal_sequence>
-<key_insight>Wake is activate_ability, NOT play_card. Costs 1 CC to activate, then card's cost to play.</key_insight>
+<key_insight>Wake is play_card (ACTION from hand), NOT activate_ability. Costs 1 CC to play, then recovered card's cost to play it.</key_insight>
 </example>""",
 }

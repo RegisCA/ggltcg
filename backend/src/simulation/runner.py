@@ -38,15 +38,17 @@ class SimulationRunner:
     
     This class handles:
     - Game state initialization with specified decks
-    - AI player instantiation with configurable models
+    - AI player instantiation with configurable models and AI versions
     - Turn execution with CC tracking
     - Game completion detection and result generation
     """
     
     def __init__(
         self,
-        player1_model: str = "gemini-2.0-flash",
-        player2_model: str = "gemini-2.5-flash",
+        player1_model: str = "gemini-2.5-flash-lite",
+        player2_model: str = "gemini-2.5-flash-lite",
+        player1_ai_version: int = 4,
+        player2_ai_version: int = 4,
         max_turns: int = 40,
     ):
         """
@@ -55,10 +57,14 @@ class SimulationRunner:
         Args:
             player1_model: Gemini model for player 1
             player2_model: Gemini model for player 2
+            player1_ai_version: AI planning version for player 1 (2, 3, or 4)
+            player2_ai_version: AI planning version for player 2 (2, 3, or 4)
             max_turns: Maximum turns before declaring draw
         """
         self.player1_model = player1_model
         self.player2_model = player2_model
+        self.player1_ai_version = player1_ai_version
+        self.player2_ai_version = player2_ai_version
         self.max_turns = max_turns
         
         # Load all card templates
@@ -91,9 +97,8 @@ class SimulationRunner:
         error_message: Optional[str] = None
         game_initialized = False  # Track successful game initialization
         
-        # Get AI version and reset V4 metrics if using V4
-        ai_version = os.getenv("AI_VERSION", "3")
-        if ai_version == "4":
+        # Reset V4 metrics if either player uses V4
+        if self.player1_ai_version == 4 or self.player2_ai_version == 4:
             TurnPlanner.reset_v4_metrics()
         
         try:
@@ -101,15 +106,24 @@ class SimulationRunner:
             game_state = self._create_game_state(deck1, deck2)
             engine = GameEngine(game_state)
             
-            # Create AI players with specified models
+            # Create AI players with specified models and AI versions
             # Use LLMPlayerV3 for AI versions 3 and 4 (turn planning)
-            PlayerClass = LLMPlayerV3 if ai_version in ("3", "4") else LLMPlayer
-            self._player1_ai = PlayerClass(provider="gemini", model=self.player1_model)
-            self._player2_ai = PlayerClass(provider="gemini", model=self.player2_model)
+            Player1Class = LLMPlayerV3 if self.player1_ai_version >= 3 else LLMPlayer
+            Player2Class = LLMPlayerV3 if self.player2_ai_version >= 3 else LLMPlayer
+            self._player1_ai = Player1Class(
+                provider="gemini", 
+                model=self.player1_model,
+                ai_version=self.player1_ai_version
+            )
+            self._player2_ai = Player2Class(
+                provider="gemini", 
+                model=self.player2_model,
+                ai_version=self.player2_ai_version
+            )
             
             logger.info(
-                f"Starting game {game_number}: {deck1.name} ({self.player1_model}) vs "
-                f"{deck2.name} ({self.player2_model})"
+                f"Starting game {game_number}: {deck1.name} (v{self.player1_ai_version}/{self.player1_model}) vs "
+                f"{deck2.name} (v{self.player2_ai_version}/{self.player2_model})"
             )
             
             # Start first turn
@@ -293,11 +307,11 @@ class SimulationRunner:
         # Capture V4 metrics if using V4
         v2_fallback_count = 0
         illegal_action_count = 0
-        if ai_version == "4":
+        if self.player1_ai_version == 4 or self.player2_ai_version == 4:
             v4_metrics = TurnPlanner.get_v4_metrics()
             v2_fallback_count = v4_metrics.get("v2_fallback", 0)
             illegal_action_count = v4_metrics.get("validation_rejections", 0)
-            logger.info(
+            logger.debug(
                 f"V4 Metrics: v4_success={v4_metrics.get('v4_success', 0)}, "
                 f"v2_fallback={v2_fallback_count}, "
                 f"fallback_rate={v4_metrics.get('v2_fallback_rate', 'N/A')}"
@@ -469,12 +483,40 @@ class SimulationRunner:
                 details = ai_player.get_action_details(action)
                 target_ids = details.get("target_ids") or []
                 
-                # Find the activated ability by name
-                if action.ability_name:
-                    engine.activate_ability(
-                        player, card, action.ability_name,
-                        target_ids=target_ids
-                    )
+                # Get the activated effect from the card
+                from game_engine.rules.effects import EffectRegistry
+                from game_engine.rules.effects.base_effect import ActivatedEffect
+                
+                effects = EffectRegistry.get_effects(card)
+                activated_effect = None
+                for effect in effects:
+                    if isinstance(effect, ActivatedEffect):
+                        activated_effect = effect
+                        break
+                
+                if activated_effect:
+                    # Find target card if specified
+                    target_card = None
+                    if target_ids:
+                        all_cards = game_state.get_all_cards_in_play()
+                        for c in all_cards:
+                            if c.id == target_ids[0]:
+                                target_card = c
+                                break
+                    
+                    # Pay the cost (default amount is 1)
+                    amount = 1
+                    cost = activated_effect.cost_cc * amount
+                    if player.cc >= cost:
+                        player.spend_cc(cost)
+                        
+                        # Apply the ability
+                        activated_effect.apply(
+                            game_state,
+                            target=target_card,
+                            amount=amount,
+                            game_engine=engine
+                        )
         
         return False
     

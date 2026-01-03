@@ -203,7 +203,8 @@ def convert_sequence_to_turn_plan(
         # Determine actual CC cost based on action type
         if action_type == "play_card":
             # Look up actual card cost from hand
-            cc_cost = hand_costs.get(card_name, 0)
+            # Note: -1 means "copy target's cost" for Copy card, treat as 0 for planning
+            cc_cost = max(0, hand_costs.get(card_name, 0))
         elif action_type in ("tussle", "direct_attack"):
             cc_cost = 2
         elif action_type == "activate_ability":

@@ -11,6 +11,12 @@ SUPPORTED_MODELS = [
     "gemini-3-flash-preview"
 ]
 
+# Supported AI versions (planning strategies)
+# v2: Per-action LLM calls (original)
+# v3: Turn planning with single request
+# v4: Dual-request architecture (sequence generation + strategic selection)
+SUPPORTED_AI_VERSIONS = [2, 3, 4]
+
 
 class SimulationStatus(str, Enum):
     """Status of a simulation run."""
@@ -112,6 +118,8 @@ class SimulationConfig:
     deck_names: list[str]  # List of deck names to use (will run all combinations)
     player1_model: str = "gemini-2.0-flash"
     player2_model: str = "gemini-2.5-flash-lite"
+    player1_ai_version: int = 4  # AI planning version (2, 3, or 4)
+    player2_ai_version: int = 4  # AI planning version (2, 3, or 4)
     iterations_per_matchup: int = 10  # Games per deck matchup
     max_turns: int = 40  # Turn limit before declaring draw
     
@@ -141,6 +149,8 @@ class SimulationConfig:
             "deck_names": self.deck_names,
             "player1_model": self.player1_model,
             "player2_model": self.player2_model,
+            "player1_ai_version": self.player1_ai_version,
+            "player2_ai_version": self.player2_ai_version,
             "iterations_per_matchup": self.iterations_per_matchup,
             "max_turns": self.max_turns,
         }

@@ -81,7 +81,7 @@ class TurnPlanner:
         for key in cls._v4_metrics:
             cls._v4_metrics[key] = 0
     
-    def __init__(self, client, model_name: str, fallback_model: str):
+    def __init__(self, client, model_name: str, fallback_model: str, ai_version: int = None):
         """
         Initialize the TurnPlanner.
         
@@ -89,10 +89,14 @@ class TurnPlanner:
             client: google-genai Client instance
             model_name: Primary model to use
             fallback_model: Fallback model for capacity issues
+            ai_version: AI version to use (3 or 4). If None, reads from AI_VERSION env var.
         """
         self.client = client
         self.model_name = model_name
         self.fallback_model = fallback_model
+        
+        # Determine AI version - parameter overrides env var
+        self.ai_version = str(ai_version) if ai_version is not None else get_ai_version()
         
         # Store last planning info for debugging
         self._last_prompt: Optional[str] = None
@@ -125,7 +129,7 @@ class TurnPlanner:
         Returns:
             TurnPlan object if successful, None if planning failed
         """
-        logger.info(f"🧠 Creating turn plan for Turn {game_state.turn_number}")
+        logger.debug(f"🧠 Creating turn plan for Turn {game_state.turn_number}")
         
         # Initialize validator if we have game_engine
         if game_engine and not self._validator:
@@ -134,24 +138,24 @@ class TurnPlanner:
         ai_player = game_state.players[player_id]
         opponent = game_state.get_opponent(player_id)
         
-        # Check which AI version to use
-        ai_version = get_ai_version()
-        logger.info(f"📋 AI version: {ai_version}")
+        # Use instance-level AI version (set in __init__)
+        ai_version = self.ai_version
+        logger.debug(f"📋 AI version: {ai_version}")
         
         # V4: Dual-request architecture
         if ai_version == "4":
-            logger.info("✅ Using AI V4 (dual-request architecture)")
+            logger.debug("✅ Using AI V4 (dual-request architecture)")
             result = self._create_plan_v4(game_state, player_id, game_engine)
-            # Log V4 metrics summary
+            # Log V4 metrics summary (DEBUG - summary logged at game end)
             m = TurnPlanner._v4_metrics
             if m["total_turns"] > 0:
-                logger.info(f"📊 V4 metrics: {m['v4_success']}/{m['total_turns']} success, "
+                logger.debug(f"📊 V4 metrics: {m['v4_success']}/{m['total_turns']} success, "
                            f"{m['v2_fallback']} v2_fallback ({m['v2_fallback']/m['total_turns']*100:.0f}%), "
                            f"{m['request2_fail']} parse_errors")
             return result
         
         # V3: Single-request turn planning (default)
-        logger.info("✅ Using AI V3 (single-request planning)")
+        logger.debug("✅ Using AI V3 (single-request planning)")
         
         # Format game state for the prompt
         game_state_text = format_game_state_for_ai(game_state, player_id, game_engine)
@@ -185,7 +189,7 @@ class TurnPlanner:
             # Add validation feedback to prompt if retrying
             if validation_feedback:
                 prompt = f"{base_prompt}\n\n⚠️ VALIDATION FEEDBACK:\n{validation_feedback}"
-                logger.info(f"🔄 Retry {attempt + 1}/{max_retries} with validation feedback")
+                logger.debug(f"🔄 Retry {attempt + 1}/{max_retries} with validation feedback")
             else:
                 prompt = base_prompt
             
@@ -233,7 +237,7 @@ class TurnPlanner:
                         continue
                 
                 # Plan passed validation
-                logger.info("✅ Plan passed validation")
+                logger.debug("✅ Plan passed validation")
                 self._log_plan_summary(plan)
                 return plan
                 
@@ -375,7 +379,7 @@ class TurnPlanner:
         self._v4_request2_response = None
         
         # === REQUEST 1: Generate sequences (low temperature) ===
-        logger.info("📝 V4 Request 1: Generating action sequences...")
+        logger.debug("📝 V4 Request 1: Generating action sequences...")
         
         seq_prompt = generate_sequence_prompt(game_state, player_id, game_engine)
         self._last_prompt = seq_prompt
@@ -406,7 +410,7 @@ class TurnPlanner:
                     self._last_response = response_text
                     self._v4_request1_response = response_text
                     sequences = parse_sequences_response(response_text)
-                    logger.info(f"   Generated {len(sequences)} sequences (temp={temp})")
+                    logger.debug(f"   Generated {len(sequences)} sequences (temp={temp})")
                     
                     if sequences:
                         break
@@ -431,7 +435,7 @@ class TurnPlanner:
                     TurnPlanner._v4_metrics["validation_rejections"] += 1
             
             sequences = valid_sequences
-            logger.info(f"   {len(sequences)} sequences passed validation")
+            logger.debug(f"   {len(sequences)} sequences passed validation")
         elif not sequences:
             logger.warning("   No sequences returned from LLM")
         
@@ -452,7 +456,7 @@ class TurnPlanner:
         sequences = add_tactical_labels(sequences)
         
         # === REQUEST 2: Strategic selection (higher temperature) ===
-        logger.info("🎯 V4 Request 2: Selecting best sequence...")
+        logger.debug("🎯 V4 Request 2: Selecting best sequence...")
         
         select_prompt = generate_strategic_prompt(game_state, player_id, sequences)
         self._v4_request2_prompt = select_prompt
@@ -495,8 +499,8 @@ class TurnPlanner:
                     logger.warning(f"Invalid sequence index, using 0")
                 
                 selected_sequence = sequences[selected_index]
-                logger.info(f"   Selected sequence {selected_index}: {selected_sequence.get('tactical_label', '?')}")
-                logger.info(f"   Reasoning: {reasoning[:100]}...")
+                logger.debug(f"   Selected sequence {selected_index}: {selected_sequence.get('tactical_label', '?')}")
+                logger.debug(f"   Reasoning: {reasoning[:100]}...")
                 
                 # Convert to TurnPlan
                 plan_data = convert_sequence_to_turn_plan(
@@ -628,16 +632,16 @@ class TurnPlanner:
     
     def _log_plan_summary(self, plan: TurnPlan) -> None:
         """Log a human-readable summary of the plan."""
-        logger.info("=" * 60)
-        logger.info("📋 TURN PLAN GENERATED")
-        logger.info("=" * 60)
-        logger.info(f"Threat Assessment: {plan.threat_assessment[:100]}...")
-        logger.info(f"Selected Strategy: {plan.selected_strategy}")
-        logger.info(f"CC Budget: {plan.cc_start} → {plan.cc_after_plan}")
-        logger.info(f"Expected cards to sleep: {plan.expected_cards_slept}")
-        logger.info(f"CC Efficiency: {plan.cc_efficiency}")
-        logger.info("-" * 40)
-        logger.info("Action Sequence:")
+        logger.debug("=" * 60)
+        logger.debug("📋 TURN PLAN GENERATED")
+        logger.debug("=" * 60)
+        logger.debug(f"Threat Assessment: {plan.threat_assessment[:100]}...")
+        logger.debug(f"Selected Strategy: {plan.selected_strategy}")
+        logger.debug(f"CC Budget: {plan.cc_start} → {plan.cc_after_plan}")
+        logger.debug(f"Expected cards to sleep: {plan.expected_cards_slept}")
+        logger.debug(f"CC Efficiency: {plan.cc_efficiency}")
+        logger.debug("-" * 40)
+        logger.debug("Action Sequence:")
         for i, action in enumerate(plan.action_sequence, 1):
             card_info = f"{action.card_name or 'N/A'}" if action.card_name else action.card_id or "N/A"
             target_info = ""
@@ -645,8 +649,8 @@ class TurnPlanner:
                 target_info = f" → {', '.join(action.target_names)}"
             elif action.target_ids:
                 target_info = f" → {', '.join(action.target_ids[:2])}..."
-            logger.info(f"  {i}. {action.action_type}: {card_info}{target_info} ({action.cc_cost} CC → {action.cc_after} CC)")
-        logger.info("=" * 60)
+            logger.debug(f"  {i}. {action.action_type}: {card_info}{target_info} ({action.cc_cost} CC → {action.cc_after} CC)")
+        logger.debug("=" * 60)
     
     def get_last_plan_info(self) -> Dict[str, Any]:
         """
