@@ -14,6 +14,7 @@ import logging
 import threading
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,7 @@ from .database import SessionLocal
 from simulation.config import SimulationConfig, SUPPORTED_MODELS
 from simulation.orchestrator import SimulationOrchestrator
 from simulation.deck_loader import load_simulation_decks
+from simulation.reporter import SimulationReporter
 
 logger = logging.getLogger(__name__)
 
@@ -379,3 +381,40 @@ async def cancel_simulation(
         )
     
     return {"status": "cancelled", "run_id": run_id}
+
+
+@router.get("/runs/{run_id}/report", response_class=PlainTextResponse)
+async def get_simulation_report(
+    run_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate and download a markdown report for a simulation run.
+    
+    Returns a formatted markdown report with:
+    - Overall statistics
+    - Matchup matrix
+    - CC efficiency analysis
+    - First-player advantage
+    - Notable games
+    
+    Args:
+        run_id: Simulation run ID
+        db: Database session
+        
+    Returns:
+        Markdown formatted report as plain text
+    """
+    try:
+        orchestrator = SimulationOrchestrator(db)
+        results = orchestrator.get_results(run_id)
+        
+        reporter = SimulationReporter(results)
+        report = reporter.generate_markdown_report()
+        
+        return report
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Error generating report for run {run_id}")
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")

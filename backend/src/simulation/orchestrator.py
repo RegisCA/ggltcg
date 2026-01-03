@@ -23,7 +23,7 @@ from .config import (
     SimulationResult,
     SimulationStatus,
 )
-from .deck_loader import load_simulation_decks_dict
+from .deck_loader import load_simulation_decks_dict, validate_deck_names, validate_deck
 from .runner import SimulationRunner
 
 logger = logging.getLogger(__name__)
@@ -71,19 +71,28 @@ class SimulationOrchestrator:
             
         Returns:
             Run ID for tracking
+            
+        Raises:
+            ValueError: If deck validation fails
         """
         db = self._get_db()
         
         # Load deck configs
         deck_dict = load_simulation_decks_dict()
         
-        # Validate deck names
+        # Validate deck names first (fail fast)
+        deck_name_errors = validate_deck_names(config.deck_names, deck_dict)
+        if deck_name_errors:
+            error_msg = "Deck validation failed:\n" + "\n".join(deck_name_errors)
+            raise ValueError(error_msg)
+        
+        # Validate each deck's card composition
         for deck_name in config.deck_names:
-            if deck_name not in deck_dict:
-                available = list(deck_dict.keys())
-                raise ValueError(
-                    f"Deck '{deck_name}' not found. Available: {available}"
-                )
+            deck = deck_dict[deck_name]
+            deck_errors = validate_deck(deck)
+            if deck_errors:
+                error_msg = f"Invalid deck '{deck_name}':\n" + "\n".join(deck_errors)
+                raise ValueError(error_msg)
         
         # Create database record
         run = SimulationRunModel(
@@ -368,15 +377,19 @@ class SimulationOrchestrator:
         
         game_results = []
         for game in games:
-            # Calculate total CC spent per player from cc_tracking
+            # Calculate CC statistics per player from cc_tracking
             p1_cc_spent = 0
             p2_cc_spent = 0
+            p1_cc_gained = 0
+            p2_cc_gained = 0
             if game.cc_tracking:
                 for entry in game.cc_tracking:
                     if entry.get('player_id') == 'player1':
                         p1_cc_spent += entry.get('cc_spent', 0)
+                        p1_cc_gained += entry.get('cc_gained', 0)
                     elif entry.get('player_id') == 'player2':
                         p2_cc_spent += entry.get('cc_spent', 0)
+                        p2_cc_gained += entry.get('cc_gained', 0)
             
             game_results.append({
                 "game_number": game.game_number,
@@ -388,6 +401,8 @@ class SimulationOrchestrator:
                 "duration_ms": game.duration_ms,
                 "p1_cc_spent": p1_cc_spent,
                 "p2_cc_spent": p2_cc_spent,
+                "p1_cc_gained": p1_cc_gained,
+                "p2_cc_gained": p2_cc_gained,
                 "error_message": game.error_message,
             })
         

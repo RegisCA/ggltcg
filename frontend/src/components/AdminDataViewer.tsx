@@ -220,6 +220,8 @@ interface SimulationResults {
     duration_ms: number;
     p1_cc_spent: number;
     p2_cc_spent: number;
+    p1_cc_gained: number;
+    p2_cc_gained: number;
     error_message: string | null;
   }>;
   created_at: string;
