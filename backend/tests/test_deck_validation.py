@@ -6,7 +6,7 @@ Issue #285.5: Validate decks before simulation starts to fail fast.
 
 import pytest
 from simulation.config import DeckConfig
-from simulation.deck_loader import validate_deck, validate_deck_names, _find_similar_card_names
+from simulation.deck_loader import validate_deck, validate_deck_names, _find_similar_names
 
 
 class TestDeckValidation:
@@ -115,14 +115,14 @@ class TestSimilarityMatching:
         """Exact match should be first result."""
         valid_names = {"Archer", "Knight", "Ka", "Demideca"}
         
-        results = _find_similar_card_names("Archer", valid_names)
+        results = _find_similar_names("Archer", valid_names)
         assert results[0] == "Archer"
     
     def test_find_similar_names_starts_with(self):
         """Names that start with target should rank high."""
         valid_names = {"Archer", "Archmage", "Knight"}
         
-        results = _find_similar_card_names("Arc", valid_names)
+        results = _find_similar_names("Arc", valid_names)
         assert "Archer" in results
         assert "Archmage" in results
     
@@ -130,15 +130,15 @@ class TestSimilarityMatching:
         """Names containing target should be found."""
         valid_names = {"Archer", "Knight", "Demideca"}
         
-        results = _find_similar_card_names("arch", valid_names)
+        results = _find_similar_names("arch", valid_names)
         assert "Archer" in results
     
     def test_find_similar_names_case_insensitive(self):
         """Matching should be case insensitive."""
         valid_names = {"Archer", "KNIGHT", "ka"}
         
-        results = _find_similar_card_names("archer", valid_names)
+        results = _find_similar_names("archer", valid_names)
         assert "Archer" in results
         
-        results = _find_similar_card_names("ARCHER", valid_names)
+        results = _find_similar_names("ARCHER", valid_names)
         assert "Archer" in results

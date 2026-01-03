@@ -5,7 +5,7 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from .config import DeckConfig
 from game_engine.data.card_loader import load_cards_dict
@@ -144,7 +144,7 @@ def load_simulation_decks_dict() -> Dict[str, DeckConfig]:
     return get_deck_loader().load_decks_dict()
 
 
-def validate_deck(deck: DeckConfig, card_templates: Optional[Dict[str, any]] = None) -> List[str]:
+def validate_deck(deck: DeckConfig, card_templates: Optional[Dict[str, Any]] = None) -> List[str]:
     """
     Validate a deck configuration against available cards.
     
@@ -176,7 +176,7 @@ def validate_deck(deck: DeckConfig, card_templates: Optional[Dict[str, any]] = N
             errors.append(f"Card not found in '{deck.name}': '{card_name}'")
             
             # Provide fuzzy match suggestions
-            suggestions = _find_similar_card_names(card_name, valid_card_names)
+            suggestions = _find_similar_names(card_name, valid_card_names)
             if suggestions:
                 errors.append(f"  Did you mean: {', '.join(suggestions[:3])}?")
     
@@ -222,21 +222,22 @@ def validate_deck_names(deck_names: List[str], available_decks: Optional[Dict[st
             errors.append(f"Simulation deck not found: '{deck_name}'")
             
             # Provide suggestions
-            suggestions = _find_similar_card_names(deck_name, available_names)
+            suggestions = _find_similar_names(deck_name, available_names)
             if suggestions:
                 errors.append(f"  Did you mean: {', '.join(suggestions[:3])}?")
     
     return errors
 
 
-def _find_similar_card_names(target: str, valid_names: set[str], max_distance: int = 3) -> List[str]:
+def _find_similar_names(target: str, valid_names: set[str], max_distance: int = 3) -> List[str]:
     """
-    Find card names similar to the target using simple string matching.
+    Find names similar to the target using simple string matching.
     
     Args:
         target: The target string to match
         valid_names: Set of valid names to search
-        max_distance: Maximum edit distance (not used in simple implementation)
+        max_distance: Maximum allowed similarity score from _simple_similarity for a name
+            to be included in the "similar" matches list.
         
     Returns:
         List of similar names, sorted by relevance

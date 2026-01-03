@@ -4,7 +4,6 @@ Tests for CC tracking aggregation in simulation results.
 Issue #284: Ensure CC statistics are calculated correctly.
 """
 
-import pytest
 from simulation.config import TurnCC
 
 
@@ -157,7 +156,12 @@ class TestCCStatisticsInterpretation:
         avg_per_turn = total_gained / len(cc_tracking) if cc_tracking else 0
         final_cc = cc_tracking[-1].cc_end if cc_tracking else 0
         
+        # Verify the aggregation calculations
         assert total_gained == 5
         assert total_spent == 5
         assert avg_per_turn == 2.5
         assert final_cc == 0
+        
+        # Ensure the derived metrics are meaningful
+        assert avg_per_turn > 0, "Average CC per turn should be positive"
+        assert total_gained >= total_spent or final_cc >= 0, "CC accounting should be balanced"

@@ -12,7 +12,6 @@ Generates markdown reports with:
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -85,7 +84,7 @@ class SimulationReporter:
         Returns:
             Path to saved report file
         """
-        Path(output_dir).mkdir(exist_ok=True)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"simulation_run_{self.run_id}_{timestamp}.md"
