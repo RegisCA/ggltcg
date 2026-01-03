@@ -548,7 +548,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             # Extract v3 plan info if available
             v3_plan = decision_info.get("v3_plan")
-            ai_version = 3 if v3_plan else 2
+            # Use actual AI version from plan data, fallback to inference for backwards compatibility
+            ai_version = v3_plan.get("ai_version", 3) if v3_plan else 2
             
             # Determine execution status from reasoning prefix
             plan_execution_status = None

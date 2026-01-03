@@ -80,6 +80,10 @@ class GameResult:
     cc_tracking: list[TurnCC]
     action_log: list[dict]
     error_message: Optional[str] = None
+    # V4 metrics for AI performance tracking
+    total_cc_spent_by_winner: int = 0  # CC efficiency metric
+    illegal_action_count: int = 0  # Actions rejected by validator
+    v2_fallback_count: int = 0  # Times V4 fell back to V2 single-action mode
     
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -96,6 +100,9 @@ class GameResult:
             "cc_tracking": [cc.to_dict() for cc in self.cc_tracking],
             "action_log": self.action_log,
             "error_message": self.error_message,
+            "total_cc_spent_by_winner": self.total_cc_spent_by_winner,
+            "illegal_action_count": self.illegal_action_count,
+            "v2_fallback_count": self.v2_fallback_count,
         }
 
 

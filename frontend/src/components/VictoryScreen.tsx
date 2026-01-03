@@ -199,8 +199,8 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
               {Object.entries(groupedActions).map(([key, { actions, aiLog }]) => {
                 const firstAction = actions[0];
                 const isAI = firstAction.reasoning !== undefined || aiLog !== undefined;
-                const isV3 = aiLog?.ai_version === 3;
-                const hasPlan = isV3 && aiLog?.turn_plan;
+                const aiVersion = aiLog?.ai_version || 2;
+                const hasPlan = aiVersion >= 3 && aiLog?.turn_plan;
                 const isFallback = aiLog?.plan_execution_status === 'fallback';
                 
                 return (
@@ -223,9 +223,9 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                       {/* AI Version Badge */}
                       {aiLog && (
                         <span className={`text-xs font-semibold rounded ${
-                          isV3 ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-200'
+                          aiVersion >= 3 ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-200'
                         }`} style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}>
-                          {isV3 ? 'v3' : 'v2'}
+                          v{aiVersion}
                         </span>
                       )}
                       {/* Fallback Badge */}
@@ -236,7 +236,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                       )}
                     </div>
                     
-                    {/* v3 Turn Plan */}
+                    {/* Turn Plan (v3+) */}
                     {hasPlan && aiLog.turn_plan && (
                       <div className="bg-purple-900 bg-opacity-40 rounded border border-purple-700" style={{ marginBottom: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)' }}>
                         <div className="text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>

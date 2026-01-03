@@ -15,7 +15,7 @@ from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.models.card import Card
 from game_engine.rules.effects.continuous_effects import BallaberCostEffect
-from game_engine.rules.effects.action_effects import UnsleepEffect, CopyEffect, TwistEffect
+from game_engine.rules.effects.action_effects import UnsleepEffect, CopyEffect, TwistEffect, SleepTargetEffect
 
 logger = logging.getLogger(__name__)
 
@@ -399,7 +399,13 @@ class ActionExecutor:
         
         # Add target-specific details for Action cards (the meaningful part)
         if card.is_action():
-            if card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
+            if card.has_effect_type(SleepTargetEffect) and kwargs.get("target"):
+                target_card = kwargs["target"]
+                description += f". Slept {target_card.name}"
+            elif card.has_effect_type(SleepTargetEffect) and kwargs.get("targets"):
+                target_names = [t.name for t in kwargs["targets"]]
+                description += f". Slept {', '.join(target_names)}"
+            elif card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Unslept {target_card.name}"
             elif card.has_effect_type(UnsleepEffect) and kwargs.get("targets"):

@@ -1,0 +1,128 @@
+# Card-Specific AI Guidance
+# Only include cards with common AI traps/gotchas
+# Format: {card_name: {trap: str, reminder: str, threat: str}}
+# Keep each entry under 80 chars total for compression
+
+# TOYS - Combat Units
+
+Archer:
+  trap: "0 STR = CANNOT tussle or direct_attack! Defensive only (blocks opponent attacks)"
+  reminder: "Only action: activate_ability (1CC, repeatable). Reduce enemy STA to 0 = auto-sleep. Knight (3 STA) = 3 activations"
+  threat: "MEDIUM"
+
+Paper Plane:
+  trap: "WEAK in combat (2/2/1) - will LOSE to most toys! But has PASSIVE bypass ability"
+  reminder: "With opponent toys present: Use direct_attack (2 CC) instead of tussling! Only tussle if you'll WIN (calculate combat first). Bypass works automatically - no activate_ability needed"
+  threat: "MEDIUM"
+
+Wizard:
+  trap: "Turn 1: costs 2 CC, leaves 0 CC. Can't tussle with Wizard alone!"
+  reminder: "Tussles cost 1 CC while in play (not 2). Play before tussling"
+  threat: "MEDIUM"
+
+Raggy:
+  trap: "Cannot tussle turn 1. After turn 1: FREE tussles (0 CC)!"
+  reminder: "Free tussles = always use them. Chip damage costs nothing"
+  threat: "HIGH"
+
+Knight:
+  trap: "Auto-wins tussles on YOUR turn only. On opponent's turn: fights normally"
+  reminder: "Your turn = always wins. Opponent's turn = normal combat (SPD/STR matter)"
+  threat: "CRITICAL"
+
+Gibbers:
+  trap: "While in opponent's play: YOUR cards cost +1 CC"
+  reminder: "Remove FIRST to restore normal costs. Priority target!"
+  threat: "HIGH"
+
+Umbruh:
+  trap: "Gives controller +1 CC when sleeped. Still worth sleeping if efficient"
+  reminder: "Your Umbruh sleeped = you gain CC. Opponent's = they gain CC"
+  threat: "MEDIUM"
+
+Belchaletta:
+  trap: "Gives controller +2 CC each turn. Long-term value"
+  reminder: "Remove early or opponent snowballs CC advantage"
+  threat: "HIGH"
+
+Hind Leg Kicker:
+  trap: "Play FIRST to gain +1 CC when playing other cards"
+  reminder: "Maximize value by playing other cards after"
+  threat: "MEDIUM"
+
+Sock Sorcerer:
+  trap: "Blocks ALL opponent effects on your toys (Drop, Clean, Twist, etc.)"
+  reminder: "Can still be tussled. Only blocks targeted effects"
+  threat: "CRITICAL"
+
+Dream:
+  trap: "Costs 1 less per card in YOUR sleep zone. Can be 0 CC!"
+  reminder: "Play actions first to fill sleep zone, then play Dream cheap"
+  threat: "MEDIUM"
+
+Beary:
+  trap: "Immune to opponent Action cards. NOT immune to tussles"
+  reminder: "High speed (5). Must remove via tussle"
+  threat: "HIGH"
+
+Monster:
+  trap: "Sets ALL toys' STA to 1 (yours too!). Sleeps 1-STA toys (Gibbers)"
+  reminder: "Board equalizer. Count sleeped toys in expected_cards_slept"
+  threat: "MEDIUM"
+
+Ka:
+  trap: "Gives OTHER toys +2 STR. Fragile (1 STA) - protect it!"
+  reminder: "9 STR attacker but dies to any damage. Force multiplier"
+  threat: "HIGH"
+
+Violin:
+  trap: "Gives all toys (including self) +2 STR. Low combat stats"
+  reminder: "Support toy. Stacks with Ka for +4 STR total"
+  threat: "MEDIUM"
+
+# ACTIONS - Strategic Cards
+
+Surge:
+  trap: "INCREASES YOUR TURN BUDGET by +1 CC. Add to budget in STEP 1!"
+  reminder: "With Surge in hand: Budget = Starting CC + 1. Example: Turn 1 with Surge = 3 CC budget (not 2). Always play FIRST"
+  threat: "LOW"
+
+Rush:
+  trap: "Cannot play turn 1. Gains +2 CC net"
+  reminder: "Play FIRST to maximize CC for turn. Strong value"
+  threat: "LOW"
+
+Drop:
+  trap: "Turn 1 as P1: opponent has 0 toys. Drop is USELESS!"
+  reminder: "Requires opponent toy IN PLAY. Must specify target_ids"
+  threat: "LOW"
+
+Wake:
+  trap: "ACTIVATED_ABILITY! Use action_type: activate_ability (NOT play_card after playing)"
+  reminder: "1 CC cost. Must specify target_id → target returns to hand. Then play that card"
+  threat: "LOW"
+
+Twist:
+  trap: "Requires opponent toy in play. Steals to YOUR side (stays in play)"
+  reminder: "3 CC cost. Must specify target_ids. No toys = useless"
+  threat: "LOW"
+
+Clean:
+  trap: "Sleeps ALL toys (yours too!). Board wipe"
+  reminder: "Use when behind or to clear threats. No target needed"
+  threat: "LOW"
+
+VeryVeryAppleJuice:
+  trap: "Buff expires end of turn! Only play if tussling THIS turn"
+  reminder: "+1/+1/+1 to YOUR toys. Wasted if you don't attack"
+  threat: "LOW"
+
+Copy:
+  trap: "Can ONLY copy YOUR toys, not opponent's!"
+  reminder: "Costs = copied toy's cost. Must specify target_ids"
+  threat: "LOW"
+
+Sun:
+  trap: "Returns 2 cards from sleep to HAND. Must pay to play them"
+  reminder: "3 CC for Sun. Specify target_ids. Total cost adds up fast"
+  threat: "LOW"

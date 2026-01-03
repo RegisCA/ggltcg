@@ -149,7 +149,7 @@ alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $POR
 
 ## v3 Prompt Optimization Plan
 
-Holistic fix for issues #267, #268, #271, #272, #273. All stem from three root causes:
+Holistic fix for issues #267, #268, #271, #272, #273, #275, #276 All stem from three root causes:
 1. **Mid-turn CC changes not tracked** during planning
 2. **AI stops planning early** instead of maximizing cards slept
 3. **Card targeting rules unclear** in prompt

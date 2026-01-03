@@ -51,8 +51,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Echo AI version configuration
-    ai_version = os.getenv("AI_VERSION", "2")
-    print(f"🤖 AI Version: {ai_version} (2=per-action, 3=turn-planning)")
+    ai_version = os.getenv("AI_VERSION", "3")
+    print(f"🤖 AI Version: {ai_version} (3=single-request planning, 4=dual-request planning)")
     
     # Set the cards CSV path via environment variable if provided
     # Must be set BEFORE uvicorn.run() and in os.environ so child processes inherit it
