@@ -39,9 +39,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# Set specific loggers to DEBUG for detailed AI logging
-logging.getLogger("game_engine.ai.llm_player").setLevel(logging.DEBUG)
-
 logger = logging.getLogger(__name__)
 
 # Create FastAPI app
