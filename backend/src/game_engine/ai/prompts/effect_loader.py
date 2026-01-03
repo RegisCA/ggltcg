@@ -6,7 +6,7 @@ the actual effects present in the current game state. This keeps the prompt
 compact by only including relevant effect information.
 """
 
-from typing import List, Set, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...card import Card
