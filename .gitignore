@@ -65,6 +65,12 @@ htmlcov/
 backend/data/games/
 backend/data/history/
 
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Snyk Security Extension - AI Rules (auto-generated)
 .github/instructions/snyk_rules.instructions.md
 .markdownlint-cli2.json
