@@ -14,7 +14,6 @@ Architecture:
 - Dynamic card loading: only include cards in current game
 """
 
-from typing import Set
 from .card_loader import format_card_guidance_compact
 from .effect_loader import generate_effect_guidance
 
