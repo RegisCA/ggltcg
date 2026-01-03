@@ -40,8 +40,8 @@ class CCBudgetValidator:
     CC across the entire sequence, accounting for CC gains from cards like:
     - Surge: +1 CC when played
     - Rush: +2 CC when played  
-    - HLK: +1 CC when played (can't play turn 1)
-    - Umbruh: +1 CC when it tussles or is tussled
+    - HLK: +1 CC when cards played after HLK
+    - Umbruh: +1 CC when sleeped
     - Belchaletta: +2 CC at start of turn (continuous effect)
     - Red Solo Cup: +1 CC when you play another card
     """
