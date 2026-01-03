@@ -47,7 +47,7 @@ Belchaletta:
 
 Hind Leg Kicker:
   trap: "Play FIRST to gain +1 CC when playing other cards"
-  reminder: "Cannot play turn 1. Maximize value by playing other cards after"
+  reminder: "Maximize value by playing other cards after"
   threat: "MEDIUM"
 
 Sock Sorcerer:
@@ -62,7 +62,7 @@ Dream:
 
 Beary:
   trap: "Immune to opponent Action cards. NOT immune to tussles"
-  reminder: "High speed (5). Must remove via tussle or board wipe (Clean)"
+  reminder: "High speed (5). Must remove via tussle"
   threat: "HIGH"
 
 Monster:
@@ -99,11 +99,11 @@ Drop:
 
 Wake:
   trap: "ACTIVATED_ABILITY! Use action_type: activate_ability (NOT play_card after playing)"
-  reminder: "1. play_card Wake → in play. 2. activate_ability Wake (1CC) → target returns to hand. Then play that card"
+  reminder: "1 CC cost. Must specify target_id → target returns to hand. Then play that card"
   threat: "LOW"
 
 Twist:
-  trap: "Requires opponent toy. Steals to YOUR side (stays in play)"
+  trap: "Requires opponent toy in play. Steals to YOUR side (stays in play)"
   reminder: "3 CC cost. Must specify target_ids. No toys = useless"
   threat: "LOW"
 
