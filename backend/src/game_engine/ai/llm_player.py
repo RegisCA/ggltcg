@@ -820,8 +820,12 @@ class LLMPlayerV3(LLMPlayer):
         """Get information about the last AI decision including plan info."""
         info = super().get_last_decision_info()
         
-        # Add v3 plan info
+        # Add turn plan info (v3 or v4)
         if self._current_plan:
+            # Determine actual AI version used
+            from .turn_planner import get_ai_version
+            actual_ai_version = int(get_ai_version())
+            
             # Format action sequence for logging
             action_sequence = []
             for action in self._current_plan.action_sequence:
@@ -834,6 +838,7 @@ class LLMPlayerV3(LLMPlayer):
                 })
             
             info["v3_plan"] = {
+                "ai_version": actual_ai_version,  # Track actual version used
                 "strategy": self._current_plan.selected_strategy,
                 "total_actions": len(self._current_plan.action_sequence),
                 "current_action": self._plan_action_index,

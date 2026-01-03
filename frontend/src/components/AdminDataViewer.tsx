@@ -345,7 +345,7 @@ const AdminDataViewer: React.FC = () => {
     enabled: activeTab === 'simulation',
   });
 
-  // Group AI logs by turn for v3 display
+  // Group AI logs by turn for v3+ display
   interface TurnGroup {
     key: string;
     game_id: string;
@@ -362,21 +362,22 @@ const AdminDataViewer: React.FC = () => {
   }
 
   const groupLogsByTurn = (logs: AILog[]): (TurnGroup | AILog)[] => {
-    const v3Groups = new Map<string, TurnGroup>();
-    const v2Logs: AILog[] = [];
+    const planGroups = new Map<string, TurnGroup>();
+    const legacyLogs: AILog[] = [];
 
     for (const log of logs) {
-      if (log.ai_version === 3 && log.turn_plan) {
+      // Group v3+ logs that have turn plans
+      if (log.ai_version >= 3 && log.turn_plan) {
         const key = `${log.game_id}-${log.turn_number}-${log.player_id}`;
-        if (!v3Groups.has(key)) {
-          v3Groups.set(key, {
+        if (!planGroups.has(key)) {
+          planGroups.set(key, {
             key,
             game_id: log.game_id,
             turn_number: log.turn_number,
             player_id: log.player_id,
             model_name: log.model_name,
             prompts_version: log.prompts_version,
-            ai_version: 3,
+            ai_version: log.ai_version,
             turn_plan: log.turn_plan,
             created_at: log.created_at,
             logs: [],
@@ -384,19 +385,19 @@ const AdminDataViewer: React.FC = () => {
             fallback_reason: null,
           });
         }
-        const group = v3Groups.get(key)!;
+        const group = planGroups.get(key)!;
         group.logs.push(log);
         if (log.plan_execution_status === 'fallback') {
           group.has_fallback = true;
           group.fallback_reason = log.fallback_reason;
         }
       } else {
-        v2Logs.push(log);
+        legacyLogs.push(log);
       }
     }
 
     // Combine and sort by created_at (most recent first)
-    const result: (TurnGroup | AILog)[] = [...v3Groups.values(), ...v2Logs];
+    const result: (TurnGroup | AILog)[] = [...planGroups.values(), ...legacyLogs];
     result.sort((a, b) => {
       const aDate = 'logs' in a ? a.created_at : a.created_at;
       const bDate = 'logs' in b ? b.created_at : b.created_at;
@@ -729,12 +730,12 @@ const AdminDataViewer: React.FC = () => {
                 </div>
               ) : (
                 <p className="text-gray-400 text-sm">
-                  Showing {aiLogsData?.count || 0} most recent AI decisions (v3 grouped by turn)
+                  Showing {aiLogsData?.count || 0} most recent AI decisions (v3+ grouped by turn)
                 </p>
               )}
             </div>
             {aiLogsData?.logs && groupLogsByTurn(aiLogsData.logs).map((item) => {
-              // V3 Turn Group
+              // Turn Group (v3+)
               if ('logs' in item) {
                 const turnGroup = item;
                 const isExpanded = expandedTurns.has(turnGroup.key);
@@ -750,7 +751,7 @@ const AdminDataViewer: React.FC = () => {
                       onClick={() => toggleTurnExpanded(turnGroup.key)}
                     >
                       <div className="flex items-center flex-wrap" style={{ gap: 'var(--spacing-component-sm)' }}>
-                        <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }}>v3</span>
+                        <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }}>v{turnGroup.ai_version}</span>
                         <span className="font-semibold">Turn {turnGroup.turn_number}</span>
                         <span className="text-gray-400 text-sm">Game: {turnGroup.game_id.substring(0, 8)}...</span>
                         <span className="text-gray-500 text-sm">{turnGroup.model_name}</span>

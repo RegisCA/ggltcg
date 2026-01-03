@@ -37,7 +37,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from simulation.runner import SimulationRunner
-from simulation.config import DeckConfig, GameOutcome
+from simulation.config import GameOutcome
 from simulation.deck_loader import load_simulation_decks_dict
 from game_engine.ai.turn_planner import TurnPlanner
 

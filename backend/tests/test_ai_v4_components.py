@@ -8,7 +8,6 @@ Tests:
 - Tactical label assignment
 """
 
-import pytest
 import sys
 from pathlib import Path
 
@@ -111,8 +110,8 @@ class TestSequenceGenerator:
         
         prompt = generate_sequence_prompt(setup.game_state, "player1")
         
-        # V4 uses plain text "Your CC:" instead of XML tags
-        assert "Your CC:" in prompt, "Prompt should include CC"
+        # V4 shows CC value in header
+        assert "## CC:" in prompt, "Prompt should include CC"
     
     def test_tactical_labels_assigned(self):
         """Tactical labels should be assigned based on sequence content."""

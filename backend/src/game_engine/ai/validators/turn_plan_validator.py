@@ -11,7 +11,7 @@ Architecture Philosophy:
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from game_engine.ai.prompts import TurnPlan
@@ -89,11 +89,9 @@ class CCBudgetValidator:
                 if red_solo_cup_in_play and action.card_name != "Red Solo Cup":
                     cc_gain += 1
                 
-                # Track if we just played Red Solo Cup or Umbruh
+                # Track if we just played Red Solo Cup
                 if action.card_name == "Red Solo Cup":
                     red_solo_cup_in_play = True
-                elif action.card_name == "Umbruh":
-                    umbruh_in_play = True
             
             # Umbruh gains CC when it tussles
             if action.action_type == "tussle" and action.card_name == "Umbruh":
@@ -341,12 +339,6 @@ class DependencyValidator:
                             message=f"Playing {action.card_name} (ID {action.card_id}) that wasn't in hand or woken by Wake"
                         ))
             
-            # Track Surge/HLK
-            if action.card_name == "Surge":
-                surge_played = True
-            elif action.card_name == "HLK":
-                hlk_played = True
-        
         # Note: We can't easily detect "spending Surge CC before playing Surge"
         # without detailed CC tracking per action, which CCBudgetValidator handles
         

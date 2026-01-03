@@ -97,7 +97,11 @@ def generate_sequence_prompt(
             # Toys have stats - get effective values
             str_val = game_engine.get_card_stat(card, "strength") if game_engine else (card.strength or 0)
             sta_val = game_engine.get_effective_stamina(card) if game_engine else (card.stamina or 0)
-            entry = f"- {card.name} (id={card.id}, cost={card.cost}{cc_mod}, STR={str_val}, HP={sta_val}){target_req}"
+            # Clearly mark if toy CANNOT attack due to 0 STR
+            attack_warning = ""
+            if str_val == 0:
+                attack_warning = " ⚠️ CANNOT attack (STR=0)"
+            entry = f"- {card.name} (id={card.id}, cost={card.cost}{cc_mod}, STR={str_val}, HP={sta_val}){attack_warning}{target_req}"
         hand_entries.append(entry)
     hand_text = "\n".join(hand_entries) if hand_entries else "(empty)"
     
@@ -146,66 +150,50 @@ def generate_sequence_prompt(
         elif card.name == "Rush":
             potential_cc += 2
     
-    prompt = f"""You are a sequence generator for a turn-based card game. Generate LEGAL action sequences.
+    prompt = f"""Generate LEGAL action sequences for a card game turn.
 
-## CC MATH (CRITICAL - read carefully!)
-Your CC: {cc_available}
-If you play Surge first: {cc_available} - 0 + 1 = {cc_available + 1} CC available after
-If you play Rush first: {cc_available} - 0 + 2 = {cc_available + 2} CC available after
+## CC: {cc_available} (Surge adds +1, Rush adds +2 when played)
 
-## ACTION COSTS
-- play_card: costs the card's CC_cost (shown after each card)
-- tussle: costs 2 CC (attack opponent toy with your toy)  
-- direct_attack: costs 2 CC (attack opponent directly - ONLY if opponent has 0 toys!)
-- activate_ability: costs 1 CC (Archer's ability)
-- end_turn: costs 0 CC
+## COSTS: play=card cost, tussle=2, direct_attack=2, activate=1, end_turn=0
 
-## KEY CONSTRAINTS
-1. direct_attack allowed? {direct_msg}
-2. To tussle or direct_attack, your toy must have STR > 0
-3. Wake requires targeting a card in YOUR sleep zone (you have {len(player.sleep_zone)} cards there)
-4. Drop requires targeting a card in OPPONENT's in_play (they have {len(opp_in_play)} toys)
-5. Knight always wins tussles on your turn (regardless of STR/HP)
+## RULES
+1. direct_attack: {direct_msg}
+2. STR > 0 required for tussle/direct_attack (Archer STR=0 CANNOT attack)
+3. Wake needs your sleep zone target ({len(player.sleep_zone)} cards)
+4. Drop needs opponent toy target ({len(opp_in_play)} toys)
+5. Knight auto-wins tussles on your turn
 
-## YOUR HAND
+## STATE CHANGES (CRITICAL!)
+- Tussle that sleeps opponent's LAST toy → direct_attack becomes legal!
+- Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
+
+## YOUR HAND (cards you can play)
 {hand_text}
 
-## YOUR TOYS IN PLAY  
+## YOUR TOYS IN PLAY (you control these - use their IDs for tussle/direct_attack)
 {toys_text}
 
 ## YOUR SLEEP ZONE (for Wake targeting)
 {sleep_zone_text}
 
-## OPPONENT'S TOYS
+## OPPONENT'S TOYS (target these with YOUR toys - use their IDs as tussle targets)
 {opp_toys_text}
 
 ## OPPONENT'S SLEPT CARDS: {len(opp_sleep)}/6
 
-## OUTPUT FORMAT
-Each sequence must be a string in this exact format:
-"[Action1] -> [Action2] -> ... -> end_turn | CC: X/Y spent | Sleeps: Z"
+## FORMAT
+"[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
+Use card IDs from listings. Format: play NAME [ID], tussle ID->ID, direct_attack ID, activate ID->ID
 
-Where:
-- Each action is: "play CARDNAME" or "tussle ATTACKER->TARGET" or "direct_attack ATTACKER" or "activate CARDNAME->TARGET" or "end_turn"
-- X = total CC spent this sequence
-- Y = CC available at start of sequence (accounting for Surge/Rush played first)
-- Z = number of opponent cards that would sleep this turn
-
-## EXAMPLES OF CORRECT FORMAT
-With 4 CC, Surge+Knight in hand, 1 toy (Beary STR=2), opponent has 1 toy (Wizard HP=2):
-- "play Surge -> play Knight -> tussle Beary->Wizard -> end_turn | CC: 3/5 spent | Sleeps: 1"
-  (Surge costs 0, gives +1 CC so 5 total. Knight costs 1, tussle costs 2. Total: 0+1+2=3)
-
-With 3 CC, Wake in hand, 1 toy (Archer STR=1), no opp toys, Knight in sleep zone:
-- "play Wake [target: Knight] -> direct_attack Archer -> end_turn | CC: 3/3 spent | Sleeps: 1"
-  (Wake costs 1, direct_attack costs 2. Total: 1+2=3)
+## EXAMPLE (4 CC, Surge+Knight in hand, opp has 1 toy)
+"play Surge [s1] -> play Knight [k1] -> tussle k1->w1 -> direct_attack k1 -> end_turn | CC: 5/5 spent | Sleeps: 2"
 
 ## TASK
-Generate 5-10 LEGAL sequences varying in approach:
-1. At least one aggressive sequence (maximize attacks)
-2. At least one board-building sequence (play toys without attacking)  
-3. At least one conservative sequence (spend minimal CC)
-4. If Surge/Rush in hand, include sequence that plays it first
+Generate 5-10 LEGAL sequences:
+1. Aggressive (maximize attacks, use ALL CC)
+2. Board-building (play toys without attacking)
+3. Conservative (minimal CC)
+4. If tussle clears opponent's board AND CC remains → INCLUDE direct_attack!
 
 Important: Verify your math! Each sequence must not exceed available CC."""
 
@@ -327,60 +315,218 @@ def parse_sequences_response(response_text: str) -> list[dict]:
 
 
 def _parse_action_string(action_str: str) -> dict | None:
-    """Parse a single action string into structured format."""
+    """
+    Parse a single action string into structured format.
+    
+    Supports both ID-based format (V4) and name-based format (legacy):
+    - ID-based: "play Knight [k1]", "tussle b1->w1", "direct_attack ar1"
+    - Name-based: "play Knight", "tussle Beary->Wizard"
+    
+    Always extracts card_id and target_id when IDs are present.
+    Falls back to card_name and target_name when IDs are not found.
+    """
     import re
     
     action_str = action_str.strip()
     
     if action_str == "end_turn":
-        return {"action_type": "end_turn", "card_name": None, "target_name": None, "cc_cost": 0}
+        return {"action_type": "end_turn", "card_name": None, "card_id": None, "target_name": None, "target_id": None, "cc_cost": 0}
+    
+    # UUID pattern: 36 chars with hyphens (e.g., bd9629b1-0671-4024-8252-515e9f49f948)
+    uuid_pattern = r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+    
+    # Short ID pattern: alphanumeric with underscores (NO hyphens to avoid matching ->)
+    # e.g., "k1", "ar1", "wa1", "p1_knight"
+    short_id_pattern = r'[a-zA-Z0-9_]+'
     
     # Pattern for card names: word characters, optionally followed by space and more words
-    # E.g., "Knight", "Paper Plane"
-    card_name_pattern = r'(\w+(?:\s+\w+)?)'
+    # Starts with capital letter to distinguish from short IDs
+    card_name_pattern = r'([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)?)'
     
-    # Pattern for targets: can be card name OR UUID
-    # UUID: hex chars and hyphens like bd9629b1-0671-4024-8252-515e9f49f948
-    target_pattern = r'([a-f0-9-]{36}|\w+(?:\s+\w+)?)'
-    
-    # Match "play CARDNAME" or "play CARDNAME [target: xyz]"
-    play_match = re.match(rf'play\s+{card_name_pattern}\s*(?:\[target:\s*([^\]]+)\])?', action_str, re.I)
+    # -------------------------------------------------------------------------
+    # PLAY CARD - matches:
+    #   "play Knight [k1]"
+    #   "play Knight [k1] [target: xyz]"  
+    #   "play Wake [wa1] [target: k2]"
+    #   "play Knight" (legacy)
+    #   "play Knight [target: abc]" (legacy with target)
+    # -------------------------------------------------------------------------
+    play_match = re.match(
+        rf'play\s+{card_name_pattern}'
+        rf'(?:\s*\[({short_id_pattern})\])?'  # Optional ID in brackets
+        rf'(?:\s*\[target:\s*([^\]]+)\])?',   # Optional target
+        action_str, re.I
+    )
     if play_match:
+        card_name = play_match.group(1)
+        card_id = play_match.group(2)  # May be None
+        target_raw = play_match.group(3).strip() if play_match.group(3) else None
+        
+        # Target could be an ID or a name
+        target_id = None
+        target_name = None
+        if target_raw:
+            # Check if target looks like an ID (UUID or short alphanumeric without uppercase start)
+            if re.fullmatch(uuid_pattern, target_raw) or (len(target_raw) <= 10 and re.fullmatch(r'[a-z0-9_]+', target_raw)):
+                target_id = target_raw
+            else:
+                target_name = target_raw
+        
         return {
             "action_type": "play_card",
-            "card_name": play_match.group(1),
-            "target_name": play_match.group(2).strip() if play_match.group(2) else None,
+            "card_name": card_name,
+            "card_id": card_id,
+            "target_name": target_name,
+            "target_id": target_id,
             "cc_cost": 0,  # Card cost tracked in sequence's total_cc_spent
         }
     
-    # Match "tussle ATTACKER->TARGET" (target can be UUID or name)
-    tussle_match = re.match(rf'tussle\s+{card_name_pattern}\s*[->]+\s*{target_pattern}', action_str, re.I)
-    if tussle_match:
+    # For tussle/activate/direct_attack, we need ID patterns that don't include arrow
+    # Short ID pattern: lowercase alphanumeric with underscores (e.g., "k1", "ar1")
+    # UUID pattern: full UUID format with hyphens
+    short_id_pat = r'[a-z0-9_]+'  # lowercase only, no hyphens
+    full_uuid_pat = r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'  # UUID format
+    
+    # -------------------------------------------------------------------------
+    # TUSSLE - matches:
+    #   "tussle b1->w1" (ID-based, preferred)
+    #   "tussle uuid->uuid" (UUID-based)
+    #   "tussle Beary->Wizard" (name-based, legacy)
+    # -------------------------------------------------------------------------
+    # Try name-based format FIRST (names start with uppercase)
+    # This ensures "tussle Knight->Beary" is parsed as names, not IDs
+    tussle_name_match = re.match(
+        rf'tussle\s+{card_name_pattern}\s*->\s*{card_name_pattern}',
+        action_str
+    )  # Note: NO re.I flag - names must have capital letters
+    if tussle_name_match:
         return {
             "action_type": "tussle",
-            "card_name": tussle_match.group(1),
-            "target_name": tussle_match.group(2),
+            "card_name": tussle_name_match.group(1),
+            "card_id": None,
+            "target_name": tussle_name_match.group(2),
+            "target_id": None,
             "cc_cost": 2,
         }
     
-    # Match "direct_attack ATTACKER"
-    da_match = re.match(rf'direct_attack\s+{card_name_pattern}', action_str, re.I)
-    if da_match:
+    # Try UUID format (with hyphens)
+    tussle_uuid_match = re.match(
+        rf'tussle\s+({full_uuid_pat})\s*->\s*({full_uuid_pat})',
+        action_str, re.I
+    )
+    if tussle_uuid_match:
+        return {
+            "action_type": "tussle",
+            "card_name": None,
+            "card_id": tussle_uuid_match.group(1),
+            "target_name": None,
+            "target_id": tussle_uuid_match.group(2),
+            "cc_cost": 2,
+        }
+    
+    # Try short ID format (lowercase alphanumeric only)
+    tussle_id_match = re.match(
+        rf'tussle\s+({short_id_pat})\s*->\s*({short_id_pat})',
+        action_str
+    )  # Note: NO re.I flag - IDs must be lowercase
+    if tussle_id_match:
+        return {
+            "action_type": "tussle",
+            "card_name": None,
+            "card_id": tussle_id_match.group(1),
+            "target_name": None,
+            "target_id": tussle_id_match.group(2),
+            "cc_cost": 2,
+        }
+    
+    # -------------------------------------------------------------------------
+    # DIRECT ATTACK - matches:
+    #   "direct_attack ar1" (ID-based)
+    #   "direct_attack Archer" (name-based, legacy)
+    # -------------------------------------------------------------------------
+    # Try name-based first (starts with uppercase)
+    da_name_match = re.match(rf'direct_attack\s+{card_name_pattern}', action_str)
+    if da_name_match:
         return {
             "action_type": "direct_attack",
-            "card_name": da_match.group(1),
+            "card_name": da_name_match.group(1),
+            "card_id": None,
             "target_name": None,
+            "target_id": None,
             "cc_cost": 2,
         }
     
-    # Match "activate CARDNAME->TARGET" (target can be UUID or name)
-    activate_match = re.match(rf'activate\s+{card_name_pattern}\s*[->]+\s*{target_pattern}', action_str, re.I)
-    if activate_match:
+    # Try ID-based (lowercase alphanumeric or UUID)
+    da_uuid_match = re.match(rf'direct_attack\s+({full_uuid_pat})', action_str, re.I)
+    if da_uuid_match:
+        return {
+            "action_type": "direct_attack",
+            "card_name": None,
+            "card_id": da_uuid_match.group(1),
+            "target_name": None,
+            "target_id": None,
+            "cc_cost": 2,
+        }
+    
+    da_id_match = re.match(rf'direct_attack\s+({short_id_pat})', action_str)
+    if da_id_match:
+        return {
+            "action_type": "direct_attack",
+            "card_name": None,
+            "card_id": da_id_match.group(1),
+            "target_name": None,
+            "target_id": None,
+            "cc_cost": 2,
+        }
+    
+    # -------------------------------------------------------------------------
+    # ACTIVATE ABILITY - matches:
+    #   "activate ar1->w1" (ID-based)
+    #   "activate Archer->Wizard" (name-based, legacy)
+    # -------------------------------------------------------------------------
+    # Try name-based format first - names start with uppercase
+    activate_name_match = re.match(
+        rf'activate\s+{card_name_pattern}\s*->\s*{card_name_pattern}',
+        action_str
+    )  # No re.I - names must have capitals
+    if activate_name_match:
         return {
             "action_type": "activate_ability",
-            "card_name": activate_match.group(1),
-            "target_name": activate_match.group(2),
-            "cc_cost": 1,  # Default ability cost
+            "card_name": activate_name_match.group(1),
+            "card_id": None,
+            "target_name": activate_name_match.group(2),
+            "target_id": None,
+            "cc_cost": 1,
+        }
+    
+    # Try UUID format
+    activate_uuid_match = re.match(
+        rf'activate\s+({full_uuid_pat})\s*->\s*({full_uuid_pat})',
+        action_str, re.I
+    )
+    if activate_uuid_match:
+        return {
+            "action_type": "activate_ability",
+            "card_name": None,
+            "card_id": activate_uuid_match.group(1),
+            "target_name": None,
+            "target_id": activate_uuid_match.group(2),
+            "cc_cost": 1,
+        }
+    
+    # Try short ID format (lowercase only)
+    activate_id_match = re.match(
+        rf'activate\s+({short_id_pat})\s*->\s*({short_id_pat})',
+        action_str
+    )  # No re.I - IDs must be lowercase
+    if activate_id_match:
+        return {
+            "action_type": "activate_ability",
+            "card_name": None,
+            "card_id": activate_id_match.group(1),
+            "target_name": None,
+            "target_id": activate_id_match.group(2),
+            "cc_cost": 1,
         }
     
     return None

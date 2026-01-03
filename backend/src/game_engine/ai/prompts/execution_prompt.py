@@ -193,9 +193,13 @@ def find_matching_action_index(
     
     This is a heuristic matcher that handles common cases:
     - end_turn always matches "End turn"
-    - play_card matches "Play {card_name}"
-    - direct_attack matches "Direct attack"
-    - tussle matches actions containing "tussle" and card_name
+    - play_card matches by card_id first, then card_name
+    - direct_attack matches by card_id first, then description
+    - tussle matches by card_id + target_id first, then names
+    - activate_ability matches by card_id first, then names
+    
+    PRIORITY: Always prefer ID matching over name matching to avoid
+    ambiguity when both players have cards with the same name.
     
     Args:
         planned_action: The planned action to match
@@ -206,7 +210,8 @@ def find_matching_action_index(
     """
     action_type = planned_action.action_type
     card_name = planned_action.card_name
-    _card_id = planned_action.card_id  # Reserved for future card ID matching
+    card_id = planned_action.card_id
+    target_ids = planned_action.target_ids
     
     for i, action in enumerate(valid_actions):
         desc_lower = action.description.lower()
@@ -215,28 +220,61 @@ def find_matching_action_index(
         if action_type == "end_turn" and "end turn" in desc_lower:
             return i
         
-        # Match play_card
-        if action_type == "play_card" and card_name:
-            if f"play {card_name.lower()}" in desc_lower:
+        # Match play_card - by ID first, then by name
+        if action_type == "play_card":
+            # Try ID match first (most reliable)
+            if card_id and hasattr(action, 'card_id') and action.card_id == card_id:
+                return i
+            # Fall back to name match
+            if card_name and f"play {card_name.lower()}" in desc_lower:
                 return i
         
-        # Match direct_attack
-        if action_type == "direct_attack" and "direct attack" in desc_lower:
-            return i
-        
-        # Match tussle - look for tussle actions with the card
-        if action_type == "tussle" and card_name:
-            if "tussle" in desc_lower and card_name.lower() in desc_lower:
-                return i
-        
-        # Match activate_ability - look for ability actions
-        if action_type == "activate_ability" and card_name:
-            if "ability" in desc_lower or "activate" in desc_lower:
-                if card_name.lower() in desc_lower:
+        # Match direct_attack - by ID first, then by description
+        if action_type == "direct_attack":
+            # Try ID match first
+            if card_id and hasattr(action, 'card_id') and action.card_id == card_id:
+                if "direct attack" in desc_lower:
                     return i
-            # Archer special case: "Use Archer to remove stamina"
-            if card_name.lower() == "archer" and "archer" in desc_lower and "stamina" in desc_lower:
+            # Fall back to description match
+            elif "direct attack" in desc_lower:
+                # Only match if card_name matches (if provided) or no name constraint
+                if card_name:
+                    if card_name.lower() in desc_lower:
+                        return i
+                else:
+                    return i
+        
+        # Match tussle - by IDs first (both attacker and target), then by names
+        if action_type == "tussle":
+            # Try ID match first (most reliable for disambiguation)
+            if card_id and hasattr(action, 'card_id') and action.card_id == card_id:
+                # Also check target matches if we have target_ids
+                if target_ids and hasattr(action, 'target_options') and action.target_options:
+                    if target_ids[0] in action.target_options:
+                        return i
+                elif not target_ids:
+                    # No target constraint, just match attacker ID
+                    return i
+            
+            # Fall back to name match (legacy compatibility)
+            if card_name and "tussle" in desc_lower and card_name.lower() in desc_lower:
                 return i
+        
+        # Match activate_ability - by ID first, then by names
+        if action_type == "activate_ability":
+            # Try ID match first
+            if card_id and hasattr(action, 'card_id') and action.card_id == card_id:
+                if "ability" in desc_lower or "activate" in desc_lower or "stamina" in desc_lower:
+                    return i
+            
+            # Fall back to name match
+            if card_name:
+                if "ability" in desc_lower or "activate" in desc_lower:
+                    if card_name.lower() in desc_lower:
+                        return i
+                # Archer special case: "Use Archer to remove stamina"
+                if card_name.lower() == "archer" and "archer" in desc_lower and "stamina" in desc_lower:
+                    return i
     
     # No match found - will need LLM
     return None

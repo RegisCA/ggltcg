@@ -10,10 +10,13 @@ request in the dual-request architecture:
 The selector focuses purely on strategy, receiving only pre-validated legal sequences.
 """
 
+import json
 import logging
 from typing import TYPE_CHECKING
 
 from .examples.loader import get_relevant_examples, get_game_phase, format_examples_for_prompt
+
+logger = logging.getLogger(__name__)
 from .sequence_generator import format_sequence_for_display
 
 if TYPE_CHECKING:
@@ -83,7 +86,6 @@ def generate_strategic_prompt(
     )
     
     # Count opponent cards
-    opp_total = len(opponent.hand) + len(opponent.in_play) + len(opponent.sleep_zone)
     opp_remaining = len(opponent.hand) + len(opponent.in_play)
     opp_slept = len(opponent.sleep_zone)
     
@@ -149,11 +151,6 @@ def parse_selector_response(response_text: str) -> dict:
     Returns:
         Dictionary with selected_index, reasoning, lethal_check
     """
-    import json
-    import logging
-    
-    logger = logging.getLogger("game_engine.ai.strategic_selector")
-    
     try:
         data = json.loads(response_text)
         reasoning = data.get("reasoning", "")
@@ -235,11 +232,15 @@ def convert_sequence_to_turn_plan(
         target_name = action.get("target_name")
         target_names = action.get("target_names") or ([target_name] if target_name else None)
         
+        # Convert target_id (singular) to target_ids (list) if needed
+        target_id = action.get("target_id")
+        target_ids = action.get("target_ids") or ([target_id] if target_id else None)
+        
         action_sequence.append({
             "action_type": action_type,
             "card_id": action.get("card_id"),
             "card_name": card_name,
-            "target_ids": action.get("target_ids"),
+            "target_ids": target_ids,
             "target_names": target_names,
             "alternative_cost_id": action.get("alternative_cost_id"),
             "cc_cost": cc_cost,

@@ -41,7 +41,6 @@ def get_relevant_examples(game_state: "GameState", player_id: str) -> list[str]:
     
     # Collect card names for lookup
     card_names = {c.name for c in player.hand + player.in_play}
-    opponent_card_names = {c.name for c in opponent.in_play}
     
     # Track which cards already have examples to avoid duplicates
     cards_covered: set[str] = set()
