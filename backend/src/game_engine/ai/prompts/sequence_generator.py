@@ -175,7 +175,7 @@ def generate_sequence_prompt(
 3. Wake needs your sleep zone target ({len(player.sleep_zone)} cards)
 4. Drop needs opponent toy target ({len(opp_in_play)} toys)
 5. Knight auto-wins tussles on your turn
-6. NO SUMMONING SICKNESS: Toys can tussle the SAME TURN they are played (unless it's Turn 1)!
+6. Toys can tussle the SAME TURN they are played (unless it's Turn 1)!
 
 ## STATE CHANGES (CRITICAL!)
 - Tussle that sleeps opponent's LAST toy → direct_attack becomes legal!

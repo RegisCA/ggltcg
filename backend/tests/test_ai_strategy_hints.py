@@ -20,8 +20,7 @@ def test_prompt_no_summoning_sickness_hint():
     
     prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
     
-    assert "NO SUMMONING SICKNESS" in prompt, "Prompt missing summoning sickness rule"
-    assert "can tussle the SAME TURN" in prompt, "Prompt missing immediate tussle hint"
+    assert "Toys can tussle the SAME TURN" in prompt, "Prompt missing immediate tussle hint"
 
 def test_prompt_wake_mechanics_hint():
     """
