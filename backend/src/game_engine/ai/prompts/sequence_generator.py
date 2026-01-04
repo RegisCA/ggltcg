@@ -144,15 +144,22 @@ def generate_sequence_prompt(
     # Calculate max CC (including potential Surge/Rush)
     cc_available = player.cc
     potential_cc = cc_available
+    modifiers = []
     for card in hand:
         if card.name == "Surge":
             potential_cc += 1
+            modifiers.append("Surge +1")
         elif card.name == "Rush":
             potential_cc += 2
+            modifiers.append("Rush +2")
     
+    cc_header = f"## CC: {cc_available}"
+    if potential_cc > cc_available:
+        cc_header += f" (Max potential: {potential_cc} via {', '.join(modifiers)})"
+
     prompt = f"""Generate LEGAL action sequences for a card game turn.
 
-## CC: {cc_available} (Surge adds +1, Rush adds +2 when played)
+{cc_header}
 
 ## COSTS: play=card cost, tussle=2, direct_attack=2, activate=1, end_turn=0
 
