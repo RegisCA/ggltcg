@@ -1,4 +1,3 @@
-import pytest
 import sys
 from pathlib import Path
 
@@ -61,3 +60,49 @@ def test_prompt_header_with_surge():
     
     # This should now show the dynamic potential text
     assert "Max potential: 7 via Surge +1" in cc_line
+
+def test_prompt_header_with_rush():
+    """
+    Verify behavior when Rush IS in hand.
+    """
+    # Setup: 6 CC, Rush in hand
+    setup, cards = create_game_with_cards(
+        player1_hand=["Rush", "Knight"],
+        player1_cc=6,
+        active_player="player1"
+    )
+    
+    # Generate prompt
+    prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
+    
+    lines = prompt.split("\n")
+    cc_line = next(line for line in lines if line.startswith("## CC:"))
+    
+    print(f"\nGenerated Header: {cc_line}")
+    
+    # This should now show the dynamic potential text for Rush
+    assert "Max potential: 8 via Rush +2" in cc_line
+
+def test_prompt_header_with_surge_and_rush():
+    """
+    Verify behavior when BOTH Surge and Rush are in hand.
+    """
+    # Setup: 6 CC, Surge and Rush in hand
+    setup, cards = create_game_with_cards(
+        player1_hand=["Surge", "Rush"],
+        player1_cc=6,
+        active_player="player1"
+    )
+    
+    # Generate prompt
+    prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
+    
+    lines = prompt.split("\n")
+    cc_line = next(line for line in lines if line.startswith("## CC:"))
+    
+    print(f"\nGenerated Header: {cc_line}")
+    
+    # This should now show the dynamic potential text for both
+    assert "Max potential: 9 via" in cc_line
+    assert "Surge +1" in cc_line
+    assert "Rush +2" in cc_line
