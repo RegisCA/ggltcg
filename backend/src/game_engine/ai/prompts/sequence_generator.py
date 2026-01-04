@@ -141,7 +141,7 @@ def generate_sequence_prompt(
     can_direct = len(opp_in_play) == 0
     direct_msg = "YES - opponent has 0 toys" if can_direct else f"NO - opponent has {len(opp_in_play)} toys"
     
-    # Calculate max CC (including potential Surge/Rush)
+    # Calculate max CC (including potential Surge/Rush/Hind Leg Kicker)
     cc_available = player.cc
     potential_cc = cc_available
     modifiers = []
@@ -152,6 +152,12 @@ def generate_sequence_prompt(
         elif card.name == "Rush":
             potential_cc += 2
             modifiers.append("Rush +2")
+        elif card.name == "Hind Leg Kicker":
+            # Hind Leg Kicker generates CC for subsequent plays
+            # We estimate potential by assuming we play it first, then other cards
+            # This is a heuristic, but helps the AI see the potential
+            potential_cc += len(hand) - 1 # Max potential if we play all other cards
+            modifiers.append(f"Hind Leg Kicker +{len(hand)-1} (if played first)")
     
     cc_header = f"## CC: {cc_available}"
     if potential_cc > cc_available:
@@ -169,9 +175,11 @@ def generate_sequence_prompt(
 3. Wake needs your sleep zone target ({len(player.sleep_zone)} cards)
 4. Drop needs opponent toy target ({len(opp_in_play)} toys)
 5. Knight auto-wins tussles on your turn
+6. NO SUMMONING SICKNESS: Toys can tussle the SAME TURN they are played (unless it's Turn 1)!
 
 ## STATE CHANGES (CRITICAL!)
 - Tussle that sleeps opponent's LAST toy → direct_attack becomes legal!
+- Wake moves card to HAND (must pay cost to play it again) → then it can tussle immediately!
 - Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
 
 ## YOUR HAND (cards you can play)
