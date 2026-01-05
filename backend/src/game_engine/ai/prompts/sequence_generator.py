@@ -413,11 +413,27 @@ def _parse_action_string(action_str: str) -> dict | None:
     
     # -------------------------------------------------------------------------
     # TUSSLE - matches:
+    #   "tussle NAME [UUID]->NAME [UUID]" (name with ID in brackets - NEW)
     #   "tussle b1->w1" (ID-based, preferred)
     #   "tussle uuid->uuid" (UUID-based)
     #   "tussle Beary->Wizard" (name-based, legacy)
     # -------------------------------------------------------------------------
-    # Try name-based format FIRST (names start with uppercase)
+    # Try name+ID format FIRST (most complete information)
+    tussle_name_id_match = re.match(
+        rf'tussle\s+{card_name_pattern}\s*\[({full_uuid_pat})\]\s*->\s*{card_name_pattern}\s*\[({full_uuid_pat})\]',
+        action_str
+    )
+    if tussle_name_id_match:
+        return {
+            "action_type": "tussle",
+            "card_name": tussle_name_id_match.group(1),
+            "card_id": tussle_name_id_match.group(2),
+            "target_name": tussle_name_id_match.group(3),
+            "target_id": tussle_name_id_match.group(4),
+            "cc_cost": 2,
+        }
+    
+    # Try name-based format (names start with uppercase)
     # This ensures "tussle Knight->Beary" is parsed as names, not IDs
     tussle_name_match = re.match(
         rf'tussle\s+{card_name_pattern}\s*->\s*{card_name_pattern}',
@@ -465,10 +481,23 @@ def _parse_action_string(action_str: str) -> dict | None:
     
     # -------------------------------------------------------------------------
     # DIRECT ATTACK - matches:
+    #   "direct_attack NAME [UUID]" (name with ID in brackets - NEW)
     #   "direct_attack ar1" (ID-based)
     #   "direct_attack Archer" (name-based, legacy)
     # -------------------------------------------------------------------------
-    # Try name-based first (starts with uppercase)
+    # Try name+ID format first (most complete)
+    da_name_id_match = re.match(rf'direct_attack\s+{card_name_pattern}\s*\[({full_uuid_pat})\]', action_str)
+    if da_name_id_match:
+        return {
+            "action_type": "direct_attack",
+            "card_name": da_name_id_match.group(1),
+            "card_id": da_name_id_match.group(2),
+            "target_name": None,
+            "target_id": None,
+            "cc_cost": 2,
+        }
+    
+    # Try name-based (starts with uppercase)
     da_name_match = re.match(rf'direct_attack\s+{card_name_pattern}', action_str)
     if da_name_match:
         return {
@@ -505,10 +534,26 @@ def _parse_action_string(action_str: str) -> dict | None:
     
     # -------------------------------------------------------------------------
     # ACTIVATE ABILITY - matches:
+    #   "activate NAME [UUID]->NAME [UUID]" (name with ID in brackets - NEW)
     #   "activate ar1->w1" (ID-based)
     #   "activate Archer->Wizard" (name-based, legacy)
     # -------------------------------------------------------------------------
-    # Try name-based format first - names start with uppercase
+    # Try name+ID format first (most complete)
+    activate_name_id_match = re.match(
+        rf'activate\s+{card_name_pattern}\s*\[({full_uuid_pat})\]\s*->\s*{card_name_pattern}\s*\[({full_uuid_pat})\]',
+        action_str
+    )
+    if activate_name_id_match:
+        return {
+            "action_type": "activate_ability",
+            "card_name": activate_name_id_match.group(1),
+            "card_id": activate_name_id_match.group(2),
+            "target_name": activate_name_id_match.group(3),
+            "target_id": activate_name_id_match.group(4),
+            "cc_cost": 1,
+        }
+    
+    # Try name-based format - names start with uppercase
     activate_name_match = re.match(
         rf'activate\s+{card_name_pattern}\s*->\s*{card_name_pattern}',
         action_str
