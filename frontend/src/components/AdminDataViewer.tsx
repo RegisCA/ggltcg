@@ -1127,7 +1127,10 @@ const AdminDataViewer: React.FC = () => {
                                 if (cc.player_id === p1Id) entry.p1 = cc;
                                 else if (cc.player_id === p2Id) entry.p2 = cc;
                               });
-                              const turns = Array.from(turnMap.keys()).sort((a, b) => a - b);
+                              // Include turns from play_by_play even if not in cc_tracking (e.g., final turn)
+                              const allTurns = new Set<number>(turnMap.keys());
+                              selectedPlayback.play_by_play?.forEach(action => allTurns.add(action.turn));
+                              const turns = Array.from(allTurns).sort((a, b) => a - b);
                               
                               // Group play-by-play actions by turn
                               const actionsByTurn = new Map<number, typeof selectedPlayback.play_by_play>();
@@ -1746,7 +1749,10 @@ const AdminDataViewer: React.FC = () => {
                                                   if (cc.player_id === 'player1') entry.p1 = cc;
                                                   else entry.p2 = cc;
                                                 });
-                                                const turns = Array.from(turnMap.keys()).sort((a, b) => a - b);
+                                                // Include turns from action_log even if not in cc_tracking (e.g., final turn)
+                                                const allTurns = new Set<number>(turnMap.keys());
+                                                selectedGameDetail.action_log?.forEach(action => allTurns.add(action.turn));
+                                                const turns = Array.from(allTurns).sort((a, b) => a - b);
                                                 
                                                 // Group actions by turn
                                                 const actionsByTurn = new Map<number, typeof selectedGameDetail.action_log>();

@@ -163,15 +163,34 @@ def generate_sequence_prompt(
 
 ## COSTS: play=card cost, tussle=2, direct_attack=2, activate=1, end_turn=0
 
+## CC EFFICIENCY
+- Ending with 0-1 CC: Optimal (maximized usage)
+- Ending with 2-3 CC: Acceptable if strategic
+- Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
+- If you have 4+ CC remaining, look for more plays!
+
+## RESOURCE PRIORITY (play these FIRST if available)
+- Surge (0 CC, +1 CC): Always play at start of sequences
+- Rush (0 CC, +2 CC): Always play at start of sequences
+- Hind Leg Kicker (1 CC): Gains CC for each subsequent play - use first
+
 ## RULES
 1. direct_attack: {direct_msg}
 2. STR > 0 required for tussle/direct_attack (Archer STR=0 CANNOT attack)
 3. Wake needs your sleep zone target ({len(player.sleep_zone)} cards)
 4. Drop needs opponent toy target ({len(opp_in_play)} toys)
 5. Knight auto-wins tussles on your turn
+6. Toys can tussle the SAME TURN they are played (unless it's Turn 1)!
+7. Wake returns card to HAND - you must pay its cost to play it again
 
 ## STATE CHANGES (CRITICAL!)
 - Tussle that sleeps opponent's LAST toy → direct_attack becomes legal!
+- Wake [target: Knight in sleep] → Knight moves to hand → play Knight [1 CC] → Knight can tussle!
+
+## EXAMPLES
+Example 1 (Resource First): play Surge [+1] → play Knight [1] → tussle Knight→Wizard [2] → direct_attack Knight [2] → end_turn | CC: 5/5 spent
+Example 2 (Wake Chain): play Wake [1] target Knight → play Knight [1] → tussle Knight→Beary [2] → end_turn | CC: 4/4 spent
+Example 3 (Board Use): tussle Knight→Umbruh [2] → direct_attack Knight [2] → end_turn | CC: 4/4 spent (Knight already in play)
 - Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
 
 ## YOUR HAND (cards you can play)
@@ -192,15 +211,13 @@ def generate_sequence_prompt(
 "[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
 Use card IDs from listings. Format: play NAME [ID], tussle ID->ID, direct_attack ID, activate ID->ID
 
-## EXAMPLE (4 CC, Surge+Knight in hand, opp has 1 toy)
-"play Surge [s1] -> play Knight [k1] -> tussle k1->w1 -> direct_attack k1 -> end_turn | CC: 5/5 spent | Sleeps: 2"
-
 ## TASK
 Generate 5-10 LEGAL sequences:
 1. Aggressive (maximize attacks, use ALL CC)
 2. Board-building (play toys without attacking)
 3. Conservative (minimal CC)
 4. If tussle clears opponent's board AND CC remains → INCLUDE direct_attack!
+5. Prioritize Surge/Rush at START of aggressive sequences!
 
 Important: Verify your math! Each sequence must not exceed available CC."""
 
