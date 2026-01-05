@@ -1,6 +1,6 @@
 /**
  * Leaderboard Component
- * Displays top players ranked by win rate
+ * Displays top players ranked by wins - losses differential
  */
 
 import { useState, useEffect } from 'react';
@@ -91,7 +91,7 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
             <div>
               <h2 className="text-2xl font-bold text-game-highlight">🏆 Leaderboard</h2>
               <p className="text-gray-300" style={{ marginTop: '4px' }}>
-                Top players by win rate
+                Top players by win differential
               </p>
             </div>
             <button
@@ -149,8 +149,11 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
                   style={{ gap: 'var(--spacing-component-md)', padding: 'var(--spacing-component-md)' }}
                 >
                   {/* Rank */}
-                  <div className={`text-2xl font-bold w-12 text-center ${getRankColor(entry.rank)}`}>
+                  <div className={`text-2xl font-bold w-12 text-center ${getRankColor(entry.rank)} flex items-center justify-center`} style={{ gap: '2px' }}>
                     {getRankEmoji(entry.rank)}
+                    {entry.win_rate === 100 && (
+                      <span className="text-lg" title="Perfect Record!">🔥</span>
+                    )}
                   </div>
 
                   {/* Player Info */}
