@@ -475,9 +475,9 @@ class StatsService:
                 PlayerStatsModel.games_played >= min_games
             ).all()
             
-            # Sort by win rate (descending), then by total wins (descending)
+            # Sort by (wins - losses) descending
             stats_list.sort(
-                key=lambda s: (s.win_rate, s.games_won),
+                key=lambda s: (s.games_won - (s.games_played - s.games_won)),
                 reverse=True
             )
             
