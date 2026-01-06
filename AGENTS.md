@@ -261,30 +261,30 @@ See `COPILOT.md` for detailed decisions and rationale. Key principles:
 
 - `docs/development/ARCHITECTURE.md` - System architecture overview
 - `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md` - Effect system details
-- `docs/development/ai/AI_V4_REMEDIATION_PLAN.md` - AI development roadmap
+- `docs/plans/AI_V4_REMEDIATION_PLAN.md` - AI development roadmap
 
 ### Instructions (Domain-Specific)
 
 - `AGENTS.md` (this file) - Root context for all work
-- `backend/AGENTS.md` - Backend-specific context (TODO: Phase 3)
-- `frontend/AGENTS.md` - Frontend-specific context (TODO: Phase 3)
-- `.github/instructions/*.instructions.md` - Coding standards and patterns
+- `backend/AGENTS.md` - Backend-specific context
+- `frontend/AGENTS.md` - Frontend-specific context
+- `.github/instructions/*.instructions.md` - Universal standards (security, markdown, git workflow)
 
 ---
 
 ## Subsystem Context
 
-**Backend**: See `backend/AGENTS.md` (TODO: Phase 3 of migration)
-- Game engine architecture
-- Effect system patterns
-- Testing conventions
-- AI integration
+**Backend**: See `backend/AGENTS.md`
+- Game engine architecture, effect system patterns
+- Testing conventions with conftest.py fixtures
+- AI V4 dual-request system
+- Python code style and patterns
 
-**Frontend**: See `frontend/AGENTS.md` (TODO: Phase 3 of migration)
-- React/TypeScript patterns
-- Design system and CSS tokens
-- API integration with TanStack Query
-- Component structure
+**Frontend**: See `frontend/AGENTS.md`
+- Design system (spacing tokens, typography)
+- React/TypeScript patterns and API contracts
+- Card factory utilities
+- Layout and component structure
 
 ---
 

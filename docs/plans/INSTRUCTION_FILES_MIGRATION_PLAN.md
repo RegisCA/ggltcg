@@ -2,38 +2,47 @@
 
 **Created**: January 6, 2026  
 **Updated**: January 6, 2026  
-**Status**: Phase 1-2 Recovered, Ready to Resume  
+**Status**: Phase 1-3 Complete, Monitoring Phase  
 **Purpose**: Migrate from `.github/instructions/*.md` files to hierarchical AGENTS.md + COPILOT.md system
 
 ---
 
 ## Current Status
 
-### What Happened
+### ✅ Phase 1-2 Complete (January 6, 2026)
 
-Phases 1 and 2 were completed locally on January 6, 2026 but the commits were lost when main was reset to `origin/main`. The files have been recovered from git reflog commit `e758c31`.
+Files created and committed in `bf95fd1`:
 
-### Recovered Files
+| File | Lines | Purpose |
+|------|-------|---------|
+| `AGENTS.md` | 345 | Root context with "Check Facts First" |
+| `COPILOT.md` | 497 | Architectural decisions & learnings |
+| `docs/rules/QUICK_REFERENCE.md` | 68 | Authoritative game rules |
 
-| File | Status | Action Needed |
-|------|--------|---------------|
-| `AGENTS.md` | ✅ Recovered | Review and commit |
-| `COPILOT.md` | ✅ Recovered | Review and commit |
-| `docs/rules/QUICK_REFERENCE.md` | ✅ Recovered | Review and commit |
+### ✅ Phase 3 Complete (January 6, 2026)
 
-### Current Instruction Files
+Subsystem AGENTS.md files created, instruction files trimmed:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `backend/AGENTS.md` | 220 | Backend patterns, testing, AI system |
+| `frontend/AGENTS.md` | 145 | Design system, React patterns, API contracts |
+
+**Instruction files trimmed**: Total reduced from ~1,500 to 694 lines
+
+### Current Instruction Files (After Trim)
 
 ```
-.github/instructions/
-├── architecture.instructions.md      # Keep - core patterns
-├── backend-python.instructions.md    # Keep - Python style
-├── bot-workflow.instructions.md      # Keep - Git workflow
-├── coding.instructions.md            # Keep - universal (references others)
-├── frontend-css.instructions.md      # Keep - CSS tokens
-├── frontend-react.instructions.md    # Keep - React patterns
-├── markdown.instructions.md          # Keep - MD style
-├── security-and-owasp.instructions.md # Keep - security
-└── testing.instructions.md           # Keep - test patterns
+.github/instructions/       (694 lines total)
+├── architecture.instructions.md      (68)  - Quick reference → backend/AGENTS.md
+├── backend-python.instructions.md    (83)  - Quick reference → backend/AGENTS.md
+├── testing.instructions.md           (76)  - Quick reference → backend/AGENTS.md
+├── frontend-react.instructions.md    (92)  - Quick reference → frontend/AGENTS.md
+├── frontend-css.instructions.md      (69)  - Quick reference → frontend/AGENTS.md
+├── coding.instructions.md           (113)  - Universal, references AGENTS.md hierarchy
+├── bot-workflow.instructions.md     (104)  - Universal (keep full)
+├── security-and-owasp.instructions.md (51) - Universal (keep full)
+└── markdown.instructions.md          (38)  - Universal (keep full)
 ```
 
 ---

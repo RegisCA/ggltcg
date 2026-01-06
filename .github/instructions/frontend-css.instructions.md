@@ -5,45 +5,34 @@ description: "CSS design tokens and styling standards for GGLTCG frontend"
 
 # CSS Design System
 
+**Full details**: See `frontend/AGENTS.md` for comprehensive frontend patterns.
+
 ## Spacing Tokens
 
 **CRITICAL**: All CSS spacing must use these design tokens.
 
 ```css
 @theme {
-  --spacing-component-xs: 8px;   /* Tight spacing within components */
-  --spacing-component-sm: 12px;  /* Standard component padding */
-  --spacing-component-md: 16px;  /* Default content spacing */
+  --spacing-component-xs: 8px;   /* Tight spacing */
+  --spacing-component-sm: 12px;  /* Component padding */
+  --spacing-component-md: 16px;  /* Default spacing */
   --spacing-component-lg: 24px;  /* Section separation */
-  --spacing-component-xl: 32px;  /* Major layout spacing */
+  --spacing-component-xl: 32px;  /* Major layout */
 }
 ```
 
 ## Utility Classes
 
-Define and use these utility classes:
-
 ```css
-.panel-padding {
-  padding: var(--spacing-component-md);
-}
-
-.modal-padding {
-  padding: var(--spacing-component-lg);
-}
-
-.card-padding {
-  padding: var(--spacing-component-sm);
-}
-
-.content-spacing {
-  gap: var(--spacing-component-md);
-}
+.panel-padding   { padding: var(--spacing-component-md); }
+.modal-padding   { padding: var(--spacing-component-lg); }
+.card-padding    { padding: var(--spacing-component-sm); }
+.content-spacing { gap: var(--spacing-component-md); }
 ```
 
 ## Typography
 
-**Single font family**: Lato (loaded via Google Fonts in `index.html`)
+**Single font**: Lato (Google Fonts). **Two weights only**: 400, 700.
 
 ```css
 body {
@@ -52,13 +41,7 @@ body {
 }
 ```
 
-**Two weights only**:
-- 400 (normal) - Body text
-- 700 (bold) - Headings, titles, card names, emphasis
-
-**NEVER** add custom font families. Visual hierarchy comes from weight and size.
-
-## ✅ CORRECT Patterns
+## ✅ CORRECT
 
 ```css
 .component {
@@ -66,20 +49,15 @@ body {
   gap: var(--spacing-component-sm);
   font-weight: 700;
 }
-
-.section {
-  margin-bottom: var(--spacing-component-lg);
-}
 ```
 
-## ❌ WRONG Patterns
+## ❌ WRONG
 
 ```css
 /* NEVER hardcode spacing */
 .component {
   padding: 16px;  /* BAD! */
   gap: 12px;      /* BAD! */
-  margin: 24px;   /* BAD! */
 }
 
 /* NEVER add custom fonts */
@@ -88,6 +66,4 @@ body {
 }
 ```
 
-## Exceptions
-
-NONE. All spacing uses design tokens. All text uses Lato.
+**Exceptions**: NONE. All spacing uses tokens. All text uses Lato.
