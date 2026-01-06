@@ -226,8 +226,9 @@ ggltcg/
 │   ├── public/
 │   └── package.json
 ├── docs/
+│   ├── plans/                   # Active development plans
 │   ├── rules/                   # Game rules documentation
-│   └── development/             # Architecture, effects, auth, deployment
+│   └── development/             # Architecture, effects, AI system
 ├── .github/instructions/        # Coding, security, and testing guidelines
 └── README.md
 ```
@@ -260,8 +261,8 @@ Then set at minimum:
 - `JWT_SECRET_KEY` – random secret for JWTs
 - `ALLOWED_ORIGINS` – allowed frontend origins
 
-For details, see `docs/development/ENV_VARS_AUTH.md` and
-`docs/development/DATABASE_SCHEMA.md`.
+For details, see `docs/development/DATABASE_SCHEMA.md` and
+`docs/development/AUTH_IMPLEMENTATION.md`.
 
 ### Frontend Setup
 
