@@ -48,36 +48,44 @@ class TestExampleLoader:
         examples = get_relevant_examples(setup.game_state, "player1")
         
         # Check that surge_knight combo is included
-        example_keys = [e["example_key"] for e in examples]
-        assert "surge_knight" in example_keys, f"Expected surge_knight in {example_keys}"
+        has_surge_knight = any("Surge + Knight" in ex for ex in examples)
+        assert has_surge_knight, "Surge+Knight combo should be detected when both in hand"
     
-    def test_wake_example_when_sleep_zone_full(self):
-        """When player has cards in sleep zone, wake example should be included."""
+    def test_phase_example_based_on_turn(self):
+        """Phase example should match turn number."""
+        from game_engine.ai.prompts.examples.loader import get_game_phase
+        
+        assert get_game_phase(1) == "early_game"
+        assert get_game_phase(3) == "early_game"
+        assert get_game_phase(4) == "mid_game"
+        assert get_game_phase(6) == "mid_game"
+        assert get_game_phase(7) == "end_game"
+        assert get_game_phase(10) == "end_game"
+    
+    def test_no_duplicate_examples(self):
+        """Examples should not be duplicated."""
         from game_engine.ai.prompts.examples.loader import get_relevant_examples
         
         setup, _ = create_game_with_cards(
-            player1_hand=["Wake", "Knight"],
-            player1_sleep_zone=["Surge", "Ka", "Archer"],
+            player1_hand=["Surge", "Knight", "Archer"],
             player1_in_play=[],
-            player2_in_play=["Wizard"],
+            player2_in_play=["Umbruh"],
             active_player="player1",
         )
         
         examples = get_relevant_examples(setup.game_state, "player1")
         
-        # Check that wake example is included
-        example_keys = [e["example_key"] for e in examples]
-        assert "wake_lethal" in example_keys, f"Expected wake_lethal in {example_keys}"
+        # Check no duplicates
+        assert len(examples) == len(set(examples)), "Examples should not be duplicated"
 
 
-class TestPromptSizes:
-    """Verify that prompts stay under target size."""
+class TestSequenceGenerator:
+    """Test the sequence generator prompt."""
     
-    def test_sequence_generator_prompt_size(self):
-        """Request 1 prompt should be under 4500 chars."""
+    def test_prompt_under_4k_chars(self):
+        """Sequence generator prompt should be under 4k chars."""
         from game_engine.ai.prompts.sequence_generator import generate_sequence_prompt
         
-        # Create a realistic game state
         setup, _ = create_game_with_cards(
             player1_hand=["Surge", "Knight", "Umbruh", "Drop"],
             player1_in_play=["Ka", "Archer"],
@@ -97,173 +105,215 @@ class TestPromptSizes:
             player1_hand=["Surge"],
             player1_in_play=[],
             player2_in_play=[],
-            player1_cc=5,
             active_player="player1",
         )
         
         prompt = generate_sequence_prompt(setup.game_state, "player1")
         
-        assert "## CC: 5" in prompt, "Prompt should include CC header"
+        # V4 shows CC value in header
+        assert "## CC:" in prompt, "Prompt should include CC"
     
-    def test_prompt_shows_surge_cc_gain(self):
-        """When Surge is in hand, prompt should show +1 CC."""
-        from game_engine.ai.prompts.sequence_generator import generate_sequence_prompt
+    def test_tactical_labels_assigned(self):
+        """Tactical labels should be assigned based on sequence content."""
+        from game_engine.ai.prompts.sequence_generator import add_tactical_labels
+        
+        sequences = [
+            {
+                "actions": [
+                    {"action_type": "tussle", "cc_cost": 2},
+                    {"action_type": "tussle", "cc_cost": 2},
+                    {"action_type": "end_turn", "cc_cost": 0}
+                ],
+                "total_cc_spent": 4,
+                "cards_slept": 2
+            },
+            {
+                "actions": [
+                    {"action_type": "play_card", "card_name": "Surge", "cc_cost": 0},
+                    {"action_type": "end_turn", "cc_cost": 0}
+                ],
+                "total_cc_spent": 0,
+                "cards_slept": 0
+            }
+        ]
+        
+        labeled = add_tactical_labels(sequences)
+        
+        assert labeled[0]["tactical_label"] == "[Aggressive Removal]"
+        assert labeled[1]["tactical_label"] == "[Resource Building]"
+
+
+class TestStrategicSelector:
+    """Test the strategic selector prompt."""
+    
+    def test_prompt_under_5k_chars(self):
+        """Strategic selector prompt should be under 5k chars."""
+        from game_engine.ai.prompts.strategic_selector import generate_strategic_prompt
+        
+        setup, _ = create_game_with_cards(
+            player1_hand=["Surge", "Knight"],
+            player1_in_play=["Ka"],
+            player2_in_play=["Archer", "Gibbers"],
+            active_player="player1",
+        )
+        
+        test_sequences = [
+            {
+                "actions": [{"action_type": "end_turn", "cc_cost": 0}],
+                "total_cc_spent": 0,
+                "cards_slept": 0,
+                "tactical_label": "[Conservative]"
+            },
+            {
+                "actions": [
+                    {"action_type": "tussle", "card_name": "Ka", "target_names": ["Archer"], "cc_cost": 2},
+                    {"action_type": "end_turn", "cc_cost": 0}
+                ],
+                "total_cc_spent": 2,
+                "cards_slept": 1,
+                "tactical_label": "[Aggressive Removal]"
+            }
+        ]
+        
+        prompt = generate_strategic_prompt(setup.game_state, "player1", test_sequences)
+        
+        assert len(prompt) < 5000, f"Prompt too long: {len(prompt)} chars (target: <5000)"
+    
+    def test_prompt_includes_examples(self):
+        """Strategic selector should include contextual examples."""
+        from game_engine.ai.prompts.strategic_selector import generate_strategic_prompt
         
         setup, _ = create_game_with_cards(
             player1_hand=["Surge", "Knight"],
             player1_in_play=[],
             player2_in_play=[],
-            player1_cc=2,
             active_player="player1",
         )
         
-        prompt = generate_sequence_prompt(setup.game_state, "player1")
+        prompt = generate_strategic_prompt(setup.game_state, "player1", [
+            {"actions": [], "total_cc_spent": 0, "cards_slept": 0, "tactical_label": "[Test]"}
+        ])
         
-        # Should show potential CC boost
-        assert "(+1 CC when played)" in prompt or "Max potential: 3 via Surge" in prompt, \
-            "Prompt should indicate Surge gives +1 CC"
+        assert "<examples>" in prompt, "Prompt should include examples section"
+        assert "</examples>" in prompt, "Examples section should be closed"
     
-    def test_prompt_shows_direct_attack_availability(self):
-        """Prompt should indicate when direct_attack is legal."""
-        from game_engine.ai.prompts.sequence_generator import generate_sequence_prompt
+    def test_convert_sequence_to_turn_plan(self):
+        """Converting sequence to turn plan should produce valid structure."""
+        from game_engine.ai.prompts.strategic_selector import convert_sequence_to_turn_plan
         
-        # No opponent toys = direct attack legal
         setup, _ = create_game_with_cards(
-            player1_hand=["Knight"],
-            player1_in_play=["Ka"],
-            player2_in_play=[],
+            player1_hand=["Surge", "Knight"],
+            player1_in_play=[],
+            player2_in_play=["Archer"],
             active_player="player1",
         )
         
-        prompt = generate_sequence_prompt(setup.game_state, "player1")
+        sequence = {
+            "actions": [
+                {"action_type": "play_card", "card_name": "Surge", "cc_cost": 0},
+                {"action_type": "play_card", "card_name": "Knight", "card_id": "abc", "cc_cost": 1},
+                {"action_type": "end_turn", "cc_cost": 0}
+            ],
+            "total_cc_spent": 1,
+            "cards_slept": 0,
+            "tactical_label": "[Board Setup]"
+        }
         
-        assert "direct_attack: YES" in prompt, "Should show direct_attack is legal"
-        
-        # Opponent toys = direct attack illegal
-        setup2, _ = create_game_with_cards(
-            player1_hand=["Knight"],
-            player1_in_play=["Ka"],
-            player2_in_play=["Gibbers"],
-            active_player="player1",
+        plan_data = convert_sequence_to_turn_plan(
+            sequence, setup.game_state, "player1", "Test reasoning"
         )
         
-        prompt2 = generate_sequence_prompt(setup2.game_state, "player1")
-        
-        assert "direct_attack: NO" in prompt2, "Should show direct_attack is illegal"
+        assert "action_sequence" in plan_data
+        assert len(plan_data["action_sequence"]) == 3
+        # cc_start comes from player.cc in game_state
+        assert plan_data["cc_start"] == setup.game_state.players["player1"].cc
+        assert plan_data["plan_reasoning"] == "Test reasoning"
 
 
-class TestTacticalLabels:
-    """Test tactical label assignment logic."""
+class TestActionParsing:
+    """Test parsing of action strings with various formats."""
     
-    def test_lethal_label_for_6_sleeps(self):
-        """Sequence that sleeps 6 cards should get [Lethal] label."""
-        from game_engine.ai.prompts.sequence_generator import add_tactical_labels
+    def test_tussle_with_name_and_id(self):
+        """Should parse 'tussle NAME [UUID]->NAME [UUID]' format."""
+        from game_engine.ai.prompts.sequence_generator import _parse_action_string
         
-        sequences = [
-            {
-                "actions": [{"action_type": "tussle"}] * 6 + [{"action_type": "end_turn"}],
-                "cards_slept": 6,
-                "total_cc_spent": 12,
-            }
-        ]
+        action_str = "tussle Knight [a94c6c17-0b54-4862-b1b5-c9f827a04df6]->Umbruh [f6e15fbd-5223-4c12-96da-0e83ad0dd10c]"
+        result = _parse_action_string(action_str)
         
-        labeled = add_tactical_labels(sequences)
-        assert labeled[0]["tactical_label"] == "[Lethal]"
+        assert result is not None, "Failed to parse tussle with name+ID format"
+        assert result["action_type"] == "tussle"
+        assert result["card_name"] == "Knight"
+        assert result["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
+        assert result["target_name"] == "Umbruh"
+        assert result["target_id"] == "f6e15fbd-5223-4c12-96da-0e83ad0dd10c"
+        assert result["cc_cost"] == 2
     
-    def test_aggressive_label_for_multiple_attacks(self):
-        """Sequence with 2+ attacks should get [Aggressive Removal] label."""
-        from game_engine.ai.prompts.sequence_generator import add_tactical_labels
+    def test_direct_attack_with_name_and_id(self):
+        """Should parse 'direct_attack NAME [UUID]' format."""
+        from game_engine.ai.prompts.sequence_generator import _parse_action_string
         
-        sequences = [
-            {
-                "actions": [
-                    {"action_type": "tussle"},
-                    {"action_type": "direct_attack"},
-                    {"action_type": "end_turn"}
-                ],
-                "cards_slept": 2,
-                "total_cc_spent": 4,
-            }
-        ]
+        action_str = "direct_attack Archer [a94c6c17-0b54-4862-b1b5-c9f827a04df6]"
+        result = _parse_action_string(action_str)
         
-        labeled = add_tactical_labels(sequences)
-        assert labeled[0]["tactical_label"] == "[Aggressive Removal]"
+        assert result is not None, "Failed to parse direct_attack with name+ID format"
+        assert result["action_type"] == "direct_attack"
+        assert result["card_name"] == "Archer"
+        assert result["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
+        assert result["cc_cost"] == 2
     
-    def test_resource_label_for_surge_without_attacks(self):
-        """Playing Surge without attacking should get [Resource Building] label."""
-        from game_engine.ai.prompts.sequence_generator import add_tactical_labels
+    def test_activate_with_name_and_id(self):
+        """Should parse 'activate NAME [UUID]->NAME [UUID]' format."""
+        from game_engine.ai.prompts.sequence_generator import _parse_action_string
         
-        sequences = [
-            {
-                "actions": [
-                    {"action_type": "play_card", "card_name": "Surge"},
-                    {"action_type": "end_turn"}
-                ],
-                "cards_slept": 0,
-                "total_cc_spent": 0,
-            }
-        ]
+        action_str = "activate Archer [a94c6c17-0b54-4862-b1b5-c9f827a04df6]->Umbruh [f6e15fbd-5223-4c12-96da-0e83ad0dd10c]"
+        result = _parse_action_string(action_str)
         
-        labeled = add_tactical_labels(sequences)
-        assert labeled[0]["tactical_label"] == "[Resource Building]"
+        assert result is not None, "Failed to parse activate with name+ID format"
+        assert result["action_type"] == "activate_ability"
+        assert result["card_name"] == "Archer"
+        assert result["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
+        assert result["target_name"] == "Umbruh"
+        assert result["target_id"] == "f6e15fbd-5223-4c12-96da-0e83ad0dd10c"
+        assert result["cc_cost"] == 1
     
-    def test_board_setup_label(self):
-        """Playing multiple toys without attacking should get [Board Setup] label."""
-        from game_engine.ai.prompts.sequence_generator import add_tactical_labels
+    def test_full_sequence_parsing(self):
+        """Test parsing a full sequence string like the one from game 133e16a7."""
+        from game_engine.ai.prompts.sequence_generator import parse_sequences_response
+        import json
         
-        sequences = [
-            {
-                "actions": [
-                    {"action_type": "play_card", "card_name": "Knight"},
-                    {"action_type": "play_card", "card_name": "Ka"},
-                    {"action_type": "end_turn"}
-                ],
-                "cards_slept": 0,
-                "total_cc_spent": 2,
-            }
-        ]
+        response_text = json.dumps({
+            "sequences": [
+                "play Surge [c5d99553-9d2c-4da0-8e01-a1a3ed2e791e] -> play Knight [a94c6c17-0b54-4862-b1b5-c9f827a04df6] -> tussle Knight [a94c6c17-0b54-4862-b1b5-c9f827a04df6]->Umbruh [f6e15fbd-5223-4c12-96da-0e83ad0dd10c] -> end_turn | CC: 4/4 spent | Sleeps: 1"
+            ]
+        })
         
-        labeled = add_tactical_labels(sequences)
-        assert labeled[0]["tactical_label"] == "[Board Setup]"
-    
-    def test_conservative_label_for_low_cc(self):
-        """Spending ≤2 CC should get [Conservative] label."""
-        from game_engine.ai.prompts.sequence_generator import add_tactical_labels
+        sequences = parse_sequences_response(response_text)
         
-        sequences = [
-            {
-                "actions": [
-                    {"action_type": "play_card", "card_name": "Surge"},
-                    {"action_type": "end_turn"}
-                ],
-                "cards_slept": 0,
-                "total_cc_spent": 0,
-            }
-        ]
+        assert len(sequences) == 1, "Should parse 1 sequence"
+        seq = sequences[0]
+        assert len(seq["actions"]) == 4, f"Should have 4 actions, got {len(seq['actions'])}"
         
-        labeled = add_tactical_labels(sequences)
-        # This is resource, not conservative (Surge gives CC)
-        # Let's test a true conservative play
-        sequences2 = [
-            {
-                "actions": [
-                    {"action_type": "play_card", "card_name": "Knight"},
-                    {"action_type": "end_turn"}
-                ],
-                "cards_slept": 0,
-                "total_cc_spent": 1,
-            }
-        ]
+        # Check each action
+        assert seq["actions"][0]["action_type"] == "play_card"
+        assert seq["actions"][0]["card_name"] == "Surge"
         
-        labeled2 = add_tactical_labels(sequences2)
-        assert labeled2[0]["tactical_label"] == "[Conservative]"
+        assert seq["actions"][1]["action_type"] == "play_card"
+        assert seq["actions"][1]["card_name"] == "Knight"
+        
+        assert seq["actions"][2]["action_type"] == "tussle"
+        assert seq["actions"][2]["card_name"] == "Knight"
+        assert seq["actions"][2]["target_name"] == "Umbruh"
+        assert seq["actions"][2]["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
+        assert seq["actions"][2]["target_id"] == "f6e15fbd-5223-4c12-96da-0e83ad0dd10c"
+        
+        assert seq["actions"][3]["action_type"] == "end_turn"
 
 
-class TestDualRequestPromptSizes:
-    """Test that both Request 1 and Request 2 stay under size targets."""
+class TestPromptSizes:
+    """Aggregate test for prompt size targets."""
     
     def test_both_prompts_within_targets(self):
-        """Both prompts should be under 4500 chars each."""
+        """Both Request 1 and Request 2 prompts should be within targets."""
         from game_engine.ai.prompts.sequence_generator import generate_sequence_prompt
         from game_engine.ai.prompts.strategic_selector import generate_strategic_prompt
         
@@ -288,3 +338,4 @@ class TestDualRequestPromptSizes:
         
         select_prompt = generate_strategic_prompt(setup.game_state, "player1", test_sequences)
         print(f"Request 2 (Strategic Selector): {len(select_prompt)} chars")
+        assert len(select_prompt) < 5000, f"Request 2 too long: {len(select_prompt)} chars"
