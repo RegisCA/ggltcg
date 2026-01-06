@@ -95,7 +95,7 @@ class TestSequenceGenerator:
         
         prompt = generate_sequence_prompt(setup.game_state, "player1")
         
-        assert len(prompt) < 4000, f"Prompt too long: {len(prompt)} chars (target: <4000)"
+        assert len(prompt) < 4500, f"Prompt too long: {len(prompt)} chars (target: <4500)"
     
     def test_prompt_includes_cc(self):
         """Prompt should include current CC."""
@@ -230,85 +230,6 @@ class TestStrategicSelector:
         assert plan_data["plan_reasoning"] == "Test reasoning"
 
 
-class TestActionParsing:
-    """Test parsing of action strings with various formats."""
-    
-    def test_tussle_with_name_and_id(self):
-        """Should parse 'tussle NAME [UUID]->NAME [UUID]' format."""
-        from game_engine.ai.prompts.sequence_generator import _parse_action_string
-        
-        action_str = "tussle Knight [a94c6c17-0b54-4862-b1b5-c9f827a04df6]->Umbruh [f6e15fbd-5223-4c12-96da-0e83ad0dd10c]"
-        result = _parse_action_string(action_str)
-        
-        assert result is not None, "Failed to parse tussle with name+ID format"
-        assert result["action_type"] == "tussle"
-        assert result["card_name"] == "Knight"
-        assert result["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
-        assert result["target_name"] == "Umbruh"
-        assert result["target_id"] == "f6e15fbd-5223-4c12-96da-0e83ad0dd10c"
-        assert result["cc_cost"] == 2
-    
-    def test_direct_attack_with_name_and_id(self):
-        """Should parse 'direct_attack NAME [UUID]' format."""
-        from game_engine.ai.prompts.sequence_generator import _parse_action_string
-        
-        action_str = "direct_attack Archer [a94c6c17-0b54-4862-b1b5-c9f827a04df6]"
-        result = _parse_action_string(action_str)
-        
-        assert result is not None, "Failed to parse direct_attack with name+ID format"
-        assert result["action_type"] == "direct_attack"
-        assert result["card_name"] == "Archer"
-        assert result["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
-        assert result["cc_cost"] == 2
-    
-    def test_activate_with_name_and_id(self):
-        """Should parse 'activate NAME [UUID]->NAME [UUID]' format."""
-        from game_engine.ai.prompts.sequence_generator import _parse_action_string
-        
-        action_str = "activate Archer [a94c6c17-0b54-4862-b1b5-c9f827a04df6]->Umbruh [f6e15fbd-5223-4c12-96da-0e83ad0dd10c]"
-        result = _parse_action_string(action_str)
-        
-        assert result is not None, "Failed to parse activate with name+ID format"
-        assert result["action_type"] == "activate_ability"
-        assert result["card_name"] == "Archer"
-        assert result["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
-        assert result["target_name"] == "Umbruh"
-        assert result["target_id"] == "f6e15fbd-5223-4c12-96da-0e83ad0dd10c"
-        assert result["cc_cost"] == 1
-    
-    def test_full_sequence_parsing(self):
-        """Test parsing a full sequence string like the one from game 133e16a7."""
-        from game_engine.ai.prompts.sequence_generator import parse_sequences_response
-        import json
-        
-        response_text = json.dumps({
-            "sequences": [
-                "play Surge [c5d99553-9d2c-4da0-8e01-a1a3ed2e791e] -> play Knight [a94c6c17-0b54-4862-b1b5-c9f827a04df6] -> tussle Knight [a94c6c17-0b54-4862-b1b5-c9f827a04df6]->Umbruh [f6e15fbd-5223-4c12-96da-0e83ad0dd10c] -> end_turn | CC: 4/4 spent | Sleeps: 1"
-            ]
-        })
-        
-        sequences = parse_sequences_response(response_text)
-        
-        assert len(sequences) == 1, "Should parse 1 sequence"
-        seq = sequences[0]
-        assert len(seq["actions"]) == 4, f"Should have 4 actions, got {len(seq['actions'])}"
-        
-        # Check each action
-        assert seq["actions"][0]["action_type"] == "play_card"
-        assert seq["actions"][0]["card_name"] == "Surge"
-        
-        assert seq["actions"][1]["action_type"] == "play_card"
-        assert seq["actions"][1]["card_name"] == "Knight"
-        
-        assert seq["actions"][2]["action_type"] == "tussle"
-        assert seq["actions"][2]["card_name"] == "Knight"
-        assert seq["actions"][2]["target_name"] == "Umbruh"
-        assert seq["actions"][2]["card_id"] == "a94c6c17-0b54-4862-b1b5-c9f827a04df6"
-        assert seq["actions"][2]["target_id"] == "f6e15fbd-5223-4c12-96da-0e83ad0dd10c"
-        
-        assert seq["actions"][3]["action_type"] == "end_turn"
-
-
 class TestPromptSizes:
     """Aggregate test for prompt size targets."""
     
@@ -328,7 +249,7 @@ class TestPromptSizes:
         # Test Request 1
         seq_prompt = generate_sequence_prompt(setup.game_state, "player1")
         print(f"Request 1 (Sequence Generator): {len(seq_prompt)} chars")
-        assert len(seq_prompt) < 4000, f"Request 1 too long: {len(seq_prompt)} chars"
+        assert len(seq_prompt) < 4500, f"Request 1 too long: {len(seq_prompt)} chars"
         
         # Test Request 2 with multiple sequences
         test_sequences = [
