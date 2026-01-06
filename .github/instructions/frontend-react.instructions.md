@@ -5,7 +5,7 @@ description: "React/TypeScript code standards and API contracts for GGLTCG front
 
 # Frontend React/TypeScript Standards
 
-**Full details**: See `frontend/AGENTS.md` for comprehensive frontend patterns.
+**Full details**: See `frontend/FRONTEND_GUIDE.md` for comprehensive frontend patterns.
 
 ## ⚠️ Critical: API Contracts
 

@@ -5,7 +5,7 @@ description: "CSS design tokens and styling standards for GGLTCG frontend"
 
 # CSS Design System
 
-**Full details**: See `frontend/AGENTS.md` for comprehensive frontend patterns.
+**Full details**: See `frontend/FRONTEND_GUIDE.md` for comprehensive frontend patterns.
 
 ## Spacing Tokens
 

@@ -5,7 +5,7 @@ description: "Python code style and patterns for GGLTCG backend"
 
 # Python Code Standards
 
-**Full details**: See `backend/AGENTS.md` for comprehensive backend patterns.
+**Full details**: See `backend/BACKEND_GUIDE.md` for comprehensive backend patterns.
 
 ## Style Guidelines
 
