@@ -44,13 +44,13 @@ If these metrics fail, the prompt is broken. This is more valuable than checking
 Before ANY AI development session, the agent MUST:
 
 ```
-□ Read AGENTS.md (root context - CHECK FACTS FIRST section)
-□ Read COPILOT.md (architectural decisions and failure learnings)
+□ Read CONTEXT.md (root context - CHECK FACTS FIRST section)
+□ Read COPILOT.md (architectural decisions quick reference)
 □ Read docs/rules/QUICK_REFERENCE.md (game rules)
 □ Read this plan document (current phase section at minimum)
 □ Verify backend is running: curl http://localhost:8000/health
 □ Verify frontend is running: http://localhost:5173
-□ Know how to check AI logs: /admin/ai-logs in browser
+□ Know how to check AI logs: curl http://localhost:8000/admin/ai-logs?limit=5
 ```
 
 ---
@@ -170,7 +170,7 @@ All criteria must pass before Phase 0 is complete:
 | 0.1 | Prompt has persona/framing | `grep -n "expert\|goal\|planning" backend/src/game_engine/ai/prompts/sequence_generator.py` |
 | 0.2 | No Turn 1 tussle restriction | `grep -n "Turn 1" backend/src/game_engine/ai/prompts/sequence_generator.py` returns NO matches with tussle restriction |
 | 0.3 | STATE CHANGES has Wake example | `grep -n "Wake moves card" backend/src/game_engine/ai/prompts/sequence_generator.py` |
-| 0.4 | Backend running with new code | Start game, check `/admin/ai-logs` shows updated prompt |
+| 0.4 | Backend running with new code | Start game, check `curl localhost:8000/admin/ai-logs?limit=1` shows updated prompt |
 | 0.5 | Real game test passes | Play 2 turns manually, AI makes reasonable moves (no CC hallucination, no illegal actions) |
 
 ### Starter Prompt (Phase 0)
@@ -200,7 +200,7 @@ Fix the sequence_generator.py prompt with these SPECIFIC changes:
 After changes:
 1. Kill and restart the backend
 2. Start a new game against AI
-3. Check /admin/ai-logs to confirm prompt is updated
+3. Check `curl localhost:8000/admin/ai-logs?limit=1` to confirm prompt is updated
 4. Play 2 turns and verify AI behavior is reasonable
 
 Report back with:
@@ -1669,7 +1669,7 @@ You are centralizing card metadata to eliminate hard-coded card names. Read thes
 ## Verification
 1. Run existing tests: pytest backend/tests/
 2. Run regression tests: pytest backend/tests/test_ai_prompt_regression.py
-3. Play a real game and check prompt in /admin/ai-logs
+3. Play a real game and check prompt via `curl localhost:8000/admin/ai-logs?limit=1`
 ```
 
 ---
@@ -1703,7 +1703,7 @@ These phases should be planned after Phases 0-5 are complete:
 □ Run: pytest backend/tests/test_ai_prompt_regression.py
 □ Run: python backend/scripts/quick_ai_test.py
 □ Play 2 turns manually, observe AI behavior
-□ Check /admin/ai-logs for prompt content
+□ Check AI logs: curl localhost:8000/admin/ai-logs?limit=1
 □ Document test results in PR/commit message
 ```
 
