@@ -1,7 +1,7 @@
-# Frontend Context
+# Frontend Guide
 
 **Purpose**: Frontend-specific context for GitHub Copilot agents  
-**Parent**: See root `AGENTS.md` for project-wide context  
+**Parent**: See root `CONTEXT.md` for project-wide context  
 **Last Updated**: January 6, 2026
 
 ---
@@ -96,11 +96,12 @@ Defined in `frontend/src/index.css`:
 
 ## Typography
 
-**Single font family**: Lato (loaded via Google Fonts in `index.html`)
+**Full documentation**: See `docs/development/TYPOGRAPHY_DESIGN_SYSTEM.md`
 
-**Two weights only**:
-- 400 (normal) - Body text
-- 700 (bold) - Headings, titles, card names, emphasis
+**Summary**:
+
+- Single font family: **Lato** (loaded via Google Fonts in `index.html`)
+- Two weights only: 400 (normal), 700 (bold)
 
 ```tsx
 // ✅ CORRECT

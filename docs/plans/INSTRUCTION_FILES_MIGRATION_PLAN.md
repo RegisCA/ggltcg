@@ -3,7 +3,7 @@
 **Created**: January 6, 2026  
 **Updated**: January 6, 2026  
 **Status**: Phase 1-3 Complete, Monitoring Phase  
-**Purpose**: Migrate from `.github/instructions/*.md` files to hierarchical AGENTS.md + COPILOT.md system
+**Purpose**: Migrate from `.github/instructions/*.md` files to hierarchical context system
 
 ---
 
@@ -15,18 +15,18 @@ Files created and committed in `bf95fd1`:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `AGENTS.md` | 345 | Root context with "Check Facts First" |
-| `COPILOT.md` | 497 | Architectural decisions & learnings |
+| `CONTEXT.md` | ~180 | Root context with "Check Facts First" |
+| `COPILOT.md` | ~170 | Architectural decisions (trimmed) |
 | `docs/rules/QUICK_REFERENCE.md` | 68 | Authoritative game rules |
 
 ### ✅ Phase 3 Complete (January 6, 2026)
 
-Subsystem AGENTS.md files created, instruction files trimmed:
+Subsystem guide files created, instruction files trimmed:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `backend/AGENTS.md` | 220 | Backend patterns, testing, AI system |
-| `frontend/AGENTS.md` | 145 | Design system, React patterns, API contracts |
+| `backend/BACKEND_GUIDE.md` | ~220 | Backend patterns, testing, AI system |
+| `frontend/FRONTEND_GUIDE.md` | ~145 | Design system, React patterns, API contracts |
 
 **Instruction files trimmed**: Total reduced from ~1,500 to 694 lines
 
@@ -34,12 +34,12 @@ Subsystem AGENTS.md files created, instruction files trimmed:
 
 ```
 .github/instructions/       (694 lines total)
-├── architecture.instructions.md      (68)  - Quick reference → backend/AGENTS.md
-├── backend-python.instructions.md    (83)  - Quick reference → backend/AGENTS.md
-├── testing.instructions.md           (76)  - Quick reference → backend/AGENTS.md
-├── frontend-react.instructions.md    (92)  - Quick reference → frontend/AGENTS.md
-├── frontend-css.instructions.md      (69)  - Quick reference → frontend/AGENTS.md
-├── coding.instructions.md           (113)  - Universal, references AGENTS.md hierarchy
+├── architecture.instructions.md      (68)  - Quick reference → backend/BACKEND_GUIDE.md
+├── backend-python.instructions.md    (83)  - Quick reference → backend/BACKEND_GUIDE.md
+├── testing.instructions.md           (76)  - Quick reference → backend/BACKEND_GUIDE.md
+├── frontend-react.instructions.md    (92)  - Quick reference → frontend/FRONTEND_GUIDE.md
+├── frontend-css.instructions.md      (69)  - Quick reference → frontend/FRONTEND_GUIDE.md
+├── coding.instructions.md           (113)  - Universal, references context hierarchy
 ├── bot-workflow.instructions.md     (104)  - Universal (keep full)
 ├── security-and-owasp.instructions.md (51) - Universal (keep full)
 └── markdown.instructions.md          (38)  - Universal (keep full)
@@ -58,14 +58,14 @@ Subsystem AGENTS.md files created, instruction files trimmed:
 
 **Solution**: Adopt a 3-tier documentation system:
 
-1. **AGENTS.md** (hierarchical) - Contextual facts that vary by subsystem
-2. **COPILOT.md** (single file) - Architectural decisions and learnings
+1. **CONTEXT.md** (hierarchical) - Contextual facts that vary by subsystem
+2. **COPILOT.md** (single file) - Architectural decisions quick reference
 3. **QUICK_REFERENCE.md** (existing) - Authoritative game rules
 
 **Key Insight**: Recent disasters were caused by:
 
 1. **Too much generic advice** → Need "Check These Facts First" pattern
-2. **No failure memory** → Need COPILOT.md to capture learnings
+2. **No decisions record** → Need COPILOT.md to capture key architectural choices
 3. **Fabrication freedom** → Need explicit "verify first" instructions
 
 ---
@@ -470,13 +470,13 @@ description: Run full test suite and report results
 
 | Current Instruction File | New Location | Status |
 |--------------------------|--------------|---------|
-| `ai-prompts.instructions.md` | `backend/src/game_engine/ai/AGENTS.md` | Phase 3 |
-| `architecture.instructions.md` | `backend/AGENTS.md` | Phase 3 |
-| `backend-python.instructions.md` | `backend/AGENTS.md` | Phase 3 |
-| `testing.instructions.md` | `backend/AGENTS.md` | Phase 3 |
-| `frontend-react.instructions.md` | `frontend/AGENTS.md` | Phase 3 |
-| `frontend-css.instructions.md` | `frontend/AGENTS.md` | Phase 3 |
-| `coding.instructions.md` | Keep (trim to reference new system) | Phase 5 |
+| `ai-prompts.instructions.md` | `backend/BACKEND_GUIDE.md` (AI section) | ✅ Complete |
+| `architecture.instructions.md` | `backend/BACKEND_GUIDE.md` | ✅ Complete |
+| `backend-python.instructions.md` | `backend/BACKEND_GUIDE.md` | ✅ Complete |
+| `testing.instructions.md` | `backend/BACKEND_GUIDE.md` | ✅ Complete |
+| `frontend-react.instructions.md` | `frontend/FRONTEND_GUIDE.md` | ✅ Complete |
+| `frontend-css.instructions.md` | `frontend/FRONTEND_GUIDE.md` | ✅ Complete |
+| `coding.instructions.md` | Keep (trim to reference new system) | ✅ Trimmed |
 | `bot-workflow.instructions.md` | Keep (universal) | N/A |
 | `security-and-owasp.instructions.md` | Keep (universal) | N/A |
 | `markdown.instructions.md` | Keep (universal) | N/A |
@@ -497,7 +497,7 @@ description: Run full test suite and report results
 
 **Phase 3 Success**:
 
-- Subsystem AGENTS.md files exist
+- Subsystem guide files exist (backend/BACKEND_GUIDE.md, frontend/FRONTEND_GUIDE.md)
 - Context is more relevant to current working directory
 - Overall instruction file count reduced from 10 to ~6
 
@@ -542,17 +542,17 @@ description: Run full test suite and report results
 
 ## Risks & Mitigations
 
-**Risk**: Copilot doesn't load AGENTS.md
+**Risk**: Copilot doesn't load context files
 
 - **Mitigation**: Test with simple queries, verify context appears in responses
 
-**Risk**: Too much nested AGENTS.md creates different confusion
+**Risk**: Too much nested context creates different confusion
 
 - **Mitigation**: Start with just root + 2 subsystems, evaluate before adding more
 
 **Risk**: COPILOT.md becomes another unread document
 
-- **Mitigation**: Keep it focused on actual failures and decisions, not generic advice
+- **Mitigation**: Keep it focused on actual decisions (not disaster details), not generic advice
 
 **Risk**: Losing good content from current instruction files
 

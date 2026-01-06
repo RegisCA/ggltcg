@@ -9,9 +9,9 @@ description: "Universal project standards and quick reference for GGLTCG"
 
 **⚠️ CRITICAL**: Before writing code, read these files:
 
-1. **`AGENTS.md`** (root) - Project context and "Check Facts First" checklist
-2. **`COPILOT.md`** - Architectural decisions and failure learnings
-3. **`backend/AGENTS.md`** or **`frontend/AGENTS.md`** - Subsystem-specific patterns
+1. **`CONTEXT.md`** (root) - Project context and "Check Facts First" checklist
+2. **`COPILOT.md`** - Architectural decisions
+3. **`backend/BACKEND_GUIDE.md`** or **`frontend/FRONTEND_GUIDE.md`** - Subsystem-specific patterns
 
 These files contain verified facts and prevent common mistakes (like fabricating game mechanics or creating invalid test states).
 
@@ -85,14 +85,14 @@ See `bot-workflow.instructions.md` for using regisca-bot for automated PRs.
 
 ## Documentation Structure
 
-### Hierarchical Context (NEW)
+### Hierarchical Context
 
 | File | Purpose | When to Read |
 |------|---------|--------------|
-| `AGENTS.md` | Root context, "Check Facts First" | Always |
-| `COPILOT.md` | Decisions, failures, learnings | Architecture questions |
-| `backend/AGENTS.md` | Backend patterns, testing | Backend work |
-| `frontend/AGENTS.md` | Design system, React patterns | Frontend work |
+| `CONTEXT.md` | Root context, "Check Facts First" | Always |
+| `COPILOT.md` | Architectural decisions | Architecture questions |
+| `backend/BACKEND_GUIDE.md` | Backend patterns, testing | Backend work |
+| `frontend/FRONTEND_GUIDE.md` | Design system, React patterns | Frontend work |
 
 ### Authoritative Sources
 

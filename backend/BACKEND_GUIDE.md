@@ -1,7 +1,7 @@
-# Backend Context
+# Backend Guide
 
 **Purpose**: Backend-specific context for GitHub Copilot agents  
-**Parent**: See root `AGENTS.md` for project-wide context  
+**Parent**: See root `CONTEXT.md` for project-wide context  
 **Last Updated**: January 6, 2026
 
 ---
@@ -64,8 +64,6 @@ target = game_state.find_card_by_id(target_id)
 # ❌ WRONG - will fail with duplicate card names
 card = next((c for c in cards if c.name == "Ka"), None)
 ```
-
-**Exceptions**: NONE. Even Knight/Beary interactions use effect types, not names.
 
 ### GameEngine vs GameState
 
@@ -271,9 +269,9 @@ def apply_damage(self, amount: int) -> None:
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
-| AI makes illegal moves | Prompt card descriptions inaccurate | Fix `prompts.py` |
-| AI sees wrong stats | Using base stats instead of buffed | Check `get_effective_*()` |
-| Target selection wrong | Card ID vs name confusion | Ensure IDs in valid actions |
+| AI makes illegal moves | Card descriptions in prompt don't match actual effects | Update card text in `turn_planner.py` |
+| AI sees wrong stats | Using base stats instead of buffed | Check `get_effective_*()` methods |
+| Target selection wrong | Card ID vs name confusion | Ensure IDs in valid actions list |
 
 ---
 
