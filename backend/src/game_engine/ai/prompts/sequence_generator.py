@@ -198,7 +198,7 @@ Look for card descriptions like "(+1 CC when played)" or "(+2 CC when played)" i
 ## RESOURCE EFFICIENCY (CRITICAL!)
 **Good players end turns with ≤1 CC remaining. Prioritize sequences that spend ALL available CC!**
 - 0 CC left = Excellent (maximal usage)
-- 0.3-0.4 CC left = Good (minor waste)
+- 1 CC left = Good (minor waste)
 - 2+ CC left = Poor (major waste)
 
 ## TACTICAL LABELS
@@ -253,11 +253,10 @@ def parse_sequences_response(response_text: str, game_state=None) -> list[dict]:
     Parse the JSON response from sequence generator.
     
     Converts string sequences to structured format for Request 2.
-    Enriches UUID-only actions with card names for logging and validation.
     
     Args:
         response_text: Raw JSON string from LLM
-        game_state: Optional GameState for enriching UUID-only actions with names
+        game_state: Optional GameState for enriching UUID-only actions with card names
         
     Returns:
         List of sequence dictionaries with parsed info
@@ -324,22 +323,20 @@ def parse_sequences_response(response_text: str, game_state=None) -> list[dict]:
                 logger.warning(f"Sequence {i} has no valid actions: {seq_str[:80]}...")
                 continue
             
-            # Enrich UUID-only actions with card names for logging and validation
+            # Enrich actions with card names if we have game_state
             if game_state:
                 for action in actions:
-                    # Enrich card_id with card_name if missing
+                    # If action has card_id but no card_name, look it up
                     if action.get("card_id") and not action.get("card_name"):
                         card = game_state.find_card_by_id(action["card_id"])
                         if card:
                             action["card_name"] = card.name
-                            logger.debug(f"Enriched {action['action_type']} with card_name: {card.name}")
                     
-                    # Enrich target_id with target_name if missing
+                    # Same for target_id
                     if action.get("target_id") and not action.get("target_name"):
                         target = game_state.find_card_by_id(action["target_id"])
                         if target:
                             action["target_name"] = target.name
-                            logger.debug(f"Enriched target with target_name: {target.name}")
             
             # Determine tactical label
             attack_count = sum(1 for a in actions if a.get("action_type") in ["tussle", "direct_attack"])
@@ -451,27 +448,11 @@ def _parse_action_string(action_str: str) -> dict | None:
     
     # -------------------------------------------------------------------------
     # TUSSLE - matches:
-    #   "tussle NAME [UUID]->NAME [UUID]" (name with ID in brackets - NEW)
     #   "tussle b1->w1" (ID-based, preferred)
     #   "tussle uuid->uuid" (UUID-based)
     #   "tussle Beary->Wizard" (name-based, legacy)
     # -------------------------------------------------------------------------
-    # Try name+ID format FIRST (most complete information)
-    tussle_name_id_match = re.match(
-        rf'tussle\s+{card_name_pattern}\s*\[({full_uuid_pat})\]\s*->\s*{card_name_pattern}\s*\[({full_uuid_pat})\]',
-        action_str
-    )
-    if tussle_name_id_match:
-        return {
-            "action_type": "tussle",
-            "card_name": tussle_name_id_match.group(1),
-            "card_id": tussle_name_id_match.group(2),
-            "target_name": tussle_name_id_match.group(3),
-            "target_id": tussle_name_id_match.group(4),
-            "cc_cost": 2,
-        }
-    
-    # Try name-based format (names start with uppercase)
+    # Try name-based format FIRST (names start with uppercase)
     # This ensures "tussle Knight->Beary" is parsed as names, not IDs
     tussle_name_match = re.match(
         rf'tussle\s+{card_name_pattern}\s*->\s*{card_name_pattern}',
@@ -519,23 +500,10 @@ def _parse_action_string(action_str: str) -> dict | None:
     
     # -------------------------------------------------------------------------
     # DIRECT ATTACK - matches:
-    #   "direct_attack NAME [UUID]" (name with ID in brackets - NEW)
     #   "direct_attack ar1" (ID-based)
     #   "direct_attack Archer" (name-based, legacy)
     # -------------------------------------------------------------------------
-    # Try name+ID format first (most complete)
-    da_name_id_match = re.match(rf'direct_attack\s+{card_name_pattern}\s*\[({full_uuid_pat})\]', action_str)
-    if da_name_id_match:
-        return {
-            "action_type": "direct_attack",
-            "card_name": da_name_id_match.group(1),
-            "card_id": da_name_id_match.group(2),
-            "target_name": None,
-            "target_id": None,
-            "cc_cost": 2,
-        }
-    
-    # Try name-based (starts with uppercase)
+    # Try name-based first (starts with uppercase)
     da_name_match = re.match(rf'direct_attack\s+{card_name_pattern}', action_str)
     if da_name_match:
         return {
@@ -572,26 +540,10 @@ def _parse_action_string(action_str: str) -> dict | None:
     
     # -------------------------------------------------------------------------
     # ACTIVATE ABILITY - matches:
-    #   "activate NAME [UUID]->NAME [UUID]" (name with ID in brackets - NEW)
     #   "activate ar1->w1" (ID-based)
     #   "activate Archer->Wizard" (name-based, legacy)
     # -------------------------------------------------------------------------
-    # Try name+ID format first (most complete)
-    activate_name_id_match = re.match(
-        rf'activate\s+{card_name_pattern}\s*\[({full_uuid_pat})\]\s*->\s*{card_name_pattern}\s*\[({full_uuid_pat})\]',
-        action_str
-    )
-    if activate_name_id_match:
-        return {
-            "action_type": "activate_ability",
-            "card_name": activate_name_id_match.group(1),
-            "card_id": activate_name_id_match.group(2),
-            "target_name": activate_name_id_match.group(3),
-            "target_id": activate_name_id_match.group(4),
-            "cc_cost": 1,
-        }
-    
-    # Try name-based format - names start with uppercase
+    # Try name-based format first - names start with uppercase
     activate_name_match = re.match(
         rf'activate\s+{card_name_pattern}\s*->\s*{card_name_pattern}',
         action_str
