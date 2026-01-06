@@ -157,7 +157,10 @@ def generate_sequence_prompt(
     if potential_cc > cc_available:
         cc_header += f" (Max potential: {potential_cc} via {', '.join(modifiers)})"
 
-    prompt = f"""Generate LEGAL action sequences for a card game turn.
+    prompt = f"""You are an expert GGLTCG player planning your turn.
+Your goal: Sleep all 6 opponent cards to win.
+
+Generate LEGAL action sequences that maximize your progress toward this goal.
 
 {cc_header}
 
@@ -169,29 +172,45 @@ def generate_sequence_prompt(
 - Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
 - If you have 4+ CC remaining, look for more plays!
 
-## RESOURCE PRIORITY (play these FIRST if available)
-- Surge (0 CC, +1 CC): Always play at start of sequences
-- Rush (0 CC, +2 CC): Always play at start of sequences
-- Hind Leg Kicker (1 CC): Gains CC for each subsequent play - use first
+## RESOURCE PRIORITY
+IF you have cards that **give +CC when played**, play them FIRST to maximize available CC!
+Look for card descriptions like "(+1 CC when played)" or "(+2 CC when played)" in YOUR HAND below.
 
 ## RULES
 1. direct_attack: {direct_msg}
-2. STR > 0 required for tussle/direct_attack (Archer STR=0 CANNOT attack)
-3. Wake needs your sleep zone target ({len(player.sleep_zone)} cards)
-4. Drop needs opponent toy target ({len(opp_in_play)} toys)
-5. Knight auto-wins tussles on your turn
-6. Toys can tussle the SAME TURN they are played (unless it's Turn 1)!
-7. Wake returns card to HAND - you must pay its cost to play it again
+2. STR > 0 required for tussle/direct_attack (STR=0 toys CANNOT attack)
+3. Action cards with "[REQUIRES: ...]" cannot be played without valid targets
+4. Cards can tussle the SAME TURN they are played!
+5. Wake-type effects return cards to HAND - you must pay their cost to play them again
 
 ## STATE CHANGES (CRITICAL!)
 - Tussle that sleeps opponent's LAST toy → direct_attack becomes legal!
-- Wake [target: Knight in sleep] → Knight moves to hand → play Knight [1 CC] → Knight can tussle!
+- Wake moves card to HAND (must pay cost to play it again) → then it can tussle immediately!
+- Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
+
+## CC MATH (CRITICAL!)
+- Cards with (+X CC when played): ADD the bonus AFTER subtracting the cost
+- Example: Start 4 CC → play card [cost 0, +1 CC] → 4 - 0 + 1 = 5 CC
+- Example: Start 5 CC → play toy [cost 1] → 5 - 1 = 4 CC → tussle [cost 2] → 4 - 2 = 2 CC
+- Action costs: tussle=2, direct_attack=2, activate=1
+- **CRITICAL: Include CC bonuses in your "CC: X/Y spent" calculation!**
+
+## RESOURCE EFFICIENCY (CRITICAL!)
+**Good players end turns with ≤1 CC remaining. Prioritize sequences that spend ALL available CC!**
+- 0 CC left = Excellent (maximal usage)
+- 0.3-0.4 CC left = Good (minor waste)
+- 2+ CC left = Poor (major waste)
+
+## TACTICAL LABELS
+**"Sleeps: Z"** = opponent toys YOU put to sleep through tussles (not cards you play!)
+- Each tussle sleeps 1 opponent toy
+- direct_attack doesn't sleep toys (hits player)
+- **Playing toys from hand doesn't sleep opponent cards!**
 
 ## EXAMPLES
-Example 1 (Resource First): play Surge [+1] → play Knight [1] → tussle Knight→Wizard [2] → direct_attack Knight [2] → end_turn | CC: 5/5 spent
-Example 2 (Wake Chain): play Wake [1] target Knight → play Knight [1] → tussle Knight→Beary [2] → end_turn | CC: 4/4 spent
-Example 3 (Board Use): tussle Knight→Umbruh [2] → direct_attack Knight [2] → end_turn | CC: 4/4 spent (Knight already in play)
-- Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
+Example 1 (with CC-gain card): Start 4 CC → play card [cost 0, +1 CC] → 5 CC → play toy [cost 1] → 4 CC → tussle [cost 2] → 2 CC → direct_attack [cost 2] → 0 CC | CC: 5/5 spent | Sleeps: 1
+Example 2 (no attacks): Start 4 CC → play toy [cost 1] → 3 CC → play toy [cost 1] → 2 CC → end_turn | CC: 2/4 spent | Sleeps: 0
+  (No tussles = no sleeps! Just played 2 toys.)
 
 ## YOUR HAND (cards you can play)
 {hand_text}
@@ -212,14 +231,14 @@ Example 3 (Board Use): tussle Knight→Umbruh [2] → direct_attack Knight [2] �
 Use card IDs from listings. Format: play NAME [ID], tussle ID->ID, direct_attack ID, activate ID->ID
 
 ## TASK
-Generate 5-10 LEGAL sequences:
-1. Aggressive (maximize attacks, use ALL CC)
-2. Board-building (play toys without attacking)
-3. Conservative (minimal CC)
-4. If tussle clears opponent's board AND CC remains → INCLUDE direct_attack!
-5. Prioritize Surge/Rush at START of aggressive sequences!
+Generate 5-10 LEGAL sequences that **spend ALL {player.cc} CC** (aim for 0 CC left):
+1. Aggressive (maximize attacks)
+2. Board-building (play multiple toys)
+3. Balanced (mix playing + attacking)
+4. If tussle clears board → add direct_attack!
+5. Play CC-gain cards FIRST if available (look for "+X CC" in card descriptions)!
 
-Important: Verify your math! Each sequence must not exceed available CC."""
+Verify math! Each sequence must not exceed available CC."""
 
     return prompt
 
@@ -229,14 +248,16 @@ def get_sequence_generator_temperature() -> float:
     return 0.2
 
 
-def parse_sequences_response(response_text: str) -> list[dict]:
+def parse_sequences_response(response_text: str, game_state=None) -> list[dict]:
     """
     Parse the JSON response from sequence generator.
     
     Converts string sequences to structured format for Request 2.
+    Enriches UUID-only actions with card names for logging and validation.
     
     Args:
         response_text: Raw JSON string from LLM
+        game_state: Optional GameState for enriching UUID-only actions with names
         
     Returns:
         List of sequence dictionaries with parsed info
@@ -302,6 +323,23 @@ def parse_sequences_response(response_text: str) -> list[dict]:
             if not actions:
                 logger.warning(f"Sequence {i} has no valid actions: {seq_str[:80]}...")
                 continue
+            
+            # Enrich UUID-only actions with card names for logging and validation
+            if game_state:
+                for action in actions:
+                    # Enrich card_id with card_name if missing
+                    if action.get("card_id") and not action.get("card_name"):
+                        card = game_state.find_card_by_id(action["card_id"])
+                        if card:
+                            action["card_name"] = card.name
+                            logger.debug(f"Enriched {action['action_type']} with card_name: {card.name}")
+                    
+                    # Enrich target_id with target_name if missing
+                    if action.get("target_id") and not action.get("target_name"):
+                        target = game_state.find_card_by_id(action["target_id"])
+                        if target:
+                            action["target_name"] = target.name
+                            logger.debug(f"Enriched target with target_name: {target.name}")
             
             # Determine tactical label
             attack_count = sum(1 for a in actions if a.get("action_type") in ["tussle", "direct_attack"])
