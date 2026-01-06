@@ -5,6 +5,16 @@ description: "Universal project standards and quick reference for GGLTCG"
 
 # GGLTCG Project Standards
 
+## Start Here
+
+**⚠️ CRITICAL**: Before writing code, read these files:
+
+1. **`CONTEXT.md`** (root) - Project context and "Check Facts First" checklist
+2. **`COPILOT.md`** - Architectural decisions
+3. **`backend/BACKEND_GUIDE.md`** or **`frontend/FRONTEND_GUIDE.md`** - Subsystem-specific patterns
+
+These files contain verified facts and prevent common mistakes (like fabricating game mechanics or creating invalid test states).
+
 ## Quick Reference
 
 **Starting a game**:
@@ -15,22 +25,22 @@ description: "Universal project standards and quick reference for GGLTCG"
 
 **Running tests**:
 ```bash
-pytest backend/tests/
+cd backend && pytest tests/
 ```
 
 **Making changes**:
 1. Create feature branch
-2. Make changes following guidelines
+2. Make changes following AGENTS.md patterns
 3. Test manually + run pytest
-4. Create PR using regisca-bot if automated
+4. Create PR (use regisca-bot for automated changes)
 5. Review and merge to main
 
-## Core Principles (All Code)
+## Core Principles
 
 1. **IDs not names** - Always use unique card IDs for lookups
 2. **Methods not direct assignment** - Use proper methods to modify state
-3. **GameEngine for logic, GameState for data** - Keep separation clean
-4. **Data-driven effects when possible** - Use CSV definitions
+3. **GameEngine for logic, GameState for data** - Clear separation
+4. **Data-driven effects** - Use CSV definitions in `backend/data/cards.csv`
 5. **Test before deploying** - All tests pass before merge
 
 ## Git Workflow
@@ -73,33 +83,31 @@ See `bot-workflow.instructions.md` for using regisca-bot for automated PRs.
 - [ ] No console errors in browser
 - [ ] API documentation updated
 
-## Documentation Resources
+## Documentation Structure
 
-### Internal Docs
+### Hierarchical Context
 
-- `docs/rules/GGLTCG Rules v1_1.md` - Game rules
-- `docs/development/ARCHITECTURE.md` - System architecture
-- `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md` - Effect system design
+| File | Purpose | When to Read |
+|------|---------|--------------|
+| `CONTEXT.md` | Root context, "Check Facts First" | Always |
+| `COPILOT.md` | Architectural decisions | Architecture questions |
+| `backend/BACKEND_GUIDE.md` | Backend patterns, testing | Backend work |
+| `frontend/FRONTEND_GUIDE.md` | Design system, React patterns | Frontend work |
 
-### External Resources
+### Authoritative Sources
 
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [React Query Documentation](https://tanstack.com/query/latest)
-- [Pytest Documentation](https://docs.pytest.org/)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+| File | Content |
+|------|---------|
+| `docs/rules/QUICK_REFERENCE.md` | Game rules (67 lines) |
+| `docs/rules/GGLTCG Rules v1_1.md` | Detailed rules |
+| `backend/data/cards.csv` | Card definitions |
 
-## Instruction File Index
+### Universal Instruction Files
 
-Domain-specific instructions are in separate files with proper `applyTo` targeting:
+These apply to all code and remain as instruction files:
 
-| File | Domain | Applies To |
-|------|--------|------------|
-| `architecture.instructions.md` | Game engine architecture | `backend/**/*.py` |
-| `backend-python.instructions.md` | Python code style | `backend/**/*.py` |
-| `frontend-react.instructions.md` | React/TypeScript | `frontend/**/*.{ts,tsx}` |
-| `frontend-css.instructions.md` | CSS design tokens | `frontend/**/*.css` |
-| `testing.instructions.md` | Test patterns | `backend/tests/**/*.py` |
-| `security-and-owasp.instructions.md` | Security | `*` |
-| `bot-workflow.instructions.md` | Git/PR workflow | `*` |
-| `markdown.instructions.md` | Markdown style | `**/*.md` |
-| `snyk_rules.instructions.md` | Security scanning | `**` |
+| File | Domain |
+|------|--------|
+| `security-and-owasp.instructions.md` | Security patterns |
+| `bot-workflow.instructions.md` | Git/PR workflow |
+| `markdown.instructions.md` | Markdown style |

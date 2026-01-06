@@ -100,9 +100,10 @@ pytest tests/test_*.py  # Specific file
 - DO NOT suggest hardcoding keys
 
 **Database**:
-- Local: `backend/ggltcg.db` (SQLite, gitignored)
-- Production: Render PostgreSQL
-- Check connection in `backend/.env`
+
+- Local: `backend/ggltcg.db` (SQLite, gitignored) - Used only for AI simulations
+- Production: Render PostgreSQL - Game persistence and player accounts
+- Connection settings in `backend/.env`
 
 ---
 
@@ -261,30 +262,32 @@ See `COPILOT.md` for detailed decisions and rationale. Key principles:
 
 - `docs/development/ARCHITECTURE.md` - System architecture overview
 - `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md` - Effect system details
-- `docs/development/ai/AI_V4_REMEDIATION_PLAN.md` - AI development roadmap
+- `docs/plans/AI_V4_REMEDIATION_PLAN.md` - AI development roadmap
 
 ### Instructions (Domain-Specific)
 
-- `AGENTS.md` (this file) - Root context for all work
-- `backend/AGENTS.md` - Backend-specific context (TODO: Phase 3)
-- `frontend/AGENTS.md` - Frontend-specific context (TODO: Phase 3)
-- `.github/instructions/*.instructions.md` - Coding standards and patterns
+- `CONTEXT.md` (this file) - Root context for all work
+- `backend/BACKEND_GUIDE.md` - Backend-specific patterns
+- `frontend/FRONTEND_GUIDE.md` - Frontend-specific patterns
+- `.github/instructions/*.instructions.md` - Universal standards (security, markdown, git workflow)
 
 ---
 
 ## Subsystem Context
 
-**Backend**: See `backend/AGENTS.md` (TODO: Phase 3 of migration)
-- Game engine architecture
-- Effect system patterns
-- Testing conventions
-- AI integration
+**Backend**: See `backend/BACKEND_GUIDE.md`
 
-**Frontend**: See `frontend/AGENTS.md` (TODO: Phase 3 of migration)
-- React/TypeScript patterns
-- Design system and CSS tokens
-- API integration with TanStack Query
-- Component structure
+- Game engine architecture, effect system patterns
+- Testing conventions with conftest.py fixtures
+- AI V4 dual-request system
+- Python code style and patterns
+
+**Frontend**: See `frontend/FRONTEND_GUIDE.md`
+
+- Design system (spacing tokens, typography)
+- React/TypeScript patterns and API contracts
+- Card factory utilities
+- Layout and component structure
 
 ---
 
