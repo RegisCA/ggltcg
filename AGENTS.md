@@ -44,6 +44,7 @@ setup, cards = create_game_with_cards(
 
 Two GitHub accounts: `regisca-bot` for automated PRs, `RegisCA` for manual work.
 Check `gh auth status` before commits. See `bot-workflow.instructions.md` for PR workflow.
+Access to GitHub MCP tools is enabled.
 
 ## Subsystem Guides
 
