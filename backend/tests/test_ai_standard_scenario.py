@@ -30,7 +30,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from conftest import create_game_with_cards
-from game_engine.ai.quality_metrics import TurnMetrics, clear_session_metrics, get_session_summary
+from game_engine.ai.quality_metrics import TurnMetrics, clear_session_metrics
 
 
 # Skip all tests if no valid API key
@@ -151,15 +151,6 @@ class TestStandardScenario:
             f"Turn 1 should sleep ≥1 card with Surge+Knight (actual: {metrics.cards_slept}). "
             "Check if direct_attack is being executed."
         )
-        
-        # Log final result
-        if metrics.is_optimal and metrics.cards_slept >= 1:
-            print("\n✅ TURN 1 TEST PASSED: Optimal efficiency and damage")
-        elif metrics.cc_wasted <= 1 and metrics.cards_slept >= 1:
-            print("\n✅ TURN 1 TEST PASSED: Acceptable performance")
-        else:
-            print("\n⚠️  TURN 1 TEST PASSED: But performance below target")
-            print("    This may indicate prompt issues (see Phase 3+)")
     
     def test_turn2_aggressive_play(self, turn_planner):
         """
@@ -211,15 +202,6 @@ class TestStandardScenario:
             f"Turn 2 should sleep ≥1 card (actual: {metrics.cards_slept}). "
             "Check if AI is being aggressive with tussle/attacks."
         )
-        
-        # Log final result
-        if metrics.is_optimal and metrics.cards_slept >= 1:
-            print("\n✅ TURN 2 TEST PASSED: Optimal efficiency and damage")
-        elif metrics.cc_wasted <= 1 and metrics.cards_slept >= 1:
-            print("\n✅ TURN 2 TEST PASSED: Acceptable performance")
-        else:
-            print("\n⚠️  TURN 2 TEST PASSED: But performance below target")
-            print("    This may indicate prompt issues (see Phase 3+)")
     
     def test_full_scenario_turn1_and_turn2(self, turn_planner):
         """
@@ -320,11 +302,3 @@ class TestStandardScenario:
             f"Full scenario should sleep ≥2 cards total (actual: {total_sleeps}). "
             f"Turn 1: {metrics1.cards_slept} sleeps, Turn 2: {metrics2.cards_slept} sleeps"
         )
-        
-        # Log final result
-        if total_cc_wasted <= 2 and total_sleeps >= 2:
-            print("\n✅ FULL SCENARIO TEST PASSED")
-            print("   AI V4 meets Phase 2 quality gates")
-        else:
-            print("\n⚠️  FULL SCENARIO TEST: Below Target")
-            print("   AI performance needs prompt tuning (see Phase 3+)")
