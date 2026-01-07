@@ -5,7 +5,7 @@ description: "Core architecture principles for GGLTCG game engine and backend"
 
 # GGLTCG Architecture Principles
 
-**Full details**: See `backend/BACKEND_GUIDE.md` for comprehensive backend patterns.
+**Full details**: See `backend/AGENTS.md` for comprehensive backend patterns.
 
 ## Critical Rules (Quick Reference)
 

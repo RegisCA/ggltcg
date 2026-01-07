@@ -5,7 +5,7 @@ description: "Testing standards and patterns for GGLTCG backend tests"
 
 # GGLTCG Testing Instructions
 
-**Full details**: See `backend/BACKEND_GUIDE.md` for comprehensive testing patterns.
+**Full details**: See `backend/AGENTS.md` for comprehensive testing patterns.
 
 ## ⚠️ Critical: Turn Number Validation
 
