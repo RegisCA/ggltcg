@@ -1154,7 +1154,7 @@ const AdminDataViewer: React.FC = () => {
                               };
                               
                               return turns.map(turn => {
-                                const data = turnMap.get(turn)!;
+                                const data = turnMap.get(turn) || { p1: undefined, p2: undefined };
                                 const turnActions = actionsByTurn.get(turn) || [];
                                 const isP1Turn = turn % 2 === 1;
                                 
