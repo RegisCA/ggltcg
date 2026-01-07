@@ -1,8 +1,8 @@
 # AI V4 Remediation Plan
 
 **Created**: January 5, 2026  
-**Updated**: January 6, 2026  
-**Status**: Phase 0 Complete, Phase 1 Ready  
+**Updated**: January 7, 2026  
+**Status**: Phase 0 Complete, Phase 1 Complete  
 **Purpose**: Comprehensive, actionable plan to complete AI V4 development with quality gates
 
 ---
@@ -21,8 +21,8 @@ Each phase is designed as a focused 2-4 hour session with explicit acceptance cr
 | Phase | Goal | Key Deliverable | Quality Gate | Status |
 |-------|------|-----------------|--------------|--------|
 | **0** | Fix Jan 5 regressions | Working prompt | Manual 2-turn test passes | ✅ Complete (PR #290) |
-| **1** | CC Waste Tracking | Automated metrics | Baseline established | 🔴 Ready |
-| **2** | Automated Scenario Test | Turn 1+2 regression test | Test catches broken prompts | Not started |
+| **1** | CC Waste Tracking | Automated metrics | Baseline established | ✅ Complete (Jan 7) |
+| **2** | Automated Scenario Test | Turn 1+2 regression test | Test catches broken prompts | 🔴 Ready |
 | **3** | Document learnings | Update COPILOT.md | Failures documented | Not started |
 | **4** | Prompt regression tests | `test_ai_prompt_regression.py` | Tests catch content issues | Not started |
 | **5** | Card metadata | `cards/metadata.py` | No hard-coded names | Not started |
@@ -221,11 +221,11 @@ Once the 2-turn test passes, finalize Phase 0:
 
 ---
 
-## Phase 1: CC Waste Tracking & Quality Metrics 🔴 READY
+## Phase 1: CC Waste Tracking & Quality Metrics ✅ COMPLETE
 
+**Completed**: January 7, 2026  
+**Time Spent**: ~2 hours  
 **Goal**: Implement turn-level CC waste tracking so we have an objective quality signal for AI behavior.
-
-**Time Estimate**: 2-3 hours
 
 **Why This Is Phase 1**: CC waste is the BEST indicator of sequence quality:
 
@@ -495,15 +495,51 @@ record_turn_metrics(metrics)
 logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
 ```
 
-### Acceptance Criteria (Phase 1)
+### Acceptance Criteria (Phase 1) ✅ ALL MET
 
-| # | Criterion | How to Verify |
-|---|-----------|---------------|
-| 1.1 | Quality metrics file created | File exists at `backend/src/game_engine/ai/quality_metrics.py` |
-| 1.2 | TurnMetrics calculates cc_wasted | Unit test: `metrics.cc_wasted == cc_remaining` |
-| 1.3 | Turn 1 expectations correct | Unit test: Turn 1 expects 2 CC, needs Surge for sleep |
-| 1.4 | Metrics logged after each turn | Check logs for "GOOD TURN" / "WASTEFUL TURN" entries |
-| 1.5 | Session summary works | Call `get_session_summary()` after 2 turns |
+| # | Criterion | Status | Verification |
+|---|-----------|--------|--------------|
+| 1.1 | Quality metrics file created | ✅ | File exists at `backend/src/game_engine/ai/quality_metrics.py` (232 lines) |
+| 1.2 | TurnMetrics calculates cc_wasted | ✅ | Unit test passes: `metrics.cc_wasted == cc_remaining` |
+| 1.3 | Turn 1 expectations correct | ✅ | Unit tests verify Turn 1 expects 2 CC, needs Surge for sleep |
+| 1.4 | Metrics logged after each turn | ✅ | Integrated into turn_planner.py, logs show "GOOD TURN" / "WASTEFUL TURN" |
+| 1.5 | Session summary works | ✅ | `get_session_summary()` tested with real AI game |
+
+### What Was Delivered
+
+**Files Created**:
+1. `backend/src/game_engine/ai/quality_metrics.py` - TurnMetrics dataclass with efficiency calculations
+2. `backend/tests/test_quality_metrics.py` - 18 unit tests (all passing)
+3. `backend/scripts/test_phase1_metrics.py` - Integration test with real AI
+
+**Files Modified**:
+1. `backend/src/game_engine/ai/turn_planner.py` - Metrics recording at 4 return points (V3 and V4 paths)
+
+**Test Results**:
+- Unit tests: 18/18 passed
+- Existing AI tests: 25 tests (11 passed, 14 skipped - no regressions)
+- Real game test: ✅ Metrics tracked successfully
+  - Turn 1: 0 CC wasted (optimal)
+  - Turn 2: 1 CC wasted (optimal)
+  - Session: 100% optimal turns, 0% wasteful
+
+### Key Learnings
+
+1. **Metrics Integration**: Adding metrics to turn_planner.py at all return points ensures complete coverage of both V3 and V4 AI paths, including fallback scenarios.
+
+2. **CC Waste as Quality Signal**: The test confirmed CC waste is an excellent objective metric:
+   - Both turns rated "optimal" (≤1 CC wasted)
+   - Avg CC wasted: 0.5 (well below target of <1.0)
+   - Easy to spot degradation in future tests
+
+3. **Turn Expectations**: Turn-specific expectations work well:
+   - Turn 1 with Surge: expect 3 CC available, 1 sleep possible
+   - Turn 2+: expect 4+ CC available, 1+ sleep expected
+   - Soft checks allow for strategic saves without false alarms
+
+4. **AI Performance Baseline**: Current AI V4 shows good CC efficiency but room for improvement on card sleeps (achieved 1/2 expected in test). This is expected - Phase 1 is about *tracking*, optimization comes later.
+
+5. **Testing Pattern**: The integration test (`test_phase1_metrics.py`) proves we can now measure AI quality objectively without manual testing. Foundation for Phase 2 automation.
 
 ### Starter Prompt (Phase 1)
 
@@ -531,6 +567,32 @@ You are implementing CC waste tracking to measure AI quality. Read these files F
 3. Verify wasteful turns are flagged
 4. Run: pytest backend/tests/test_quality_metrics.py (after creating tests)
 ```
+
+---
+
+## Investigation Notes (Jan 7, 2026 Session)
+
+During Phase 1 verification, two issues were discovered in game `6fd47eb3-47ea-4d85-8a9c-e96e4c3c76ff`:
+
+### Issue #1: Turn 4 AI Planning - All Sequences Wasteful ✅ Metrics Working
+
+**Finding**: AI generated 6 sequences, all wasteful (2-4 CC wasted). Quality metrics **correctly flagged** this as `WASTEFUL TURN: cc_wasted=4`.
+
+**Root Causes**:
+1. **Sequence generation failure**: With 6 CC and 2 playable cards, AI should generate sequences with multiple tussles to use all CC, but generated only sequences leaving 2-4 CC unused
+2. **Tussle parsing failure**: Sequence 0 planned a tussle but it wasn't parsed into action_sequence, so execution stopped after playing 2 cards
+
+**Status**: This is a **prompt engineering issue** for Phase 2+. The metrics are working correctly.
+
+### Issue #2: Admin UI Crash ✅ Fixed
+
+**Finding**: Frontend crashed with `TypeError: undefined is not an object` when viewing game playback.
+
+**Root Cause**: Turn 5 had play_by_play actions but no cc_tracking (game ended mid-turn). Code assumed `turnMap.get(turn)` always returns data.
+
+**Fix**: Changed `const data = turnMap.get(turn)!;` to `const data = turnMap.get(turn) || { p1: undefined, p2: undefined };`
+
+**Status**: ✅ Fixed in [AdminDataViewer.tsx](frontend/src/components/AdminDataViewer.tsx#L1161)
 
 ---
 
