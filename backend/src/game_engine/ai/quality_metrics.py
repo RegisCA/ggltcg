@@ -10,9 +10,10 @@ Usage:
         logger.warning(f"Wasteful turn: {metrics.cc_wasted} CC wasted")
 """
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import List, Tuple
 from datetime import datetime
 import logging
+import threading
 
 logger = logging.getLogger("game_engine.ai.quality_metrics")
 
@@ -102,7 +103,7 @@ class TurnMetrics:
         else:
             return 1  # At minimum should sleep 1 card on T2+
     
-    def meets_expectations(self) -> tuple[bool, str]:
+    def meets_expectations(self) -> Tuple[bool, str]:
         """
         Check if turn meets minimum quality expectations.
         
@@ -143,6 +144,7 @@ class TurnMetrics:
                 elif action.card_name == "Rush":
                     cc_gained += 2
                 # Check if it's a toy (simplified - would need card lookup for accuracy)
+                # TODO(Phase 5): Replace with ID-based card lookups using card_type metadata
                 if action.card_name not in ["Surge", "Rush", "Wake", "Drop", "Clean", "Twist", "Sun", "Copy", "Toynado"]:
                     toys_played += 1
         
@@ -179,12 +181,15 @@ class TurnMetrics:
 
 
 # Global metrics storage for session analysis
+# NOTE: For single-threaded testing/development only. Not thread-safe for parallel simulations.
 _session_metrics: List[TurnMetrics] = []
+_metrics_lock = threading.Lock()
 
 
 def record_turn_metrics(metrics: TurnMetrics):
-    """Record metrics for later analysis."""
-    _session_metrics.append(metrics)
+    """Record metrics for later analysis. Thread-safe for concurrent access."""
+    with _metrics_lock:
+        _session_metrics.append(metrics)
     
     # Log immediately
     log_data = metrics.to_log_dict()
@@ -197,35 +202,38 @@ def record_turn_metrics(metrics: TurnMetrics):
 
 
 def get_session_metrics() -> List[TurnMetrics]:
-    """Get all metrics from current session."""
-    return _session_metrics.copy()
+    """Get all metrics from current session. Thread-safe."""
+    with _metrics_lock:
+        return _session_metrics.copy()
 
 
 def get_session_summary() -> dict:
-    """Get summary statistics for the session."""
-    if not _session_metrics:
-        return {"turns": 0, "message": "No turns recorded"}
-    
-    total = len(_session_metrics)
-    optimal = sum(1 for m in _session_metrics if m.is_optimal)
-    wasteful = sum(1 for m in _session_metrics if m.is_wasteful)
-    avg_waste = sum(m.cc_wasted for m in _session_metrics) / total
-    avg_sleeps = sum(m.cards_slept for m in _session_metrics) / total
-    
-    return {
-        "turns": total,
-        "optimal_turns": optimal,
-        "optimal_pct": round(optimal / total * 100, 1),
-        "wasteful_turns": wasteful,
-        "wasteful_pct": round(wasteful / total * 100, 1),
-        "avg_cc_wasted": round(avg_waste, 2),
-        "avg_cards_slept": round(avg_sleeps, 2),
-        "target_avg_waste": "< 1.0",
-        "target_optimal_pct": "> 65%",
-    }
+    """Get summary statistics for the session. Thread-safe."""
+    with _metrics_lock:
+        if not _session_metrics:
+            return {"turns": 0, "message": "No turns recorded"}
+        
+        total = len(_session_metrics)
+        optimal = sum(1 for m in _session_metrics if m.is_optimal)
+        wasteful = sum(1 for m in _session_metrics if m.is_wasteful)
+        avg_waste = sum(m.cc_wasted for m in _session_metrics) / total
+        avg_sleeps = sum(m.cards_slept for m in _session_metrics) / total
+        
+        return {
+            "turns": total,
+            "optimal_turns": optimal,
+            "optimal_pct": round(optimal / total * 100, 1),
+            "wasteful_turns": wasteful,
+            "wasteful_pct": round(wasteful / total * 100, 1),
+            "avg_cc_wasted": round(avg_waste, 2),
+            "avg_cards_slept": round(avg_sleeps, 2),
+            "target_avg_waste": "< 1.0",
+            "target_optimal_pct": "> 65%",
+        }
 
 
 def clear_session_metrics():
-    """Clear metrics for new session."""
+    """Clear metrics for new session. Thread-safe."""
     global _session_metrics
-    _session_metrics = []
+    with _metrics_lock:
+        _session_metrics = []

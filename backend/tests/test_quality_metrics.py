@@ -4,7 +4,6 @@ Unit tests for quality_metrics.py
 Tests the TurnMetrics class and its quality assessment logic.
 """
 import pytest
-from datetime import datetime
 from game_engine.ai.quality_metrics import (
     TurnMetrics,
     record_turn_metrics,
