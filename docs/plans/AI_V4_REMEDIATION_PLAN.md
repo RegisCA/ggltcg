@@ -570,6 +570,32 @@ You are implementing CC waste tracking to measure AI quality. Read these files F
 
 ---
 
+## Investigation Notes (Jan 7, 2026 Session)
+
+During Phase 1 verification, two issues were discovered in game `6fd47eb3-47ea-4d85-8a9c-e96e4c3c76ff`:
+
+### Issue #1: Turn 4 AI Planning - All Sequences Wasteful ✅ Metrics Working
+
+**Finding**: AI generated 6 sequences, all wasteful (2-4 CC wasted). Quality metrics **correctly flagged** this as `WASTEFUL TURN: cc_wasted=4`.
+
+**Root Causes**:
+1. **Sequence generation failure**: With 6 CC and 2 playable cards, AI should generate sequences with multiple tussles to use all CC, but generated only sequences leaving 2-4 CC unused
+2. **Tussle parsing failure**: Sequence 0 planned a tussle but it wasn't parsed into action_sequence, so execution stopped after playing 2 cards
+
+**Status**: This is a **prompt engineering issue** for Phase 2+. The metrics are working correctly.
+
+### Issue #2: Admin UI Crash ✅ Fixed
+
+**Finding**: Frontend crashed with `TypeError: undefined is not an object` when viewing game playback.
+
+**Root Cause**: Turn 5 had play_by_play actions but no cc_tracking (game ended mid-turn). Code assumed `turnMap.get(turn)` always returns data.
+
+**Fix**: Changed `const data = turnMap.get(turn)!;` to `const data = turnMap.get(turn) || { p1: undefined, p2: undefined };`
+
+**Status**: ✅ Fixed in [AdminDataViewer.tsx](frontend/src/components/AdminDataViewer.tsx#L1161)
+
+---
+
 ## Phase 2: Automated Scenario Test (Your Repeatable Test)
 
 **Goal**: Automate the EXACT test you keep running manually - Turn 1 (P1) + Turn 2 (P2) with a specific deck.
