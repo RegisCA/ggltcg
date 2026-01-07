@@ -1,8 +1,8 @@
 # Backend Guide
 
 **Purpose**: Backend-specific context for GitHub Copilot agents  
-**Parent**: See root `CONTEXT.md` for project-wide context  
-**Last Updated**: January 6, 2026
+**Parent**: See root `AGENTS.md` for project-wide context  
+**Last Updated**: January 7, 2026
 
 ---
 

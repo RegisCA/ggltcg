@@ -55,7 +55,7 @@ docs/
 These files provide context for AI agents:
 
 - **[AGENTS.md](../AGENTS.md)** - "Check Facts First" verification checklist
-- **[COPILOT.md](../COPILOT.md)** - Architectural decisions and failure learnings
+- **[AGENTS.md](../AGENTS.md)** - Root project context and architecture
 - **[.github/instructions/](../.github/instructions/)** - Domain-specific coding standards
 
 ---
