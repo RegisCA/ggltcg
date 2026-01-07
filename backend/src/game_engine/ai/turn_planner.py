@@ -32,6 +32,7 @@ from .prompts.planning_prompt_v3 import (
     format_in_play_for_planning_v3,
 )
 from .validators import TurnPlanValidator
+from .quality_metrics import TurnMetrics, record_turn_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +232,12 @@ class TurnPlanner:
                         if attempt == max_retries - 1:
                             logger.error("Max retries reached. Returning plan despite validation errors.")
                             self._log_plan_summary(plan)
+                            
+                            # Record quality metrics (even for failed validation)
+                            metrics = TurnMetrics.from_plan(plan, game_state, player_id)
+                            record_turn_metrics(metrics)
+                            logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
+                            
                             return plan
                         
                         # Retry with feedback
@@ -239,6 +246,12 @@ class TurnPlanner:
                 # Plan passed validation
                 logger.debug("✅ Plan passed validation")
                 self._log_plan_summary(plan)
+                
+                # Record quality metrics
+                metrics = TurnMetrics.from_plan(plan, game_state, player_id)
+                record_turn_metrics(metrics)
+                logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
+                
                 return plan
                 
             except json.JSONDecodeError as e:
@@ -513,6 +526,12 @@ class TurnPlanner:
                 TurnPlanner._v4_metrics["v4_success"] += 1
                 
                 self._log_plan_summary(plan)
+                
+                # Record quality metrics
+                metrics = TurnMetrics.from_plan(plan, game_state, player_id)
+                record_turn_metrics(metrics)
+                logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
+                
                 return plan
                 
         except Exception as e:
@@ -526,6 +545,12 @@ class TurnPlanner:
                 plan = self._parse_plan(plan_data)
                 self._last_plan = plan
                 TurnPlanner._v4_metrics["v4_success"] += 1  # Still V4 success, just with fallback selection
+                
+                # Record quality metrics
+                metrics = TurnMetrics.from_plan(plan, game_state, player_id)
+                record_turn_metrics(metrics)
+                logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
+                
                 return plan
         
         return None
