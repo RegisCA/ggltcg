@@ -497,7 +497,7 @@ const AdminDataViewer: React.FC = () => {
         player1_model: player1Model,
         player2_model: player2Model,
         iterations_per_matchup: iterationsPerMatchup,
-        max_turns: 40,
+        max_turns: 20,
       });
       
       const runId = response.data.run_id;
