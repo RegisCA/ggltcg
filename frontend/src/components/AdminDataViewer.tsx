@@ -65,8 +65,8 @@ interface AILog {
     v4_request1_response?: string | null;
     v4_request2_prompt?: string | null;
     v4_request2_response?: string | null;
-    v4_metrics?: any;
-    v4_turn_debug?: any;
+    v4_metrics?: unknown;
+    v4_turn_debug?: unknown;
     // Execution tracking (new)
     execution_log?: Array<{
       action_index: number;
@@ -388,7 +388,7 @@ const AdminDataViewer: React.FC = () => {
     model_name: string;
     prompts_version: string;
     ai_version: number;
-    turn_plan: AILog['turn_plan'];
+    turn_plan: NonNullable<AILog['turn_plan']>;
     created_at: string;
     logs: AILog[];
     has_fallback: boolean;
@@ -527,7 +527,7 @@ const AdminDataViewer: React.FC = () => {
 
   const buildTurnCopyBundle = (turnGroup: TurnGroup): string => {
     const lines: string[] = [];
-    const tp = turnGroup.turn_plan as any;
+    const tp = turnGroup.turn_plan;
 
     let wrotePromptBlock = false;
     const pushPromptBlock = (title: string, body: string) => {
@@ -664,7 +664,7 @@ const AdminDataViewer: React.FC = () => {
     return entries.map(([k, v]) => `${k}: ${v}`).join(' · ');
   };
 
-  const safeJsonString = (value: any): string => {
+  const safeJsonString = (value: unknown): string => {
     try {
       return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
     } catch {
@@ -1049,10 +1049,12 @@ const AdminDataViewer: React.FC = () => {
                 const totalActions = turnGroup.turn_plan?.total_actions || completedActions;
                 const planCompleted = completedActions === totalActions && !turnGroup.has_fallback;
                 const turnSymptomCounts = countSymptoms(buildTurnTextForSymptoms(turnGroup));
-                const tpAny = turnGroup.turn_plan as any;
-                const v4Debug = tpAny?.v4_turn_debug;
+                const v4Debug = turnGroup.turn_plan?.v4_turn_debug as Record<string, unknown> | undefined;
                 const hasV4Artifacts =
-                  !!tpAny?.v4_request1_prompt || !!tpAny?.v4_request1_response || !!tpAny?.v4_request2_prompt || !!tpAny?.v4_request2_response;
+                  !!turnGroup.turn_plan?.v4_request1_prompt || !!turnGroup.turn_plan?.v4_request1_response || !!turnGroup.turn_plan?.v4_request2_prompt || !!turnGroup.turn_plan?.v4_request2_response;
+
+                const planningPromptText = turnGroup.turn_plan?.planning_prompt as string | undefined;
+                const planningResponseText = turnGroup.turn_plan?.planning_response as string | undefined;
                 
                 return (
                   <div key={turnGroup.key} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
@@ -1129,17 +1131,17 @@ const AdminDataViewer: React.FC = () => {
                           <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
                             <span className="text-gray-500">V4 diagnostics: </span>
                             <span className="text-gray-300">
-                              R1 attempts: {v4Debug?.request1_attempts ?? 'N/A'}
-                              {' · '}sequences: {v4Debug?.sequences_generated ?? 'N/A'} gen
-                              {' / '}{v4Debug?.sequences_after_validation ?? 'N/A'} valid
-                              {' · '}rejected: {v4Debug?.sequences_rejected ?? 'N/A'}
-                              {' · '}R2 parse_error: {String(v4Debug?.request2_parse_error ?? false)}
-                              {' · '}R2 invalid_index: {String(v4Debug?.request2_invalid_index ?? false)}
+                              R1 attempts: {(v4Debug?.request1_attempts as number | undefined) ?? 'N/A'}
+                              {' · '}sequences: {(v4Debug?.sequences_generated as number | undefined) ?? 'N/A'} gen
+                              {' / '}{(v4Debug?.sequences_after_validation as number | undefined) ?? 'N/A'} valid
+                              {' · '}rejected: {(v4Debug?.sequences_rejected as number | undefined) ?? 'N/A'}
+                              {' · '}R2 parse_error: {String((v4Debug?.request2_parse_error as boolean | undefined) ?? false)}
+                              {' · '}R2 invalid_index: {String((v4Debug?.request2_invalid_index as boolean | undefined) ?? false)}
                             </span>
-                            {Array.isArray(v4Debug?.sequence_rejection_messages) && v4Debug.sequence_rejection_messages.length > 0 && (
+                            {Array.isArray(v4Debug?.sequence_rejection_messages) && (v4Debug.sequence_rejection_messages as unknown[]).length > 0 && (
                               <div className="text-gray-400 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                                Rejections: {v4Debug.sequence_rejection_messages.slice(0, 3).join(' · ')}
-                                {v4Debug.sequence_rejection_messages.length > 3 ? ` (+${v4Debug.sequence_rejection_messages.length - 3} more)` : ''}
+                                Rejections: {(v4Debug.sequence_rejection_messages as string[]).slice(0, 3).join(' · ')}
+                                {(v4Debug.sequence_rejection_messages as string[]).length > 3 ? ` (+${(v4Debug.sequence_rejection_messages as string[]).length - 3} more)` : ''}
                               </div>
                             )}
                           </div>
@@ -1219,28 +1221,34 @@ const AdminDataViewer: React.FC = () => {
                         )}
                         
                         {/* Planning Prompt (collapsible) */}
-                        {turnGroup.turn_plan.planning_prompt && (
-                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View planning prompt ({turnGroup.turn_plan.planning_prompt.length} chars)
-                            </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.planning_prompt}
-                            </pre>
-                          </details>
-                        )}
+                        {((): React.ReactNode => {
+                          if (typeof planningPromptText !== 'string') return null;
+                          return (
+                            <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                              <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                                View planning prompt ({planningPromptText.length} chars)
+                              </summary>
+                              <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                                {planningPromptText}
+                              </pre>
+                            </details>
+                          );
+                        })()}
                         
                         {/* Planning Response (TurnPlan JSON - collapsible) */}
-                        {turnGroup.turn_plan.planning_response && (
-                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View planning response ({turnGroup.turn_plan.planning_response.length} chars)
-                            </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.planning_response}
-                            </pre>
-                          </details>
-                        )}
+                        {((): React.ReactNode => {
+                          if (typeof planningResponseText !== 'string') return null;
+                          return (
+                            <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                              <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                                View planning response ({planningResponseText.length} chars)
+                              </summary>
+                              <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                                {planningResponseText}
+                              </pre>
+                            </details>
+                          );
+                        })()}
                         
                         {/* Executed actions (from logs - fallback if no action_sequence) */}
                         {(!turnGroup.turn_plan.action_sequence || turnGroup.turn_plan.action_sequence.length === 0) && (
@@ -1484,14 +1492,14 @@ const AdminDataViewer: React.FC = () => {
                     const items = playbackAiLogsData?.logs ? groupLogsByTurn(playbackAiLogsData.logs) : [];
                     const byTurn = new Map<number, Record<string, number>>();
                     let totals: Record<string, number> = {};
-                    for (const it of items as any[]) {
-                      if (it && it.logs) {
-                        const tg = it as TurnGroup;
+                    for (const it of items) {
+                      if ('logs' in it) {
+                        const tg = it;
                         const counts = countSymptoms(buildTurnTextForSymptoms(tg));
                         byTurn.set(tg.turn_number, counts);
                         totals = mergeCounts(totals, counts);
-                      } else if (it && typeof it.turn_number === 'number') {
-                        const lg = it as AILog;
+                      } else {
+                        const lg = it;
                         const counts = countSymptoms(buildLogTextForSymptoms(lg));
                         byTurn.set(lg.turn_number, mergeCounts(byTurn.get(lg.turn_number) || {}, counts));
                         totals = mergeCounts(totals, counts);
