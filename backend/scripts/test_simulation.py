@@ -210,7 +210,7 @@ def main():
         runner = SimulationRunner(
             player1_model='gemini-2.0-flash',
             player2_model='gemini-2.0-flash',
-            max_turns=40
+            max_turns=20
         )
         logger.info("✅ SimulationRunner created")
         

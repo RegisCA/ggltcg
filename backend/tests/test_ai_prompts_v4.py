@@ -106,3 +106,23 @@ def test_prompt_header_with_surge_and_rush():
     assert "Max potential: 9 via" in cc_line
     assert "Surge +1" in cc_line
     assert "Rush +2" in cc_line
+
+
+def test_prompt_sleep_zone_has_actionable_card_info():
+    """Regression test for Issue #295: sleep zone prompt should include more than name/id."""
+    setup, cards = create_game_with_cards(
+        player1_hand=["Wake"],
+        player1_sleep=["Knight"],
+        player1_cc=4,
+        active_player="player1",
+        turn_number=1,
+    )
+
+    prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
+
+    # The sleep zone section should contain compact details including cost/type/stats.
+    # With the v3 compact formatter, toys show "(XCC, ... SPD/STR/STA)" and actions show "(ACTION, XCC)".
+    assert "## YOUR SLEEP ZONE (for Wake targeting)" in prompt
+    assert "Knight" in prompt
+    assert "1CC" in prompt
+    assert "SPD/STR/STA" in prompt

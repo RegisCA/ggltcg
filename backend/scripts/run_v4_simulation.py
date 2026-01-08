@@ -104,7 +104,7 @@ def run_simulation(
     runner = SimulationRunner(
         player1_model=player1_model,
         player2_model=player2_model,
-        max_turns=40,
+        max_turns=20,
     )
     
     # Track results

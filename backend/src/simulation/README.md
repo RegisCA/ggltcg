@@ -287,7 +287,7 @@ Content-Type: application/json
   "player1_ai_version": 4,
   "player2_ai_version": 4,
   "iterations_per_matchup": 10,
-  "max_turns": 40
+  "max_turns": 20
 }
 ```
 

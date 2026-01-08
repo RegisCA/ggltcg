@@ -49,7 +49,7 @@ class SimulationRunner:
         player2_model: str = "gemini-2.5-flash-lite",
         player1_ai_version: int = 4,
         player2_ai_version: int = 4,
-        max_turns: int = 40,
+        max_turns: int = 20,
         log_level: str = "WARNING",
     ):
         """

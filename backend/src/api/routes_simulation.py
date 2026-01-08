@@ -113,7 +113,7 @@ class StartSimulationRequest(BaseModel):
         description="Number of games per deck matchup"
     )
     max_turns: int = Field(
-        default=40,
+        default=20,
         ge=10,
         le=100,
         description="Maximum turns before declaring draw"

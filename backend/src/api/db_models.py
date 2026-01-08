@@ -446,7 +446,7 @@ class SimulationRunModel(Base):
     #   "player1_model": "gemini-2.0-flash",
     #   "player2_model": "gemini-2.5-flash",
     #   "iterations_per_matchup": 10,
-    #   "max_turns": 40
+    #   "max_turns": 20
     # }
     config = Column(JSONType, nullable=False)
     

@@ -6,6 +6,90 @@
 
 ---
 
+## Iteration Process (V4)
+
+**Optimization target**:
+- Model: `gemini-2.5-flash-lite`
+- Request 1 (sequence generation) temperature: `0.2`
+- Request 2 (strategic selection) temperature: `0.7`
+
+**Guardrails (keep us honest)**:
+- Change **1–2 things max** per iteration (prompt or logic). No grab-bag PRs.
+- Keep planning prompt context optimized; avoid adding more and more instructions.
+- Avoid card-specific fixes. If we add examples using cards that are not in the active 12-card pool, we’re probably overfitting.
+
+### Baseline Test (Fast Gate)
+
+Run a small mirror test using `User_Slot3` (Archer/Knight tempo). This is a quick “did we break planning?” check before broader sims.
+
+```bash
+cd backend
+python -m simulation.cli quick User_Slot3 User_Slot3 --iterations 20 --model gemini-2.5-flash-lite --ai-version 4
+```
+
+Notes:
+- Turn limit is `20` by default (`SimulationConfig.max_turns`). 
+
+### Draft Success Criteria (Iteration 0)
+
+- **0/20 games** hit the 20-turn limit.
+- **Turn 1–2 wasteful plans** below `X%`.
+  - Definition: “wasteful” is `cc_wasted >= 4` per `backend/src/game_engine/ai/quality_metrics.py`.
+  - We specifically care about early turns because prompt/plan quality issues show up there first.
+
+### Non-Mirror Test (Broader Gate)
+
+Mirror is useful as a “did we break planning?” sanity check, but it can overproduce stalemates.
+
+This suite runs `User_Slot3` against four baseline decks (5 games each):
+
+```bash
+cd backend
+python scripts/gate_user_slot3_suite_v4.py
+```
+
+**Most recent run (20 games)**:
+- Overall: P1 wins 9/20, P2 wins 4/20, draws 7/20 (**turn-limit hits 7/20**), **avg turns 18.9**
+- By matchup:
+  - User_Slot3 vs Aggro_Rush: P1 1/5, P2 2/5, draws 2/5 (TL 2/5), avg turns 21.4
+  - User_Slot3 vs Control_Ka: P1 2/5, P2 2/5, draws 1/5 (TL 1/5), avg turns 13.8
+  - User_Slot3 vs Tempo_Charge: P1 3/5, P2 0/5, draws 2/5 (TL 2/5), avg turns 20.0
+  - User_Slot3 vs Disruption: P1 3/5, P2 0/5, draws 2/5 (TL 2/5), avg turns 20.6
+- Early turns (T1/T2) unused CC (active player `cc_end`): avg 1.30; unused >=1 in 26/40; unused >=2 in 16/40
+
+**Recurring symptom counters (counts in stdout/stderr)**:
+- `cc_went_negative`: 29
+- `didnt_specify_target`: 19
+- `sequence_rejected`: 19
+- `invalid_sequence_index`: 2
+- `json_parse_error`: 1
+- `plan_deviation`: 1
+- `ai_failed_to_select_action`: 1
+
+### Session Kickoff Prompt (Copy/Paste)
+
+```
+We are improving AI V4 for gemini-2.5-flash-lite using simulation.
+
+Constraints:
+- Make at most TWO changes total.
+- Prefer non-card-specific fixes (avoid hard-coding card names).
+- Keep prompt context budget flat: do not add large new instruction blocks.
+- Request 1 temp = 0.2, Request 2 temp = 0.7.
+
+Process:
+1) Pick one concrete symptom to target (planning or execution).
+2) Reproduce with a small sim first (20 games, User_Slot3 mirror).
+3) Implement the smallest fix.
+4) Re-run the small sim, then a larger sim.
+5) If results hold, create a PR.
+
+Output:
+- What changed, where
+- Before/after results summary
+- Next single best follow-up (do not implement)
+```
+
 ## Diagnostic Improvements
 
 ### ✅ COMPLETED
@@ -155,6 +239,46 @@ RULE: Only cards marked [HAND] can be used in play_card actions.
 
 **Effort**: Low (formatting change only)  
 **Risk**: Very low (adds clarity without changing logic)
+
+#### Issue #295: Sleep Zone Formatting Too Sparse (Wake Targeting)
+**Status**: ✅ Fixed
+
+**Hypothesis**: Request 1’s sleep-zone listing (used for Wake targeting) didn’t include enough actionable info, causing weak planning and contributing to long games / stalemates.
+
+**Fix Implemented**:
+- V4 Request 1 now formats the sleep zone using the v3 compact card formatter, so entries include type/cost (and stats for toys) instead of just name/ID.
+- Added a regression test asserting the sleep-zone section contains actionable fields.
+
+**Where**:
+- `backend/src/game_engine/ai/prompts/sequence_generator.py`
+- `backend/src/game_engine/ai/prompts/planning_prompt_v3.py`
+- `backend/tests/test_ai_prompts_v4.py`
+
+**Result so far**: Mirror + non-mirror suites still show turn-limit draws, so this change is likely necessary-but-not-sufficient.
+
+### Recurring Issues / Symptoms (for reproduction)
+
+These are the highest-frequency “symptom signatures” seen in recent gate runs:
+
+1) **"CC went negative … - capping at 0"**
+  - Seen as: `CC went negative (-X) after … - capping at 0`
+  - Likely origin:
+    - `backend/src/game_engine/ai/prompts/strategic_selector.py` (selector-produced `cc_after` inconsistent)
+    - `backend/src/game_engine/ai/validators/turn_plan_validator.py` (turn-plan validation)
+
+2) **"AI didn't specify target, using first option"**
+  - Likely origin: `backend/src/game_engine/ai/llm_player.py` (fallback target selection when LLM omits/invalidates target IDs)
+
+3) **"Sequence X rejected: …"**
+  - Likely origin: `backend/src/game_engine/ai/turn_planner.py` (sequence validation/rejection between Request 1 and Request 2)
+
+4) **"Invalid sequence index, using 0"**
+  - Likely origin: `backend/src/game_engine/ai/turn_planner.py` (strategic selector returns out-of-range index)
+
+5) **"JSON parse error"**
+  - Indicates malformed JSON from Request 1 or Request 2 response parsing.
+
+When you dig into reproductions, these signatures are a good first “grep target” in logs.
 
 ### 🟡 MEDIUM PRIORITY
 
