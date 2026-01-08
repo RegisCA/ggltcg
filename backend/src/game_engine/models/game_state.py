@@ -275,9 +275,23 @@ class GameState:
         if self.winner_id is not None:
             return self.winner_id
             
+        def _cc_recorded_for_current_turn() -> bool:
+            return any(
+                (r.turn == self.turn_number and r.player_id == self.active_player_id)
+                for r in self.cc_history
+            )
+
         for player_id, player in self.players.items():
             opponent = self.get_opponent(player_id)
             if opponent.all_cards_sleeped():
+                # If the game ends mid-turn, we may never reach end_turn(), so
+                # finalize CC tracking now to avoid missing the final turn.
+                if not _cc_recorded_for_current_turn():
+                    try:
+                        self.finalize_turn_cc_tracking()
+                    except Exception:
+                        # CC tracking should never block victory detection.
+                        pass
                 self.winner_id = player_id
                 victory_message = f"{player.name} wins! All opponent's cards are sleeped."
                 self.log_event(victory_message)

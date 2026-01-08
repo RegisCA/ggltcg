@@ -109,6 +109,9 @@ class TurnPlanner:
         self._v4_request1_response: Optional[str] = None
         self._v4_request2_prompt: Optional[str] = None
         self._v4_request2_response: Optional[str] = None
+
+        # V4 per-turn diagnostics for admin UI (counts/rejections/attempts)
+        self._v4_turn_debug: Optional[Dict[str, Any]] = None
         
         # Initialize plan validator (will be set when game_engine available)
         self._validator: Optional[TurnPlanValidator] = None
@@ -390,6 +393,20 @@ class TurnPlanner:
         self._v4_request1_response = None
         self._v4_request2_prompt = None
         self._v4_request2_response = None
+        self._v4_turn_debug = {
+            "request1_attempts": 0,
+            "request1_temps_tried": [],
+            "sequences_generated": 0,
+            "sequences_after_validation": 0,
+            "sequences_rejected": 0,
+            "sequence_rejection_messages": [],
+            "request2_parse_error": False,
+            "request2_invalid_index": False,
+            "request2_selected_index": None,
+            "request2_selected_index_used": None,
+            "request2_exception": None,
+            "request2_fallback_used": False,
+        }
         
         # === REQUEST 1: Generate sequences (low temperature) ===
         logger.debug("📝 V4 Request 1: Generating action sequences...")
@@ -401,6 +418,9 @@ class TurnPlanner:
         
         sequences = []
         for temp in [get_sequence_generator_temperature(), 1.0]:  # Retry with higher temp
+            if self._v4_turn_debug is not None:
+                self._v4_turn_debug["request1_attempts"] += 1
+                self._v4_turn_debug["request1_temps_tried"].append(temp)
             try:
                 response = self.client.models.generate_content(
                     model=self.model_name,
@@ -423,6 +443,8 @@ class TurnPlanner:
                     self._last_response = response_text
                     self._v4_request1_response = response_text
                     sequences = parse_sequences_response(response_text)
+                    if self._v4_turn_debug is not None:
+                        self._v4_turn_debug["sequences_generated"] = len(sequences)
                     logger.debug(f"   Generated {len(sequences)} sequences (temp={temp})")
                     
                     if sequences:
@@ -446,8 +468,17 @@ class TurnPlanner:
                 else:
                     logger.warning(f"   Sequence {i} rejected: {errors[0].message}")
                     TurnPlanner._v4_metrics["validation_rejections"] += 1
+                    if self._v4_turn_debug is not None:
+                        self._v4_turn_debug["sequences_rejected"] += 1
+                        # Keep only a handful of messages to avoid very large payloads
+                        msgs: list[str] = self._v4_turn_debug.get("sequence_rejection_messages", [])
+                        if len(msgs) < 8:
+                            msgs.append(f"rejected: {errors[0].message}")
+                            self._v4_turn_debug["sequence_rejection_messages"] = msgs
             
             sequences = valid_sequences
+            if self._v4_turn_debug is not None:
+                self._v4_turn_debug["sequences_after_validation"] = len(sequences)
             logger.debug(f"   {len(sequences)} sequences passed validation")
         elif not sequences:
             logger.warning("   No sequences returned from LLM")
@@ -499,10 +530,15 @@ class TurnPlanner:
                 
                 selected_index = selection.get("selected_index", 0)
                 reasoning = selection.get("reasoning", "No reasoning provided")
+
+                if self._v4_turn_debug is not None:
+                    self._v4_turn_debug["request2_selected_index"] = selected_index
                 
                 # Check if this was a parse error (strategic selector failed)
                 if "Parse error" in reasoning:
                     TurnPlanner._v4_metrics["request2_fail"] += 1
+                    if self._v4_turn_debug is not None:
+                        self._v4_turn_debug["request2_parse_error"] = True
                 else:
                     TurnPlanner._v4_metrics["request2_success"] += 1
                 
@@ -510,6 +546,11 @@ class TurnPlanner:
                 if selected_index >= len(sequences):
                     selected_index = 0
                     logger.warning(f"Invalid sequence index, using 0")
+                    if self._v4_turn_debug is not None:
+                        self._v4_turn_debug["request2_invalid_index"] = True
+
+                if self._v4_turn_debug is not None:
+                    self._v4_turn_debug["request2_selected_index_used"] = selected_index
                 
                 selected_sequence = sequences[selected_index]
                 logger.debug(f"   Selected sequence {selected_index}: {selected_sequence.get('tactical_label', '?')}")
@@ -537,8 +578,12 @@ class TurnPlanner:
         except Exception as e:
             logger.error(f"Request 2 failed: {e}")
             TurnPlanner._v4_metrics["request2_fail"] += 1
+            if self._v4_turn_debug is not None:
+                self._v4_turn_debug["request2_exception"] = str(e)
             # Fall back to first sequence if selection fails
             if sequences:
+                if self._v4_turn_debug is not None:
+                    self._v4_turn_debug["request2_fallback_used"] = True
                 plan_data = convert_sequence_to_turn_plan(
                     sequences[0], game_state, player_id, "Selection failed, using first sequence"
                 )
@@ -701,6 +746,10 @@ class TurnPlanner:
         
         # Include V4 metrics
         info["v4_metrics"] = TurnPlanner.get_v4_metrics()
+
+        # Include V4 per-turn diagnostics
+        if self._v4_turn_debug is not None:
+            info["v4_turn_debug"] = self._v4_turn_debug
         
         return info
     
