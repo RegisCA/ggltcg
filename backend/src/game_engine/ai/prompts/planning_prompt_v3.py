@@ -350,3 +350,10 @@ def format_in_play_for_planning_v3(in_play: list, game_engine=None, player=None)
     if not in_play:
         return "NONE"
     return "\n".join(f"- {format_card_for_planning(card, game_engine, player)}" for card in in_play)
+
+
+def format_sleep_zone_for_planning_v3(sleep_zone: list, game_engine=None, player=None) -> str:
+    """Format sleep zone cards (compact, with IDs)."""
+    if not sleep_zone:
+        return "EMPTY"
+    return "\n".join(f"- {format_card_for_planning(card, game_engine, player)}" for card in sleep_zone)

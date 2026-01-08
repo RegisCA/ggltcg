@@ -2,6 +2,8 @@
 
 This is a custom trading card game - verify mechanics against authoritative sources, don't assume.
 
+Remember that your context window is limited - especially the output size. So you should always work in discrete steps and leverage #runSubagent.
+
 ## Authoritative Sources
 
 | Source | Content |

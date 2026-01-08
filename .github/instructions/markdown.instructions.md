@@ -3,6 +3,9 @@ description: 'Documentation and content creation standards'
 applyTo: '**/*.md'
 ---
 
+## Optmization for AI Understanding
+Documents should be optimize for Copilot rather than hunan readers. Use clear, concise language and structure content to facilitate AI understanding. No not duplicate content that is already present in other documentation files, reference authoritative sources instead.
+
 ## Markdown Content Rules
 
 The following markdown content rules are enforced in the validators:
@@ -33,6 +36,7 @@ Follow these guidelines for formatting and structuring your markdown content:
 
 Ensure compliance with the following validation requirements:
 
+- **Optimization**: Verify that the content is optimized for AI understanding as per the guidelines above.
 - **Content Rules**: Ensure that the content follows the markdown content rules specified above.
 - **Formatting**: Ensure that the content is properly formatted and structured according to the guidelines.
 - **Validation**: Run the validation tools to check for compliance with the rules and guidelines.

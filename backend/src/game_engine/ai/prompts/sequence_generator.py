@@ -60,7 +60,7 @@ def generate_sequence_prompt(
     Returns:
         Prompt string (~4k chars target)
     """
-    from .planning_prompt_v3 import format_hand_for_planning_v3, format_in_play_for_planning_v3
+    from .planning_prompt_v3 import format_sleep_zone_for_planning_v3
     
     player = game_state.players[player_id]
     opponent = game_state.get_opponent(player_id)
@@ -131,11 +131,8 @@ def generate_sequence_prompt(
         opp_entries.append(entry)
     opp_toys_text = "\n".join(opp_entries) if opp_entries else "(EMPTY - direct_attack allowed!)"
     
-    # Sleep zone info for Wake targeting
-    sleep_entries = []
-    for card in player.sleep_zone:
-        sleep_entries.append(f"- {card.name} (id={card.id})")
-    sleep_zone_text = "\n".join(sleep_entries) if sleep_entries else "(empty)"
+    # Sleep zone info for Wake targeting (include actionable info, keep compact)
+    sleep_zone_text = format_sleep_zone_for_planning_v3(player.sleep_zone, game_engine, player=player)
     
     # Direct attack availability
     can_direct = len(opp_in_play) == 0

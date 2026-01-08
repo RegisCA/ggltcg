@@ -835,6 +835,10 @@ class LLMPlayerV3(LLMPlayer):
             # Determine actual AI version used
             from .turn_planner import get_ai_version
             actual_ai_version = int(get_ai_version())
+
+            plan_info: Dict[str, Any] | None = None
+            if getattr(self, "turn_planner", None) and hasattr(self.turn_planner, "get_last_plan_info"):
+                plan_info = self.turn_planner.get_last_plan_info()
             
             # Format action sequence for logging
             action_sequence = []
@@ -859,8 +863,22 @@ class LLMPlayerV3(LLMPlayer):
                 # Full action sequence for debugging
                 "action_sequence": action_sequence,
                 # Planning prompt and response (from turn planner, if available)
-                "planning_prompt": getattr(self, 'turn_planner', None) and getattr(self.turn_planner, '_last_prompt', None),
-                "planning_response": getattr(self, 'turn_planner', None) and getattr(self.turn_planner, '_last_response', None),
+                "planning_prompt": (
+                    plan_info.get("prompt")
+                    if plan_info
+                    else (getattr(self, "turn_planner", None) and getattr(self.turn_planner, "_last_prompt", None))
+                ),
+                "planning_response": (
+                    plan_info.get("response")
+                    if plan_info
+                    else (getattr(self, "turn_planner", None) and getattr(self.turn_planner, "_last_response", None))
+                ),
+                # V4 dual-request visibility (when AI_VERSION=4)
+                "v4_request1_prompt": plan_info.get("v4_request1_prompt") if plan_info else None,
+                "v4_request1_response": plan_info.get("v4_request1_response") if plan_info else None,
+                "v4_request2_prompt": plan_info.get("v4_request2_prompt") if plan_info else None,
+                "v4_request2_response": plan_info.get("v4_request2_response") if plan_info else None,
+                "v4_metrics": plan_info.get("v4_metrics") if plan_info else None,
                 # Execution tracking
                 "execution_log": self._execution_log if self._execution_log else None,
             }

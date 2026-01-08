@@ -550,6 +550,19 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             v3_plan = decision_info.get("v3_plan")
             # Use actual AI version from plan data, fallback to inference for backwards compatibility
             ai_version = v3_plan.get("ai_version", 3) if v3_plan else 2
+
+            planned_action_index = v3_plan.get("current_action") if v3_plan else None
+
+            # Prefer logging the planning prompt/response on the first planned action
+            # (otherwise V3/V4 turns often show empty prompt/response in admin logs)
+            prompt_for_log = decision_info.get("prompt") or ""
+            response_for_log = decision_info.get("response") or ""
+            if v3_plan and (planned_action_index == 0):
+                planning_prompt = v3_plan.get("planning_prompt") or v3_plan.get("v4_request1_prompt") or ""
+                planning_response = v3_plan.get("planning_response") or v3_plan.get("v4_request1_response") or ""
+                if planning_prompt and planning_response:
+                    prompt_for_log = planning_prompt
+                    response_for_log = planning_response
             
             # Determine execution status from reasoning prefix
             plan_execution_status = None
@@ -569,8 +582,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 player_id=player_id,
                 model_name=decision_info["model_name"],
                 prompts_version=decision_info["prompts_version"],
-                prompt=decision_info["prompt"] or "",
-                response=decision_info["response"] or "",
+                prompt=prompt_for_log,
+                response=response_for_log,
                 action_number=decision_info["action_number"],
                 reasoning=decision_info["reasoning"],
                 # v3 fields
@@ -578,7 +591,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 turn_plan=v3_plan,  # Will be dict with strategy, actions, etc.
                 plan_execution_status=plan_execution_status,
                 fallback_reason=fallback_reason,
-                planned_action_index=v3_plan.get("current_action") if v3_plan else None,
+                planned_action_index=planned_action_index,
             )
         except Exception as e:
             # Don't fail the action if logging fails

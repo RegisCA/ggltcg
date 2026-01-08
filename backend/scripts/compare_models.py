@@ -109,7 +109,7 @@ def main():
             runner = SimulationRunner(
                 player1_model=args.p1,
                 player2_model=args.p2,
-                max_turns=30  # Cap turns to avoid infinite loops
+                max_turns=20  # Cap turns to avoid infinite loops
             )
             futures.append(executor.submit(run_single_game, runner, deck1_obj, deck2_obj, i+1))
             

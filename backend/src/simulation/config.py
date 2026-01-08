@@ -121,7 +121,7 @@ class SimulationConfig:
     player1_ai_version: int = 4  # AI planning version (2, 3, or 4)
     player2_ai_version: int = 4  # AI planning version (2, 3, or 4)
     iterations_per_matchup: int = 10  # Games per deck matchup
-    max_turns: int = 40  # Turn limit before declaring draw
+    max_turns: int = 20  # Turn limit before declaring draw
     
     def get_matchups(self) -> list[tuple[str, str]]:
         """
