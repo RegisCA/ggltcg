@@ -1156,7 +1156,7 @@ const AdminDataViewer: React.FC = () => {
                         )}
                         
                         {/* Planned Action Sequence (from first log with action_sequence) */}
-                        {turnGroup.turn_plan.action_sequence && turnGroup.turn_plan.action_sequence.length > 0 && (
+                        {!!turnGroup.turn_plan.action_sequence && turnGroup.turn_plan.action_sequence.length > 0 && (
                           <div className="text-sm" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
                             <span className="text-gray-500">Planned actions:</span>
                             <ol className="list-decimal list-inside" style={{ marginTop: 'var(--spacing-component-xs)' }}>
@@ -1221,34 +1221,28 @@ const AdminDataViewer: React.FC = () => {
                         )}
                         
                         {/* Planning Prompt (collapsible) */}
-                        {((): React.ReactNode => {
-                          if (typeof planningPromptText !== 'string') return null;
-                          return (
-                            <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                              <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                                View planning prompt ({planningPromptText.length} chars)
-                              </summary>
-                              <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                                {planningPromptText}
-                              </pre>
-                            </details>
-                          );
-                        })()}
+                        {typeof planningPromptText === 'string' && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View planning prompt ({planningPromptText.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {planningPromptText}
+                            </pre>
+                          </details>
+                        )}
                         
                         {/* Planning Response (TurnPlan JSON - collapsible) */}
-                        {((): React.ReactNode => {
-                          if (typeof planningResponseText !== 'string') return null;
-                          return (
-                            <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                              <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                                View planning response ({planningResponseText.length} chars)
-                              </summary>
-                              <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                                {planningResponseText}
-                              </pre>
-                            </details>
-                          );
-                        })()}
+                        {typeof planningResponseText === 'string' && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View planning response ({planningResponseText.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {planningResponseText}
+                            </pre>
+                          </details>
+                        )}
                         
                         {/* Executed actions (from logs - fallback if no action_sequence) */}
                         {(!turnGroup.turn_plan.action_sequence || turnGroup.turn_plan.action_sequence.length === 0) && (
@@ -1314,7 +1308,7 @@ const AdminDataViewer: React.FC = () => {
                         )}
 
                         {/* V4 Metrics snapshot (collapsible) */}
-                        {turnGroup.turn_plan.v4_metrics && (
+                        {turnGroup.turn_plan.v4_metrics != null && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
                               View v4 metrics snapshot
