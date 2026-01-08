@@ -879,6 +879,7 @@ class LLMPlayerV3(LLMPlayer):
                 "v4_request2_prompt": plan_info.get("v4_request2_prompt") if plan_info else None,
                 "v4_request2_response": plan_info.get("v4_request2_response") if plan_info else None,
                 "v4_metrics": plan_info.get("v4_metrics") if plan_info else None,
+                "v4_turn_debug": plan_info.get("v4_turn_debug") if plan_info else None,
                 # Execution tracking
                 "execution_log": self._execution_log if self._execution_log else None,
             }

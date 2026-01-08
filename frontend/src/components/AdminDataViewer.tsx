@@ -60,6 +60,13 @@ interface AILog {
     // Planning prompt/response (new)
     planning_prompt?: string;
     planning_response?: string;
+    // V4 dual-request visibility
+    v4_request1_prompt?: string | null;
+    v4_request1_response?: string | null;
+    v4_request2_prompt?: string | null;
+    v4_request2_response?: string | null;
+    v4_metrics?: unknown;
+    v4_turn_debug?: unknown;
     // Execution tracking (new)
     execution_log?: Array<{
       action_index: number;
@@ -210,6 +217,14 @@ interface SimulationResults {
   total_games: number;
   completed_games: number;
   matchup_stats: Record<string, MatchupStats>;
+  aggregate?: {
+    max_turns: number;
+    avg_turns: number | null;
+    turn_limit_hits: number;
+    turn_limit_hit_pct: number;
+    avg_p1_cc_end_active: number | null;
+    avg_p2_cc_end_active: number | null;
+  };
   games: Array<{
     game_number: number;
     deck1_name: string;
@@ -222,6 +237,9 @@ interface SimulationResults {
     p2_cc_spent: number;
     p1_cc_gained: number;
     p2_cc_gained: number;
+    p1_avg_cc_end_active?: number | null;
+    p2_avg_cc_end_active?: number | null;
+    hit_turn_limit?: boolean;
     error_message: string | null;
   }>;
   created_at: string;
@@ -284,6 +302,20 @@ const AdminDataViewer: React.FC = () => {
       return response.data;
     },
     refetchInterval: activeTab === 'ai-logs' ? 10000 : 30000, // Faster refresh when viewing
+  });
+
+  // Fetch AI logs for the selected playback (for metrics/symptoms)
+  const { data: playbackAiLogsData } = useQuery({
+    queryKey: ['admin-ai-logs-for-playback', selectedPlayback?.game_id],
+    queryFn: async () => {
+      if (!selectedPlayback?.game_id) return { count: 0, logs: [] };
+      const params = new URLSearchParams({ limit: '200' });
+      params.append('game_id', selectedPlayback.game_id);
+      const response = await axios.get(`${API_BASE_URL}/admin/ai-logs?${params}`);
+      return response.data;
+    },
+    enabled: !!selectedPlayback?.game_id,
+    refetchInterval: false,
   });
 
   // Fetch games
@@ -356,7 +388,7 @@ const AdminDataViewer: React.FC = () => {
     model_name: string;
     prompts_version: string;
     ai_version: number;
-    turn_plan: AILog['turn_plan'];
+    turn_plan: NonNullable<AILog['turn_plan']>;
     created_at: string;
     logs: AILog[];
     has_fallback: boolean;
@@ -450,6 +482,278 @@ const AdminDataViewer: React.FC = () => {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return formatDate(dateString);
+  };
+
+  // Symptom counting (simple substring counts for repeatability)
+  const SYMPTOM_PATTERNS: Record<string, string> = {
+    json_parse_error: 'JSON parse error',
+    invalid_sequence_index: 'Invalid sequence index',
+    invalid_action_number: 'Invalid action number',
+    didnt_specify_target: "AI didn't specify target",
+    ai_failed_to_select_action: 'AI failed to select action',
+    plan_deviation: 'Plan deviation',
+    cc_went_negative: 'CC went negative',
+    sequence_rejected: 'rejected:',
+    v4_r2_parse_error_flag: '"request2_parse_error": true',
+    v4_r2_invalid_index_flag: '"request2_invalid_index": true',
+  };
+
+  const formatMaybeNumber = (n: number | null | undefined, digits: number): string =>
+    typeof n === 'number' && Number.isFinite(n) ? n.toFixed(digits) : '—';
+
+  const copyTextToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fallback for non-secure contexts / older browsers
+      try {
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(el);
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+  };
+
+  const normalizeText = (text?: string | null): string => (text ?? '').trim();
+
+  const buildTurnCopyBundle = (turnGroup: TurnGroup): string => {
+    const lines: string[] = [];
+    const tp = turnGroup.turn_plan;
+
+    let wrotePromptBlock = false;
+    const pushPromptBlock = (title: string, body: string) => {
+      if (wrotePromptBlock) {
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+      } else {
+        lines.push('');
+      }
+      wrotePromptBlock = true;
+      lines.push(`### ${title}`);
+      lines.push('```text');
+      lines.push(body);
+      lines.push('```');
+    };
+
+    lines.push(`Game: ${turnGroup.game_id}`);
+    lines.push(`Turn: ${turnGroup.turn_number}`);
+    lines.push(`Player: ${turnGroup.player_id}`);
+    lines.push(`Model: ${turnGroup.model_name}`);
+    lines.push(`AI Version: v${turnGroup.ai_version}`);
+    if (turnGroup.fallback_reason) lines.push(`Fallback: ${turnGroup.fallback_reason}`);
+    lines.push('');
+
+    if (tp?.strategy) {
+      lines.push('=== Strategy ===');
+      lines.push(String(tp.strategy));
+      lines.push('');
+    }
+
+    if (tp?.v4_turn_debug) {
+      lines.push('=== V4 Diagnostics ===');
+      lines.push(safeJsonString(tp.v4_turn_debug));
+      lines.push('');
+    }
+
+    const planningPrompt = tp?.planning_prompt;
+    const planningResponse = tp?.planning_response;
+    const r1p = tp?.v4_request1_prompt;
+    const r1r = tp?.v4_request1_response;
+
+    const isR1PromptSameAsPlanning = normalizeText(planningPrompt) !== '' && normalizeText(planningPrompt) === normalizeText(r1p);
+    const isR1ResponseSameAsPlanning = normalizeText(planningResponse) !== '' && normalizeText(planningResponse) === normalizeText(r1r);
+
+    if (planningPrompt) {
+      pushPromptBlock('Planning Prompt', String(planningPrompt));
+    }
+    if (planningResponse) {
+      pushPromptBlock('Planning Response', String(planningResponse));
+    }
+
+    if (r1p && !isR1PromptSameAsPlanning) {
+      pushPromptBlock('V4 Request 1 Prompt (sequence generator)', String(r1p));
+    }
+    if (r1r && !isR1ResponseSameAsPlanning) {
+      pushPromptBlock('V4 Request 1 Response (sequence generator)', String(r1r));
+    }
+    if (tp?.v4_request2_prompt) {
+      pushPromptBlock('V4 Request 2 Prompt (strategic selector)', String(tp.v4_request2_prompt));
+    }
+    if (tp?.v4_request2_response) {
+      pushPromptBlock('V4 Request 2 Response (strategic selector)', String(tp.v4_request2_response));
+    }
+    if (tp?.v4_metrics) {
+      lines.push('=== V4 Metrics Snapshot ===');
+      lines.push(safeJsonString(tp.v4_metrics));
+      lines.push('');
+    }
+
+    if (Array.isArray(tp?.action_sequence) && tp.action_sequence.length > 0) {
+      lines.push('=== Planned Action Sequence ===');
+      lines.push(safeJsonString(tp.action_sequence));
+      lines.push('');
+    }
+    if (Array.isArray(tp?.execution_log) && tp.execution_log.length > 0) {
+      lines.push('=== Execution Log ===');
+      lines.push(safeJsonString(tp.execution_log));
+      lines.push('');
+    }
+
+    if (turnGroup.logs && turnGroup.logs.length > 0) {
+      lines.push('=== Raw AILog Entries ===');
+      for (const log of turnGroup.logs) {
+        lines.push(`--- log_id=${log.id} action_number=${log.action_number ?? '—'} created_at=${log.created_at} ---`);
+        if (log.prompt) {
+          lines.push('[prompt]');
+          lines.push(log.prompt);
+        }
+        if (log.response) {
+          lines.push('[response]');
+          lines.push(log.response);
+        }
+        if (log.reasoning) {
+          lines.push('[reasoning]');
+          lines.push(log.reasoning);
+        }
+        if (log.fallback_reason) {
+          lines.push('[fallback_reason]');
+          lines.push(log.fallback_reason);
+        }
+        lines.push('');
+      }
+    }
+
+    return lines.join('\n');
+  };
+
+  const countSymptoms = (text: string): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    for (const [key, substr] of Object.entries(SYMPTOM_PATTERNS)) {
+      if (!substr) continue;
+      counts[key] = text.split(substr).length - 1;
+    }
+    return counts;
+  };
+
+  const mergeCounts = (a: Record<string, number>, b: Record<string, number>): Record<string, number> => {
+    const merged: Record<string, number> = { ...a };
+    for (const [k, v] of Object.entries(b)) {
+      merged[k] = (merged[k] || 0) + (v || 0);
+    }
+    return merged;
+  };
+
+  const totalCount = (counts: Record<string, number>): number =>
+    Object.values(counts).reduce((sum, v) => sum + (v || 0), 0);
+
+  const formatCountsInline = (counts: Record<string, number>): string => {
+    const entries = Object.entries(counts)
+      .filter(([, v]) => (v || 0) > 0)
+      .sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) return 'none';
+    return entries.map(([k, v]) => `${k}: ${v}`).join(' · ');
+  };
+
+  const safeJsonString = (value: unknown): string => {
+    try {
+      return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+
+  const buildTurnTextForSymptoms = (turnGroup: TurnGroup): string => {
+    const parts: string[] = [];
+    if (turnGroup.fallback_reason) parts.push(turnGroup.fallback_reason);
+
+    const tp = turnGroup.turn_plan;
+    if (tp) {
+      const isR1PromptSameAsPlanning = normalizeText(tp.planning_prompt) !== '' && normalizeText(tp.planning_prompt) === normalizeText(tp.v4_request1_prompt);
+      const isR1ResponseSameAsPlanning = normalizeText(tp.planning_response) !== '' && normalizeText(tp.planning_response) === normalizeText(tp.v4_request1_response);
+
+      if (tp.planning_prompt) parts.push(tp.planning_prompt);
+      if (tp.planning_response) parts.push(tp.planning_response);
+      if (tp.v4_request1_prompt && !isR1PromptSameAsPlanning) parts.push(tp.v4_request1_prompt);
+      if (tp.v4_request1_response && !isR1ResponseSameAsPlanning) parts.push(tp.v4_request1_response);
+      if (tp.v4_request2_prompt) parts.push(tp.v4_request2_prompt);
+      if (tp.v4_request2_response) parts.push(tp.v4_request2_response);
+      if (tp.execution_log) {
+        for (const e of tp.execution_log) {
+          if (e.reason) parts.push(e.reason);
+          if (e.planned_action) parts.push(e.planned_action);
+        }
+      }
+      if (tp.action_sequence) {
+        for (const a of tp.action_sequence) {
+          if (a.reasoning) parts.push(a.reasoning);
+        }
+      }
+      if (tp.v4_turn_debug) parts.push(safeJsonString(tp.v4_turn_debug));
+    }
+
+    for (const log of turnGroup.logs) {
+      if (log.prompt) parts.push(log.prompt);
+      if (log.response) parts.push(log.response);
+      if (log.reasoning) parts.push(log.reasoning);
+      if (log.fallback_reason) parts.push(log.fallback_reason);
+    }
+
+    return parts.filter(Boolean).join('\n');
+  };
+
+  const buildLogTextForSymptoms = (log: AILog): string => {
+    const parts: string[] = [];
+    if (log.prompt) parts.push(log.prompt);
+    if (log.response) parts.push(log.response);
+    if (log.reasoning) parts.push(log.reasoning);
+    if (log.fallback_reason) parts.push(log.fallback_reason);
+    if (log.turn_plan) {
+      parts.push(safeJsonString(log.turn_plan));
+    }
+    return parts.filter(Boolean).join('\n');
+  };
+
+  const computeActiveTurnCcAveragesFromPlayback = (
+    ccTracking: TurnCC[] | null,
+    player1Id: string,
+    player2Id: string
+  ): { p1_avg: number | null; p2_avg: number | null; p1_samples: number; p2_samples: number } => {
+    if (!ccTracking || ccTracking.length === 0) return { p1_avg: null, p2_avg: null, p1_samples: 0, p2_samples: 0 };
+    const p1 = ccTracking.filter(r => r.player_id === player1Id);
+    const p2 = ccTracking.filter(r => r.player_id === player2Id);
+    const avg = (rows: TurnCC[]): number | null => {
+      if (rows.length === 0) return null;
+      return rows.reduce((s, r) => s + r.cc_end, 0) / rows.length;
+    };
+    return { p1_avg: avg(p1), p2_avg: avg(p2), p1_samples: p1.length, p2_samples: p2.length };
+  };
+
+  const computeActiveTurnCcAveragesFromSimulation = (
+    ccTracking: TurnCC[]
+  ): { p1_avg: number | null; p2_avg: number | null; p1_samples: number; p2_samples: number } => {
+    if (!ccTracking || ccTracking.length === 0) return { p1_avg: null, p2_avg: null, p1_samples: 0, p2_samples: 0 };
+    const isActive = (row: TurnCC): boolean => {
+      const expected = row.turn % 2 === 1 ? 'player1' : 'player2';
+      return row.player_id === expected;
+    };
+    const activeRows = ccTracking.filter(isActive);
+    const p1 = activeRows.filter(r => r.player_id === 'player1');
+    const p2 = activeRows.filter(r => r.player_id === 'player2');
+    const avg = (rows: TurnCC[]): number | null => {
+      if (rows.length === 0) return null;
+      return rows.reduce((s, r) => s + r.cc_end, 0) / rows.length;
+    };
+    return { p1_avg: avg(p1), p2_avg: avg(p2), p1_samples: p1.length, p2_samples: p2.length };
   };
 
   const loadPlaybackDetails = async (gameId: string) => {
@@ -744,6 +1048,13 @@ const AdminDataViewer: React.FC = () => {
                 const completedActions = turnGroup.logs.length;
                 const totalActions = turnGroup.turn_plan?.total_actions || completedActions;
                 const planCompleted = completedActions === totalActions && !turnGroup.has_fallback;
+                const turnSymptomCounts = countSymptoms(buildTurnTextForSymptoms(turnGroup));
+                const v4Debug = turnGroup.turn_plan?.v4_turn_debug as Record<string, unknown> | undefined;
+                const hasV4Artifacts =
+                  !!turnGroup.turn_plan?.v4_request1_prompt || !!turnGroup.turn_plan?.v4_request1_response || !!turnGroup.turn_plan?.v4_request2_prompt || !!turnGroup.turn_plan?.v4_request2_response;
+
+                const planningPromptText = turnGroup.turn_plan?.planning_prompt as string | undefined;
+                const planningResponseText = turnGroup.turn_plan?.planning_response as string | undefined;
                 
                 return (
                   <div key={turnGroup.key} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
@@ -777,6 +1088,29 @@ const AdminDataViewer: React.FC = () => {
                     {/* Expanded Turn Details */}
                     {isExpanded && turnGroup.turn_plan && (
                       <div style={{ marginTop: 'var(--spacing-component-md)' }}>
+                        <div className="flex justify-end" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                          <button
+                            className="bg-gray-700 hover:bg-gray-600 text-white rounded text-xs"
+                            style={{ padding: '4px var(--spacing-component-sm)' }}
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const ok = await copyTextToClipboard(buildTurnCopyBundle(turnGroup));
+                              if (!ok) alert('Copy failed (clipboard unavailable).');
+                            }}
+                            title="Copy all prompts/responses/diagnostics for this turn"
+                          >
+                            Copy turn logs
+                          </button>
+                        </div>
+
+                        {/* Symptoms (turn) */}
+                        <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                          <span className="text-gray-500">Symptoms (turn): </span>
+                          <span className="text-gray-300">{formatCountsInline(turnSymptomCounts)}</span>
+                          <span className="text-gray-500"> · total {totalCount(turnSymptomCounts)}</span>
+                        </div>
+
                         {/* Strategy */}
                         <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
                           <span className="text-purple-400 font-semibold">Strategy: </span>
@@ -791,6 +1125,27 @@ const AdminDataViewer: React.FC = () => {
                             <span><span className="text-gray-500">Efficiency:</span> {turnGroup.turn_plan.cc_efficiency}</span>
                           )}
                         </div>
+
+                        {/* V4 Diagnostics (if available) */}
+                        {hasV4Artifacts && (
+                          <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                            <span className="text-gray-500">V4 diagnostics: </span>
+                            <span className="text-gray-300">
+                              R1 attempts: {(v4Debug?.request1_attempts as number | undefined) ?? 'N/A'}
+                              {' · '}sequences: {(v4Debug?.sequences_generated as number | undefined) ?? 'N/A'} gen
+                              {' / '}{(v4Debug?.sequences_after_validation as number | undefined) ?? 'N/A'} valid
+                              {' · '}rejected: {(v4Debug?.sequences_rejected as number | undefined) ?? 'N/A'}
+                              {' · '}R2 parse_error: {String((v4Debug?.request2_parse_error as boolean | undefined) ?? false)}
+                              {' · '}R2 invalid_index: {String((v4Debug?.request2_invalid_index as boolean | undefined) ?? false)}
+                            </span>
+                            {Array.isArray(v4Debug?.sequence_rejection_messages) && (v4Debug.sequence_rejection_messages as unknown[]).length > 0 && (
+                              <div className="text-gray-400 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                Rejections: {(v4Debug.sequence_rejection_messages as string[]).slice(0, 3).join(' · ')}
+                                {(v4Debug.sequence_rejection_messages as string[]).length > 3 ? ` (+${(v4Debug.sequence_rejection_messages as string[]).length - 3} more)` : ''}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
                         {/* Fallback Warning */}
                         {turnGroup.has_fallback && turnGroup.fallback_reason && (
@@ -801,7 +1156,7 @@ const AdminDataViewer: React.FC = () => {
                         )}
                         
                         {/* Planned Action Sequence (from first log with action_sequence) */}
-                        {turnGroup.turn_plan.action_sequence && turnGroup.turn_plan.action_sequence.length > 0 && (
+                        {!!turnGroup.turn_plan.action_sequence && turnGroup.turn_plan.action_sequence.length > 0 && (
                           <div className="text-sm" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
                             <span className="text-gray-500">Planned actions:</span>
                             <ol className="list-decimal list-inside" style={{ marginTop: 'var(--spacing-component-xs)' }}>
@@ -866,25 +1221,25 @@ const AdminDataViewer: React.FC = () => {
                         )}
                         
                         {/* Planning Prompt (collapsible) */}
-                        {turnGroup.turn_plan.planning_prompt && (
+                        {typeof planningPromptText === 'string' && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View planning prompt ({turnGroup.turn_plan.planning_prompt.length} chars)
+                              View planning prompt ({planningPromptText.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.planning_prompt}
+                              {planningPromptText}
                             </pre>
                           </details>
                         )}
                         
                         {/* Planning Response (TurnPlan JSON - collapsible) */}
-                        {turnGroup.turn_plan.planning_response && (
+                        {typeof planningResponseText === 'string' && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View planning response ({turnGroup.turn_plan.planning_response.length} chars)
+                              View planning response ({planningResponseText.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.planning_response}
+                              {planningResponseText}
                             </pre>
                           </details>
                         )}
@@ -906,6 +1261,65 @@ const AdminDataViewer: React.FC = () => {
                                 ))}
                             </ol>
                           </div>
+                        )}
+
+                        {/* V4 Request 1 Prompt/Response (collapsible) */}
+                        {turnGroup.turn_plan.v4_request1_prompt && normalizeText(turnGroup.turn_plan.v4_request1_prompt) !== normalizeText(turnGroup.turn_plan.planning_prompt) && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View v4 request1 prompt (sequence generator) ({turnGroup.turn_plan.v4_request1_prompt.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {turnGroup.turn_plan.v4_request1_prompt}
+                            </pre>
+                          </details>
+                        )}
+                        {turnGroup.turn_plan.v4_request1_response && normalizeText(turnGroup.turn_plan.v4_request1_response) !== normalizeText(turnGroup.turn_plan.planning_response) && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View v4 request1 response (sequence generator) ({turnGroup.turn_plan.v4_request1_response.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {turnGroup.turn_plan.v4_request1_response}
+                            </pre>
+                          </details>
+                        )}
+
+                        {/* V4 Request 2 Prompt/Response (collapsible) */}
+                        {turnGroup.turn_plan.v4_request2_prompt && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View v4 request2 prompt (strategic selector) ({turnGroup.turn_plan.v4_request2_prompt.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {turnGroup.turn_plan.v4_request2_prompt}
+                            </pre>
+                          </details>
+                        )}
+                        {turnGroup.turn_plan.v4_request2_response && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View v4 request2 response (strategic selector) ({turnGroup.turn_plan.v4_request2_response.length} chars)
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {turnGroup.turn_plan.v4_request2_response}
+                            </pre>
+                          </details>
+                        )}
+
+                        {/* V4 Metrics snapshot (collapsible) */}
+                        {turnGroup.turn_plan.v4_metrics != null && (
+                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              View v4 metrics snapshot
+                            </summary>
+                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                              {safeJsonString(turnGroup.turn_plan.v4_metrics)}
+                            </pre>
+                            <div className="text-xs text-gray-600" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                              Note: these counters may be process-wide, not per-game.
+                            </div>
+                          </details>
                         )}
                       </div>
                     )}
@@ -1059,6 +1473,76 @@ const AdminDataViewer: React.FC = () => {
                   <div className="text-sm text-gray-500" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
                     (Game ID: {selectedPlayback.game_id}, Completed: {formatDate(selectedPlayback.completed_at || '')})
                   </div>
+
+                  {/* Debug Metrics */}
+                  {(() => {
+                    const ccAverages = computeActiveTurnCcAveragesFromPlayback(
+                      selectedPlayback.cc_tracking,
+                      selectedPlayback.player1_id,
+                      selectedPlayback.player2_id
+                    );
+
+                    // Symptom totals and per-turn symptom counts (from AI logs)
+                    const items = playbackAiLogsData?.logs ? groupLogsByTurn(playbackAiLogsData.logs) : [];
+                    const byTurn = new Map<number, Record<string, number>>();
+                    let totals: Record<string, number> = {};
+                    for (const it of items) {
+                      if ('logs' in it) {
+                        const tg = it;
+                        const counts = countSymptoms(buildTurnTextForSymptoms(tg));
+                        byTurn.set(tg.turn_number, counts);
+                        totals = mergeCounts(totals, counts);
+                      } else {
+                        const lg = it;
+                        const counts = countSymptoms(buildLogTextForSymptoms(lg));
+                        byTurn.set(lg.turn_number, mergeCounts(byTurn.get(lg.turn_number) || {}, counts));
+                        totals = mergeCounts(totals, counts);
+                      }
+                    }
+                    const turnsWithSymptoms = Array.from(byTurn.entries())
+                      .map(([turn, counts]) => ({ turn, total: totalCount(counts), counts }))
+                      .filter(x => x.total > 0)
+                      .sort((a, b) => a.turn - b.turn);
+
+                    return (
+                      <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                        <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Metrics</h3>
+                        <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-md)' }}>
+                          <div className="text-sm text-gray-300" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                            <span className="text-gray-500">Avg CC end (active turns): </span>
+                            <span className="text-green-400">{selectedPlayback.player1_name}</span>
+                            <span className="text-gray-300"> {ccAverages.p1_avg !== null ? ccAverages.p1_avg.toFixed(2) : '—'} </span>
+                            <span className="text-gray-500">({ccAverages.p1_samples} turns)</span>
+                            <span className="text-gray-600"> · </span>
+                            <span className="text-blue-400">{selectedPlayback.player2_name}</span>
+                            <span className="text-gray-300"> {ccAverages.p2_avg !== null ? ccAverages.p2_avg.toFixed(2) : '—'} </span>
+                            <span className="text-gray-500">({ccAverages.p2_samples} turns)</span>
+                          </div>
+
+                          <div className="text-sm text-gray-300">
+                            <span className="text-gray-500">Symptoms (game): </span>
+                            <span>{formatCountsInline(totals)}</span>
+                            <span className="text-gray-500"> · total {totalCount(totals)}</span>
+                          </div>
+
+                          {turnsWithSymptoms.length > 0 && (
+                            <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+                              <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                                View symptoms by turn ({turnsWithSymptoms.length} turns)
+                              </summary>
+                              <div className="text-xs text-gray-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                {turnsWithSymptoms.map(x => (
+                                  <div key={x.turn}>
+                                    Turn {x.turn}: {formatCountsInline(x.counts)} (total {x.total})
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Starting Decks - Table Format */}
                   <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
@@ -1570,6 +2054,26 @@ const AdminDataViewer: React.FC = () => {
                       <div className="text-xs text-gray-500 mt-1">Note: Player 1 always goes first (receives 2 CC on turn 1 instead of 4)</div>
                     </div>
                     <div style={{ marginTop: '8px' }}>Games: {selectedSimulation.completed_games}/{selectedSimulation.total_games}</div>
+                    {selectedSimulation.aggregate && (
+                      <div className="bg-gray-900/50 rounded p-2 mt-2">
+                        <div className="text-xs text-gray-300">
+                          <span className="text-gray-500">Avg CC end (active turns): </span>
+                          <span className="text-green-400">P1</span>
+                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p1_cc_end_active, 2)} </span>
+                          <span className="text-gray-600">·</span>
+                          <span className="text-blue-400"> P2</span>
+                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p2_cc_end_active, 2)}</span>
+                        </div>
+                        <div className="text-xs text-gray-300" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                          <span className="text-gray-500">Avg turns: </span>
+                          <span className="text-orange-400">{formatMaybeNumber(selectedSimulation.aggregate.avg_turns, 1)}</span>
+                          <span className="text-gray-600"> · </span>
+                          <span className="text-gray-500">Turn-limit hits (T{selectedSimulation.aggregate.max_turns}): </span>
+                          <span className="text-gray-300">{selectedSimulation.aggregate.turn_limit_hits}/{selectedSimulation.completed_games}</span>
+                          <span className="text-gray-500"> ({selectedSimulation.aggregate.turn_limit_hit_pct}%)</span>
+                        </div>
+                      </div>
+                    )}
                     {selectedSimulation.completed_at && (
                       <div>Completed: {formatDate(selectedSimulation.completed_at)}</div>
                     )}
@@ -1673,6 +2177,7 @@ const AdminDataViewer: React.FC = () => {
                           <th className="px-4 py-2 text-center">Result</th>
                           <th className="px-4 py-2 text-center text-green-400" title="Player 1 Total CC Spent">P1 CC</th>
                           <th className="px-4 py-2 text-center text-blue-400" title="Player 2 Total CC Spent">P2 CC</th>
+                          <th className="px-4 py-2 text-center" title="Per-game avg CC at end of active turns">Avg CC end</th>
                           <th className="px-4 py-2 text-center">Turns</th>
                           <th className="px-4 py-2 text-center">Duration</th>
                         </tr>
@@ -1710,7 +2215,21 @@ const AdminDataViewer: React.FC = () => {
                               </td>
                               <td className="px-4 py-2 text-center text-green-400">{game.p1_cc_spent}</td>
                               <td className="px-4 py-2 text-center text-blue-400">{game.p2_cc_spent}</td>
-                              <td className="px-4 py-2 text-center text-orange-400">{game.turn_count}</td>
+                              <td className="px-4 py-2 text-center text-gray-300">
+                                <span className="text-green-400">P1</span>
+                                <span className="text-gray-300"> {formatMaybeNumber(game.p1_avg_cc_end_active, 2)}</span>
+                                <span className="text-gray-600"> · </span>
+                                <span className="text-blue-400">P2</span>
+                                <span className="text-gray-300"> {formatMaybeNumber(game.p2_avg_cc_end_active, 2)}</span>
+                              </td>
+                              <td className="px-4 py-2 text-center text-orange-400">
+                                {game.turn_count}
+                                {game.hit_turn_limit && (
+                                  <span className="ml-2 text-xs rounded bg-red-700/60 text-red-100" style={{ padding: '2px 6px' }} title="Hit simulation turn limit">
+                                    TL
+                                  </span>
+                                )}
+                              </td>
                               <td className="px-4 py-2 text-center text-cyan-400">
                                 {(game.duration_ms / 1000).toFixed(1)}s
                               </td>
@@ -1718,7 +2237,7 @@ const AdminDataViewer: React.FC = () => {
                             {/* Inline detail panel */}
                             {selectedGameDetail?.game_number === game.game_number && (
                               <tr>
-                                <td colSpan={7} className="p-0">
+                                <td colSpan={8} className="p-0">
                                   <div className="bg-gray-800 border-l-4 border-blue-500 p-4">
                                     {loadingGameDetail ? (
                                       <div className="text-center text-gray-400 py-4">Loading game details...</div>
@@ -1727,6 +2246,37 @@ const AdminDataViewer: React.FC = () => {
                                         <div className="flex justify-between items-center mb-3">
                                           <h4 className="font-semibold">Game #{selectedGameDetail.game_number} Details</h4>
                                         </div>
+
+                                        {/* Debug Metrics */}
+                                        {(() => {
+                                          const ccAverages = computeActiveTurnCcAveragesFromSimulation(selectedGameDetail.cc_tracking);
+                                          const blobParts: string[] = [];
+                                          for (const a of selectedGameDetail.action_log || []) {
+                                            if (a.description) blobParts.push(a.description);
+                                            if (a.reasoning) blobParts.push(a.reasoning);
+                                          }
+                                          if (selectedGameDetail.error_message) blobParts.push(selectedGameDetail.error_message);
+                                          const symptomCounts = countSymptoms(blobParts.join('\n'));
+                                          return (
+                                            <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                                              <div className="text-sm text-gray-300">
+                                                <span className="text-gray-500">Avg CC end (active turns): </span>
+                                                <span className="text-green-400">P1</span>
+                                                <span className="text-gray-300"> {ccAverages.p1_avg !== null ? ccAverages.p1_avg.toFixed(2) : '—'} </span>
+                                                <span className="text-gray-500">({ccAverages.p1_samples} turns)</span>
+                                                <span className="text-gray-600"> · </span>
+                                                <span className="text-blue-400">P2</span>
+                                                <span className="text-gray-300"> {ccAverages.p2_avg !== null ? ccAverages.p2_avg.toFixed(2) : '—'} </span>
+                                                <span className="text-gray-500">({ccAverages.p2_samples} turns)</span>
+                                              </div>
+                                              <div className="text-sm text-gray-300" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                                <span className="text-gray-500">Symptoms (game): </span>
+                                                <span>{formatCountsInline(symptomCounts)}</span>
+                                                <span className="text-gray-500"> · total {totalCount(symptomCounts)}</span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
                                         
                                         {/* CC Tracking - Compact timeline view */}
                                         <div className="overflow-x-auto mb-4">

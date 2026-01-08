@@ -161,6 +161,14 @@ class GameState:
         Called at end of turn. Calculates cc_spent from the difference:
         cc_spent = cc_start + cc_gained - cc_end
         """
+        # Idempotency guard: victory detection can finalize CC mid-turn,
+        # and caller paths may still finalize again.
+        if any(
+            record.turn == self.turn_number and record.player_id == self.active_player_id
+            for record in self.cc_history
+        ):
+            return
+
         player = self.get_active_player()
         cc_end = player.cc
         cc_start = self._turn_cc_snapshot
@@ -275,9 +283,23 @@ class GameState:
         if self.winner_id is not None:
             return self.winner_id
             
+        def _cc_recorded_for_current_turn() -> bool:
+            return any(
+                (r.turn == self.turn_number and r.player_id == self.active_player_id)
+                for r in self.cc_history
+            )
+
         for player_id, player in self.players.items():
             opponent = self.get_opponent(player_id)
             if opponent.all_cards_sleeped():
+                # If the game ends mid-turn, we may never reach end_turn(), so
+                # finalize CC tracking now to avoid missing the final turn.
+                if not _cc_recorded_for_current_turn():
+                    try:
+                        self.finalize_turn_cc_tracking()
+                    except Exception:
+                        # CC tracking should never block victory detection.
+                        pass
                 self.winner_id = player_id
                 victory_message = f"{player.name} wins! All opponent's cards are sleeped."
                 self.log_event(victory_message)

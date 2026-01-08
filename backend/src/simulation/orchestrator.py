@@ -375,7 +375,39 @@ class SimulationOrchestrator:
             SimulationGameModel.run_id == run_id
         ).order_by(SimulationGameModel.game_number).all()
         
+        def avg(values: list[float]) -> float | None:
+            return (sum(values) / len(values)) if values else None
+
+        def compute_active_turn_cc_end_avgs(cc_tracking: list[dict]) -> tuple[float | None, float | None]:
+            if not cc_tracking:
+                return None, None
+            p1_vals: list[float] = []
+            p2_vals: list[float] = []
+            for entry in cc_tracking:
+                turn = entry.get("turn")
+                pid = entry.get("player_id")
+                if not isinstance(turn, int) or pid not in ("player1", "player2"):
+                    continue
+                is_active = (turn % 2 == 1 and pid == "player1") or (turn % 2 == 0 and pid == "player2")
+                if not is_active:
+                    continue
+                cc_end = entry.get("cc_end")
+                if isinstance(cc_end, (int, float)):
+                    if pid == "player1":
+                        p1_vals.append(float(cc_end))
+                    else:
+                        p2_vals.append(float(cc_end))
+            return avg(p1_vals), avg(p2_vals)
+
+        max_turns = 20
+        if run.config and isinstance(run.config, dict):
+            max_turns = int(run.config.get("max_turns", 20) or 20)
+
         game_results = []
+        p1_game_avgs: list[float] = []
+        p2_game_avgs: list[float] = []
+        turn_counts: list[int] = []
+        turn_limit_hits = 0
         for game in games:
             # Calculate CC statistics per player from cc_tracking
             p1_cc_spent = 0
@@ -390,6 +422,20 @@ class SimulationOrchestrator:
                     elif entry.get('player_id') == 'player2':
                         p2_cc_spent += entry.get('cc_spent', 0)
                         p2_cc_gained += entry.get('cc_gained', 0)
+
+            p1_avg_cc_end_active, p2_avg_cc_end_active = compute_active_turn_cc_end_avgs(game.cc_tracking or [])
+
+            # Track aggregates for the run
+            if isinstance(game.turn_count, int):
+                turn_counts.append(game.turn_count)
+            if p1_avg_cc_end_active is not None:
+                p1_game_avgs.append(p1_avg_cc_end_active)
+            if p2_avg_cc_end_active is not None:
+                p2_game_avgs.append(p2_avg_cc_end_active)
+
+            hit_turn_limit = bool(game.outcome == 'draw' and isinstance(game.turn_count, int) and game.turn_count == max_turns)
+            if hit_turn_limit:
+                turn_limit_hits += 1
             
             game_results.append({
                 "game_number": game.game_number,
@@ -403,8 +449,14 @@ class SimulationOrchestrator:
                 "p2_cc_spent": p2_cc_spent,
                 "p1_cc_gained": p1_cc_gained,
                 "p2_cc_gained": p2_cc_gained,
+                "p1_avg_cc_end_active": p1_avg_cc_end_active,
+                "p2_avg_cc_end_active": p2_avg_cc_end_active,
+                "hit_turn_limit": hit_turn_limit,
                 "error_message": game.error_message,
             })
+
+        avg_turns = avg([float(t) for t in turn_counts])
+        turn_limit_hit_pct = (turn_limit_hits / len(games) * 100.0) if games else 0.0
         
         return {
             "run_id": run.id,
@@ -413,6 +465,14 @@ class SimulationOrchestrator:
             "total_games": run.total_games,
             "completed_games": run.completed_games,
             "matchup_stats": run.results.get("matchup_stats", {}) if run.results else {},
+            "aggregate": {
+                "max_turns": max_turns,
+                "avg_turns": avg_turns,
+                "turn_limit_hits": turn_limit_hits,
+                "turn_limit_hit_pct": round(turn_limit_hit_pct, 1),
+                "avg_p1_cc_end_active": avg(p1_game_avgs),
+                "avg_p2_cc_end_active": avg(p2_game_avgs),
+            },
             "games": game_results,
             "created_at": run.created_at.isoformat() if run.created_at else None,
             "completed_at": run.completed_at.isoformat() if run.completed_at else None,
