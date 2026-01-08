@@ -200,6 +200,9 @@ async def start_simulation(
         )
     
     # Create config
+    # Safety cap: simulations should not run beyond 20 turns.
+    # This protects against older clients (e.g., admin UI) sending 40.
+    max_turns = min(request.max_turns, 20)
     config = SimulationConfig(
         deck_names=request.deck_names,
         player1_model=request.player1_model,
@@ -207,7 +210,7 @@ async def start_simulation(
         player1_ai_version=request.player1_ai_version,
         player2_ai_version=request.player2_ai_version,
         iterations_per_matchup=request.iterations_per_matchup,
-        max_turns=request.max_turns,
+        max_turns=max_turns,
     )
     
     total_games = config.total_games()
