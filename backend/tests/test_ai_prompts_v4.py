@@ -169,3 +169,28 @@ def test_request1_direct_attack_wording_matches_quick_reference():
     )
     assert "direct_attack doesn't sleep toys" not in prompt
     assert "summoning sickness" not in prompt
+
+
+def test_request1_explicit_play_from_hand_only_constraint():
+    """
+    Guardrail: Prompt MUST explicitly state that cards can ONLY be played from Hand.
+    
+    This prevents the model from attempting to play cards from Sleep Zone or In Play.
+    Issue found in game c18ec8d3-3e1c-4114-abc0-edc16e23eb5c where sequences
+    tried to play Surge from Sleep Zone.
+    """
+    setup, cards = create_game_with_cards(
+        player1_hand=["Umbruh", "Wake"],
+        player1_sleep=["Surge", "Ka"],
+        player1_cc=5,
+        active_player="player1",
+        turn_number=3,
+    )
+
+    prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
+
+    # Must have the explicit constraint section
+    assert "## CRITICAL PLAY CONSTRAINT" in prompt
+    assert "You can ONLY play cards from YOUR HAND (Hand)" in prompt
+    assert "Cards in YOUR TOYS IN PLAY (In Play) or YOUR SLEEP ZONE (Sleep Zone) CANNOT be played" in prompt
+    assert "You must use card IDs from the YOUR HAND section" in prompt

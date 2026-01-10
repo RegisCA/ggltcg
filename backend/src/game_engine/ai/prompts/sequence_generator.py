@@ -220,6 +220,9 @@ Example 2 (no attacks): Start 4 CC → play toy [cost 1] → 3 CC → play toy [
 
 ## OPPONENT SLEEP ZONE (Sleep Zone): {len(opp_sleep)}/6 cards
 
+## CRITICAL PLAY CONSTRAINT
+**You can ONLY play cards from YOUR HAND (Hand).** Cards in YOUR TOYS IN PLAY (In Play) or YOUR SLEEP ZONE (Sleep Zone) CANNOT be played. You must use card IDs from the YOUR HAND section above.
+
 ## FORMAT
 "[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
 "Sleeps: Z" = opponent cards YOU put into opponent Sleep Zone this turn (tussle, direct_attack, effects)
