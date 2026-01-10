@@ -60,8 +60,6 @@ def generate_sequence_prompt(
     Returns:
         Prompt string (~4k chars target)
     """
-    from .planning_prompt_v3 import format_sleep_zone_for_planning_v3
-    
     player = game_state.players[player_id]
     opponent = game_state.get_opponent(player_id)
     
@@ -70,73 +68,59 @@ def generate_sequence_prompt(
     in_play = player.in_play
     opp_in_play = opponent.in_play
     opp_sleep = opponent.sleep_zone
-    
-    # Format cards compactly
-    hand_entries = []
-    for card in hand:
-        cc_mod = ""
-        if card.name == "Surge":
-            cc_mod = " (+1 CC when played)"
-        elif card.name == "Rush":
-            cc_mod = " (+2 CC when played)"
-        
-        target_req = ""
-        if card.name == "Wake":
-            target_req = f" [REQUIRES: my sleep zone card as target, my sleep={len(player.sleep_zone)} cards]"
-        elif card.name == "Drop":
-            target_req = f" [REQUIRES: opp in_play card as target, opp_toys={len(opp_in_play)}]"
-        elif card.name == "Clean":
-            target_req = " [TARGETS: opp card]"
-        elif card.name == "Twist":
-            target_req = " [TARGETS: opp card]"
-        
-        # Action cards don't have stats
-        if card.is_action():
-            entry = f"- {card.name} (id={card.id}, cost={card.cost}{cc_mod}, ACTION){target_req}"
-        else:
-            # Toys have stats - get effective values
-            str_val = game_engine.get_card_stat(card, "strength") if game_engine else (card.strength or 0)
-            sta_val = game_engine.get_effective_stamina(card) if game_engine else (card.stamina or 0)
-            # Clearly mark if toy CANNOT attack due to 0 STR
-            attack_warning = ""
-            if str_val == 0:
-                attack_warning = " ⚠️ CANNOT attack (STR=0)"
-            entry = f"- {card.name} (id={card.id}, cost={card.cost}{cc_mod}, STR={str_val}, HP={sta_val}){attack_warning}{target_req}"
-        hand_entries.append(entry)
-    hand_text = "\n".join(hand_entries) if hand_entries else "(empty)"
-    
-    toy_entries = []
-    for card in in_play:
-        # Toys always have stats - get effective values
-        s = game_engine.get_card_stat(card, "strength") if game_engine else (card.strength or 0)
-        sta_val = game_engine.get_effective_stamina(card) if game_engine else (card.stamina or 0)
-        
-        can_attack = "CAN attack" if s and s > 0 else "CANNOT attack (STR=0)"
-        special = ""
-        if card.name == "Archer":
-            special = " [has activate: 1 CC deals 1 damage to any target]"
-        elif card.name == "Knight":
-            special = " [auto-wins tussles on your turn]"
-        entry = f"- {card.name} (id={card.id}, STR={s}, HP={sta_val}, {can_attack}){special}"
-        toy_entries.append(entry)
-    toys_text = "\n".join(toy_entries) if toy_entries else "(no toys - must play from hand first to attack)"
-    
-    opp_entries = []
-    for card in opp_in_play:
-        # Opponent toys always have stats - get effective values
-        str_val = game_engine.get_card_stat(card, "strength") if game_engine else (card.strength or 0)
-        sta_val = game_engine.get_effective_stamina(card) if game_engine else (card.stamina or 0)
-        
-        entry = f"- {card.name} (id={card.id}, STR={str_val}, HP={sta_val})"
-        opp_entries.append(entry)
-    opp_toys_text = "\n".join(opp_entries) if opp_entries else "(EMPTY - direct_attack allowed!)"
-    
+
+    def _format_effects(card) -> str:
+        effects = getattr(card, "effect_definitions", None)
+        if not effects:
+            return "none"
+        return ";".join(p.strip() for p in effects.split(";") if p.strip())
+
+    def _get_effective_cost(card) -> int:
+        if not game_engine or card.cost is None or card.cost < 0:
+            return card.cost
+        return game_engine.calculate_card_cost(card, player)
+
+    def _format_card_line(card, zone: str) -> str:
+        # Stable, computer-friendly fields:
+        # id, name, effective cost, effective stats, relevant effects
+        eff_cost = _get_effective_cost(card)
+        effects = _format_effects(card)
+
+        if card.is_toy():
+            if zone == "in_play" and game_engine:
+                spd = game_engine.get_card_stat(card, "speed")
+                str_val = game_engine.get_card_stat(card, "strength")
+                sta_val = game_engine.get_effective_stamina(card)
+            else:
+                spd = card.speed or 0
+                str_val = card.strength or 0
+                # In non-in-play zones, treat STA as the card's printed/reset stamina.
+                sta_val = card.stamina or 0
+
+            return (
+                f"- [ID: {card.id}] {card.name} | type=Toy | cost={card.cost} | eff_cost={eff_cost} | "
+                f"SPD/STR/STA={spd}/{str_val}/{sta_val} | effects={effects}"
+            )
+
+        return (
+            f"- [ID: {card.id}] {card.name} | type=Action | cost={card.cost} | eff_cost={eff_cost} | "
+            f"SPD/STR/STA=-/-/- | effects={effects}"
+        )
+
+    hand_text = "\n".join(_format_card_line(card, zone="hand") for card in hand) if hand else "(empty)"
+    toys_text = "\n".join(_format_card_line(card, zone="in_play") for card in in_play) if in_play else "(none)"
+    opp_toys_text = "\n".join(_format_card_line(card, zone="in_play") for card in opp_in_play) if opp_in_play else "(none)"
+
     # Sleep zone info for Wake targeting (include actionable info, keep compact)
-    sleep_zone_text = format_sleep_zone_for_planning_v3(player.sleep_zone, game_engine, player=player)
+    sleep_zone_text = "\n".join(_format_card_line(card, zone="sleep") for card in player.sleep_zone) if player.sleep_zone else "(empty)"
     
     # Direct attack availability
     can_direct = len(opp_in_play) == 0
-    direct_msg = "YES - opponent has 0 toys" if can_direct else f"NO - opponent has {len(opp_in_play)} toys"
+    direct_msg = (
+        "YES - opponent has 0 Toys In Play"
+        if can_direct
+        else f"NO - opponent has {len(opp_in_play)} Toys In Play"
+    )
     
     # Calculate max CC (including potential Surge/Rush)
     cc_available = player.cc
@@ -155,34 +139,47 @@ def generate_sequence_prompt(
         cc_header += f" (Max potential: {potential_cc} via {', '.join(modifiers)})"
 
     prompt = f"""You are an expert GGLTCG player planning your turn.
-Your goal: Sleep all 6 opponent cards to win.
+Win condition: Put all opponent's cards into their Sleep Zone
 
 Generate LEGAL action sequences that maximize your progress toward this goal.
 
 {cc_header}
 
-## COSTS: play=card cost, tussle=2, direct_attack=2, activate=1, end_turn=0
+## CARD TYPES
 
-## CC EFFICIENCY
-- Ending with 0-1 CC: Optimal (maximized usage)
-- Ending with 2-3 CC: Acceptable if strategic
-- Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
-- If you have 4+ CC remaining, look for more plays!
+| Type | Behavior |
+|------|----------|
+| **Toy** | Has Speed/Strength/Stamina stats. Stays In Play until sleeped. Can tussle. |
+| **Action** | No stats. Effect resolves immediately, then card goes to your Sleep Zone. |
+
+## ACTIONS & COSTS
+
+| Action | Cost | Notes |
+|--------|------|-------|
+| **Play a card** | Card's printed cost | Pay CC, card enters In Play (Toy) or resolves (Action) |
+| **Tussle** | 2 CC (default) | Your Toy vs opponent's Toy. Can be modified by card effects. |
+| **Direct Attack** | 2 CC (default) | Only when opponent has no Toys In Play. Max 2 per turn. Random card from opponent's Hand → Sleep Zone. |
+| **Activate** | 1 CC | Trigger an activated ability (e.g., Archer) |
+
+## TUSSLE RESOLUTION
+
+1. Compare Speed (active player's Toy gets +1 Speed bonus)
+2. Higher Speed strikes first
+3. Strike deals Strength as damage to opponent's Stamina
+4. Stamina ≤ 0 → card is sleeped
+5. If speeds tied, both strike simultaneously
+
+Key rule: Toys can tussle the same turn they are played.
 
 ## RESOURCE PRIORITY
 IF you have cards that **give +CC when played**, play them FIRST to maximize available CC!
 Look for card descriptions like "(+1 CC when played)" or "(+2 CC when played)" in YOUR HAND below.
 
-## RULES
-1. direct_attack: {direct_msg}
-2. STR > 0 required for tussle/direct_attack (STR=0 toys CANNOT attack)
-3. Action cards with "[REQUIRES: ...]" cannot be played without valid targets
-4. Cards can tussle the SAME TURN they are played!
-5. Wake-type effects return cards to HAND - you must pay their cost to play them again
+## ZONE CHANGES & STATE CHANGES (CRITICAL!)
+When a card moves between zones, all modifications reset (stat changes, damage, temporary effects). Card enters new zone with original printed values.
 
-## STATE CHANGES (CRITICAL!)
-- Tussle that sleeps opponent's LAST toy → direct_attack becomes legal!
-- Wake moves card to HAND (must pay cost to play it again) → then it can tussle immediately!
+- Tussle that sleeps opponent's LAST Toy In Play → direct_attack becomes legal
+- Wake moves card to HAND (must pay cost to play it again) → then it can tussle immediately
 - Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
 
 ## CC MATH (CRITICAL!)
@@ -192,43 +189,48 @@ Look for card descriptions like "(+1 CC when played)" or "(+2 CC when played)" i
 - Action costs: tussle=2, direct_attack=2, activate=1
 - **CRITICAL: Include CC bonuses in your "CC: X/Y spent" calculation!**
 
-## RESOURCE EFFICIENCY (CRITICAL!)
-**Good players end turns with ≤1 CC remaining. Prioritize sequences that spend ALL available CC!**
-- 0 CC left = Excellent (maximal usage)
-- 1 CC left = Good (minor waste)
-- 2+ CC left = Poor (major waste)
-
-## TACTICAL LABELS
-**"Sleeps: Z"** = opponent toys YOU put to sleep through tussles (not cards you play!)
-- Each tussle sleeps 1 opponent toy
-- direct_attack doesn't sleep toys (hits player)
-- **Playing toys from hand doesn't sleep opponent cards!**
+## CC EFFICIENCY
+- Ending with 0-1 CC: Optimal (maximized usage)
+- Ending with 2-3 CC: Acceptable if strategic
+- Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
+- If you have 4+ CC remaining, look for more plays!
 
 ## EXAMPLES
-Example 1 (with CC-gain card): Start 4 CC → play card [cost 0, +1 CC] → 5 CC → play toy [cost 1] → 4 CC → tussle [cost 2] → 2 CC → direct_attack [cost 2] → 0 CC | CC: 5/5 spent | Sleeps: 1
+Example 1 (with CC-gain card): Start 4 CC → play card [cost 0, +1 CC] → 5 CC → play toy [cost 1] → 4 CC → tussle [cost 2] → 2 CC → direct_attack [cost 2] → 0 CC | CC: 5/5 spent | Sleeps: 2
 Example 2 (no attacks): Start 4 CC → play toy [cost 1] → 3 CC → play toy [cost 1] → 2 CC → end_turn | CC: 2/4 spent | Sleeps: 0
   (No tussles = no sleeps! Just played 2 toys.)
 
-## YOUR HAND (cards you can play)
+## YOUR HAND (Hand)
 {hand_text}
 
-## YOUR TOYS IN PLAY (you control these - use their IDs for tussle/direct_attack)
+## YOUR TOYS IN PLAY (In Play)
 {toys_text}
 
-## YOUR SLEEP ZONE (for Wake targeting)
+## YOUR SLEEP ZONE (Sleep Zone)
 {sleep_zone_text}
 
-## OPPONENT'S TOYS (target these with YOUR toys - use their IDs as tussle targets)
+## OPPONENT HAND (Hand): {len(opponent.hand)} cards (hidden)
+
+## OPPONENT TOYS IN PLAY (In Play)
 {opp_toys_text}
 
-## OPPONENT'S SLEPT CARDS: {len(opp_sleep)}/6
+## OPPONENT SLEEP ZONE (Sleep Zone): {len(opp_sleep)}/6 cards
+
+## CRITICAL CONSTRAINTS
+**The 'play' action requires the card to be in YOUR HAND.** Use card IDs from the YOUR HAND section above. Cards already In Play or in Sleep Zone stay in their zones (use tussle/activate for In Play toys).
+
+**direct_attack legality right now: {direct_msg}**
+
+**STR > 0 required for tussle/direct_attack** (STR=0 toys cannot attack)
 
 ## FORMAT
 "[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
+"Sleeps: Z" = opponent cards YOU put into opponent Sleep Zone this turn (tussle, direct_attack, effects)
 Use card IDs from listings. Format: play NAME [ID], tussle ID->ID, direct_attack ID, activate ID->ID
 
 ## TASK
-Generate 5-10 LEGAL sequences that **spend ALL {player.cc} CC** (aim for 0 CC left):
+Generate 5-10 LEGAL sequences that spend as much CC as possible (aim for 0 CC left).
+If you play cards that gain CC (e.g., Surge/Rush), your CC budget increases AFTER paying their cost.
 1. Aggressive (maximize attacks)
 2. Board-building (play multiple toys)
 3. Balanced (mix playing + attacking)

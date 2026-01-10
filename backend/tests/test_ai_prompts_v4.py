@@ -120,9 +120,76 @@ def test_prompt_sleep_zone_has_actionable_card_info():
 
     prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
 
-    # The sleep zone section should contain compact details including cost/type/stats.
-    # With the v3 compact formatter, toys show "(XCC, ... SPD/STR/STA)" and actions show "(ACTION, XCC)".
-    assert "## YOUR SLEEP ZONE (for Wake targeting)" in prompt
+    # The sleep zone section should contain actionable details including cost/stats/effects.
+    assert "## YOUR SLEEP ZONE (Sleep Zone)" in prompt
     assert "Knight" in prompt
-    assert "1CC" in prompt
-    assert "SPD/STR/STA" in prompt
+    assert "eff_cost=" in prompt
+    assert "SPD/STR/STA=" in prompt
+    assert "effects=" in prompt
+
+
+def test_request1_state_schema_has_required_fields_and_no_hp_label():
+    """Guardrail: Request 1 should use consistent schema and STA (not HP)."""
+    setup, cards = create_game_with_cards(
+        player1_hand=["Umbruh", "Surge"],
+        player1_in_play=["Ka"],
+        player1_sleep=["Knight"],
+        player1_cc=4,
+        player2_in_play=["Demideca"],
+        active_player="player1",
+        turn_number=1,
+    )
+
+    prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
+
+    assert "HP=" not in prompt
+    assert "SPD/STR/STA=" in prompt
+    assert "eff_cost=" in prompt
+    assert "effects=" in prompt
+    assert "## OPPONENT HAND (Hand):" in prompt
+    assert "## OPPONENT SLEEP ZONE (Sleep Zone):" in prompt
+
+
+def test_request1_direct_attack_wording_matches_quick_reference():
+    """Guardrail: direct_attack wording must match QUICK_REFERENCE mechanics."""
+    setup, cards = create_game_with_cards(
+        player1_hand=["Umbruh"],
+        player1_cc=4,
+        player2_in_play=["Ka"],
+        active_player="player1",
+        turn_number=1,
+    )
+
+    prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
+
+    assert "## ACTIONS & COSTS" in prompt
+    assert (
+        "| **Direct Attack** | 2 CC (default) | Only when opponent has no Toys In Play. Max 2 per turn. "
+        "Random card from opponent's Hand → Sleep Zone. |" in prompt
+    )
+    assert "direct_attack doesn't sleep toys" not in prompt
+    assert "summoning sickness" not in prompt
+
+
+def test_request1_explicit_play_from_hand_only_constraint():
+    """
+    Guardrail: Prompt MUST explicitly state that 'play' action requires cards in Hand.
+    
+    This prevents the model from attempting to play cards from Sleep Zone or In Play.
+    Issue found in game c18ec8d3-3e1c-4114-abc0-edc16e23eb5c where sequences
+    tried to play Surge from Sleep Zone.
+    """
+    setup, cards = create_game_with_cards(
+        player1_hand=["Umbruh", "Wake"],
+        player1_sleep=["Surge", "Ka"],
+        player1_cc=5,
+        active_player="player1",
+        turn_number=3,
+    )
+
+    prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
+
+    # Must have the explicit constraint section with clear wording
+    assert "## CRITICAL CONSTRAINTS" in prompt
+    assert "The 'play' action requires the card to be in YOUR HAND" in prompt
+    assert "Use card IDs from the YOUR HAND section" in prompt
