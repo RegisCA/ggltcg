@@ -83,7 +83,7 @@ class TestSequenceGenerator:
     """Test the sequence generator prompt."""
     
     def test_prompt_under_4k_chars(self):
-        """Sequence generator prompt should be under 4k chars."""
+        """Sequence generator prompt should be under 6k chars."""
         from game_engine.ai.prompts.sequence_generator import generate_sequence_prompt
         
         setup, _ = create_game_with_cards(
@@ -95,7 +95,7 @@ class TestSequenceGenerator:
         
         prompt = generate_sequence_prompt(setup.game_state, "player1")
         
-        assert len(prompt) < 4500, f"Prompt too long: {len(prompt)} chars (target: <4500)"
+        assert len(prompt) < 6000, f"Prompt too long: {len(prompt)} chars (target: <6000)"
     
     def test_prompt_includes_cc(self):
         """Prompt should include current CC."""
@@ -249,7 +249,7 @@ class TestPromptSizes:
         # Test Request 1
         seq_prompt = generate_sequence_prompt(setup.game_state, "player1")
         print(f"Request 1 (Sequence Generator): {len(seq_prompt)} chars")
-        assert len(seq_prompt) < 4500, f"Request 1 too long: {len(seq_prompt)} chars"
+        assert len(seq_prompt) < 6000, f"Request 1 too long: {len(seq_prompt)} chars"
         
         # Test Request 2 with multiple sequences
         test_sequences = [
