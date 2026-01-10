@@ -162,8 +162,10 @@ def test_request1_direct_attack_wording_matches_quick_reference():
 
     prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
 
+    assert "## ACTIONS & COSTS" in prompt
     assert (
-        "Direct Attack | 2 CC (default) | Only when opponent has no Toys In Play. Max 2 per turn. "
-        "Random card from opponent's Hand → Sleep Zone." in prompt
+        "| **Direct Attack** | 2 CC (default) | Only when opponent has no Toys In Play. Max 2 per turn. "
+        "Random card from opponent's Hand → Sleep Zone. |" in prompt
     )
     assert "direct_attack doesn't sleep toys" not in prompt
+    assert "summoning sickness" not in prompt
