@@ -171,19 +171,9 @@ Generate LEGAL action sequences that maximize your progress toward this goal.
 
 Key rule: Toys can tussle the same turn they are played.
 
-## CC EFFICIENCY
-- Ending with 0-1 CC: Optimal (maximized usage)
-- Ending with 2-3 CC: Acceptable if strategic
-- Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
-- If you have 4+ CC remaining, look for more plays!
-
 ## RESOURCE PRIORITY
 IF you have cards that **give +CC when played**, play them FIRST to maximize available CC!
 Look for card descriptions like "(+1 CC when played)" or "(+2 CC when played)" in YOUR HAND below.
-
-## LEGALITY CONSTRAINTS
-1. direct_attack legality right now: {direct_msg}
-2. STR > 0 required for tussle/direct_attack (STR=0 toys CANNOT attack)
 
 ## ZONE CHANGES & STATE CHANGES (CRITICAL!)
 When a card moves between zones, all modifications reset (stat changes, damage, temporary effects). Card enters new zone with original printed values.
@@ -198,6 +188,12 @@ When a card moves between zones, all modifications reset (stat changes, damage, 
 - Example: Start 5 CC → play toy [cost 1] → 5 - 1 = 4 CC → tussle [cost 2] → 4 - 2 = 2 CC
 - Action costs: tussle=2, direct_attack=2, activate=1
 - **CRITICAL: Include CC bonuses in your "CC: X/Y spent" calculation!**
+
+## CC EFFICIENCY
+- Ending with 0-1 CC: Optimal (maximized usage)
+- Ending with 2-3 CC: Acceptable if strategic
+- Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
+- If you have 4+ CC remaining, look for more plays!
 
 ## EXAMPLES
 Example 1 (with CC-gain card): Start 4 CC → play card [cost 0, +1 CC] → 5 CC → play toy [cost 1] → 4 CC → tussle [cost 2] → 2 CC → direct_attack [cost 2] → 0 CC | CC: 5/5 spent | Sleeps: 2
@@ -222,6 +218,10 @@ Example 2 (no attacks): Start 4 CC → play toy [cost 1] → 3 CC → play toy [
 
 ## CRITICAL PLAY CONSTRAINT
 **You can ONLY play cards from YOUR HAND (Hand).** Cards in YOUR TOYS IN PLAY (In Play) or YOUR SLEEP ZONE (Sleep Zone) CANNOT be played. You must use card IDs from the YOUR HAND section above.
+
+**direct_attack legality right now: {direct_msg}**
+
+**STR > 0 required for tussle/direct_attack** (STR=0 toys CANNOT attack)
 
 ## FORMAT
 "[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
