@@ -56,7 +56,7 @@
 4. Stamina ≤ 0 → card is sleeped
 5. If speeds tied, both strike simultaneously
 
-**Key rule**: Toys can tussle the same turn they are played. No "summoning sickness."
+**Key rule**: Toys can tussle the same turn they are played.
 
 ## Zone Changes
 
