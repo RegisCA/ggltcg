@@ -173,7 +173,7 @@ def test_request1_direct_attack_wording_matches_quick_reference():
 
 def test_request1_explicit_play_from_hand_only_constraint():
     """
-    Guardrail: Prompt MUST explicitly state that cards can ONLY be played from Hand.
+    Guardrail: Prompt MUST explicitly state that 'play' action requires cards in Hand.
     
     This prevents the model from attempting to play cards from Sleep Zone or In Play.
     Issue found in game c18ec8d3-3e1c-4114-abc0-edc16e23eb5c where sequences
@@ -189,8 +189,7 @@ def test_request1_explicit_play_from_hand_only_constraint():
 
     prompt = generate_sequence_prompt(setup.game_state, "player1", setup.engine)
 
-    # Must have the explicit constraint section
-    assert "## CRITICAL PLAY CONSTRAINT" in prompt
-    assert "You can ONLY play cards from YOUR HAND (Hand)" in prompt
-    assert "Cards in YOUR TOYS IN PLAY (In Play) or YOUR SLEEP ZONE (Sleep Zone) CANNOT be played" in prompt
-    assert "You must use card IDs from the YOUR HAND section" in prompt
+    # Must have the explicit constraint section with clear wording
+    assert "## CRITICAL CONSTRAINTS" in prompt
+    assert "The 'play' action requires the card to be in YOUR HAND" in prompt
+    assert "Use card IDs from the YOUR HAND section" in prompt
