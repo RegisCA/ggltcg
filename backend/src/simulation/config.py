@@ -1,15 +1,24 @@
 """Configuration dataclasses for the simulation system."""
 
+import os
 from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
 
-# Supported AI models for simulation
+# Suggested AI models for simulation presets.
 SUPPORTED_MODELS = [
     "gemini-2.0-flash",
     "gemini-2.5-flash-lite",
-    "gemini-3-flash-preview"
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite-preview",
+    "llama-3.1-8b-instant",
+    "openai/gpt-oss-20b",
 ]
+
+
+def is_valid_model_name(model_name: str) -> bool:
+    """Validate a simulation model name without provider-specific allowlists."""
+    return bool(model_name and model_name.strip())
 
 # Supported AI versions (planning strategies)
 # v2: Per-action LLM calls (original)
@@ -116,8 +125,8 @@ class GameResult:
 class SimulationConfig:
     """Configuration for a simulation run."""
     deck_names: list[str]  # List of deck names to use (will run all combinations)
-    player1_model: str = "gemini-2.0-flash"
-    player2_model: str = "gemini-2.5-flash-lite"
+    player1_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
+    player2_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
     player1_ai_version: int = 4  # AI planning version (2, 3, or 4)
     player2_ai_version: int = 4  # AI planning version (2, 3, or 4)
     iterations_per_matchup: int = 10  # Games per deck matchup

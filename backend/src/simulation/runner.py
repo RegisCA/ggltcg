@@ -32,6 +32,9 @@ from .config import (
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")
+
+
 class SimulationRunner:
     """
     Runs individual AI vs AI games for simulation.
@@ -78,6 +81,8 @@ class SimulationRunner:
         # AI players will be created per-game
         self._player1_ai: Optional[LLMPlayer] = None
         self._player2_ai: Optional[LLMPlayer] = None
+        self.player1_provider = DEFAULT_AI_PROVIDER
+        self.player2_provider = DEFAULT_AI_PROVIDER
     
     def run_game(
         self,
@@ -113,18 +118,17 @@ class SimulationRunner:
             
             # Create AI players with specified models and AI versions
             # Use LLMPlayerV3 for AI versions 3 and 4 (turn planning)
+            from game_engine.ai.turn_planner import ai_version_to_planner_mode
             Player1Class = LLMPlayerV3 if self.player1_ai_version >= 3 else LLMPlayer
             Player2Class = LLMPlayerV3 if self.player2_ai_version >= 3 else LLMPlayer
-            self._player1_ai = Player1Class(
-                provider="gemini", 
-                model=self.player1_model,
-                ai_version=self.player1_ai_version
-            )
-            self._player2_ai = Player2Class(
-                provider="gemini", 
-                model=self.player2_model,
-                ai_version=self.player2_ai_version
-            )
+            p1_kwargs = dict(provider=self.player1_provider, model=self.player1_model)
+            p2_kwargs = dict(provider=self.player2_provider, model=self.player2_model)
+            if self.player1_ai_version >= 3:
+                p1_kwargs["planner_mode"] = ai_version_to_planner_mode(self.player1_ai_version)
+            if self.player2_ai_version >= 3:
+                p2_kwargs["planner_mode"] = ai_version_to_planner_mode(self.player2_ai_version)
+            self._player1_ai = Player1Class(**p1_kwargs)
+            self._player2_ai = Player2Class(**p2_kwargs)
             
             logger.info(
                 f"Starting game {game_number}: {deck1.name} (v{self.player1_ai_version}/{self.player1_model}) vs "

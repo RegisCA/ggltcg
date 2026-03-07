@@ -1,0 +1,104 @@
+You are an expert GGLTCG player planning your turn.
+Win condition: Put all opponent's cards into their Sleep Zone
+
+Generate LEGAL action sequences that maximize your progress toward this goal.
+
+## CC: 5
+
+## CARD TYPES
+
+| Type | Behavior |
+|------|----------|
+| **Toy** | Has Speed/Strength/Stamina stats. Stays In Play until sleeped. Can tussle. |
+| **Action** | No stats. Effect resolves immediately, then card goes to your Sleep Zone. |
+
+## ACTIONS & COSTS
+
+| Action | Cost | Notes |
+|--------|------|-------|
+| **Play a card** | Card's printed cost | Pay CC, card enters In Play (Toy) or resolves (Action) |
+| **Tussle** | 2 CC (default) | Your Toy vs opponent's Toy. Can be modified by card effects. |
+| **Direct Attack** | 2 CC (default) | Only when opponent has no Toys In Play. Max 2 per turn. Random card from opponent's Hand → Sleep Zone. |
+| **Activate** | 1 CC | Trigger an activated ability (e.g., Archer) |
+
+## TUSSLE RESOLUTION
+
+1. Compare Speed (active player's Toy gets +1 Speed bonus)
+2. Higher Speed strikes first
+3. Strike deals Strength as damage to opponent's Stamina
+4. Stamina ≤ 0 → card is sleeped
+5. If speeds tied, both strike simultaneously
+
+Key rule: Toys can tussle the same turn they are played.
+
+## RESOURCE PRIORITY
+IF you have cards that **give +CC when played**, play them FIRST to maximize available CC!
+Look for card descriptions like "(+1 CC when played)" or "(+2 CC when played)" in YOUR HAND below.
+
+## ZONE CHANGES & STATE CHANGES (CRITICAL!)
+When a card moves between zones, all modifications reset (stat changes, damage, temporary effects). Card enters new zone with original printed values.
+
+- Tussle that sleeps opponent's LAST Toy In Play → direct_attack becomes legal
+- Wake moves card to HAND (must pay cost to play it again) → then it can tussle immediately
+- Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
+
+## CC MATH (CRITICAL!)
+- Cards with (+X CC when played): ADD the bonus AFTER subtracting the cost
+- Example: Start 4 CC → play card [cost 0, +1 CC] → 4 - 0 + 1 = 5 CC
+- Example: Start 5 CC → play toy [cost 1] → 5 - 1 = 4 CC → tussle [cost 2] → 4 - 2 = 2 CC
+- Action costs: tussle=2, direct_attack=2, activate=1
+- **CRITICAL: Include CC bonuses in your "CC: X/Y spent" calculation!**
+
+## CC EFFICIENCY
+- Ending with 0-1 CC: Optimal (maximized usage)
+- Ending with 2-3 CC: Acceptable if strategic
+- Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
+- If you have 4+ CC remaining, look for more plays!
+
+## EXAMPLES
+Example 1 (with CC-gain card): Start 4 CC → play card [cost 0, +1 CC] → 5 CC → play toy [cost 1] → 4 CC → tussle [cost 2] → 2 CC → direct_attack [cost 2] → 0 CC | CC: 5/5 spent | Sleeps: 2
+Example 2 (no attacks): Start 4 CC → play toy [cost 1] → 3 CC → play toy [cost 1] → 2 CC → end_turn | CC: 2/4 spent | Sleeps: 0
+  (No tussles = no sleeps! Just played 2 toys.)
+
+## YOUR HAND (Hand)
+- [ID: 07384c5c-abb4-4333-bac1-676f0c55e95e] Wake | type=Action | cost=1 | eff_cost=1 | SPD/STR/STA=-/-/- | effects=unsleep:1
+- [ID: 63a894f6-6a1b-47af-b001-df93c2ef0ec7] Umbruh | type=Toy | cost=1 | eff_cost=1 | SPD/STR/STA=4/4/4 | effects=gain_cc_when_sleeped:1
+- [ID: da454022-a8fe-4a36-b539-42fde7e31aba] Archer | type=Toy | cost=0 | eff_cost=0 | SPD/STR/STA=0/0/5 | effects=cannot_tussle;remove_stamina_ability:1
+
+## YOUR TOYS IN PLAY (In Play)
+(none)
+
+## YOUR SLEEP ZONE (Sleep Zone)
+- [ID: 825bdd54-02bf-4cc6-84a8-c8a0361b4316] Surge | type=Action | cost=0 | eff_cost=0 | SPD/STR/STA=-/-/- | effects=gain_cc:1
+- [ID: 41f0682b-3f36-4a6c-a2b1-78d4303b7405] Knight | type=Toy | cost=1 | eff_cost=1 | SPD/STR/STA=4/4/3 | effects=auto_win_tussle_on_own_turn
+- [ID: 4ab4c1ef-c50d-4d9a-9f0b-e8fc5675b8ae] Paper Plane | type=Toy | cost=1 | eff_cost=1 | SPD/STR/STA=2/2/1 | effects=direct_attack
+
+## OPPONENT HAND (Hand): 4 cards (hidden)
+
+## OPPONENT TOYS IN PLAY (In Play)
+- [ID: c02de099-bb75-4cef-ba9a-6eab9aab3bb1] Knight | type=Toy | cost=1 | eff_cost=1 | SPD/STR/STA=4/4/3 | effects=auto_win_tussle_on_own_turn
+
+## OPPONENT SLEEP ZONE (Sleep Zone): 1/6 cards
+
+## CRITICAL PLAY CONSTRAINT
+**You can ONLY play cards from YOUR HAND (Hand).** Cards in YOUR TOYS IN PLAY (In Play) or YOUR SLEEP ZONE (Sleep Zone) CANNOT be played. You must use card IDs from the YOUR HAND section above.
+
+**direct_attack legality right now: NO - opponent has 1 Toys In Play**
+
+**STR > 0 required for tussle/direct_attack** (STR=0 toys CANNOT attack)
+
+## FORMAT
+"[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
+"Sleeps: Z" = opponent cards YOU put into opponent Sleep Zone this turn (tussle, direct_attack, effects)
+Use card IDs from listings. Format: play NAME [ID], tussle ID->ID, direct_attack ID, activate ID->ID
+
+## TASK
+Generate 5-10 LEGAL sequences that spend as much CC as possible (aim for 0 CC left).
+If you play cards that gain CC (e.g., Surge/Rush), your CC budget increases AFTER paying their cost.
+1. Aggressive (maximize attacks)
+2. Board-building (play multiple toys)
+3. Balanced (mix playing + attacking)
+4. If tussle clears board → add direct_attack!
+5. Play CC-gain cards FIRST if available (look for "+X CC" in card descriptions)!
+
+Verify math! Each sequence must not exceed available CC.

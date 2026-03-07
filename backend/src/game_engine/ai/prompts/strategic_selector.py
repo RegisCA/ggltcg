@@ -31,17 +31,14 @@ STRATEGIC_SELECTOR_SCHEMA = {
     "properties": {
         "selected_index": {
             "type": "integer",
-            "description": "0-based index of the best sequence to execute",
             "minimum": 0
         },
         "reasoning": {
             "type": "string",
-            "description": "1-3 sentences explaining why this sequence is best. Reference examples if applicable.",
-            "maxLength": 300
+            "maxLength": 180
         },
         "lethal_check": {
             "type": "boolean",
-            "description": "True if selected sequence wins the game this turn"
         }
     },
     "required": ["selected_index", "reasoning", "lethal_check"]
@@ -88,49 +85,34 @@ def generate_strategic_prompt(
     # Count opponent cards
     opp_remaining = len(opponent.hand) + len(opponent.in_play)
     opp_slept = len(opponent.sleep_zone)
+    opener_hint = ""
+    if len(opponent.in_play) == 0:
+        opener_hint = "With 0 opponent toys, a legal direct_attack line that sleeps a card now usually beats a setup-only line."
     
-    prompt = f"""<system>You select the BEST action sequence to WIN the game efficiently.</system>
+    prompt = f"""<system>Select the best legal sequence.</system>
 
 <goal>
-Select the sequence that maximizes your chance of winning.
-Priority order:
-1. LETHAL — Can you win THIS turn? Sleep all remaining opponent cards. Always check first!
-2. REMOVAL — Sleep opponent's toys to reduce their threats.
-3. TEMPO — Build board advantage (more toys than opponent).
-4. EFFICIENCY — Spend less CC per card slept. Target: under 3.0 CC/card.
+Priority: lethal > removal > tempo > efficiency.
+Lethal means sleeping all {opp_remaining} remaining opponent cards this turn.
+{opener_hint}
 </goal>
 
-<metrics>
-<metric name="cc_efficiency">CC spent per card slept. Lower is better. Target: under 3.0</metric>
-<metric name="board_advantage">Your toys minus opponent toys. Higher is better.</metric>
-<metric name="lethal_check">Can you sleep ALL remaining opponent cards this turn?</metric>
-</metrics>
-
-<game_phase>{phase}</game_phase>
+<context>
+phase={phase} turn={game_state.turn_number} your_cc={player.cc} your_toys={len(player.in_play)} opponent_toys={len(opponent.in_play)} opponent_remaining={opp_remaining} opponent_slept={opp_slept}
+</context>
 
 <examples>
 {examples_text}
 </examples>
-
-<current_situation>
-<turn>{game_state.turn_number}</turn>
-<your_cc>{player.cc}</your_cc>
-<your_toys_in_play>{len(player.in_play)}</your_toys_in_play>
-<opponent_cards_remaining>{opp_remaining}</opponent_cards_remaining>
-<opponent_toys_in_play>{len(opponent.in_play)}</opponent_toys_in_play>
-<opponent_cards_slept>{opp_slept}</opponent_cards_slept>
-<cards_to_sleep_for_win>{opp_remaining}</cards_to_sleep_for_win>
-</current_situation>
 
 <valid_sequences>
 {sequences_text}
 </valid_sequences>
 
 <task>
-Select the best sequence by its index (0-based).
-First, check if any sequence achieves LETHAL (sleeps all {opp_remaining} remaining opponent cards).
-If no lethal, prioritize REMOVAL over TEMPO over EFFICIENCY.
-Explain your reasoning in 1-3 sentences, referencing the examples if relevant.
+Return the best 0-based index.
+Prefer the line that wins now; otherwise remove the most threats and keep the strongest board.
+Keep reasoning to 1-2 short sentences.
 </task>"""
 
     return prompt
@@ -138,7 +120,7 @@ Explain your reasoning in 1-3 sentences, referencing the examples if relevant.
 
 def get_strategic_selector_temperature() -> float:
     """Return the temperature for strategic selection (Request 2)."""
-    return 0.7
+    return 0.4
 
 
 def parse_selector_response(response_text: str) -> dict:

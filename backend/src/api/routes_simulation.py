@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
-from simulation.config import SimulationConfig, SUPPORTED_MODELS
+from simulation.config import SimulationConfig, SUPPORTED_MODELS, is_valid_model_name
 from simulation.orchestrator import SimulationOrchestrator
 from simulation.deck_loader import load_simulation_decks
 from simulation.reporter import SimulationReporter
@@ -87,12 +87,12 @@ class StartSimulationRequest(BaseModel):
         min_length=1
     )
     player1_model: str = Field(
-        default="gemini-2.5-flash-lite",
-        description="Gemini model for player 1"
+        default="gemini-3.1-flash-lite-preview",
+        description="Model identifier for player 1"
     )
     player2_model: str = Field(
-        default="gemini-2.5-flash-lite",
-        description="Gemini model for player 2"
+        default="gemini-3.1-flash-lite-preview",
+        description="Model identifier for player 2"
     )
     player1_ai_version: int = Field(
         default=4,
@@ -159,10 +159,10 @@ async def list_available_decks() -> List[DeckInfo]:
 @router.get("/models")
 async def list_supported_models() -> List[str]:
     """
-    Get list of supported Gemini models for simulations.
+    Get a list of suggested models for simulations.
     
     Returns:
-        List of model identifiers (e.g., ["gemini-2.0-flash", ...])
+        List of model identifiers
     """
     return SUPPORTED_MODELS
 
@@ -188,15 +188,15 @@ async def start_simulation(
         run_id and initial status (status will be "pending" or "running")
     """
     # Validate model names
-    if request.player1_model not in SUPPORTED_MODELS:
+    if not is_valid_model_name(request.player1_model):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid player1_model '{request.player1_model}'. Supported: {SUPPORTED_MODELS}"
+            detail="player1_model must be a non-empty string"
         )
-    if request.player2_model not in SUPPORTED_MODELS:
+    if not is_valid_model_name(request.player2_model):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid player2_model '{request.player2_model}'. Supported: {SUPPORTED_MODELS}"
+            detail="player2_model must be a non-empty string"
         )
     
     # Create config

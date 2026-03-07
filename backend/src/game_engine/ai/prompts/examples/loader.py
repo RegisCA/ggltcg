@@ -1,13 +1,6 @@
-"""
-Example loader for AI V4.
+"""Example loader for AI V4."""
 
-Selects exactly 3 relevant examples based on current game state:
-1. Combo examples (highest priority) - when synergistic cards present
-2. Phase examples (always include one) - based on turn number
-3. Card-specific examples (fill remaining) - based on cards in hand/play
-
-Selection priority ensures the most relevant guidance is provided.
-"""
+import re
 
 from typing import TYPE_CHECKING
 
@@ -148,4 +141,31 @@ def format_examples_for_prompt(examples: list[str]) -> str:
     Returns:
         Combined examples string with spacing
     """
-    return "\n\n".join(examples)
+    return "\n".join(_summarize_example(example) for example in examples)
+
+
+def _summarize_example(example: str) -> str:
+    """Compress an XML example into a single short hint for Request 2."""
+    title_match = re.search(r'<example[^>]+(?:combo|phase|card)="([^"]+)"', example)
+    title = title_match.group(1) if title_match else "Example"
+
+    summary = _extract_first_tag(
+        example,
+        ["key_insight", "key_rule", "key_lesson", "analysis", "optimal_sequence", "optimal_play"],
+    )
+    if not summary:
+        summary = _collapse_whitespace(re.sub(r"<[^>]+>", " ", example))
+
+    return f"- {title}: {summary[:180]}"
+
+
+def _extract_first_tag(example: str, tags: list[str]) -> str:
+    for tag in tags:
+        match = re.search(rf"<{tag}>(.*?)</{tag}>", example, re.S)
+        if match:
+            return _collapse_whitespace(re.sub(r"<[^>]+>", " ", match.group(1)))
+    return ""
+
+
+def _collapse_whitespace(text: str) -> str:
+    return " ".join(text.split())

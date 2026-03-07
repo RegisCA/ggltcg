@@ -1,0 +1,5 @@
+{
+  "selected_index": 0,
+  "reasoning": "None of the sequences achieve a lethal check, as they only sleep 1 card and 5 remain. Sequence 0 is selected as it has the lowest CC cost (3/5) while still sleeping 1 card, adhering to efficiency.",
+  "lethal_check": false
+}

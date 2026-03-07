@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from conftest import create_game_with_cards
+from ai_test_support import has_valid_ai_api_key, build_turn_planner
 
 
 def validate_cc_math(plan) -> list:
@@ -107,8 +108,7 @@ def validate_cc_math(plan) -> list:
 
 # Skip all tests if no valid API key
 def _has_valid_api_key():
-    key = os.environ.get("GOOGLE_API_KEY", "")
-    return key and not key.startswith("dummy") and len(key) > 20
+    return has_valid_ai_api_key()
 
 
 pytestmark = pytest.mark.skipif(
@@ -120,16 +120,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def turn_planner():
     """Create a TurnPlanner instance for testing."""
-    from google import genai
-    from game_engine.ai.turn_planner import TurnPlanner
-    
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    client = genai.Client(api_key=api_key)
-    
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
-    fallback = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
-    
-    return TurnPlanner(client=client, model_name=model, fallback_model=fallback)
+    return build_turn_planner()
 
 
 def log_plan(plan, title: str):

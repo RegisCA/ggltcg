@@ -20,7 +20,7 @@ Usage:
 
 Environment:
     PLANNING_VERSION: Set automatically by this script
-    GOOGLE_API_KEY: Required for Gemini API calls
+    Provider-specific API key: determined from AI_PROVIDER
 """
 
 import argparse
@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from simulation.runner import SimulationRunner
 from simulation.config import GameOutcome
 from simulation.deck_loader import load_simulation_decks_dict
+from game_engine.ai.providers import get_api_key_env_var, get_default_provider_name
 from game_engine.ai.turn_planner import TurnPlanner
 
 
@@ -218,12 +219,17 @@ def main():
                        help="Model for player 1")
     parser.add_argument("--player2-model", type=str, default="gemini-2.5-flash-lite",
                        help="Model for player 2")
+    parser.add_argument("--provider", type=str, default=os.getenv("AI_PROVIDER", "gemini"),
+                       help="Provider to use (gemini, groq, openrouter)")
     
     args = parser.parse_args()
     
+    os.environ["AI_PROVIDER"] = args.provider
+
     # Check for API key
-    if not os.environ.get("GOOGLE_API_KEY"):
-        print("ERROR: GOOGLE_API_KEY environment variable not set")
+    api_key_env_var = get_api_key_env_var(get_default_provider_name())
+    if not (os.environ.get("AI_API_KEY") or os.environ.get(api_key_env_var)):
+        print(f"ERROR: {api_key_env_var} environment variable not set")
         sys.exit(1)
     
     num_games = 2 if args.quick else args.games

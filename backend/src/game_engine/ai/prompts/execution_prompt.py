@@ -246,7 +246,7 @@ def find_matching_action_index(
         
         # Match tussle - by IDs first (both attacker and target), then by names
         if action_type == "tussle":
-            # Try ID match first (most reliable for disambiguation)
+            # Try attacker ID match (most reliable for disambiguation)
             if card_id and hasattr(action, 'card_id') and action.card_id == card_id:
                 # Also check target matches if we have target_ids
                 if target_ids and hasattr(action, 'target_options') and action.target_options:
@@ -254,6 +254,13 @@ def find_matching_action_index(
                         return i
                 elif not target_ids:
                     # No target constraint, just match attacker ID
+                    return i
+            
+            # Fallback: LLM sometimes puts the target's ID in card_id instead of
+            # target_ids (a common prompt-following error). If card_id appears in
+            # a tussle action's target_options, treat it as a target match.
+            if card_id and hasattr(action, 'target_options') and action.target_options:
+                if card_id in action.target_options:
                     return i
             
             # Fall back to name match (legacy compatibility)

@@ -1,19 +1,20 @@
 """
-Turn Planner for AI v3/v4.
+Turn Planner for AI planning.
 
 This module implements the Phase 1 planning component of the AI architecture.
 The TurnPlanner generates a complete turn plan at the start of each turn.
 
-AI Versions (set via AI_VERSION env var):
-- V3: Single request turn planning (default)
-- V4: Dual-request architecture
+Planner Modes (set via AI_PLANNER_MODE env var):
+- single: Single-request turn planning (default, optimized for Groq)
+- dual:   Dual-request architecture (experimental, Gemini)
   - Request 1: Generate LEGAL sequences (temp 0.2)
   - Request 2: Select STRATEGICALLY with examples (temp 0.7)
+
+Legacy: AI_VERSION=4 maps to 'dual'; all other values map to 'single'.
 """
 
 import json
 import logging
-import time
 import os
 from typing import Optional, Dict, Any
 
@@ -33,13 +34,41 @@ from .prompts.planning_prompt_v3 import (
 )
 from .validators import TurnPlanValidator
 from .quality_metrics import TurnMetrics, record_turn_metrics
+from .providers import BaseLLMProvider, build_provider, get_default_provider_name
 
 logger = logging.getLogger(__name__)
 
+PROMPT_TOKEN_ESTIMATE_DIVISOR = 4
 
-def get_ai_version() -> str:
-    """Get the AI version from environment (3 or 4)."""
-    return os.getenv("AI_VERSION", "3")
+
+def get_planner_mode() -> str:
+    """Get the AI planner mode from environment.
+
+    Returns 'single' or 'dual'.  Reads ``AI_PLANNER_MODE`` first;
+    falls back to legacy ``AI_VERSION`` for backward compatibility
+    (version 4 maps to 'dual', everything else to 'single').
+    """
+    mode = os.getenv("AI_PLANNER_MODE")
+    if mode:
+        mode = mode.strip().lower()
+        if mode in ("single", "dual"):
+            return mode
+        logger.warning("Invalid AI_PLANNER_MODE '%s', defaulting to 'single'", mode)
+        return "single"
+
+    # Backward compat: derive from legacy AI_VERSION
+    ai_version = os.getenv("AI_VERSION", "3")
+    if ai_version == "4":
+        return "dual"
+    return "single"
+
+
+def ai_version_to_planner_mode(ai_version: int) -> str:
+    """Map a legacy ai_version integer to a planner mode string.
+
+    Used by simulation and other callers that still pass version ints.
+    """
+    return "dual" if ai_version == 4 else "single"
 
 
 class TurnPlanner:
@@ -82,7 +111,16 @@ class TurnPlanner:
         for key in cls._v4_metrics:
             cls._v4_metrics[key] = 0
     
-    def __init__(self, client, model_name: str, fallback_model: str, ai_version: int = None):
+    def __init__(
+        self,
+        client,
+        model_name: str,
+        fallback_model: str,
+        ai_version: int = None,
+        planner_mode: str = None,
+        provider_client: Optional[BaseLLMProvider] = None,
+        provider: Optional[str] = None,
+    ):
         """
         Initialize the TurnPlanner.
         
@@ -90,14 +128,32 @@ class TurnPlanner:
             client: google-genai Client instance
             model_name: Primary model to use
             fallback_model: Fallback model for capacity issues
-            ai_version: AI version to use (3 or 4). If None, reads from AI_VERSION env var.
+            ai_version: Deprecated. Use planner_mode instead.
+            planner_mode: 'single' or 'dual'. If None, reads from AI_PLANNER_MODE env var.
         """
         self.client = client
-        self.model_name = model_name
-        self.fallback_model = fallback_model
+        self.provider = provider or get_default_provider_name()
+        self.provider_client = provider_client
+        if self.provider_client is None:
+            self.provider_client, resolved = build_provider(
+                provider_name=self.provider,
+                model=model_name,
+                fallback_model=fallback_model,
+                client=client,
+            )
+            self.model_name = resolved.model
+            self.fallback_model = resolved.fallback_model
+        else:
+            self.model_name = model_name
+            self.fallback_model = fallback_model
         
-        # Determine AI version - parameter overrides env var
-        self.ai_version = str(ai_version) if ai_version is not None else get_ai_version()
+        # Determine planner mode: explicit arg > legacy ai_version arg > env var.
+        if planner_mode:
+            self.planner_mode = planner_mode
+        elif ai_version is not None:
+            self.planner_mode = ai_version_to_planner_mode(ai_version)
+        else:
+            self.planner_mode = get_planner_mode()
         
         # Store last planning info for debugging
         self._last_prompt: Optional[str] = None
@@ -142,13 +198,11 @@ class TurnPlanner:
         ai_player = game_state.players[player_id]
         opponent = game_state.get_opponent(player_id)
         
-        # Use instance-level AI version (set in __init__)
-        ai_version = self.ai_version
-        logger.debug(f"📋 AI version: {ai_version}")
+        logger.debug(f"📋 Planner mode: {self.planner_mode}")
         
-        # V4: Dual-request architecture
-        if ai_version == "4":
-            logger.debug("✅ Using AI V4 (dual-request architecture)")
+        # Dual-request architecture
+        if self.planner_mode == "dual":
+            logger.debug("✅ Using dual-request planning")
             result = self._create_plan_v4(game_state, player_id, game_engine)
             # Log V4 metrics summary (DEBUG - summary logged at game end)
             m = TurnPlanner._v4_metrics
@@ -158,8 +212,8 @@ class TurnPlanner:
                            f"{m['request2_fail']} parse_errors")
             return result
         
-        # V3: Single-request turn planning (default)
-        logger.debug("✅ Using AI V3 (single-request planning)")
+        # Single-request turn planning (default)
+        logger.debug("✅ Using single-request planning")
         
         # Format game state for the prompt
         game_state_text = format_game_state_for_ai(game_state, player_id, game_engine)
@@ -186,7 +240,10 @@ class TurnPlanner:
         )
         
         # Retry loop with validation feedback
-        max_retries = 3
+        # Single-request mode: no retries — each call consumes Groq's entire per-minute token
+        # budget.  Return the first plan regardless; the execution layer handles bad actions
+        # gracefully by skipping them.
+        max_retries = 1
         validation_feedback = ""
         
         for attempt in range(max_retries):
@@ -212,6 +269,11 @@ class TurnPlanner:
                 
                 # Convert to TurnPlan object
                 plan = self._parse_plan(plan_data)
+                # Ground cc_start to actual player CC — LLMs frequently output the wrong
+                # value (e.g. 0 instead of 2 on turn 1), which corrupts every cc_after
+                # figure shown in admin logs and makes the plan look impossible.
+                plan.cc_start = ai_player.cc
+                self._reground_cc_chain(plan)
                 self._last_plan = plan
                 
                 # Validate card IDs exist in game state
@@ -227,22 +289,31 @@ class TurnPlanner:
                     )
                     
                     if validation_errors:
-                        # Format feedback for retry
-                        validation_feedback = self._validator.format_feedback_for_llm(validation_errors)
-                        logger.warning(f"Plan validation failed (attempt {attempt + 1}/{max_retries})")
-                        
-                        # Last attempt - return plan anyway with warning
-                        if attempt == max_retries - 1:
-                            logger.error("Max retries reached. Returning plan despite validation errors.")
+                        # Single-request mode: no retries, so validation issues are
+                        # informational only.  Execution layer skips unplayable actions.
+                        if self.planner_mode == "single":
+                            logger.debug(
+                                f"Plan has {len(validation_errors)} validation issue(s) "
+                                "— proceeding (single-request mode)"
+                            )
                             self._log_plan_summary(plan)
-                            
-                            # Record quality metrics (even for failed validation)
                             metrics = TurnMetrics.from_plan(plan, game_state, player_id)
                             record_turn_metrics(metrics)
                             logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
-                            
                             return plan
-                        
+
+                        # Dual-request mode: format feedback and retry
+                        validation_feedback = self._validator.format_feedback_for_llm(validation_errors)
+                        logger.warning(f"Plan validation failed (attempt {attempt + 1}/{max_retries})")
+
+                        if attempt == max_retries - 1:
+                            logger.error("Max retries reached. Returning plan despite validation errors.")
+                            self._log_plan_summary(plan)
+                            metrics = TurnMetrics.from_plan(plan, game_state, player_id)
+                            record_turn_metrics(metrics)
+                            logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
+                            return plan
+
                         # Retry with feedback
                         continue
                 
@@ -293,57 +364,18 @@ class TurnPlanner:
         Returns:
             JSON response text
         """
-        from google.genai import types
-        
-        last_exception = None
-        current_model = self.model_name
-        
-        for attempt in range(retry_count):
-            try:
-                response = self.client.models.generate_content(
-                    model=current_model,
-                    contents=[
-                        types.Content(
-                            role="user",
-                            parts=[types.Part.from_text(text=prompt)]
-                        )
-                    ],
-                    config=types.GenerateContentConfig(
-                        temperature=0.7,
-                        max_output_tokens=8192,  # Larger for detailed plans
-                        response_mime_type="application/json",
-                        response_json_schema=TURN_PLAN_JSON_SCHEMA,
-                    )
-                )
-                
-                # Check for empty response
-                if not response.candidates or not response.candidates[0].content.parts:
-                    finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-                    raise ValueError(f"Empty response (finish_reason: {finish_reason})")
-                
-                result = response.text.strip()
-                logger.debug(f"Plan response length: {len(result)} characters")
-                return result
-                
-            except Exception as e:
-                error_str = str(e)
-                last_exception = e
-                
-                # Handle 429 Resource Exhausted
-                if "429" in error_str or "ResourceExhausted" in error_str or "Resource exhausted" in error_str:
-                    if attempt < retry_count - 1:
-                        wait_time = 2 ** attempt
-                        logger.warning(f"API capacity issue. Retry {attempt + 1}/{retry_count} after {wait_time}s...")
-                        time.sleep(wait_time)
-                        continue
-                    elif allow_fallback:
-                        logger.warning(f"Switching to fallback model: {self.fallback_model}")
-                        _current_model = self.fallback_model  # noqa: F841 - assigned for potential future use
-                        return self._call_planning_api(prompt, retry_count=1, allow_fallback=False)
-                
-                raise last_exception
-        
-        raise last_exception
+        result = self.provider_client.generate_json(
+            prompt,
+            TURN_PLAN_JSON_SCHEMA,
+            temperature=0.7,
+            max_output_tokens=self._get_planning_output_budget(),
+            retry_count=retry_count,
+            allow_fallback=allow_fallback,
+            model=self.model_name,
+            fallback_model=self.fallback_model,
+        )
+        logger.debug(f"Plan response length: {len(result)} characters")
+        return result
     
     def _create_plan_v4(
         self,
@@ -367,7 +399,6 @@ class TurnPlanner:
         Returns:
             TurnPlan object if successful, None if failed
         """
-        from google.genai import types
         from .prompts.sequence_generator import (
             generate_sequence_prompt,
             get_sequence_generator_temperature,
@@ -414,7 +445,11 @@ class TurnPlanner:
         seq_prompt = generate_sequence_prompt(game_state, player_id, game_engine)
         self._last_prompt = seq_prompt
         self._v4_request1_prompt = seq_prompt
-        logger.debug(f"Sequence generator prompt ({len(seq_prompt)} chars)")
+        logger.debug(
+            "Sequence generator prompt (%s chars, ~%s tokens)",
+            len(seq_prompt),
+            self._estimate_prompt_tokens(seq_prompt),
+        )
         
         sequences = []
         for temp in [get_sequence_generator_temperature(), 1.0]:  # Retry with higher temp
@@ -422,33 +457,25 @@ class TurnPlanner:
                 self._v4_turn_debug["request1_attempts"] += 1
                 self._v4_turn_debug["request1_temps_tried"].append(temp)
             try:
-                response = self.client.models.generate_content(
+                response_text = self.provider_client.generate_json(
+                    seq_prompt,
+                    SEQUENCE_GENERATOR_SCHEMA,
+                    temperature=temp,
+                    max_output_tokens=self._get_sequence_output_budget(),
+                    retry_count=3,
+                    allow_fallback=True,
                     model=self.model_name,
-                    contents=[
-                        types.Content(
-                            role="user",
-                            parts=[types.Part.from_text(text=seq_prompt)]
-                        )
-                    ],
-                    config=types.GenerateContentConfig(
-                        temperature=temp,
-                        max_output_tokens=4096,
-                        response_mime_type="application/json",
-                        response_json_schema=SEQUENCE_GENERATOR_SCHEMA,
-                    )
+                    fallback_model=self.fallback_model,
                 )
-                
-                if response.candidates and response.candidates[0].content.parts:
-                    response_text = response.text.strip()
-                    self._last_response = response_text
-                    self._v4_request1_response = response_text
-                    sequences = parse_sequences_response(response_text)
-                    if self._v4_turn_debug is not None:
-                        self._v4_turn_debug["sequences_generated"] = len(sequences)
-                    logger.debug(f"   Generated {len(sequences)} sequences (temp={temp})")
-                    
-                    if sequences:
-                        break
+                self._last_response = response_text
+                self._v4_request1_response = response_text
+                sequences = parse_sequences_response(response_text)
+                if self._v4_turn_debug is not None:
+                    self._v4_turn_debug["sequences_generated"] = len(sequences)
+                logger.debug(f"   Generated {len(sequences)} sequences (temp={temp})")
+
+                if sequences:
+                    break
                         
             except Exception as e:
                 logger.warning(f"Request 1 failed (temp={temp}): {e}")
@@ -504,76 +531,69 @@ class TurnPlanner:
         
         select_prompt = generate_strategic_prompt(game_state, player_id, sequences)
         self._v4_request2_prompt = select_prompt
-        logger.debug(f"Strategic selector prompt ({len(select_prompt)} chars)")
+        logger.debug(
+            "Strategic selector prompt (%s chars, ~%s tokens)",
+            len(select_prompt),
+            self._estimate_prompt_tokens(select_prompt),
+        )
         
         try:
-            response = self.client.models.generate_content(
+            select_response = self.provider_client.generate_json(
+                select_prompt,
+                STRATEGIC_SELECTOR_SCHEMA,
+                temperature=get_strategic_selector_temperature(),
+                max_output_tokens=self._get_selector_output_budget(),
+                retry_count=3,
+                allow_fallback=True,
                 model=self.model_name,
-                contents=[
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=select_prompt)]
-                    )
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=get_strategic_selector_temperature(),
-                    max_output_tokens=1024,
-                    response_mime_type="application/json",
-                    response_json_schema=STRATEGIC_SELECTOR_SCHEMA,
-                )
+                fallback_model=self.fallback_model,
             )
-            
-            if response.candidates and response.candidates[0].content.parts:
-                select_response = response.text.strip()
-                self._v4_request2_response = select_response
-                selection = parse_selector_response(select_response)
-                
-                selected_index = selection.get("selected_index", 0)
-                reasoning = selection.get("reasoning", "No reasoning provided")
+            self._v4_request2_response = select_response
+            selection = parse_selector_response(select_response)
 
-                if self._v4_turn_debug is not None:
-                    self._v4_turn_debug["request2_selected_index"] = selected_index
-                
-                # Check if this was a parse error (strategic selector failed)
-                if "Parse error" in reasoning:
-                    TurnPlanner._v4_metrics["request2_fail"] += 1
-                    if self._v4_turn_debug is not None:
-                        self._v4_turn_debug["request2_parse_error"] = True
-                else:
-                    TurnPlanner._v4_metrics["request2_success"] += 1
-                
-                # Ensure index is valid
-                if selected_index >= len(sequences):
-                    selected_index = 0
-                    logger.warning(f"Invalid sequence index, using 0")
-                    if self._v4_turn_debug is not None:
-                        self._v4_turn_debug["request2_invalid_index"] = True
+            selected_index = selection.get("selected_index", 0)
+            reasoning = selection.get("reasoning", "No reasoning provided")
 
+            if self._v4_turn_debug is not None:
+                self._v4_turn_debug["request2_selected_index"] = selected_index
+
+            if "Parse error" in reasoning:
+                TurnPlanner._v4_metrics["request2_fail"] += 1
                 if self._v4_turn_debug is not None:
-                    self._v4_turn_debug["request2_selected_index_used"] = selected_index
-                
-                selected_sequence = sequences[selected_index]
-                logger.debug(f"   Selected sequence {selected_index}: {selected_sequence.get('tactical_label', '?')}")
-                logger.debug(f"   Reasoning: {reasoning[:100]}...")
-                
-                # Convert to TurnPlan
-                plan_data = convert_sequence_to_turn_plan(
-                    selected_sequence, game_state, player_id, reasoning
-                )
-                plan = self._parse_plan(plan_data)
-                self._last_plan = plan
-                
-                # Track V4 success
-                TurnPlanner._v4_metrics["v4_success"] += 1
-                
-                self._log_plan_summary(plan)
-                
-                # Record quality metrics
-                metrics = TurnMetrics.from_plan(plan, game_state, player_id)
-                record_turn_metrics(metrics)
-                logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
-                
-                return plan
+                    self._v4_turn_debug["request2_parse_error"] = True
+            else:
+                TurnPlanner._v4_metrics["request2_success"] += 1
+
+            if selected_index >= len(sequences):
+                selected_index = 0
+                logger.warning(f"Invalid sequence index, using 0")
+                if self._v4_turn_debug is not None:
+                    self._v4_turn_debug["request2_invalid_index"] = True
+
+            if self._v4_turn_debug is not None:
+                self._v4_turn_debug["request2_selected_index_used"] = selected_index
+
+            selected_sequence = sequences[selected_index]
+            logger.debug(f"   Selected sequence {selected_index}: {selected_sequence.get('tactical_label', '?')}")
+            logger.debug(f"   Reasoning: {reasoning[:100]}...")
+
+            plan_data = convert_sequence_to_turn_plan(
+                selected_sequence, game_state, player_id, reasoning
+            )
+            plan = self._parse_plan(plan_data)
+            plan.cc_start = ai_player.cc
+            self._reground_cc_chain(plan)
+            self._last_plan = plan
+
+            TurnPlanner._v4_metrics["v4_success"] += 1
+
+            self._log_plan_summary(plan)
+
+            metrics = TurnMetrics.from_plan(plan, game_state, player_id)
+            record_turn_metrics(metrics)
+            logger.info(f"Turn {metrics.turn_number} metrics: {metrics.to_log_dict()}")
+
+            return plan
                 
         except Exception as e:
             logger.error(f"Request 2 failed: {e}")
@@ -588,6 +608,8 @@ class TurnPlanner:
                     sequences[0], game_state, player_id, "Selection failed, using first sequence"
                 )
                 plan = self._parse_plan(plan_data)
+                plan.cc_start = ai_player.cc
+                self._reground_cc_chain(plan)
                 self._last_plan = plan
                 TurnPlanner._v4_metrics["v4_success"] += 1  # Still V4 success, just with fallback selection
                 
@@ -599,6 +621,24 @@ class TurnPlanner:
                 return plan
         
         return None
+
+    def _estimate_prompt_tokens(self, prompt: str) -> int:
+        return max(1, len(prompt) // PROMPT_TOKEN_ESTIMATE_DIVISOR)
+
+    def _get_planning_output_budget(self) -> int:
+        if self.provider == "groq":
+            return 2048
+        return 4096
+
+    def _get_sequence_output_budget(self) -> int:
+        if self.provider == "groq":
+            return 1024
+        return 1024
+
+    def _get_selector_output_budget(self) -> int:
+        if self.provider == "groq":
+            return 256
+        return 384
     
     def _sequence_to_temp_plan(self, sequence: dict, starting_cc: int) -> TurnPlan:
         """
@@ -669,20 +709,57 @@ class TurnPlanner:
             TurnPlan object
         """
         # Parse action sequence
+        _VALID_ACTION_TYPES = {"play_card", "tussle", "activate_ability", "direct_attack", "end_turn"}
+
+        def _safe_nonneg_int(val, default: int = 0) -> int:
+            """Convert to int >= 0. Handles LLM outputting null/None or negative values."""
+            try:
+                return max(0, int(val)) if val is not None else default
+            except (TypeError, ValueError):
+                return default
+
         action_sequence = []
         for action_data in plan_data.get("action_sequence", []):
+            # Sanitise action_type — LLMs sometimes output "play" or "attack" instead
+            # of the exact Literal values, which causes a Pydantic ValidationError and
+            # kills the entire plan.  Default to "end_turn" so the AI at least passes.
+            raw_type = action_data.get("action_type", "end_turn")
+            action_type = raw_type if raw_type in _VALID_ACTION_TYPES else "end_turn"
+            if action_type != raw_type:
+                logger.warning(
+                    "Invalid action_type from LLM: %r — defaulting to end_turn", raw_type
+                )
+
+            # _safe_nonneg_int handles: negative values, JSON null → Python None,
+            # and missing keys; all of which would crash Pydantic's ge=0 validator
+            # or Python's max() with a TypeError.
             action = PlannedAction(
-                action_type=action_data.get("action_type"),
+                action_type=action_type,
                 card_id=action_data.get("card_id"),
                 card_name=action_data.get("card_name"),
                 target_ids=action_data.get("target_ids"),
                 target_names=action_data.get("target_names"),
                 alternative_cost_id=action_data.get("alternative_cost_id"),
-                cc_cost=action_data.get("cc_cost", 0),
-                cc_after=action_data.get("cc_after", 0),
-                reasoning=action_data.get("reasoning", ""),
+                cc_cost=_safe_nonneg_int(action_data.get("cc_cost")),
+                cc_after=_safe_nonneg_int(action_data.get("cc_after")),
+                reasoning=action_data.get("reasoning") or "No reasoning provided",
             )
             action_sequence.append(action)
+
+        if not action_sequence or action_sequence[-1].action_type != "end_turn":
+            action_sequence.append(
+                PlannedAction(
+                    action_type="end_turn",
+                    card_id=None,
+                    card_name=None,
+                    target_ids=None,
+                    target_names=None,
+                    alternative_cost_id=None,
+                    cc_cost=0,
+                    cc_after=action_sequence[-1].cc_after if action_sequence else plan_data.get("cc_start", 0),
+                    reasoning="End turn after planned actions.",
+                )
+            )
         
         # Create TurnPlan
         plan = TurnPlan(
@@ -700,6 +777,52 @@ class TurnPlanner:
         
         return plan
     
+    # Cards that gain CC when played (mirrors TurnPlanValidator.CC_GAIN_ON_PLAY)
+    _CC_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2, "HLK": 1}
+
+    def _reground_cc_chain(self, plan: TurnPlan) -> None:
+        """
+        Recompute cc_after for each planned action from the grounded cc_start,
+        and prune any action that would require more CC than is available at
+        that point in the sequence.
+
+        The LLM sometimes builds a mathematically consistent chain from a wrong
+        cc_start, or miscalculates steps, or includes cards the player cannot
+        afford.  After we override plan.cc_start with the actual player CC, this
+        method walks the sequence, drops impossible actions (logging a warning),
+        and patches each remaining action's cc_after so the chain is consistent.
+
+        cc_after is informational (shown in admin) — execution uses live game
+        state CC — but wrong values mislead human reviewers and make the plan
+        look impossible when the test suite checks it.
+        """
+        running_cc = plan.cc_start
+        grounded: list = []
+        for action in plan.action_sequence:
+            if action.action_type == "end_turn":
+                action.cc_after = max(0, running_cc)
+                grounded.append(action)
+                continue
+            gain = self._CC_GAIN_ON_PLAY.get(action.card_name or "", 0)
+            net_cost = action.cc_cost - gain
+            if net_cost > running_cc:
+                logger.warning(
+                    "Plan grounding: dropping unaffordable action "
+                    "%s %s (costs %d, gain %d, available %d)",
+                    action.action_type,
+                    action.card_name or action.card_id or "",
+                    action.cc_cost,
+                    gain,
+                    running_cc,
+                )
+                continue
+            running_cc = max(0, running_cc - action.cc_cost + gain)
+            action.cc_after = running_cc
+            grounded.append(action)
+        plan.action_sequence = grounded
+        # Also patch the plan-level cc_after_plan to match
+        plan.cc_after_plan = running_cc
+
     def _log_plan_summary(self, plan: TurnPlan) -> None:
         """Log a human-readable summary of the plan."""
         logger.debug("=" * 60)

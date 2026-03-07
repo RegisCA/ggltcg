@@ -1,0 +1,9 @@
+[
+  {
+    "method": "llm",
+    "reason": "Action not available (heuristic match failed)",
+    "status": "success",
+    "action_index": 0,
+    "planned_action": "play_card Surge"
+  }
+]

@@ -24,42 +24,30 @@ from .effect_loader import generate_effect_guidance
 
 CORE_RULES = """# GAME MECHANICS
 
-**Zones**: HAND (play from) | IN PLAY (attack with) | SLEEP (locked)
-**Turn**: +4 CC/turn (max 7) | Turn 1 P1: 2 CC
-**Win**: Sleep all 6 opponent cards
-**Stamina**: Toy with 0 STA auto-sleeps immediately (no tussle needed)
+Zones: HAND (play from) | IN PLAY (attack/activate) | SLEEP (locked until recovered)
+Turn economy: +4 CC/turn (max 7) | Turn 1 P1 starts at 2 CC
+Win: sleep all 6 opponent cards
 
-**Action Types** (from game engine ActionType enum):
-- `play_card`: Play a card from hand (costs card's CC)
-- `tussle`: Combat between toys (costs 2 CC, winner sleeps loser, requires STR > 0)
-- `direct_attack`: Attack opponent's hand when they have 0 toys (costs 2 CC, max 2/turn, requires STR > 0)
-- `activate_ability`: Use a card's activated ability (costs varies, check effect_definitions)
-- `pass`: End your turn
+Action costs:
+- play_card: printed card cost
+- tussle: 2 CC, requires STR > 0
+- direct_attack: 2 CC, requires STR > 0 and 0 opponent toys unless a card effect bypasses it
+- activate_ability: usually 1 CC unless card text says otherwise
+- pass/end_turn: 0 CC
 
-**Combat/Tussle** (CRITICAL MATH):
-- **Attacker gets +1 SPD bonus** - this often decides the winner!
-- Faster card strikes first, deals STR damage to slower card's STA
-- If slower card survives (STA > 0), it strikes back
-- **Card with 0 STA sleeps immediately** - cannot strike back
-- Loser goes to sleep zone and CANNOT be targeted anymore
+Combat:
+- attacker gets +1 SPD
+- faster toy strikes first; 0 STA sleeps immediately and cannot strike back
+- tied SPD means simultaneous strikes
+- equal-stat mirrors favor the attacker because of the +1 SPD bonus
+- Knight auto-wins tussles on your turn
 
-**Tussle Examples** (work through the math!):
-- Umbruh (4/4/4) attacks Umbruh (4/4/4): Attacker = 5 SPD (bonus!), strikes first with 4 STR → defender 0 STA → **attacker wins clean**
-- Paper Plane (2/2/1) attacks Umbruh (4/4/4): Attacker = 3 SPD, Umbruh = 4 SPD → Umbruh faster, strikes first with 4 STR → Paper Plane dies → **Umbruh wins**
-- Knight vs ANYONE on YOUR turn: **Knight auto-wins** (special ability, ignore stats)
-
-**Key Insight**: Equal-stat mirrors (like Umbruh vs Umbruh) = **attacker always wins** due to +1 SPD bonus!
-
-**Card Types**:
-- TOY: Has stats. **STR > 0 = can tussle/direct_attack. STR = 0 = CANNOT attack** (defensive only). ALL toys (even 0 STR) block opponent's direct attacks
-- ACTION: Effect triggers, goes to sleep. Cannot attack
-
-**Key Rules**:
-- Can only play cards from HAND (not sleep zone)
-- Wake returns sleep→hand (must still pay to play)
-- Direct attack: requires opponent has EXACTLY 0 toys (max 2/turn)
-- Activated abilities: can use MULTIPLE times per turn (pay CC each time)
-- Continuous effects: active while in play"""
+Key rules:
+- play only from HAND
+- Wake returns a slept card to HAND; you still pay to replay it
+- cards that change zones reset damage and temporary modifiers
+- 0 STR toys cannot tussle or direct_attack, but they still block direct attacks
+- activated abilities can be used multiple times per turn if you can pay"""
 
 
 # =============================================================================
@@ -78,120 +66,45 @@ Remove threats to maximize efficiency"""
 
 SEQUENCE_PLANNING = """# SEQUENCE PLANNING (Validator handles CC/combat math)
 
-## Turn 1 Opening Strategy (CRITICAL)
-**P1 Turn 1 (2 CC start)**: Opponent has 0 toys = DIRECT ATTACK IS AVAILABLE!
-- Optimal: Play toy (0-1 CC) + Direct attack (2 CC) = sleep 1 card from hand
-- Example: Surge + Umbruh + end = WRONG (Budget: 2+1=3, Spend: 0+1=1, Sleep: 0 cards)
-- Example: Surge + Knight + direct_attack = CORRECT (Budget: 2+1=3, Spend: 0+1+2=3, Sleep: 1 card)
-- Example: Archer + direct_attack = CORRECT (Budget: 2, Spend: 0+2=2, Sleep: 1 card, 0 CC left)
-- **WITH SURGE**: 3 CC budget (can afford 1CC toy + attack) | **WITHOUT SURGE**: 2 CC budget (only 0CC toy + attack!)
+Framework:
+1. Count opponent toys in play. Direct attack is legal only at 0 toys unless a card effect says otherwise.
+2. Compute total budget: starting CC plus cards that add CC when played.
+3. Spend setup cards first: Surge/Rush/HLK before other actions, Wake before replaying a slept card, buffs before combat.
+4. Prefer lines that sleep cards now instead of only developing board.
 
-**P2 Turn 1 (4 CC)**: Opponent has toys in play = must tussle first
-- Clear board first, THEN direct attack if CC remains
+Turn 1 guidance:
+- P1 turn 1 starts at 2 CC. If opponent has 0 toys, direct attack is already available.
+- Surge often turns 2 CC into a 3 CC line like Surge -> 1-cost toy -> direct_attack.
+- P2 turn 1 usually must remove blockers first because opponent has toys in play.
 
-## Strategy Framework
-1. **Threat Assessment**: Identify opponent board state (count ALL toys including 0 STR)
-2. **Resource Budgeting**: Starting CC + gains (Surge +1, Rush +2, HLK +1/card)
-3. **Removal Sequence**: Sleep opponent toys (tussle/abilities/Drop)
-4. **Finish**: Direct attack when opponent has 0 toys
-
-## Critical Sequencing Rules
-
-**Setup Cards First**: Surge/Rush/HLK BEFORE spending their CC
-**Wake Before Play**: Wake (1CC)→card goes to hand→play card (cost)→use it
-**Buff Before Combat**: VVAJ before tussling (expires end of turn)
-
-**DIRECT ATTACK RULE (MOST IMPORTANT)**:
-- Can ONLY direct attack when opponent has EXACTLY 0 toys in play
-- 0 toys = CAN direct attack (Turn 1 P1, after clearing board)
-- 1+ toys = CANNOT direct attack (must tussle/remove toys first)
-- Archer counts as toy (blocks despite 0 STR)
-- After tussle sleeps toy, count decreases
-- Check remaining toys AFTER each removal action
-
-**Multi-Step Combat**:
-- One toy can tussle multiple times per turn
-- Remove all opponent toys, then direct attack
-- Example: Tussle→sleep toy 1→Tussle→sleep toy 2→Direct attack
-
-## EXECUTION PROTOCOL (Follow These Steps)
-
-**STEP 1: Calculate AVAILABLE CC (MANDATORY - DO THIS FIRST!)**
-1. Check hand: Do you have Surge (+1) or Rush (+2)?
-2. Calculate budget: Starting CC + Surge/Rush bonus = **TOTAL BUDGET**
-3. Write it down: "My budget this turn: X CC"
-
-**Examples:**
-- Turn 1: 2 CC start, Surge in hand → Budget = 2+1 = **3 CC**
-- Turn 4: 4 CC start, Surge in hand → Budget = 4+1 = **5 CC** (play Surge first!)
-- Turn 5: 6 CC start, no Surge/Rush → Budget = **6 CC**
-
-**CRITICAL**: If you need more CC to execute your plan, PLAY SURGE/RUSH FIRST!
-
-**STEP 2: Budget Check (BEFORE Planning)**
-- Sum all action costs using FIXED costs below
-- If Sum > Available CC: **PLAN IS IMPOSSIBLE**
-
-**ACTION COSTS (FIXED - MEMORIZE THESE):**
-- play_card: card's cost (varies) - includes ACTION cards like Wake (1 CC), Clean (3 CC)
-- **tussle: 2 CC** (always, unless Wizard/Raggy modifier)
-- **direct_attack: 2 CC** (always, no exceptions)
-- activate_ability: 1 CC (Archer), varies by card
-- end_turn: 0 CC
-
-**Example:** Knight (1) + Direct Attack (2) = 3 CC total
-**WRONG:** Direct Attack with 1 CC - IT ALWAYS COSTS 2 CC!
-- **NEGATIVE CC IS BANNED**: If cc_after < 0 at ANY step, plan is INVALID
-
-**STEP 3: Track Opponent Toys (Dynamic)**
-- **START**: Count opponent toys IN PLAY (include 0 STR toys like Archer!)
-- **DURING**: Each tussle/ability that sleeps toy → count decreases by 1
-- **RULE**: Can ONLY direct_attack when count = 0
-- Example: 2 toys → sleep 1 → 1 remains → NO direct_attack yet
-
-**STEP 4: Generate Actions (Exhaustive Loop)**
 Priority order:
-1. **SURGE/RUSH FIRST** if in hand (free CC!)
-2. **CHECK ABILITIES FOR EASY WINS**:
-   - Archer in play + opponent toy has low STA? Calculate: STA ≤ CC? Use ability!
-   - Example: Paper Plane (1 STA) + Archer + 1 CC = instant sleep! 
-   - Don't give up if you have abilities available!
-3. **CHECK CARD ABILITIES** before tussling:
-   - Paper Plane in hand + opponent has toys = can direct_attack (bypass!)
-   - Archer in play = can use ability instead of bad tussles
-4. **TUSSLE** if opponent has toys AND you'll win (2 CC)
-   - **CALCULATE COMBAT FIRST**: Will I survive? Use tussle examples above!
-   - If suicide (I die, deal 0 damage): SKIP, use abilities or direct_attack instead
-5. **DIRECT ATTACK** if opponent has 0 toys OR Paper Plane bypass (**2 CC always**)
-6. **ABILITIES** for chip damage/removal (varies)
-7. **PLAY TOYS** for board presence
-8. **END TURN** when CC < 2 or no valid actions
+1. Lethal if possible.
+2. Remove high-value threats.
+3. Use efficient abilities or favorable tussles.
+4. Direct attack once blockers are gone.
+5. Add board only when no better sleep line exists.
 
-**STEP 5: Post-Action Audit**
-After EACH action:
-1. CC Math: cc_after = cc_before - cost (must be ≥ 0!)
-2. Toy Count: If you slept toy, decrease opponent count
-3. Target Validity: Can't target cards in sleep zone
+Checks before finalizing:
+- Use correct costs: tussle=2, direct_attack=2, activate usually 1.
+- Never let cc_after go negative.
+- Recount opponent toys after each sleep effect.
+- Do not play from sleep without Wake first.
+- Do not target cards that already slept.
 
-**STEP 6: FINAL VALIDATION (Before submitting plan)**
-Before outputting action_sequence, verify:
-1. ✅ Total CC spent ≤ Budget from STEP 1?
-2. ✅ Every action uses CORRECT fixed cost? (tussle=2, direct_attack=2)
-3. ✅ No action has cc_after < 0?
-4. ✅ If budget is insufficient, did you include Surge/Rush?
-5. ❌ If validation fails: **REJECT THIS PLAN** and revise
+Card-specific reminders:
+- Knight auto-wins tussles on your turn.
+- Archer can remove low-STA toys efficiently even though it cannot attack.
+- Paper Plane may bypass blockers for direct attacks.
+- Wizard, Raggy, and Gibbers can modify action costs; respect the board state.
 
-**Modifiers**: Wizard (-1 tussle = 1 CC), Raggy (0 after turn 1), Gibbers (opponent +1 all)
+CC economy note: Unspent CC carries over to your next turn (max 7, excess lost).
+You gain 4 CC per turn (2 on turn 1), so banking more than ~2 CC rarely pays off
+because you'll likely hit the cap anyway. If you can remove a threat or deal direct
+damage now, do it — live opponent toys grow more dangerous each turn.
+Only bank CC if you have a concrete plan that requires more CC next turn than you'd
+otherwise have (e.g., a 5-CC play when you'll have exactly 5 next turn).
 
-## Critical Rules
-❌ Negative CC at any step
-❌ Direct attack with 1+ opponent toys
-❌ Target cards not in play (already slept)
-❌ Play from sleep without Wake first
-❌ Abilities without valid targets
-
-## Efficiency Target
-≤2.5 CC per OPPONENT card slept."""
+Efficiency target: aim for ≤2.5 CC per opponent card slept when practical."""
 
 
 # =============================================================================
@@ -200,47 +113,22 @@ Before outputting action_sequence, verify:
 
 OUTPUT_FORMAT = """# OUTPUT FORMAT
 
-**Required**:
-```json
-{
-  "plan_reasoning": "Opp Board: [list ALL toys]. Count: N. Strategy: [concise plan] (<500 chars)",
-  "action_sequence": [
-    {
-      "action_type": "play_card|tussle|direct_attack|activate_ability|end_turn",
-      "card_id": "uuid",
-      "card_name": "CardName",
-      "target_ids": ["uuid"] (if needed),
-      "cc_cost": N,
-      "cc_after": N
-    }
-  ],
-  "expected_cards_slept": N,
-  "residual_cc_justification": "explain if CC>=2 at end"
-}
-```
+Return valid JSON only.
 
-**Reasoning Template**: "Opp Board: [Archer, Umbruh]. Count: 2. Strategy: Tussle both, then direct attack"
-- MUST list ALL opponent toys
-- Count determines direct attack eligibility
-- Show CC math if complex
+Required fields:
+- plan_reasoning: brief summary of opponent board and chosen line
+- action_sequence: ordered actions, one action per object
+- expected_cards_slept
+- residual_cc_justification when ending with CC >= 2
 
-**Action Sequence Rules** (VALIDATE EACH ACTION):
-- ONE action per object (no combining)
-- Use [ID: uuid] for all card_ids/target_ids
-- **cc_after MUST be >=0 for EVERY step** (if ANY action goes negative, plan is INVALID)
-- **tussle/direct_attack MUST include card_id** - specify which card is attacking
-- **tussle/direct_attack requires STR > 0** - Archer (0 STR) CANNOT attack!
-- Direct attack: NO target_ids (hits random hand card)
-- **NEVER select a sequence you marked as INVALID in sequences_considered!**
-- If all sequences are invalid: ADD Surge/Rush to enable the plan
-
-**Example Turn**:
-Start: 4 CC, Hand: [Surge, Knight], Opp: [Umbruh]
-1. play_card Surge (0 CC, +1 gain) → 5 CC
-2. play_card Knight (1 CC) → 4 CC
-3. tussle Knight→Umbruh (2 CC) → 2 CC (Umbruh sleeped, 0 toys remain)
-4. direct_attack Knight (2 CC) → 0 CC (hand card slept)
-Expected: 2 cards slept, 5 CC spent → 2.5 CC/card ✓"""
+Action rules:
+- Use [ID: uuid] values for card_id and target_ids
+- cc_start: set this to the exact "Your CC:" value shown in the game state above
+- cc_after per action: cc_before_action - cc_cost + cc_gained (Surge +1, Rush +2, HLK +1); must stay >= 0; cc_before_action for the first step equals cc_start, and for each subsequent step it equals the previous step's cc_after
+- direct_attack costs exactly 2 CC (NOT 1); has no target_ids
+- tussle costs exactly 2 CC; card_id MUST come from **Your Toys In Play** (toys in your hand cannot tussle — play them first); target_ids[0] MUST come from **Opponent's Toys In Play** (never use your own card's ID as a tussle target, even if both players have a card with the same name — they have different IDs)
+- play_card: card_id comes from Your Hand; do NOT reuse that card's ID as a tussle target in the same plan
+- do not emit a sequence you know is invalid"""
 
 
 # =============================================================================

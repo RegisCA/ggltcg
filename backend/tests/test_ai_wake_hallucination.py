@@ -8,11 +8,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from conftest import create_game_with_cards
 from game_engine.ai.turn_planner import TurnPlanner
+from ai_test_support import has_valid_ai_api_key, build_turn_planner
 
 # Skip if no API key
 def _has_valid_api_key():
-    key = os.environ.get("GOOGLE_API_KEY", "")
-    return key and not key.startswith("dummy") and len(key) > 20
+    return has_valid_ai_api_key()
 
 pytestmark = pytest.mark.skipif(
     not _has_valid_api_key(),
@@ -45,14 +45,7 @@ class TestWakeHallucination:
         )
         game_state = setup.game_state
         
-        # Initialize AI
-        from google import genai
-        api_key = os.environ.get("GOOGLE_API_KEY")
-        client = genai.Client(api_key=api_key)
-        model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
-        fallback = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
-        
-        planner = TurnPlanner(client=client, model_name=model, fallback_model=fallback)
+        planner = build_turn_planner()
         
         # Generate plan
         plan = planner.create_plan(game_state, player_id="player1")

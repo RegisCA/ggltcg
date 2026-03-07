@@ -300,12 +300,15 @@ class TestDecisionInfo:
         assert info["v3_plan"]["cc_efficiency"] == "2.0"
     
     def test_decision_info_no_plan_when_none(self, v3_player):
-        """Decision info should not include v3_plan when no plan."""
+        """Decision info should still include v3_plan (with ai_version=3) when no plan generated."""
         v3_player._current_plan = None
         
         info = v3_player.get_last_decision_info()
         
-        assert "v3_plan" not in info
+        # v3_plan is always present for LLMPlayerV3 so admin UI shows v3, not v2
+        assert "v3_plan" in info
+        assert info["v3_plan"]["ai_version"] == 3
+        assert info["v3_plan"]["total_actions"] == 0
 
 
 class TestTargetExtraction:

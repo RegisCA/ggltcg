@@ -23,18 +23,15 @@ SEQUENCE_GENERATOR_SCHEMA = {
     "properties": {
         "available_cc": {
             "type": "integer",
-            "description": "Starting CC plus any CC modifiers from cards like Surge/Rush"
         },
         "can_direct_attack": {
             "type": "boolean",
-            "description": "True ONLY if opponent has 0 toys in play"
         },
         "sequences": {
             "type": "array",
             "items": {"type": "string"},
             "minItems": 3,
-            "maxItems": 10,
-            "description": "Legal action sequences as formatted strings"
+            "maxItems": 5,
         }
     },
     "required": ["available_cc", "can_direct_attack", "sequences"]
@@ -121,6 +118,12 @@ def generate_sequence_prompt(
         if can_direct
         else f"NO - opponent has {len(opp_in_play)} Toys In Play"
     )
+    opening_hint = ""
+    if can_direct:
+        opening_hint = (
+            "\n- Opening rule: opponent has 0 toys, so direct_attack is legal now. "
+            "If you can play an attacker and still pay 2 CC, include that attack line and prefer it over setup-only lines."
+        )
     
     # Calculate max CC (including potential Surge/Rush)
     cc_available = player.cc
@@ -138,19 +141,9 @@ def generate_sequence_prompt(
     if potential_cc > cc_available:
         cc_header += f" (Max potential: {potential_cc} via {', '.join(modifiers)})"
 
-    prompt = f"""You are an expert GGLTCG player planning your turn.
-Win condition: Put all opponent's cards into their Sleep Zone
-
-Generate LEGAL action sequences that maximize your progress toward this goal.
+    prompt = f"""Generate only LEGAL GGLTCG action sequences that maximize slept opponent cards and spend CC efficiently.
 
 {cc_header}
-
-## CARD TYPES
-
-| Type | Behavior |
-|------|----------|
-| **Toy** | Has Speed/Strength/Stamina stats. Stays In Play until sleeped. Can tussle. |
-| **Action** | No stats. Effect resolves immediately, then card goes to your Sleep Zone. |
 
 ## ACTIONS & COSTS
 
@@ -161,44 +154,15 @@ Generate LEGAL action sequences that maximize your progress toward this goal.
 | **Direct Attack** | 2 CC (default) | Only when opponent has no Toys In Play. Max 2 per turn. Random card from opponent's Hand → Sleep Zone. |
 | **Activate** | 1 CC | Trigger an activated ability (e.g., Archer) |
 
-## TUSSLE RESOLUTION
-
-1. Compare Speed (active player's Toy gets +1 Speed bonus)
-2. Higher Speed strikes first
-3. Strike deals Strength as damage to opponent's Stamina
-4. Stamina ≤ 0 → card is sleeped
-5. If speeds tied, both strike simultaneously
-
-Key rule: Toys can tussle the same turn they are played.
-
-## RESOURCE PRIORITY
-IF you have cards that **give +CC when played**, play them FIRST to maximize available CC!
-Look for card descriptions like "(+1 CC when played)" or "(+2 CC when played)" in YOUR HAND below.
-
-## ZONE CHANGES & STATE CHANGES (CRITICAL!)
-When a card moves between zones, all modifications reset (stat changes, damage, temporary effects). Card enters new zone with original printed values.
-
-- Tussle that sleeps opponent's LAST Toy In Play → direct_attack becomes legal
-- Wake moves card to HAND (must pay cost to play it again) → then it can tussle immediately
-- Example: Surge→Knight→tussle(sleeps last toy)→direct_attack→end_turn
-
-## CC MATH (CRITICAL!)
-- Cards with (+X CC when played): ADD the bonus AFTER subtracting the cost
-- Example: Start 4 CC → play card [cost 0, +1 CC] → 4 - 0 + 1 = 5 CC
-- Example: Start 5 CC → play toy [cost 1] → 5 - 1 = 4 CC → tussle [cost 2] → 4 - 2 = 2 CC
-- Action costs: tussle=2, direct_attack=2, activate=1
-- **CRITICAL: Include CC bonuses in your "CC: X/Y spent" calculation!**
-
-## CC EFFICIENCY
-- Ending with 0-1 CC: Optimal (maximized usage)
-- Ending with 2-3 CC: Acceptable if strategic
-- Ending with 4+ CC: WASTEFUL (you cap at 7 CC next turn, losing gain)
-- If you have 4+ CC remaining, look for more plays!
-
-## EXAMPLES
-Example 1 (with CC-gain card): Start 4 CC → play card [cost 0, +1 CC] → 5 CC → play toy [cost 1] → 4 CC → tussle [cost 2] → 2 CC → direct_attack [cost 2] → 0 CC | CC: 5/5 spent | Sleeps: 2
-Example 2 (no attacks): Start 4 CC → play toy [cost 1] → 3 CC → play toy [cost 1] → 2 CC → end_turn | CC: 2/4 spent | Sleeps: 0
-  (No tussles = no sleeps! Just played 2 toys.)
+## QUICK RULES
+- Goal: sleep opponent cards; prefer lines that spend most of your CC.
+- Toys can tussle the turn they are played.
+- Tussle: attacker gets +1 SPD, faster toy strikes first, 0 STA sleeps immediately.
+- Cards that grant +CC when played must be played before spending that CC.
+- Wake returns a card to hand; you still must pay its play cost afterward.
+- When the last opponent toy sleeps, direct_attack becomes legal.
+- Zone changes reset damage and temporary stat changes.
+{opening_hint}
 
 ## YOUR HAND (Hand)
 {hand_text}
@@ -218,26 +182,32 @@ Example 2 (no attacks): Start 4 CC → play toy [cost 1] → 3 CC → play toy [
 
 ## CRITICAL CONSTRAINTS
 **The 'play' action requires the card to be in YOUR HAND.** Use card IDs from the YOUR HAND section above. Cards already In Play or in Sleep Zone stay in their zones (use tussle/activate for In Play toys).
+**Cards listed in YOUR TOYS IN PLAY are already on board. Do not replay them with `play`; attack or activate with them instead.**
 
 **direct_attack legality right now: {direct_msg}**
 
 **STR > 0 required for tussle/direct_attack** (STR=0 toys cannot attack)
 
+- Tussle/direct_attack cost 2 CC. Activate costs 1 CC unless card text changes it.
+- Do not spend more CC than available after bonuses.
+- Do not target cards that are already slept.
+- Count blockers dynamically; direct_attack is legal only at 0 opponent toys unless a card effect explicitly bypasses that.
+- Copy card IDs exactly from the listings. Never invent placeholder IDs like `k1`, `u1`, or `s1` unless they appear in the listings.
+
 ## FORMAT
 "[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
 "Sleeps: Z" = opponent cards YOU put into opponent Sleep Zone this turn (tussle, direct_attack, effects)
 Use card IDs from listings. Format: play NAME [ID], tussle ID->ID, direct_attack ID, activate ID->ID
+Use `->` between every action. Never use commas. Always include the `CC:` and `Sleeps:` trailer.
+Example: play Surge [s1] -> play Knight [k1] -> direct_attack k1 -> end_turn | CC: 3/3 spent | Sleeps: 1
 
 ## TASK
-Generate 5-10 LEGAL sequences that spend as much CC as possible (aim for 0 CC left).
-If you play cards that gain CC (e.g., Surge/Rush), your CC budget increases AFTER paying their cost.
-1. Aggressive (maximize attacks)
-2. Board-building (play multiple toys)
-3. Balanced (mix playing + attacking)
-4. If tussle clears board → add direct_attack!
-5. Play CC-gain cards FIRST if available (look for "+X CC" in card descriptions)!
-
-Verify math! Each sequence must not exceed available CC."""
+Generate 3-5 LEGAL sequences.
+- Include aggressive, balanced, and setup lines when legal.
+- Play CC-gain cards first when they improve the line.
+- If a tussle clears the board, continue with direct_attack when legal.
+- direct_attack must name the attacker ID; tussle/activate must include both IDs.
+- Verify CC math; every sequence must stay within available CC."""
 
     return prompt
 
@@ -411,14 +381,14 @@ def _parse_action_string(action_str: str) -> dict | None:
     # -------------------------------------------------------------------------
     play_match = re.match(
         rf'play\s+{card_name_pattern}'
-        rf'(?:\s*\[({short_id_pattern})\])?'  # Optional ID in brackets
+        rf'(?:\s*\[(({uuid_pattern})|({short_id_pattern}))\])?'  # Optional UUID or short ID in brackets
         rf'(?:\s*\[target:\s*([^\]]+)\])?',   # Optional target
         action_str, re.I
     )
     if play_match:
         card_name = play_match.group(1)
         card_id = play_match.group(2)  # May be None
-        target_raw = play_match.group(3).strip() if play_match.group(3) else None
+        target_raw = play_match.group(5).strip() if play_match.group(5) else None
         
         # Target could be an ID or a name
         target_id = None
@@ -650,8 +620,4 @@ def format_sequence_for_display(seq: dict, index: int) -> str:
     cc_avail = seq.get("cc_available", 0)
     cards_slept = seq.get("cards_slept", 0)
     
-    return f"""<sequence index="{index}" label="{label}">
-<description>{raw}</description>
-<cc_spent>{cc_spent}/{cc_avail}</cc_spent>
-<cards_slept>{cards_slept}</cards_slept>
-</sequence>"""
+    return f'{index}. {label} slept={cards_slept} cc={cc_spent}/{cc_avail} :: {raw}'
