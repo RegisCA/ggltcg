@@ -10,9 +10,11 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables from .env file.
+# override=True ensures .env always wins over inherited shell env vars,
+# so e.g. AI_MODEL from a stale shell session can't shadow the .env value.
 env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=True)
 
 # Configure logging - use LOG_LEVEL env var (default: INFO for cleaner output)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()

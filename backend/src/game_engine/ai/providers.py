@@ -19,7 +19,8 @@ SUPPORTED_PROVIDERS = ("gemini", "groq", "openrouter")
 
 _DEFAULT_MODELS = {
     "gemini": "gemini-3.1-flash-lite-preview",
-    "groq": "llama-3.1-8b-instant",
+    # llama-3.1-8b-instant is too small for rule-following; use 70b by default.
+    "groq": "llama-3.3-70b-versatile",
     "openrouter": "openai/gpt-oss-20b",
 }
 

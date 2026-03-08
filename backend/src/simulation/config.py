@@ -12,6 +12,7 @@ SUPPORTED_MODELS = [
     "gemini-3-flash-preview",
     "gemini-3.1-flash-lite-preview",
     "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
     "openai/gpt-oss-20b",
 ]
 

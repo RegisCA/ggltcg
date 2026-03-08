@@ -289,13 +289,46 @@ class TurnPlanner:
                     )
                     
                     if validation_errors:
-                        # Single-request mode: no retries, so validation issues are
-                        # informational only.  Execution layer skips unplayable actions.
+                        # Single-request mode: no LLM retry, but prune any
+                        # actions that failed critical checks so the execution
+                        # layer never encounters them.  This turns a broken
+                        # plan like [play Rush (T1), direct_attack, end_turn]
+                        # into [end_turn], which at least doesn't waste CC and
+                        # keeps mid-turn-replan logic from being cheated.
                         if self.planner_mode == "single":
-                            logger.debug(
-                                f"Plan has {len(validation_errors)} validation issue(s) "
-                                "— proceeding (single-request mode)"
-                            )
+                            critical_types = {
+                                "cc_budget",
+                                "no_attacker",
+                                "opponent_toys",
+                                "sleep_zone_play",
+                                "invalid_attacker",
+                                "dependency",
+                            }
+                            bad_indices = {
+                                e.action_index
+                                for e in validation_errors
+                                if e.error_type in critical_types
+                            }
+                            if bad_indices:
+                                original_len = len(plan.action_sequence)
+                                plan.action_sequence = [
+                                    a for i, a in enumerate(plan.action_sequence)
+                                    if i not in bad_indices
+                                ]
+                                logger.warning(
+                                    "Single-mode plan pruned %d invalid action(s) "
+                                    "(%d → %d steps). Errors: %s",
+                                    len(bad_indices),
+                                    original_len,
+                                    len(plan.action_sequence),
+                                    [e.to_llm_feedback() for e in validation_errors
+                                     if e.error_type in critical_types],
+                                )
+                            else:
+                                logger.debug(
+                                    "Plan has %d non-critical validation issue(s) — proceeding",
+                                    len(validation_errors),
+                                )
                             self._log_plan_summary(plan)
                             metrics = TurnMetrics.from_plan(plan, game_state, player_id)
                             record_turn_metrics(metrics)

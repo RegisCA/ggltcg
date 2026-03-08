@@ -234,6 +234,30 @@ class OpponentToyTracker:
                             "Action cards (Rush, Surge, HLK) do not enter play — play a toy first."
                         )
                     ))
+                elif action.card_id and action.card_id not in player_toys_in_play:
+                    # Specified attacker is not a valid toy in play (e.g. an action card UUID)
+                    errors.append(ValidationError(
+                        action_index=i,
+                        error_type="invalid_attacker",
+                        message=(
+                            f"Cannot direct attack with {action.card_name or action.card_id}: "
+                            f"that card is not a toy currently in your In Play zone. "
+                            f"Action cards (Rush, Surge, HLK) resolve immediately and do not enter play."
+                        )
+                    ))
+
+            # Same attacker-validity check for tussle
+            if action.action_type == "tussle" and action.card_id:
+                if action.card_id not in player_toys_in_play:
+                    errors.append(ValidationError(
+                        action_index=i,
+                        error_type="invalid_attacker",
+                        message=(
+                            f"Cannot tussle with {action.card_name or action.card_id}: "
+                            f"that card is not a toy currently in your In Play zone. "
+                            f"Play the toy first, then tussle with it."
+                        )
+                    ))
         
         return errors
 

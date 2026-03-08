@@ -665,3 +665,242 @@ class TestSkipAllActionsNeverReturnsNone:
         action_idx, _ = result
         assert action_idx == 0
 
+
+# ---------------------------------------------------------------------------
+# Unit: OpponentToyTracker — action card used as attacker
+# ---------------------------------------------------------------------------
+
+class TestActionCardAsAttackerValidation:
+    """
+    Regression tests for game 129a9d2a Turn 1:
+    llama-3.1-8b-instant planned 'direct_attack with Rush [card_id=<Rush's UUID>]'.
+    Rush is an action card: it resolves immediately and never enters the In Play zone,
+    so it cannot be a direct-attack or tussle attacker.
+
+    Root cause: no_attacker only fired when player_toys_in_play was empty.
+    When other toys ARE in play the new invalid_attacker check catches the case.
+
+    Run without API key:
+        pytest tests/test_cc_plan_grounding.py -v -k "TestActionCardAsAttacker"
+    """
+
+    def test_direct_attack_with_action_card_no_toys_in_play(self):
+        """
+        Turn 1, empty board.  AI plays Rush (action card) then plans direct_attack
+        with Rush's card_id.  player_toys_in_play stays empty → no_attacker error.
+        """
+        from game_engine.ai.validators.turn_plan_validator import OpponentToyTracker
+
+        setup, cards = create_game_with_cards(
+            player1_hand=["Rush"],
+            player1_in_play=[],
+            player2_in_play=[],
+            active_player="player1",
+            turn_number=1,
+        )
+        game_state = setup.game_state
+        rush_card = game_state.players["player1"].hand[0]
+
+        plan = TurnPlan(
+            action_sequence=[
+                _make_planned_action("play_card", card_name="Rush", card_id=rush_card.id),
+                # Action card used as attacker — the bug
+                _make_planned_action("direct_attack", card_name="Rush", card_id=rush_card.id),
+                _make_planned_action("end_turn"),
+            ],
+            cc_start=2,
+            cc_after_plan=0,
+            expected_cards_slept=0,
+            selected_strategy="test",
+            sequences_considered=[],
+            threat_assessment="",
+            resources_summary="",
+            risk_assessment="",
+            plan_reasoning="test",
+        )
+
+        tracker = OpponentToyTracker()
+        errors = tracker.validate(plan, game_state, "player1")
+        error_types = {e.error_type for e in errors}
+
+        assert "no_attacker" in error_types, (
+            f"Expected no_attacker when board is empty, got: {error_types}"
+        )
+
+    def test_direct_attack_with_action_card_when_toy_in_play(self):
+        """
+        AI has Knight in play already.  AI plays Rush (action card) then plans
+        direct_attack with Rush's card_id.  player_toys_in_play is non-empty
+        (Knight is there), so invalid_attacker fires — not no_attacker.
+
+        This is the important new check: previously this would have passed
+        validation silently.
+        """
+        from game_engine.ai.validators.turn_plan_validator import OpponentToyTracker
+
+        setup, cards = create_game_with_cards(
+            player1_hand=["Rush"],
+            player1_in_play=["Knight"],      # Knight is already in play
+            player2_in_play=[],
+            active_player="player1",
+            turn_number=3,
+        )
+        game_state = setup.game_state
+        rush_card = game_state.players["player1"].hand[0]
+
+        plan = TurnPlan(
+            action_sequence=[
+                _make_planned_action("play_card", card_name="Rush", card_id=rush_card.id),
+                # Action card specified as attacker even though Knight is in play
+                _make_planned_action("direct_attack", card_name="Rush", card_id=rush_card.id),
+                _make_planned_action("end_turn"),
+            ],
+            cc_start=4,
+            cc_after_plan=2,
+            expected_cards_slept=0,
+            selected_strategy="test",
+            sequences_considered=[],
+            threat_assessment="",
+            resources_summary="",
+            risk_assessment="",
+            plan_reasoning="test",
+        )
+
+        tracker = OpponentToyTracker()
+        errors = tracker.validate(plan, game_state, "player1")
+        error_types = {e.error_type for e in errors}
+
+        assert "invalid_attacker" in error_types, (
+            f"Expected invalid_attacker when action card specified as attacker "
+            f"but toys ARE in play, got: {error_types}"
+        )
+
+    def test_tussle_with_action_card_is_invalid(self):
+        """
+        Tussle uses Rush's card_id as the attacker.
+        Rush is not in player_toys_in_play → invalid_attacker.
+        """
+        from game_engine.ai.validators.turn_plan_validator import OpponentToyTracker
+
+        setup, cards = create_game_with_cards(
+            player1_hand=["Rush"],
+            player1_in_play=["Knight"],
+            player2_in_play=["Knight"],
+            active_player="player1",
+            turn_number=3,
+        )
+        game_state = setup.game_state
+        rush_card = game_state.players["player1"].hand[0]
+        opp_knight = game_state.players["player2"].in_play[0]
+
+        plan = TurnPlan(
+            action_sequence=[
+                _make_planned_action("play_card", card_name="Rush", card_id=rush_card.id),
+                # Tussle attacker is Rush (action card) — invalid
+                PlannedAction(
+                    action_type="tussle",
+                    card_id=rush_card.id,
+                    card_name="Rush",
+                    target_ids=[opp_knight.id],
+                    target_names=["Knight"],
+                    alternative_cost_id=None,
+                    cc_cost=0,
+                    cc_after=0,
+                    reasoning="test",
+                ),
+                _make_planned_action("end_turn"),
+            ],
+            cc_start=4,
+            cc_after_plan=2,
+            expected_cards_slept=0,
+            selected_strategy="test",
+            sequences_considered=[],
+            threat_assessment="",
+            resources_summary="",
+            risk_assessment="",
+            plan_reasoning="test",
+        )
+
+        tracker = OpponentToyTracker()
+        errors = tracker.validate(plan, game_state, "player1")
+        error_types = {e.error_type for e in errors}
+
+        assert "invalid_attacker" in error_types, (
+            f"Expected invalid_attacker when action card used as tussle attacker, got: {error_types}"
+        )
+
+    def test_single_mode_prunes_invalid_attacker_actions(self):
+        """
+        Turn planner single-mode must prune direct_attack actions that carry an
+        invalid_attacker validation error, leaving only end_turn in the plan.
+
+        Regression for game 129a9d2a where the plan was returned unchanged and
+        both play_card + direct_attack were silently skipped at execution time,
+        wasting the entire turn.
+        """
+        from game_engine.ai.turn_planner import TurnPlanner
+
+        setup, _ = create_game_with_cards(
+            player1_hand=["Rush"],
+            player1_in_play=["Knight"],
+            player2_in_play=[],
+            active_player="player1",
+            turn_number=3,
+        )
+        game_state = setup.game_state
+        rush_card = game_state.players["player1"].hand[0]
+
+        # Build the exact bad plan the small LLM would have produced
+        fake_response = f"""{{
+            "threat_assessment": "No threats",
+            "resources_summary": "4 CC available",
+            "sequences_considered": ["Play Rush for CC, direct attack"],
+            "selected_strategy": "Direct attack with Rush",
+            "action_sequence": [
+                {{
+                    "action_type": "play_card",
+                    "card_id": "{rush_card.id}",
+                    "card_name": "Rush",
+                    "cc_cost": 1,
+                    "cc_after": 3,
+                    "reasoning": "Play Rush for extra CC"
+                }},
+                {{
+                    "action_type": "direct_attack",
+                    "card_id": "{rush_card.id}",
+                    "card_name": "Rush",
+                    "cc_cost": 0,
+                    "cc_after": 3,
+                    "reasoning": "Direct attack with Rush"
+                }},
+                {{
+                    "action_type": "end_turn",
+                    "cc_cost": 0,
+                    "cc_after": 3,
+                    "reasoning": "End turn"
+                }}
+            ],
+            "cc_start": 4,
+            "cc_after_plan": 3,
+            "expected_cards_slept": 0,
+            "risk_assessment": "low",
+            "cc_efficiency": "N/A",
+            "plan_reasoning": "Play Rush for CC boost then direct attack."
+        }}"""
+
+        planner = build_turn_planner(planner_mode="single")
+
+        with patch.object(planner, "_call_planning_api", return_value=fake_response):
+            plan = planner.create_plan(game_state, "player1", setup.engine)
+
+        assert plan is not None, "Planner must return a plan even after pruning"
+
+        action_types = [a.action_type for a in plan.action_sequence]
+        assert "direct_attack" not in action_types, (
+            f"direct_attack with action card should be pruned. "
+            f"Got action_sequence: {action_types}"
+        )
+        assert "end_turn" in action_types, (
+            f"end_turn must survive pruning. Got: {action_types}"
+        )
+
