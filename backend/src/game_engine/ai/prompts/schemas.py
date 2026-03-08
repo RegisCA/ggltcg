@@ -146,10 +146,6 @@ class TurnPlan(BaseModel):
         ...,
         description="Total opponent cards expected to sleep by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
     )
-    cc_efficiency: str = Field(
-        ...,
-        description="CC efficiency: 'X CC spent to sleep Y cards = Z.ZZ CC/card'. Count ALL sleeping methods!"
-    )
     
     # Overall reasoning
     plan_reasoning: str = Field(
@@ -253,10 +249,6 @@ TURN_PLAN_JSON_SCHEMA = {
             "type": "integer",
             "description": "Total opponent cards expected to sleep by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
         },
-        "cc_efficiency": {
-            "type": "string",
-            "description": "CC efficiency: 'X CC spent to sleep Y cards = Z.ZZ CC/card'. Count ALL sleeping methods!"
-        },
         "plan_reasoning": {
             "type": "string",
             "description": "Brief (1-3 sentences) explanation of why this plan was selected. Do NOT repeat analysis.",
@@ -276,7 +268,6 @@ TURN_PLAN_JSON_SCHEMA = {
         "cc_start",
         "cc_after_plan",
         "expected_cards_slept",
-        "cc_efficiency",
         "plan_reasoning"
     ],
     "propertyOrdering": [
@@ -288,7 +279,6 @@ TURN_PLAN_JSON_SCHEMA = {
         "cc_start",
         "cc_after_plan",
         "expected_cards_slept",
-        "cc_efficiency",
         "plan_reasoning",
         "residual_cc_justification"
     ]

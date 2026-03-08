@@ -1,0 +1,14 @@
+{
+  "available_cc": 5,
+  "can_direct_attack": false,
+  "sequences": [
+    "play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Knight [41f0682b-3f36-4a6c-a2b1-78d4303b7405] -> tussle 41f0682b-3f36-4a6c-a2b1-78d4303b7405->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 3/5 spent | Sleeps: 1",
+    "play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Paper Plane [4ab4c1ef-c50d-4d9a-9f0b-e8fc5675b8ae] -> tussle 4ab4c1ef-c50d-4d9a-9f0b-e8fc5675b8ae->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 3/5 spent | Sleeps: 1",
+    "play Umbruh [63a894f6-6a1b-47af-b001-df93c2ef0ec7] -> play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Knight [41f0682b-3f36-4a6c-a2b1-78d4303b7405] -> tussle 41f0682b-3f36-4a6c-a2b1-78d4303b7405->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 4/5 spent | Sleeps: 1",
+    "play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Knight [41f0682b-3f36-4a6c-a2b1-78d4303b7405] -> play Paper Plane [4ab4c1ef-c50d-4d9a-9f0b-e8fc5675b8ae] -> tussle 41f0682b-3f36-4a6c-a2b1-78d4303b7405->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 4/5 spent | Sleeps: 1",
+    "play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Knight [41f0682b-3f36-4a6c-a2b1-78d4303b7405] -> play Umbruh [63a894f6-6a1b-47af-b001-df93c2ef0ec7] -> tussle 41f0682b-3f36-4a6c-a2b1-78d4303b7405->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 4/5 spent | Sleeps: 1",
+    "play Wake [07384c5c-abb4-4333-bac1-676f0c55e95e] -> play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Knight [41f0682b-3f36-4a6c-a2b1-78d4303b7405] -> tussle 41f0682b-3f36-4a6c-a2b1-78d4303b7405->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 4/5 spent | Sleeps: 1",
+    "play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Knight [41f0682b-3f36-4a6c-a2b1-78d4303b7405] -> play Archer [da454022-a8fe-4a36-b539-42fde7e31aba] -> tussle 41f0682b-3f36-4a6c-a2b1-78d4303b7405->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 3/5 spent | Sleeps: 1",
+    "play Surge [825bdd54-02bf-4cc6-84a8-c8a0361b4316] -> play Knight [41f0682b-3f36-4a6c-a2b1-78d4303b7405] -> play Paper Plane [4ab4c1ef-c50d-4d9a-9f0b-e8fc5675b8ae] -> play Umbruh [63a894f6-6a1b-47af-b001-df93c2ef0ec7] -> tussle 41f0682b-3f36-4a6c-a2b1-78d4303b7405->c02de099-bb75-4cef-ba9a-6eab9aab3bb1 -> end_turn | CC: 5/5 spent | Sleeps: 1"
+  ]
+}

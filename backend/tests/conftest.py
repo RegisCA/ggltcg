@@ -26,6 +26,13 @@ from dataclasses import dataclass
 # Add backend/src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+# Load .env so LLM tests pick up API keys without manual env exports
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+except ImportError:
+    pass  # python-dotenv optional; keys must be set in the environment directly
+
 from game_engine.game_engine import GameEngine
 from game_engine.models.game_state import GameState, Phase
 from game_engine.models.player import Player

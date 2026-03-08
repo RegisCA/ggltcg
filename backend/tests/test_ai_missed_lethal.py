@@ -16,7 +16,7 @@ def _has_valid_api_key():
 
 pytestmark = pytest.mark.skipif(
     not _has_valid_api_key(),
-    reason="Valid GOOGLE_API_KEY not set - skipping LLM tests"
+    reason="No valid AI provider API key found - skipping live LLM tests"
 )
 
 class TestMissedLethal:

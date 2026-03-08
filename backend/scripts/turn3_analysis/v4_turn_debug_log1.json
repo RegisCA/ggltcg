@@ -1,0 +1,16 @@
+{
+  "request1_attempts": 1,
+  "request2_exception": null,
+  "sequences_rejected": 0,
+  "sequences_generated": 8,
+  "request1_temps_tried": [
+    0.2
+  ],
+  "request2_parse_error": false,
+  "request2_fallback_used": false,
+  "request2_invalid_index": false,
+  "request2_selected_index": 0,
+  "sequences_after_validation": 8,
+  "sequence_rejection_messages": [],
+  "request2_selected_index_used": 0
+}

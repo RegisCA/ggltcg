@@ -58,6 +58,11 @@ class CCBudgetValidator:
         "Umbruh": "tussle",  # Gains 1 CC when it tussles
         "Red Solo Cup": "play_card",  # Gains 1 CC when you play another card
     }
+
+    # Canonical CC cost for non-play_card actions (fixed by game rules).
+    # Use these instead of the LLM's stated cc_cost so cc_budget validation
+    # is correct even when the LLM hallucinates a wrong value.
+    CANONICAL_ACTION_COSTS = {"direct_attack": 2, "tussle": 2}
     
     def validate(self, plan: "TurnPlan", starting_cc: int) -> List[ValidationError]:
         """
@@ -100,9 +105,12 @@ class CCBudgetValidator:
             # Apply CC gains first
             cc_remaining += cc_gain
             
-            # Check if we can afford this action
-            action_cost = action.cc_cost or 0
-            
+            # Check if we can afford this action.
+            # Use the canonical cost for actions with a fixed game-rule price;
+            # fall back to the LLM's stated cc_cost for variable-cost actions (play_card).
+            canonical = self.CANONICAL_ACTION_COSTS.get(action.action_type)
+            action_cost = canonical if canonical is not None else (action.cc_cost or 0)
+
             if action_cost > cc_remaining:
                 errors.append(ValidationError(
                     action_index=i,
@@ -156,13 +164,22 @@ class OpponentToyTracker:
             List of ValidationError objects (empty if valid)
         """
         errors = []
+        player = game_state.players[player_id]
         opponent = game_state.get_opponent(player_id)
-        
+
         # Track which opponent toys are still in play
         toys_remaining = {card.id for card in opponent.in_play}
-        
+
+        # Track which of the AI's own toys are in play (for direct_attack validation).
+        # Only toys (is_toy()) with STR > 0 can attack; action cards never enter play.
+        player_toys_in_play = {
+            card.id
+            for card in player.in_play
+            if card.is_toy() and card.get_effective_strength() > 0
+        }
+
         for i, action in enumerate(plan.action_sequence):
-            # Remove toys that get sleeped
+            # Remove toys that get sleeped / track toys entering play
             if action.action_type == "tussle" and action.target_ids:
                 # Tussle sleeps the target (assuming it dies - we check this in SuicideAttackValidator)
                 # Note: This is a simplification - the target might survive
@@ -172,6 +189,13 @@ class OpponentToyTracker:
                     toys_remaining.discard(target_id)
             
             elif action.action_type == "play_card":
+                # Track toys the AI is playing into its own field
+                if action.card_id:
+                    for card in player.hand:
+                        if card.id == action.card_id and card.is_toy() and card.get_effective_strength() > 0:
+                            player_toys_in_play.add(card.id)
+                            break
+
                 # Some cards sleep opponent toys
                 if action.card_name == "Drop" and action.target_ids:
                     # Drop sleeps a target toy
@@ -200,6 +224,39 @@ class OpponentToyTracker:
                         action_index=i,
                         error_type="opponent_toys",
                         message=f"Cannot direct attack: opponent still has {len(toys_remaining)} toy(s) in play"
+                    ))
+                if not player_toys_in_play:
+                    errors.append(ValidationError(
+                        action_index=i,
+                        error_type="no_attacker",
+                        message=(
+                            "Cannot direct attack: you have no toys with STR > 0 in play. "
+                            "Action cards (Rush, Surge, HLK) do not enter play — play a toy first."
+                        )
+                    ))
+                elif action.card_id and action.card_id not in player_toys_in_play:
+                    # Specified attacker is not a valid toy in play (e.g. an action card UUID)
+                    errors.append(ValidationError(
+                        action_index=i,
+                        error_type="invalid_attacker",
+                        message=(
+                            f"Cannot direct attack with {action.card_name or action.card_id}: "
+                            f"that card is not a toy currently in your In Play zone. "
+                            f"Action cards (Rush, Surge, HLK) resolve immediately and do not enter play."
+                        )
+                    ))
+
+            # Same attacker-validity check for tussle
+            if action.action_type == "tussle" and action.card_id:
+                if action.card_id not in player_toys_in_play:
+                    errors.append(ValidationError(
+                        action_index=i,
+                        error_type="invalid_attacker",
+                        message=(
+                            f"Cannot tussle with {action.card_name or action.card_id}: "
+                            f"that card is not a toy currently in your In Play zone. "
+                            f"Play the toy first, then tussle with it."
+                        )
                     ))
         
         return errors
@@ -310,8 +367,11 @@ class DependencyValidator:
         woken_card_ids = set()
         ai_player = game_state.players[player_id]
         
-        # Track starting hand card IDs
+        # Track starting hand and sleep zone for dependency checks
         starting_hand_ids = {card.id for card in ai_player.hand}
+        starting_hand_names = {card.name for card in ai_player.hand}
+        sleep_zone_ids = {card.id for card in ai_player.sleep_zone}
+        sleep_zone_names = {card.name for card in ai_player.sleep_zone}
         
         for i, action in enumerate(plan.action_sequence):
             # Track Wake targets - Wake is a play_card action (played from hand with target)
@@ -319,18 +379,44 @@ class DependencyValidator:
             if action.card_name == "Wake" and action.action_type == "play_card" and action.target_ids:
                 woken_card_ids.update(action.target_ids)
             
-            # Check if playing a card that wasn't in starting hand
-            if action.action_type == "play_card" and action.card_id:
-                if action.card_id not in starting_hand_ids:
-                    # This card came from somewhere else
-                    if action.card_id not in woken_card_ids:
-                        # Not woken by Wake - this is likely an error
-                        # (Could also be from Twist returning own card, but rare)
-                        errors.append(ValidationError(
-                            action_index=i,
-                            error_type="dependency",
-                            message=f"Playing {action.card_name} (ID {action.card_id}) that wasn't in hand or woken by Wake"
-                        ))
+            # Check if playing a card that wasn't in the starting hand
+            if action.action_type == "play_card":
+                if action.card_id:
+                    if action.card_id not in starting_hand_ids and action.card_id not in woken_card_ids:
+                        if action.card_id in sleep_zone_ids:
+                            # Sleep zone card played without Wake — most common hallucination
+                            errors.append(ValidationError(
+                                action_index=i,
+                                error_type="sleep_zone_play",
+                                message=(
+                                    f"Cannot play {action.card_name} (ID {action.card_id}): "
+                                    f"it is in your sleep zone, not your hand. "
+                                    f"Play Wake first (1 CC, target this card) to return it to hand."
+                                ),
+                            ))
+                        else:
+                            errors.append(ValidationError(
+                                action_index=i,
+                                error_type="dependency",
+                                message=f"Playing {action.card_name} (ID {action.card_id}) that wasn't in hand or woken by Wake"
+                            ))
+                elif action.card_name:
+                    # No card_id — fall back to name-based check
+                    if action.card_name in sleep_zone_names and action.card_name not in starting_hand_names:
+                        woken_names = {
+                            c.name
+                            for wid in woken_card_ids
+                            if (c := game_state.find_card_by_id(wid)) is not None
+                        }
+                        if action.card_name not in woken_names:
+                            errors.append(ValidationError(
+                                action_index=i,
+                                error_type="sleep_zone_play",
+                                message=(
+                                    f"Cannot play {action.card_name}: it is in your sleep zone, "
+                                    f"not your hand. Play Wake first (1 CC) to return it to hand."
+                                ),
+                            ))
             
         # Note: We can't easily detect "spending Surge CC before playing Surge"
         # without detailed CC tracking per action, which CCBudgetValidator handles

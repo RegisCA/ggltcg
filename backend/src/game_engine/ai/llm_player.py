@@ -22,8 +22,7 @@ Version 2.0 Changes:
 import json
 import os
 import logging
-import time
-from typing import Optional, Dict, Any, Literal, List
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 
 # Configure logging
@@ -41,19 +40,23 @@ except ImportError:
 from .prompts import SYSTEM_PROMPT, get_ai_turn_prompt, PROMPTS_VERSION, AI_DECISION_JSON_SCHEMA
 from game_engine.models.game_state import GameState
 from api.schemas import ValidAction
+from .providers import build_provider, get_default_provider_name
 
 
 # AI Version Configuration
 # Set AI_VERSION=3 to enable turn planning (v3)
 # Default is v2 (per-action decisions)
 def get_default_ai_version() -> int:
-    """Get the default AI version from environment."""
-    version_str = os.getenv("AI_VERSION", "2")
+    """Get the default AI version from environment.
+
+    Returns 3 (turn planning) unless explicitly set to 2.
+    """
+    version_str = os.getenv("AI_VERSION", "3")
     try:
         return int(version_str)
     except ValueError:
-        logger.warning(f"Invalid AI_VERSION '{version_str}', defaulting to 2")
-        return 2
+        logger.warning(f"Invalid AI_VERSION '{version_str}', defaulting to 3")
+        return 3
 
 
 class LLMPlayer:
@@ -66,7 +69,7 @@ class LLMPlayer:
     
     def __init__(
         self,
-        provider: Literal["gemini"] = "gemini",
+        provider: Optional[str] = None,
         api_key: Optional[str] = None,
         model: Optional[str] = None
     ):
@@ -74,11 +77,21 @@ class LLMPlayer:
         Initialize the AI player.
         
         Args:
-            provider: LLM provider to use (only "gemini" supported)
+            provider: LLM provider to use
             api_key: API key (reads from env var if not provided)
             model: Model to use (provider-specific defaults if not provided)
         """
-        self.provider = "gemini"
+        resolved_provider = provider or get_default_provider_name()
+        self.provider_client, config = build_provider(
+            provider_name=resolved_provider,
+            api_key=api_key,
+            model=model,
+        )
+        self.provider = config.provider
+        self.api_key = config.api_key
+        self.model_name = config.model
+        self.fallback_model = config.fallback_model
+        self.client = getattr(self.provider_client, "client", None)
         
         # Store last target/alternative cost selections from LLM
         # v2.0: target_ids is now a list for multi-target support (Sun card)
@@ -90,33 +103,9 @@ class LLMPlayer:
         self._last_response: Optional[str] = None
         self._last_action_number: Optional[int] = None
         self._last_reasoning: Optional[str] = None
-        
-        from google import genai
-        
-        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
-        if not self.api_key:
-            raise ValueError(
-                "Google API key required. Set GOOGLE_API_KEY environment variable "
-                "or pass api_key parameter. Get a free key at: "
-                "https://aistudio.google.com/apikey"
-            )
-        
-        # Create explicit client (new SDK pattern)
-        self.client = genai.Client(api_key=self.api_key)
-        
-        # Allow model override via environment variable or parameter
-        # Default: gemini-2.0-flash-lite (30 RPM, best free tier quotas)
-        # Alternative: gemini-2.0-flash (10 RPM, stable)
-        # Default: gemini-2.5-flash-lite (15 RPM, production default)
-        default_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
-        self.model_name = model or default_model
-        
-        # Fallback model for capacity issues (configurable via env var)
-        # Default: gemini-2.5-flash-lite (15 RPM, better capacity availability)
-        self.fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
-        
-        logger.debug(f"Initializing Gemini with model: {self.model_name}")
-        logger.debug(f"Fallback model (for 429 errors): {self.fallback_model}")
+
+        logger.debug("Initializing %s with model: %s", self.provider, self.model_name)
+        logger.debug("Fallback model: %s", self.fallback_model)
     
     def select_action(
         self,
@@ -157,9 +146,9 @@ class LLMPlayer:
         
         try:
             # Call LLM API based on provider
-            logger.debug(f"Calling Gemini API ({self.model_name})...")
-            
-            response_text = self._call_gemini(prompt)
+            logger.debug("Calling %s API (%s)...", self.provider, self.model_name)
+
+            response_text = self._call_json_api(prompt)
             
             # Store raw response for logging
             self._last_response = response_text
@@ -283,110 +272,32 @@ class LLMPlayer:
             "reasoning": self._last_reasoning,
         }
     
-    def _call_gemini(self, prompt: str, retry_count: int = 3, allow_fallback: bool = True) -> str:
+    def _call_json_api(self, prompt: str, retry_count: int = 3, allow_fallback: bool = True) -> str:
         """
-        Call Google Gemini API with structured output mode and retry logic.
-        
-        v2.0: Uses google-genai SDK with native structured output mode
-        and Pydantic schema for reliable, type-safe responses.
+        Call the configured provider with structured JSON output.
         
         Args:
             prompt: The prompt to send
-            retry_count: Number of retries for 429 errors (default: 3)
-            allow_fallback: Whether to fallback to GEMINI_FALLBACK_MODEL on capacity issues (default: True)
+            retry_count: Number of retries for transient errors
+            allow_fallback: Whether to fall back to the configured fallback model
             
         Returns:
             The API response text (valid JSON)
-            
-        Raises:
-            Exception if all retries and fallbacks fail
         """
-        from google.genai import types
-        
-        last_exception = None
-        current_model = self.model_name
-        
-        for attempt in range(retry_count):
-            try:
-                # v2.0: Use google-genai SDK with structured output
-                # Combines system instruction + user prompt into contents
-                response = self.client.models.generate_content(
-                    model=current_model,
-                    contents=[
-                        types.Content(
-                            role="user",
-                            parts=[types.Part.from_text(text=f"{SYSTEM_PROMPT}\n\n{prompt}")]
-                        )
-                    ],
-                    config=types.GenerateContentConfig(
-                        temperature=0.7,
-                        max_output_tokens=4096,
-                        response_mime_type="application/json",
-                        response_json_schema=AI_DECISION_JSON_SCHEMA,
-                    )
-                )
-                
-                # Log response metadata for debugging
-                logger.debug(f"Gemini response candidates: {len(response.candidates) if response.candidates else 0}")
-                
-                # Check if response was blocked or empty
-                if not response.candidates or not response.candidates[0].content.parts:
-                    finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-                    
-                    logger.error(f"Gemini returned empty response")
-                    logger.error(f"Finish reason: {finish_reason}")
-                    
-                    raise ValueError(
-                        f"Gemini returned empty response (finish_reason: {finish_reason}). "
-                        "This may be due to safety filters. Try again or adjust the prompt."
-                    )
-                
-                result = response.text.strip()
-                logger.debug(f"Gemini structured output response length: {len(result)} characters")
-                logger.debug(f"Gemini structured output: {result}")
-                return result
-                
-            except Exception as e:
-                error_str = str(e)
-                last_exception = e
-                
-                # Check if it's a 429 Resource Exhausted error
-                if "429" in error_str or "ResourceExhausted" in error_str or "Resource exhausted" in error_str:
-                    if attempt < retry_count - 1:
-                        # Exponential backoff: 1s, 2s, 4s
-                        wait_time = 2 ** attempt
-                        logger.warning(
-                            f"Gemini API capacity issue (429 Resource Exhausted). "
-                            f"Retry {attempt + 1}/{retry_count} after {wait_time}s..."
-                        )
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        # All retries exhausted - try fallback model if enabled
-                        if allow_fallback and current_model != self.fallback_model:
-                            logger.warning(
-                                f"Gemini {current_model} capacity exhausted after {retry_count} retries. "
-                                f"Falling back to {self.fallback_model} (more stable, better availability)..."
-                            )
-                            # Switch to fallback model (just update the model name, client stays same)
-                            self.model_name = self.fallback_model
-                            current_model = self.fallback_model
-                            # Try one more time with fallback model
-                            return self._call_gemini(prompt, retry_count=1, allow_fallback=False)
-                        else:
-                            logger.error(
-                                f"Gemini API capacity exhausted after {retry_count} retries. "
-                                f"This is a Google infrastructure issue, not a rate limit. "
-                                f"Consider trying again in a few minutes."
-                            )
-                else:
-                    # Not a 429 error, don't retry
-                    logger.exception(f"Gemini API call failed: {e}")
-                
-                raise last_exception
-        
-        # If we get here, all retries failed
-        raise last_exception
+        response_text = self.provider_client.generate_json(
+            prompt,
+            AI_DECISION_JSON_SCHEMA,
+            temperature=0.7,
+            max_output_tokens=4096,
+            retry_count=retry_count,
+            allow_fallback=allow_fallback,
+            model=self.model_name,
+            fallback_model=self.fallback_model,
+            system_instruction=SYSTEM_PROMPT,
+        )
+        logger.debug("Structured output response length: %s characters", len(response_text))
+        logger.debug("Structured output: %s", response_text)
+        return response_text
     
     def get_action_details(
         self,
@@ -475,16 +386,7 @@ class LLMPlayer:
         Returns:
             String like "Gemini 2.0 Flash Lite"
         """
-        # Map Gemini models to friendly names
-        model_map = {
-            "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite",
-            "gemini-2.0-flash": "Gemini 2.0 Flash",
-            "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",
-            "gemini-3-flash-preview": "Gemini 3 Flash (Preview)",
-            "gemini-1.5-flash": "Gemini 1.5 Flash",
-            "gemini-1.5-pro": "Gemini 1.5 Pro",
-        }
-        return model_map.get(self.model_name, f"Gemini ({self.model_name})")
+        return self.provider_client.get_display_name(self.model_name)
 
 
 class LLMPlayerV3(LLMPlayer):
@@ -497,19 +399,26 @@ class LLMPlayerV3(LLMPlayer):
     Inherits from LLMPlayer for API calls and action execution.
     """
     
-    def __init__(self, ai_version: int = None, **kwargs):
+    def __init__(self, ai_version: int = None, planner_mode: str = None, **kwargs):
         """
         Initialize v3 player with turn planning support.
         
         Args:
-            ai_version: AI version to use (3 or 4). If None, reads from AI_VERSION env var.
+            ai_version: Deprecated. Use planner_mode instead.
+            planner_mode: 'single' or 'dual'. If None, derived from ai_version or env.
             **kwargs: Passed to LLMPlayer (provider, api_key, model)
         """
         super().__init__(**kwargs)
         
-        # Determine AI version - parameter overrides env var
-        import os
-        self.ai_version = ai_version if ai_version is not None else int(os.getenv("AI_VERSION", "3"))
+        from .turn_planner import TurnPlanner, ai_version_to_planner_mode, get_planner_mode
+
+        # Determine planner mode: explicit arg > legacy ai_version > env var.
+        if planner_mode:
+            self.planner_mode = planner_mode
+        elif ai_version is not None:
+            self.planner_mode = ai_version_to_planner_mode(ai_version)
+        else:
+            self.planner_mode = get_planner_mode()
         
         # v3: Turn plan state
         self._current_plan: Optional['TurnPlan'] = None
@@ -517,17 +426,22 @@ class LLMPlayerV3(LLMPlayer):
         self._completed_actions: List['PlannedAction'] = []
         self._plan_turn_number: Optional[int] = None  # Track which turn the plan is for
         self._execution_log: List[Dict[str, Any]] = []  # Track execution attempts
+        self._midturn_replan_count: int = 0  # Re-plans within a single turn (capped at 2)
         
-        # Import turn planner
-        from .turn_planner import TurnPlanner
         self.turn_planner = TurnPlanner(
             client=self.client,
+            provider_client=self.provider_client,
+            provider=self.provider,
             model_name=self.model_name,
             fallback_model=self.fallback_model,
-            ai_version=self.ai_version
+            planner_mode=self.planner_mode,
         )
         
-        logger.debug(f"Initialized LLMPlayerV3 (AI v{self.ai_version}, model: {self.model_name})")
+        logger.debug(
+            "Initialized LLMPlayerV3 (planner_mode=%s, model: %s)",
+            self.planner_mode,
+            self.model_name,
+        )
     
     def select_action(
         self,
@@ -565,25 +479,32 @@ class LLMPlayerV3(LLMPlayer):
         if self._current_plan and self._plan_action_index < len(self._current_plan.action_sequence):
             return self._execute_planned_action(valid_actions, game_state, ai_player_id, game_engine)
         else:
-            # Plan exhausted or no plan - fall back to v2 behavior
-            logger.warning("No plan available, falling back to v2 action selection")
+            # Plan was exhausted (not absent) — check if a mid-turn re-plan is warranted
+            if self._current_plan is not None:
+                result = self._maybe_replan(game_state, ai_player_id, valid_actions, game_engine)
+                if result is not None:
+                    return result
+            # No plan or re-plan not warranted — fall back to v2 (will pick end_turn)
+            logger.debug("Plan exhausted or no plan, falling back to v2 action selection")
             return super().select_action(game_state, ai_player_id, valid_actions, game_engine)
     
     def _needs_new_plan(self, game_state: 'GameState') -> bool:
-        """Check if we need to create a new turn plan."""
+        """Check if we need to create a new turn plan.
+
+        Note: a plan being exhausted mid-turn is NOT a trigger for re-planning.
+        When all planned actions have been selected, the caller falls through to
+        the v2 fallback (end_turn).  Re-planning mid-turn would reset
+        _execution_log and produce duplicate plan DB entries for the same turn.
+        """
         # No plan yet
         if self._current_plan is None:
             return True
-        
-        # Plan is exhausted
-        if self._plan_action_index >= len(self._current_plan.action_sequence):
-            return True
-        
+
         # Turn number changed (new turn started)
         if self._plan_turn_number != game_state.turn_number:
             logger.debug(f"🔄 New turn detected ({self._plan_turn_number} → {game_state.turn_number}), creating new plan")
             return True
-        
+
         return False
     
     def _create_turn_plan(
@@ -593,6 +514,9 @@ class LLMPlayerV3(LLMPlayer):
         game_engine
     ) -> None:
         """Create a new turn plan."""
+        # Reset mid-turn re-plan counter only for a genuinely new turn
+        if self._plan_turn_number is None or self._plan_turn_number != game_state.turn_number:
+            self._midturn_replan_count = 0
         logger.debug("📋 Creating new turn plan...")
         
         try:
@@ -624,7 +548,55 @@ class LLMPlayerV3(LLMPlayer):
         except Exception as e:
             logger.exception(f"Error creating turn plan: {e}")
             self._current_plan = None
-    
+
+    def _maybe_replan(
+        self,
+        game_state: 'GameState',
+        ai_player_id: str,
+        valid_actions: list['ValidAction'],
+        game_engine,
+    ) -> Optional[tuple[int, str]]:
+        """Trigger a mid-turn re-plan when combat options remain but the plan is exhausted.
+
+        Only re-plans when ALL of:
+        - Player has > 1 CC remaining (minimum for tussle/direct_attack)
+        - At least one tussle or direct_attack is in valid_actions
+        - Re-plan count for this turn is < 2 (prevents infinite loops)
+        """
+        ai_player = game_state.players[ai_player_id]
+
+        if self._midturn_replan_count >= 2:
+            logger.debug(
+                "⏭️ Mid-turn re-plan limit reached (%d/2), skipping",
+                self._midturn_replan_count,
+            )
+            return None
+
+        has_combat = any(
+            a.action_type in ("tussle", "direct_attack") for a in valid_actions
+        )
+        if ai_player.cc <= 1 or not has_combat:
+            logger.debug(
+                "⏭️ No re-plan warranted: CC=%d, combat_available=%s",
+                ai_player.cc,
+                has_combat,
+            )
+            return None
+
+        self._midturn_replan_count += 1
+        logger.debug(
+            "🔄 Mid-turn re-plan #%d (CC=%d, combat actions available)",
+            self._midturn_replan_count,
+            ai_player.cc,
+        )
+
+        self._create_turn_plan(game_state, ai_player_id, game_engine)
+
+        if self._current_plan and self._plan_action_index < len(self._current_plan.action_sequence):
+            return self._execute_planned_action(valid_actions, game_state, ai_player_id, game_engine)
+
+        return None
+
     def _execute_planned_action(
         self,
         valid_actions: list['ValidAction'],
@@ -673,10 +645,30 @@ class LLMPlayerV3(LLMPlayer):
             logger.debug(f"✅ Matched action (heuristic): {selected_action.description}")
             return (action_index, reasoning)
         
-        # Heuristic didn't match - use LLM to find action
+        # Heuristic didn't match — check if the action is even possible before
+        # burning an LLM execution call on something that can't be done.
+        if not self._is_action_available(planned_action, valid_actions):
+            logger.debug(
+                f"   Skipping unavailable planned action: "
+                f"{planned_action.action_type} {planned_action.card_name or ''}"
+            )
+            self._advance_plan(planned_action)
+            # Try the next step in the plan without a new LLM call
+            if self._plan_action_index < len(self._current_plan.action_sequence):
+                return self._execute_planned_action(valid_actions, game_state, ai_player_id, game_engine)
+            # Plan exhausted by skipping — find end_turn as the guaranteed safe fallback.
+            # This prevents a None return that cascades to "AI failed to select action".
+            for i, action in enumerate(valid_actions):
+                desc = action.description.lower()
+                if action.action_type == "end_turn" or "end turn" in desc:
+                    logger.debug("   Plan exhausted by skipping, falling back to end_turn")
+                    return (i, "[v3] Plan exhausted, ending turn")
+            return None
+
+        # Heuristic didn't match but action type IS available - use LLM to resolve
         logger.debug("   Using LLM to match action...")
-        
-        # Log that heuristic matching failed
+
+        # Log that heuristic matching fell back to LLM
         self._execution_log.append({
             "action_index": self._plan_action_index,
             "planned_action": f"{planned_action.action_type} {planned_action.card_name or ''}",
@@ -745,28 +737,47 @@ class LLMPlayerV3(LLMPlayer):
                 })
             return self._handle_plan_failure(valid_actions, planned_action, str(e))
     
+    def _is_action_available(self, planned_action: 'PlannedAction', valid_actions: list) -> bool:
+        """
+        Loose availability check: does any valid action correspond to the planned one?
+
+        Returns False when the action is provably impossible right now (e.g., the card
+        can't be afforded, opponent has toys blocking a direct attack that was already
+        cleared in the plan, etc.).  When False, execution skips the step instead of
+        calling the LLM with a request it cannot fulfill.
+        """
+        action_type = planned_action.action_type
+        card_name = (planned_action.card_name or "").lower()
+        for action in valid_actions:
+            desc = action.description.lower()
+            if action_type == "end_turn" and (
+                action.action_type == "end_turn" or "end turn" in desc
+            ):
+                return True
+            if action_type == "play_card" and card_name and f"play {card_name}" in desc:
+                return True
+            if action_type == "tussle" and "tussle" in desc:
+                return True
+            if action_type == "direct_attack" and "direct attack" in desc:
+                return True
+            if action_type == "activate_ability" and card_name and card_name in desc:
+                return True
+        return False
+
     def _call_execution_api(self, prompt: str) -> str:
         """Call LLM API for action execution matching."""
-        from google.genai import types
         from .prompts import EXECUTION_JSON_SCHEMA
-        
-        response = self.client.models.generate_content(
+
+        return self.provider_client.generate_json(
+            prompt,
+            EXECUTION_JSON_SCHEMA,
+            temperature=0.3,
+            max_output_tokens=1024,
+            retry_count=3,
+            allow_fallback=True,
             model=self.model_name,
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=prompt)]
-                )
-            ],
-            config=types.GenerateContentConfig(
-                temperature=0.3,  # Lower temperature for execution (more deterministic)
-                max_output_tokens=1024,
-                response_mime_type="application/json",
-                response_json_schema=EXECUTION_JSON_SCHEMA,
-            )
+            fallback_model=self.fallback_model,
         )
-        
-        return response.text.strip()
     
     def _advance_plan(self, completed_action: 'PlannedAction') -> None:
         """Move to the next action in the plan."""
@@ -809,7 +820,7 @@ class LLMPlayerV3(LLMPlayer):
         
         # Skip to end_turn if available
         for i, action in enumerate(valid_actions):
-            if "end turn" in action.description.lower():
+            if action.action_type == "end_turn":
                 logger.debug("Falling back to end_turn")
                 self._current_plan = None  # Invalidate plan
                 return (i, f"[v3 Fallback] Plan failed: {failure_reason}")
@@ -830,11 +841,9 @@ class LLMPlayerV3(LLMPlayer):
         """Get information about the last AI decision including plan info."""
         info = super().get_last_decision_info()
         
-        # Add turn plan info (v3 or v4)
+        # Add turn plan info
         if self._current_plan:
-            # Determine actual AI version used
-            from .turn_planner import get_ai_version
-            actual_ai_version = int(get_ai_version())
+            planner_mode = getattr(self.turn_planner, "planner_mode", "single") if self.turn_planner else "single"
 
             plan_info: Dict[str, Any] | None = None
             if getattr(self, "turn_planner", None) and hasattr(self.turn_planner, "get_last_plan_info"):
@@ -852,14 +861,15 @@ class LLMPlayerV3(LLMPlayer):
                 })
             
             info["v3_plan"] = {
-                "ai_version": actual_ai_version,  # Track actual version used
+                "planner_mode": planner_mode,
+                # Backward compat: map planner_mode back to version ints for DB/admin
+                "ai_version": 4 if planner_mode == "dual" else 3,
                 "strategy": self._current_plan.selected_strategy,
                 "total_actions": len(self._current_plan.action_sequence),
                 "current_action": self._plan_action_index,
                 "cc_start": self._current_plan.cc_start,
                 "cc_after_plan": self._current_plan.cc_after_plan,
                 "expected_cards_slept": self._current_plan.expected_cards_slept,
-                "cc_efficiency": self._current_plan.cc_efficiency,
                 # Full action sequence for debugging
                 "action_sequence": action_sequence,
                 # Planning prompt and response (from turn planner, if available)
@@ -883,43 +893,64 @@ class LLMPlayerV3(LLMPlayer):
                 # Execution tracking
                 "execution_log": self._execution_log if self._execution_log else None,
             }
+        else:
+            # Plan failed or not yet generated — still identify as v3 so admin UI
+            # shows the correct AI version instead of falling back to "v2".
+            planner_mode = getattr(self.turn_planner, "planner_mode", "single") if self.turn_planner else "single"
+            info["v3_plan"] = {
+                "planner_mode": planner_mode,
+                "ai_version": 4 if planner_mode == "dual" else 3,
+                "total_actions": 0,
+                "current_action": None,
+                "planning_prompt": getattr(self.turn_planner, "_last_prompt", None) if self.turn_planner else None,
+                "planning_response": getattr(self.turn_planner, "_last_response", None) if self.turn_planner else None,
+            }
         
         return info
 
 
 # Singleton instances
-_ai_player: Optional[LLMPlayer] = None
-_ai_player_v3: Optional[LLMPlayerV3] = None
+_ai_players: Dict[tuple, LLMPlayer] = {}
 
 
-def get_ai_player(provider: str = None, version: int = None) -> LLMPlayer:
+def get_ai_player(provider: str = None, version: int = None, planner_mode: str = None) -> LLMPlayer:
     """
     Get the singleton AI player instance.
     
     Args:
-        provider: Optional provider override (ignored, always uses "gemini")
-        version: AI version to use (2 for classic, 3 for turn planning).
-                 If None, reads from AI_VERSION env var (default: 2)
+        provider: Optional provider override
+        version: AI version (2 for per-action, >= 3 for turn planning).
+                 If None, reads from AI_VERSION env var (default: 3)
+        planner_mode: 'single' or 'dual'. Overrides version-based derivation.
     
     Returns:
         LLMPlayer or LLMPlayerV3 instance
     """
-    global _ai_player, _ai_player_v3
+    global _ai_players
     
     # Use environment default if version not specified
     if version is None:
         version = get_default_ai_version()
+    provider_name = provider or get_default_provider_name()
+
+    # Derive planner_mode from version when not explicitly given.
+    effective_mode = planner_mode
+    if effective_mode is None and version >= 3:
+        from .turn_planner import ai_version_to_planner_mode
+        effective_mode = ai_version_to_planner_mode(version)
+
+    cache_key = (provider_name, effective_mode or "v2")
     
     if version >= 3:
-        if _ai_player_v3 is None:
-            logger.debug(f"🤖 Initializing AI player v{version} (turn planning)")
-            _ai_player_v3 = LLMPlayerV3(provider="gemini")
-        return _ai_player_v3
+        if cache_key not in _ai_players:
+            logger.debug("🤖 Initializing AI player (planner_mode=%s)", effective_mode)
+            _ai_players[cache_key] = LLMPlayerV3(provider=provider_name, planner_mode=effective_mode)
+        return _ai_players[cache_key]
     else:
-        if _ai_player is None:
-            logger.debug(f"🤖 Initializing AI player v{version} (per-action)")
-            _ai_player = LLMPlayer(provider="gemini")
-        return _ai_player
+        if cache_key not in _ai_players:
+            logger.debug("🤖 Initializing AI player v2 (per-action)")
+            _ai_players[cache_key] = LLMPlayer(provider=provider_name)
+        return _ai_players[cache_key]
 
 
 def get_ai_player_v3(provider: str = None) -> LLMPlayerV3:
@@ -944,27 +975,22 @@ def get_llm_response(prompt: str, is_json: bool = True, provider: str = None) ->
     Args:
         prompt: The prompt to send to the LLM
         is_json: Whether to expect and parse JSON response (default: True)
-        provider: Optional provider override (ignored, always uses "gemini")
+        provider: Optional provider override
     
     Returns:
         The LLM response text (parsed from JSON if is_json=True)
     """
     ai_player = get_ai_player(provider)
-    
-    # Call Gemini
-    from google import genai
-    from google.genai import types
-    # Create a new client for custom prompts (without system instruction in config)
-    client = genai.Client(api_key=ai_player.api_key)
-    response = client.models.generate_content(
+
+    response_text = ai_player.provider_client.generate_text(
+        prompt,
+        temperature=0.8,
+        max_output_tokens=2048,
+        retry_count=3,
+        allow_fallback=True,
         model=ai_player.model_name,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.8,  # Higher temperature for creativity
-            max_output_tokens=2048,  # Allow longer responses
-        )
+        fallback_model=ai_player.fallback_model,
     )
-    response_text = response.text.strip()
     
     if is_json:
         # Parse JSON response

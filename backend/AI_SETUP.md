@@ -1,6 +1,12 @@
 # AI Player Setup Guide
 
-The GGLTCG AI player uses **Google Gemini's native structured output** mode for reliable JSON responses. This eliminates parsing errors and ensures the AI always returns valid, schema-compliant decisions.
+The GGLTCG AI player supports a provider abstraction with three current backends:
+
+- Gemini: native structured output via `google-genai`
+- Groq: OpenAI-compatible JSON mode, currently best for fast experimentation
+- OpenRouter: OpenAI-compatible JSON mode for broader model access
+
+Gemini remains the default provider. Groq and OpenRouter support are experimental and should be treated as proof-of-concept paths until they have broader live regression coverage.
 
 ## AI Version Configuration
 
@@ -31,11 +37,30 @@ When `AI_VERSION=3`, the AI uses a two-phase approach:
    - Falls back to LLM if plan doesn't match game state
    - Tracks execution status (complete/partial/fallback)
 
+### Planner Mode (`AI_PLANNER_MODE`)
+
+v3 supports two planning modes that trade off quality vs. API calls:
+
+| Mode | Description | API Calls | Recommended For |
+|------|-------------|-----------|----------------|
+| `single` | One request generates full turn plan | 1 per turn | Production, all free-tier providers |
+| `dual` | Two requests: generate sequences then select best | 2 per turn | Experimental, higher quality |
+
+```bash
+# Recommended (default):
+AI_PLANNER_MODE=single
+
+# Experimental (double the API calls):
+AI_PLANNER_MODE=dual
+```
+
+`single` mode also prunes any obviously invalid actions (wrong attacker, CC overcommit, sleep zone plays) before execution, so a smaller model's hallucinations are caught before they waste a turn.
+
 ---
 
 ## Supported Providers
 
-### Option 1: Google Gemini (FREE - Recommended)
+### Option 1: Google Gemini
 
 Gemini offers a generous free tier and **native structured output** support via the `google-genai` SDK. The AI uses Pydantic models to define a JSON schema, ensuring reliable responses.
 
@@ -52,36 +77,57 @@ Gemini offers a generous free tier and **native structured output** support via 
    export GOOGLE_API_KEY='your-api-key-here'
    ```
 
-3. **That's it!** The AI player will automatically use Gemini by default.
+3. **That's it.** The AI player will automatically use Gemini by default.
 
-### Free Tier Limits:
-- **Gemini 2.0 Flash**: 15 requests per minute, 1 million tokens per minute
-- **Gemini 1.5 Flash**: 15 requests per minute, 1 million tokens per minute
-- **Gemini 1.5 Pro**: 2 requests per minute, 32,000 tokens per minute
+### Free Tier Limits (current default: `gemini-3.1-flash-lite-preview`):
+- **Gemini 3.1 Flash Lite Preview**: 500 requests per day, 30 requests per minute (~50 games/day)
+- **Gemini 2.0 Flash**: 200 requests per day, 15 requests per minute
+- **Gemini 2.5 Flash Lite**: 20 requests per day (too low for regular use)
 
-More than enough for game testing!
+### Recommended environment
 
-### Option 2: Anthropic Claude (Requires Credits)
+```bash
+export GOOGLE_API_KEY='your-key'
+# AI_PROVIDER defaults to gemini
+```
 
-Claude offers high-quality responses but requires purchasing API credits. Uses prompt-based JSON output (no native structured output).
+### Option 2: Groq
+
+Groq exposes an OpenAI-compatible API and works with the new provider abstraction. The recommended model is `llama-3.3-70b-versatile` (100K tokens/day free ≈ 1-2 games/day; treat as occasional testing, not sustained use).
 
 ### Setup:
 
 1. **Get an API key:**
-   - Visit: https://console.anthropic.com/
-   - Create an account and add credits ($5 minimum)
+   - Visit: https://console.groq.com/keys
+   - Create an account
    - Generate an API key
 
 2. **Set environment variables:**
    ```bash
-   export ANTHROPIC_API_KEY='your-api-key-here'
-   export AI_PROVIDER='anthropic'
+   export AI_PROVIDER='groq'
+   export GROQ_API_KEY='your-api-key-here'
+   export AI_MODEL='llama-3.3-70b-versatile'
    ```
 
-### Pricing:
-- **Claude Sonnet 4**: ~$3 per million input tokens
-- Each game turn uses ~500-2000 tokens
-- $5 credit = hundreds of games
+### Current behavior
+
+- Single live tests can pass cleanly.
+- Bursty test files can still hit Groq `429` limits.
+- The provider adapter now retries, but free-tier throughput still needs practical evaluation.
+
+### Option 3: OpenRouter
+
+OpenRouter is useful when you want access to models such as `openai/gpt-oss-20b` through the same OpenAI-compatible adapter shape.
+
+### Setup:
+
+```bash
+export AI_PROVIDER='openrouter'
+export OPENROUTER_API_KEY='your-api-key-here'
+export AI_MODEL='openai/gpt-oss-20b'
+```
+
+OpenRouter support is implemented but has not yet been validated in this branch with a live key.
 
 ## Testing the AI Player
 
@@ -90,6 +136,14 @@ Claude offers high-quality responses but requires purchasing API credits. Uses p
 cd backend
 export GOOGLE_API_KEY='your-key'
 python tests/test_ai_player.py
+```
+
+### Provider-aware live test example:
+
+```bash
+cd backend
+AI_PROVIDER=groq GROQ_API_KEY='your-key' AI_MODEL='llama-3.1-8b-instant' \
+   python -m pytest tests/test_ai_standard_scenario.py::TestStandardScenario::test_turn1_with_surge_knight -q -s
 ```
 
 ### Via API:
@@ -122,19 +176,19 @@ curl -X POST "http://localhost:8000/games/{game_id}/ai-turn?player_id=ai"
 
 ## Model Selection
 
-### Gemini Models (edit `llm_player.py` to change):
-- `gemini-2.0-flash-exp` (default) - Latest, fastest, free
-- `gemini-1.5-flash` - Stable, fast, free
-- `gemini-1.5-pro` - Most capable, free but lower rate limits
+Use `AI_MODEL` for provider-neutral selection.
 
-### Claude Models:
-- `claude-sonnet-4-20250514` (default) - Balanced quality/speed
-- `claude-3-5-sonnet-20241022` - Previous version
-- `claude-3-opus-20240229` - Most capable but expensive
+Examples:
+
+- Gemini: `AI_MODEL='gemini-3.1-flash-lite-preview'`
+- Groq: `AI_MODEL='llama-3.3-70b-versatile'`
+- OpenRouter: `AI_MODEL='openai/gpt-oss-20b'`
+
+Gemini-specific compatibility env vars `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` still work.
 
 ## Switching Providers
 
-The AI player automatically detects which provider to use based on environment variables:
+The AI player detects the provider from `AI_PROVIDER` and resolves provider-specific keys automatically.
 
 **Use Gemini (default):**
 ```bash
@@ -142,23 +196,33 @@ export GOOGLE_API_KEY='your-key'
 # No AI_PROVIDER needed - Gemini is default
 ```
 
-**Use Claude:**
+**Use Groq:**
 ```bash
-export ANTHROPIC_API_KEY='your-key'
-export AI_PROVIDER='anthropic'
+export AI_PROVIDER='groq'
+export GROQ_API_KEY='your-key'
+export AI_MODEL='llama-3.3-70b-versatile'
+```
+
+**Use OpenRouter:**
+```bash
+export AI_PROVIDER='openrouter'
+export OPENROUTER_API_KEY='your-key'
+export AI_MODEL='openai/gpt-oss-20b'
 ```
 
 ## Troubleshooting
 
 **"API key required" error:**
 - Make sure you've exported the environment variable
-- Check the variable name is correct
-- Try printing it: `echo $GOOGLE_API_KEY`
+- Check that the key matches the selected provider
+- Gemini uses `GOOGLE_API_KEY`
+- Groq uses `GROQ_API_KEY`
+- OpenRouter uses `OPENROUTER_API_KEY`
 
 **Rate limit errors:**
-- Gemini free tier is generous but has limits
-- Add a small delay between AI turns if needed
-- Consider upgrading to paid tier for production
+- `gemini-3.1-flash-lite-preview` gives 500 RPD (≈50 games/day) and is the recommended default.
+- Groq free tier is 100K tokens/day (≈1-2 games/day) — use for occasional model comparisons only.
+- If you hit 429s on Gemini, the fallback model kicks in automatically; check `GEMINI_FALLBACK_MODEL` in `.env`.
 
 **AI makes invalid moves:**
 - This is expected occasionally - the LLM parses natural language

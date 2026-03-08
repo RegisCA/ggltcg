@@ -23,6 +23,8 @@ class _DummyPlan:
 
 
 class _DummyTurnPlanner:
+    planner_mode = "dual"
+
     def get_last_plan_info(self) -> dict:
         return {
             "prompt": "REQUEST1_PROMPT",
@@ -36,8 +38,6 @@ class _DummyTurnPlanner:
 
 
 def test_llm_player_v3_last_decision_info_includes_v4_request2() -> None:
-    os.environ["AI_VERSION"] = "4"
-
     # Avoid running the real __init__ (Gemini client). We only need the logger payload.
     player = object.__new__(LLMPlayerV3)
 

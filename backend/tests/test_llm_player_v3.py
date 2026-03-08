@@ -95,15 +95,32 @@ class TestPlanManagement:
         assert v3_player._needs_new_plan(mock_state) is True
     
     def test_needs_new_plan_when_plan_exhausted(self, v3_player):
-        """Should need new plan when all actions executed."""
+        """Plan exhausted on the SAME turn should NOT trigger re-planning.
+
+        Mid-turn re-planning resets _execution_log and creates duplicate plan
+        entries in the DB (Bug: _needs_new_plan re-triggering mid-turn).
+        The select_action caller falls through to v2 fallback instead.
+        """
         mock_plan = Mock(spec=TurnPlan)
         mock_plan.action_sequence = [Mock(), Mock()]
-        
+
         v3_player._current_plan = mock_plan
         v3_player._plan_action_index = 2  # Past last action
         v3_player._plan_turn_number = 3
-        
+
         mock_state = create_mock_game_state(turn_number=3)
+        assert v3_player._needs_new_plan(mock_state) is False
+
+    def test_needs_new_plan_when_plan_exhausted_and_turn_changed(self, v3_player):
+        """Plan exhausted AND turn changed should still trigger new plan (via turn check)."""
+        mock_plan = Mock(spec=TurnPlan)
+        mock_plan.action_sequence = [Mock(), Mock()]
+
+        v3_player._current_plan = mock_plan
+        v3_player._plan_action_index = 2  # Past last action
+        v3_player._plan_turn_number = 3
+
+        mock_state = create_mock_game_state(turn_number=5)  # New turn
         assert v3_player._needs_new_plan(mock_state) is True
     
     def test_does_not_need_new_plan_mid_execution(self, v3_player):
@@ -143,6 +160,28 @@ class TestPlanManagement:
         assert v3_player._plan_action_index == 0
         assert v3_player._completed_actions == []
         assert v3_player._plan_turn_number is None
+
+    def test_execution_log_not_reset_on_exhausted_plan_same_turn(self, v3_player):
+        """_needs_new_plan must NOT trigger on exhausted plan within the same turn.
+
+        Regression test for: _needs_new_plan re-triggering mid-turn resets
+        _execution_log and causes duplicate plan entries in the DB.
+        """
+        mock_plan = Mock(spec=TurnPlan)
+        mock_plan.action_sequence = [Mock()]  # 1-action plan
+
+        v3_player._current_plan = mock_plan
+        v3_player._plan_action_index = 1  # Plan consumed, same turn
+        v3_player._plan_turn_number = 3
+        # Simulate a confirmed log entry from the single planned action
+        v3_player._execution_log = [{"action_index": 0, "status": "success", "execution_confirmed": True}]
+
+        mock_state = create_mock_game_state(turn_number=3)
+
+        # Must NOT need a new plan — so _create_turn_plan is NOT called and
+        # _execution_log is NOT wiped.
+        assert v3_player._needs_new_plan(mock_state) is False
+        assert len(v3_player._execution_log) == 1, "_execution_log must not be reset mid-turn"
 
 
 class TestActionMatching:
@@ -286,7 +325,6 @@ class TestDecisionInfo:
         mock_plan.cc_start = 4
         mock_plan.cc_after_plan = 0
         mock_plan.expected_cards_slept = 2
-        mock_plan.cc_efficiency = "2.0"
         
         v3_player._current_plan = mock_plan
         v3_player._plan_action_index = 1
@@ -297,15 +335,17 @@ class TestDecisionInfo:
         assert info["v3_plan"]["strategy"] == "Aggressive attack"
         assert info["v3_plan"]["total_actions"] == 2
         assert info["v3_plan"]["current_action"] == 1
-        assert info["v3_plan"]["cc_efficiency"] == "2.0"
     
     def test_decision_info_no_plan_when_none(self, v3_player):
-        """Decision info should not include v3_plan when no plan."""
+        """Decision info should still include v3_plan (with ai_version=3) when no plan generated."""
         v3_player._current_plan = None
         
         info = v3_player.get_last_decision_info()
         
-        assert "v3_plan" not in info
+        # v3_plan is always present for LLMPlayerV3 so admin UI shows v3, not v2
+        assert "v3_plan" in info
+        assert info["v3_plan"]["ai_version"] == 3
+        assert info["v3_plan"]["total_actions"] == 0
 
 
 class TestTargetExtraction:

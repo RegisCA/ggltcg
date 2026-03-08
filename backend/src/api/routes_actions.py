@@ -509,8 +509,33 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         if result is None:
             # AI failed to select - default to end turn
             logger.warning("AI failed to select action, defaulting to end turn")
+
+            # Log the failure to the AI decision log so it shows up in admin
+            try:
+                decision_info = ai_player.get_last_decision_info()
+                stats_service = get_stats_service()
+                v3_plan = decision_info.get("v3_plan")
+                ai_version = v3_plan.get("ai_version", 3) if v3_plan else 2
+                stats_service.log_ai_decision(
+                    game_id=game_id,
+                    turn_number=game_state.turn_number,
+                    player_id=player_id,
+                    model_name=decision_info.get("model_name", "unknown"),
+                    prompts_version=decision_info.get("prompts_version", "unknown"),
+                    prompt=decision_info.get("prompt") or "",
+                    response=decision_info.get("response") or "",
+                    action_number=None,
+                    reasoning="[AI failed to select action — fell back to end turn]",
+                    ai_version=ai_version,
+                    turn_plan=v3_plan,
+                    plan_execution_status="fallback",
+                    fallback_reason="select_action returned None",
+                )
+            except Exception as log_err:
+                logger.warning(f"Failed to log AI failure: {log_err}")
+
             engine.end_turn()
-            
+
             # Log to play-by-play
             game_state.add_play_by_play(
                 player_name=player.name,
@@ -518,10 +543,10 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 description="AI failed to select action, ended turn",
                 ai_endpoint=ai_player.get_endpoint_name(),
             )
-            
+
             # Save updated game state to database
             service.update_game(game_id, engine)
-            
+
             return ActionResponse(
                 success=True,
                 message="AI failed to select action, ended turn",

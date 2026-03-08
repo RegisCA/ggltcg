@@ -255,6 +255,53 @@ class TestHeuristicMatcherWithIDs:
         
         assert index == 0, "Should fall back to name matching"
 
+    def test_tussle_card_id_is_target_fallback(self):
+        """
+        When LLM puts target's ID in card_id (and not in target_ids), the
+        heuristic should still match the correct tussle action.
+
+        Real scenario observed: AI generated
+          card_id = <opponent Knight UUID>
+          target_ids = [<opponent Knight UUID>]
+        instead of
+          card_id = <attacker UUID>
+          target_ids = [<opponent Knight UUID>]
+        """
+        attacker_id = "attacker-umbruh-uuid"
+        target_id = "opponent-knight-uuid"
+
+        # LLM wrongly placed target id in card_id too
+        planned = PlannedAction(
+            action_type="tussle",
+            card_name="",
+            card_id=target_id,  # <-- bug: this is actually the target
+            target_ids=[target_id],  # as expected
+            cc_cost=2,
+            cc_after=2,
+            reasoning="Tussle Knight",
+        )
+
+        valid_actions = [
+            ValidAction(
+                action_type="tussle",
+                card_id=attacker_id,
+                card_name="Umbruh",
+                target_options=[target_id],
+                cost_cc=2,
+                description="Umbruh tussle Knight (Cost: 2 CC)",
+            ),
+            ValidAction(
+                action_type="end_turn",
+                description="End turn",
+            ),
+        ]
+
+        index = find_matching_action_index(planned, valid_actions)
+
+        assert index == 0, (
+            "Should match the tussle action whose target_options contain the confused card_id"
+        )
+
 
 class TestIDExtractionFromSequence:
     """Test that IDs flow through the full sequence parsing pipeline."""
