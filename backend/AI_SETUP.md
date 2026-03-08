@@ -37,6 +37,25 @@ When `AI_VERSION=3`, the AI uses a two-phase approach:
    - Falls back to LLM if plan doesn't match game state
    - Tracks execution status (complete/partial/fallback)
 
+### Planner Mode (`AI_PLANNER_MODE`)
+
+v3 supports two planning modes that trade off quality vs. API calls:
+
+| Mode | Description | API Calls | Recommended For |
+|------|-------------|-----------|----------------|
+| `single` | One request generates full turn plan | 1 per turn | Production, all free-tier providers |
+| `dual` | Two requests: generate sequences then select best | 2 per turn | Experimental, higher quality |
+
+```bash
+# Recommended (default):
+AI_PLANNER_MODE=single
+
+# Experimental (double the API calls):
+AI_PLANNER_MODE=dual
+```
+
+`single` mode also prunes any obviously invalid actions (wrong attacker, CC overcommit, sleep zone plays) before execution, so a smaller model's hallucinations are caught before they waste a turn.
+
 ---
 
 ## Supported Providers
@@ -60,10 +79,10 @@ Gemini offers a generous free tier and **native structured output** support via 
 
 3. **That's it.** The AI player will automatically use Gemini by default.
 
-### Free Tier Limits:
-- **Gemini 2.0 Flash**: 15 requests per minute, 1 million tokens per minute
-- **Gemini 1.5 Flash**: 15 requests per minute, 1 million tokens per minute
-- **Gemini 1.5 Pro**: 2 requests per minute, 32,000 tokens per minute
+### Free Tier Limits (current default: `gemini-3.1-flash-lite-preview`):
+- **Gemini 3.1 Flash Lite Preview**: 500 requests per day, 30 requests per minute (~50 games/day)
+- **Gemini 2.0 Flash**: 200 requests per day, 15 requests per minute
+- **Gemini 2.5 Flash Lite**: 20 requests per day (too low for regular use)
 
 ### Recommended environment
 
@@ -74,7 +93,7 @@ export GOOGLE_API_KEY='your-key'
 
 ### Option 2: Groq
 
-Groq exposes an OpenAI-compatible API and works with the new provider abstraction. The best current test target is `llama-3.1-8b-instant`.
+Groq exposes an OpenAI-compatible API and works with the new provider abstraction. The recommended model is `llama-3.3-70b-versatile` (100K tokens/day free ≈ 1-2 games/day; treat as occasional testing, not sustained use).
 
 ### Setup:
 
@@ -87,7 +106,7 @@ Groq exposes an OpenAI-compatible API and works with the new provider abstractio
    ```bash
    export AI_PROVIDER='groq'
    export GROQ_API_KEY='your-api-key-here'
-   export AI_MODEL='llama-3.1-8b-instant'
+   export AI_MODEL='llama-3.3-70b-versatile'
    ```
 
 ### Current behavior
@@ -162,7 +181,7 @@ Use `AI_MODEL` for provider-neutral selection.
 Examples:
 
 - Gemini: `AI_MODEL='gemini-3.1-flash-lite-preview'`
-- Groq: `AI_MODEL='llama-3.1-8b-instant'`
+- Groq: `AI_MODEL='llama-3.3-70b-versatile'`
 - OpenRouter: `AI_MODEL='openai/gpt-oss-20b'`
 
 Gemini-specific compatibility env vars `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` still work.
@@ -181,7 +200,7 @@ export GOOGLE_API_KEY='your-key'
 ```bash
 export AI_PROVIDER='groq'
 export GROQ_API_KEY='your-key'
-export AI_MODEL='llama-3.1-8b-instant'
+export AI_MODEL='llama-3.3-70b-versatile'
 ```
 
 **Use OpenRouter:**
@@ -201,9 +220,9 @@ export AI_MODEL='openai/gpt-oss-20b'
 - OpenRouter uses `OPENROUTER_API_KEY`
 
 **Rate limit errors:**
-- Gemini free tier is currently too restrictive for sustained simulation use.
-- Groq works for isolated live tests but can still hit `429` errors on bursty test files.
-- Reduce batch size and run one scenario at a time when comparing experimental providers.
+- `gemini-3.1-flash-lite-preview` gives 500 RPD (≈50 games/day) and is the recommended default.
+- Groq free tier is 100K tokens/day (≈1-2 games/day) — use for occasional model comparisons only.
+- If you hit 429s on Gemini, the fallback model kicks in automatically; check `GEMINI_FALLBACK_MODEL` in `.env`.
 
 **AI makes invalid moves:**
 - This is expected occasionally - the LLM parses natural language

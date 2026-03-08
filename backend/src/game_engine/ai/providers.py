@@ -97,11 +97,11 @@ def resolve_provider_config(
         )
 
     if resolved_provider == "gemini":
-        resolved_model = model or os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL") or get_default_model("gemini")
+        resolved_model = model or os.getenv("GEMINI_MODEL") or os.getenv("AI_MODEL") or get_default_model("gemini")
         resolved_fallback = (
             fallback_model
-            or os.getenv("AI_FALLBACK_MODEL")
             or os.getenv("GEMINI_FALLBACK_MODEL")
+            or os.getenv("AI_FALLBACK_MODEL")
             or resolved_model
         )
         resolved_base_url = None
