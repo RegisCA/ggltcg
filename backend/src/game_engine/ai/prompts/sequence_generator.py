@@ -133,13 +133,45 @@ def generate_sequence_prompt(
         if card.name == "Surge":
             potential_cc += 1
             modifiers.append("Surge +1")
-        elif card.name == "Rush":
+        elif card.name == "Rush" and game_state.turn_number != 1:
+            # Rush cannot be played on game turn 1
             potential_cc += 2
             modifiers.append("Rush +2")
-    
+
     cc_header = f"## CC: {cc_available}"
     if potential_cc > cc_available:
         cc_header += f" (Max potential: {potential_cc} via {', '.join(modifiers)})"
+
+    # Build restriction warnings for board-dependent or turn-restricted cards
+    restriction_hints = []
+    hand_names = {c.name for c in hand}
+    total_in_play = len(in_play) + len(opp_in_play)
+    if game_state.turn_number == 1 and "Rush" in hand_names:
+        restriction_hints.append(
+            "\n- ⛔ TURN 1 RESTRICTION: Rush CANNOT be played on game turn 1. Omit Rush from all sequences."
+        )
+    if "Clean" in hand_names and total_in_play == 0:
+        restriction_hints.append(
+            "\n- ⛔ CLEAN HAS NO TARGETS: No toys in play on either side. Clean would have zero effect. Do NOT include Clean."
+        )
+    if "Twist" in hand_names and len(opp_in_play) == 0:
+        restriction_hints.append(
+            "\n- ⛔ TWIST HAS NO TARGET: Opponent has no toys in play. Twist cannot be played. Do NOT include Twist."
+        )
+    if "Drop" in hand_names and len(opp_in_play) == 0:
+        restriction_hints.append(
+            "\n- ⛔ DROP HAS NO TARGET: Opponent has no toys in play. Drop cannot be played. Do NOT include Drop."
+        )
+    if player.sleep_zone:
+        sleep_ids_list = ", ".join(
+            f"[ID: {c.id}] {c.name}" for c in player.sleep_zone
+        )
+        restriction_hints.append(
+            f"\n- ⛔ SLEEP ZONE ≠ HAND: {sleep_ids_list} — these cards are SLEPT and cannot be played with `play`."
+            f" To use a slept card: (1) play Wake from YOUR HAND (1 CC, target that card ID) → it returns to your hand,"
+            f" (2) then play it normally. If Wake is NOT in YOUR HAND right now, slept cards are UNAVAILABLE this turn."
+        )
+    restriction_text = "".join(restriction_hints)
 
     prompt = f"""Generate only LEGAL GGLTCG action sequences that maximize slept opponent cards and spend CC efficiently.
 
@@ -162,7 +194,9 @@ def generate_sequence_prompt(
 - Wake returns a card to hand; you still must pay its play cost afterward.
 - When the last opponent toy sleeps, direct_attack becomes legal.
 - Zone changes reset damage and temporary stat changes.
-{opening_hint}
+- Rush cannot be played on game turn 1 (first turn of the entire game). Available from turn 2 onward.
+- Clean/Twist/Drop require targets to exist (Clean: any in-play; Twist/Drop: opponent in-play).
+{opening_hint}{restriction_text}
 
 ## YOUR HAND (Hand)
 {hand_text}
@@ -183,6 +217,7 @@ def generate_sequence_prompt(
 ## CRITICAL CONSTRAINTS
 **The 'play' action requires the card to be in YOUR HAND.** Use card IDs from the YOUR HAND section above. Cards already In Play or in Sleep Zone stay in their zones (use tussle/activate for In Play toys).
 **Cards listed in YOUR TOYS IN PLAY are already on board. Do not replay them with `play`; attack or activate with them instead.**
+**For direct_attack or tussle, the attacker card_id MUST come from YOUR TOYS IN PLAY — a card still in YOUR HAND cannot attack until it has been played with `play` first.**
 
 **direct_attack legality right now: {direct_msg}**
 

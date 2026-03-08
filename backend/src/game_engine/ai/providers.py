@@ -456,6 +456,14 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             except httpx.HTTPStatusError as exc:
                 last_exception = exc
                 status_code = exc.response.status_code
+                if status_code not in {429, 500, 502, 503, 504}:
+                    # Non-retryable client error — log body for diagnosis
+                    logger.error(
+                        "%s API %s error: %s",
+                        self.config.provider,
+                        status_code,
+                        exc.response.text[:500],
+                    )
                 if status_code in {429, 500, 502, 503, 504} and attempt < retry_count - 1:
                     wait_time = self._get_retry_wait_seconds(exc.response, attempt)
                     logger.warning(

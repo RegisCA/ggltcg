@@ -14,8 +14,7 @@ Architecture:
 - Dynamic card loading: only include cards in current game
 """
 
-from .card_loader import format_card_guidance_compact
-from .effect_loader import generate_effect_guidance
+from .card_loader import format_card_guidance_compact, generate_threat_priorities
 
 
 # =============================================================================
@@ -54,11 +53,6 @@ Key rules:
 # Threat Assessment
 # =============================================================================
 
-THREAT_GUIDE = """# THREAT PRIORITY
-CRITICAL: Gibbers (+1 cost tax), Sock Sorcerer (blocks removal), Wizard (cheap tussles)
-HIGH: Belchaletta (+2CC/turn), Raggy (free tussles), Knight (auto-win), Paper Plane (bypasses defense)
-Remove threats to maximize efficiency"""
-
 
 # =============================================================================
 # Sequence Planning Rules (Multi-Step Logic)
@@ -71,11 +65,6 @@ Framework:
 2. Compute total budget: starting CC plus cards that add CC when played.
 3. Spend setup cards first: Surge/Rush/HLK before other actions, Wake before replaying a slept card, buffs before combat.
 4. Prefer lines that sleep cards now instead of only developing board.
-
-Turn 1 guidance:
-- P1 turn 1 starts at 2 CC. If opponent has 0 toys, direct attack is already available.
-- Surge often turns 2 CC into a 3 CC line like Surge -> 1-cost toy -> direct_attack.
-- P2 turn 1 usually must remove blockers first because opponent has toys in play.
 
 Priority order:
 1. Lethal if possible.
@@ -91,20 +80,44 @@ Checks before finalizing:
 - Do not play from sleep without Wake first.
 - Do not target cards that already slept.
 
-Card-specific reminders:
-- Knight auto-wins tussles on your turn.
-- Archer can remove low-STA toys efficiently even though it cannot attack.
-- Paper Plane may bypass blockers for direct attacks.
-- Wizard, Raggy, and Gibbers can modify action costs; respect the board state.
+CC economy: Unspent CC carries over (max 7, excess lost). You gain 4 CC per turn (2 on turn 1).
+If you can remove a threat or deal direct damage now, do it — live opponent toys grow more dangerous each turn.
+Only bank CC if you have a concrete plan that requires more CC next turn than you'd otherwise have."""
 
-CC economy note: Unspent CC carries over to your next turn (max 7, excess lost).
-You gain 4 CC per turn (2 on turn 1), so banking more than ~2 CC rarely pays off
-because you'll likely hit the cap anyway. If you can remove a threat or deal direct
-damage now, do it — live opponent toys grow more dangerous each turn.
-Only bank CC if you have a concrete plan that requires more CC next turn than you'd
-otherwise have (e.g., a 5-CC play when you'll have exactly 5 next turn).
+def _generate_context_notes(game_state, player_id: str) -> str:
+    """
+    Generate turn-specific and board-specific warnings.
+    Shown on any turn where relevant cards are in hand with no valid targets,
+    or on turns with special play restrictions.
+    """
+    player = game_state.players[player_id]
+    opponent = game_state.get_opponent(player_id)
+    hand_names = {c.name for c in player.hand}
+    total_in_play = len(player.in_play) + len(opponent.in_play)
+    opp_in_play_count = len(opponent.in_play)
 
-Efficiency target: aim for ≤2.5 CC per opponent card slept when practical."""
+    notes = []
+
+    if game_state.turn_number == 1:
+        notes.append("P1 turn 1: 2 CC only. Direct attack is legal (opponent has 0 toys), but requires a toy IN PLAY.")
+        notes.append("Surge turns 2 CC into 3: play Surge → play 1-cost toy → direct_attack with that toy.")
+        if "Rush" in hand_names:
+            notes.append("⛔ RUSH IS BANNED ON TURN 1. Rush cannot be played on the first turn of the game. Omit it from every sequence.")
+    elif game_state.turn_number == 2:
+        notes.append("P2 first turn (game turn 2): opponent likely has toys in play. Priority: remove threats before developing board.")
+
+    # Board-dependent card warnings (apply any turn)
+    if "Clean" in hand_names and total_in_play == 0:
+        notes.append("⛔ CLEAN IS USELESS NOW: No toys in play on either side. Clean would sleep nothing and waste 3 CC. Do NOT include Clean.")
+    if "Twist" in hand_names and opp_in_play_count == 0:
+        notes.append("⛔ TWIST HAS NO TARGET: Opponent has no toys in play. Twist requires an opponent toy to steal. Do NOT include Twist.")
+    if "Drop" in hand_names and opp_in_play_count == 0:
+        notes.append("⛔ DROP HAS NO TARGET: Opponent has no toys in play. Drop requires an opponent toy to sleep. Do NOT include Drop.")
+
+    if not notes:
+        return ""
+    return "\nTurn context:\n" + "\n".join(f"- {n}" for n in notes) + "\n"
+
 
 
 # =============================================================================
@@ -125,7 +138,7 @@ Action rules:
 - Use [ID: uuid] values for card_id and target_ids
 - cc_start: set this to the exact "Your CC:" value shown in the game state above
 - cc_after per action: cc_before_action - cc_cost + cc_gained (Surge +1, Rush +2, HLK +1); must stay >= 0; cc_before_action for the first step equals cc_start, and for each subsequent step it equals the previous step's cc_after
-- direct_attack costs exactly 2 CC (NOT 1); has no target_ids
+- direct_attack costs exactly 2 CC (NOT 1); has no target_ids; card_id MUST be a toy from **Your Toys In Play** with STR > 0 — action cards like Rush/Surge/HLK do NOT go into play as toys and CANNOT perform a direct attack; you need a toy already in play OR play a toy card first
 - tussle costs exactly 2 CC; card_id MUST come from **Your Toys In Play** (toys in your hand cannot tussle — play them first); target_ids[0] MUST come from **Opponent's Toys In Play** (never use your own card's ID as a tussle target, even if both players have a card with the same name — they have different IDs)
 - play_card: card_id comes from Your Hand; do NOT reuse that card's ID as a tussle target in the same plan
 - do not emit a sequence you know is invalid"""
@@ -156,17 +169,16 @@ def get_planning_prompt_v3(
     player = game_state.players[player_id]
     opponent = game_state.get_opponent(player_id)
     
-    # Collect all relevant cards (player hand + in play, opponent in play)
-    player_cards = player.hand + player.in_play
-    opponent_cards = opponent.in_play
+    # Generate dynamic threat priorities (only lists cards actually in this game)
+    threat_priorities = generate_threat_priorities(game_state, player_id)
     
-    # Generate dynamic effect guidance
-    effect_guidance = generate_effect_guidance(player_cards, opponent_cards)
-    
-    # Load card-specific guidance
+    # Load card-specific guidance (traps + reminders for cards in current game only)
     card_guidance = format_card_guidance_compact(game_state, player_id)
+
+    # Dynamic context notes: turn restrictions + board-dependent action warnings
+    turn_1_section = _generate_context_notes(game_state, player_id)
     
-    prompt = f"""You are a GGLTCG turn planner. Goal: Sleep opponent cards efficiently (≤2.5 CC/card).
+    prompt = f"""You are a GGLTCG turn planner.
 
 ---
 ## CURRENT GAME STATE
@@ -184,14 +196,12 @@ def get_planning_prompt_v3(
 
 {CORE_RULES}
 
-{THREAT_GUIDE}
-
-{effect_guidance}
+{threat_priorities}
 
 {card_guidance}
 
 {SEQUENCE_PLANNING}
-
+{turn_1_section}
 {OUTPUT_FORMAT}
 
 Respond with valid JSON only. Validators will check CC math, combat outcomes, and toy counts."""

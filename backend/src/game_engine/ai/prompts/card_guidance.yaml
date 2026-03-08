@@ -108,8 +108,8 @@ Twist:
   threat: "LOW"
 
 Clean:
-  trap: "Sleeps ALL toys (yours too!). Board wipe"
-  reminder: "Use when behind or to clear threats. No target needed"
+  trap: "Sleeps ALL toys CURRENTLY IN PLAY (yours too!). USELESS if no toys in play — spends 3 CC for nothing!"
+  reminder: "Only useful when toys exist on board. Check both sides have toys before playing. No target needed."
   threat: "LOW"
 
 VeryVeryAppleJuice:

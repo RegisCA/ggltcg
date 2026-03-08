@@ -426,6 +426,7 @@ class LLMPlayerV3(LLMPlayer):
         self._completed_actions: List['PlannedAction'] = []
         self._plan_turn_number: Optional[int] = None  # Track which turn the plan is for
         self._execution_log: List[Dict[str, Any]] = []  # Track execution attempts
+        self._midturn_replan_count: int = 0  # Re-plans within a single turn (capped at 2)
         
         self.turn_planner = TurnPlanner(
             client=self.client,
@@ -478,25 +479,32 @@ class LLMPlayerV3(LLMPlayer):
         if self._current_plan and self._plan_action_index < len(self._current_plan.action_sequence):
             return self._execute_planned_action(valid_actions, game_state, ai_player_id, game_engine)
         else:
-            # Plan exhausted or no plan - fall back to v2 behavior
-            logger.warning("No plan available, falling back to v2 action selection")
+            # Plan was exhausted (not absent) — check if a mid-turn re-plan is warranted
+            if self._current_plan is not None:
+                result = self._maybe_replan(game_state, ai_player_id, valid_actions, game_engine)
+                if result is not None:
+                    return result
+            # No plan or re-plan not warranted — fall back to v2 (will pick end_turn)
+            logger.debug("Plan exhausted or no plan, falling back to v2 action selection")
             return super().select_action(game_state, ai_player_id, valid_actions, game_engine)
     
     def _needs_new_plan(self, game_state: 'GameState') -> bool:
-        """Check if we need to create a new turn plan."""
+        """Check if we need to create a new turn plan.
+
+        Note: a plan being exhausted mid-turn is NOT a trigger for re-planning.
+        When all planned actions have been selected, the caller falls through to
+        the v2 fallback (end_turn).  Re-planning mid-turn would reset
+        _execution_log and produce duplicate plan DB entries for the same turn.
+        """
         # No plan yet
         if self._current_plan is None:
             return True
-        
-        # Plan is exhausted
-        if self._plan_action_index >= len(self._current_plan.action_sequence):
-            return True
-        
+
         # Turn number changed (new turn started)
         if self._plan_turn_number != game_state.turn_number:
             logger.debug(f"🔄 New turn detected ({self._plan_turn_number} → {game_state.turn_number}), creating new plan")
             return True
-        
+
         return False
     
     def _create_turn_plan(
@@ -506,6 +514,9 @@ class LLMPlayerV3(LLMPlayer):
         game_engine
     ) -> None:
         """Create a new turn plan."""
+        # Reset mid-turn re-plan counter only for a genuinely new turn
+        if self._plan_turn_number is None or self._plan_turn_number != game_state.turn_number:
+            self._midturn_replan_count = 0
         logger.debug("📋 Creating new turn plan...")
         
         try:
@@ -537,7 +548,55 @@ class LLMPlayerV3(LLMPlayer):
         except Exception as e:
             logger.exception(f"Error creating turn plan: {e}")
             self._current_plan = None
-    
+
+    def _maybe_replan(
+        self,
+        game_state: 'GameState',
+        ai_player_id: str,
+        valid_actions: list['ValidAction'],
+        game_engine,
+    ) -> Optional[tuple[int, str]]:
+        """Trigger a mid-turn re-plan when combat options remain but the plan is exhausted.
+
+        Only re-plans when ALL of:
+        - Player has > 1 CC remaining (minimum for tussle/direct_attack)
+        - At least one tussle or direct_attack is in valid_actions
+        - Re-plan count for this turn is < 2 (prevents infinite loops)
+        """
+        ai_player = game_state.players[ai_player_id]
+
+        if self._midturn_replan_count >= 2:
+            logger.debug(
+                "⏭️ Mid-turn re-plan limit reached (%d/2), skipping",
+                self._midturn_replan_count,
+            )
+            return None
+
+        has_combat = any(
+            a.action_type in ("tussle", "direct_attack") for a in valid_actions
+        )
+        if ai_player.cc <= 1 or not has_combat:
+            logger.debug(
+                "⏭️ No re-plan warranted: CC=%d, combat_available=%s",
+                ai_player.cc,
+                has_combat,
+            )
+            return None
+
+        self._midturn_replan_count += 1
+        logger.debug(
+            "🔄 Mid-turn re-plan #%d (CC=%d, combat actions available)",
+            self._midturn_replan_count,
+            ai_player.cc,
+        )
+
+        self._create_turn_plan(game_state, ai_player_id, game_engine)
+
+        if self._current_plan and self._plan_action_index < len(self._current_plan.action_sequence):
+            return self._execute_planned_action(valid_actions, game_state, ai_player_id, game_engine)
+
+        return None
+
     def _execute_planned_action(
         self,
         valid_actions: list['ValidAction'],
@@ -600,7 +659,8 @@ class LLMPlayerV3(LLMPlayer):
             # Plan exhausted by skipping — find end_turn as the guaranteed safe fallback.
             # This prevents a None return that cascades to "AI failed to select action".
             for i, action in enumerate(valid_actions):
-                if "end turn" in action.description.lower():
+                desc = action.description.lower()
+                if action.action_type == "end_turn" or "end turn" in desc:
                     logger.debug("   Plan exhausted by skipping, falling back to end_turn")
                     return (i, "[v3] Plan exhausted, ending turn")
             return None
@@ -690,7 +750,9 @@ class LLMPlayerV3(LLMPlayer):
         card_name = (planned_action.card_name or "").lower()
         for action in valid_actions:
             desc = action.description.lower()
-            if action_type == "end_turn" and "end turn" in desc:
+            if action_type == "end_turn" and (
+                action.action_type == "end_turn" or "end turn" in desc
+            ):
                 return True
             if action_type == "play_card" and card_name and f"play {card_name}" in desc:
                 return True
@@ -758,7 +820,7 @@ class LLMPlayerV3(LLMPlayer):
         
         # Skip to end_turn if available
         for i, action in enumerate(valid_actions):
-            if "end turn" in action.description.lower():
+            if action.action_type == "end_turn":
                 logger.debug("Falling back to end_turn")
                 self._current_plan = None  # Invalidate plan
                 return (i, f"[v3 Fallback] Plan failed: {failure_reason}")
@@ -808,7 +870,6 @@ class LLMPlayerV3(LLMPlayer):
                 "cc_start": self._current_plan.cc_start,
                 "cc_after_plan": self._current_plan.cc_after_plan,
                 "expected_cards_slept": self._current_plan.expected_cards_slept,
-                "cc_efficiency": self._current_plan.cc_efficiency,
                 # Full action sequence for debugging
                 "action_sequence": action_sequence,
                 # Planning prompt and response (from turn planner, if available)

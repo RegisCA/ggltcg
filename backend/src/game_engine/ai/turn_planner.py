@@ -694,7 +694,6 @@ class TurnPlanner:
             cc_start=starting_cc,
             cc_after_plan=max(0, cc),
             expected_cards_slept=sequence.get("cards_slept", 0),
-            cc_efficiency="",
             plan_reasoning="",
         )
     
@@ -761,24 +760,36 @@ class TurnPlanner:
                 )
             )
         
+        def _str(val) -> str:
+            """Coerce a value to str — guards against the LLM returning a dict/int."""
+            if isinstance(val, str):
+                return val
+            if val is None:
+                return ""
+            return json.dumps(val)
+
         # Create TurnPlan
         plan = TurnPlan(
-            threat_assessment=plan_data.get("threat_assessment", ""),
-            resources_summary=plan_data.get("resources_summary", ""),
+            threat_assessment=_str(plan_data.get("threat_assessment", "")),
+            resources_summary=_str(plan_data.get("resources_summary", "")),
             sequences_considered=plan_data.get("sequences_considered", []),
-            selected_strategy=plan_data.get("selected_strategy", ""),
+            selected_strategy=_str(plan_data.get("selected_strategy", "")),
             action_sequence=action_sequence,
             cc_start=plan_data.get("cc_start", 0),
             cc_after_plan=plan_data.get("cc_after_plan", 0),
             expected_cards_slept=plan_data.get("expected_cards_slept", 0),
-            cc_efficiency=plan_data.get("cc_efficiency", "N/A"),
-            plan_reasoning=plan_data.get("plan_reasoning", ""),
+            plan_reasoning=_str(plan_data.get("plan_reasoning", "")),
         )
         
         return plan
     
     # Cards that gain CC when played (mirrors TurnPlanValidator.CC_GAIN_ON_PLAY)
     _CC_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2, "HLK": 1}
+
+    # Canonical CC cost for non-play_card actions — these are fixed by game rules.
+    # Override whatever the LLM stated so regrounding is correct even if the LLM
+    # hallucinates cc_cost=0 (which would prevent pruning an unaffordable step).
+    _CANONICAL_ACTION_COSTS = {"direct_attack": 2, "tussle": 2}
 
     def _reground_cc_chain(self, plan: TurnPlan) -> None:
         """
@@ -803,6 +814,16 @@ class TurnPlanner:
                 action.cc_after = max(0, running_cc)
                 grounded.append(action)
                 continue
+            # Enforce canonical cost for actions whose CC cost is fixed by game rules.
+            # This prevents a hallucinated cc_cost=0 from bypassing the affordability
+            # check and producing a plan that fails silently at execution time.
+            canonical = self._CANONICAL_ACTION_COSTS.get(action.action_type)
+            if canonical is not None and action.cc_cost != canonical:
+                logger.warning(
+                    "Plan grounding: correcting cc_cost for %s from %d to %d (game rule)",
+                    action.action_type, action.cc_cost, canonical,
+                )
+                action.cc_cost = canonical
             gain = self._CC_GAIN_ON_PLAY.get(action.card_name or "", 0)
             net_cost = action.cc_cost - gain
             if net_cost > running_cc:
@@ -832,7 +853,6 @@ class TurnPlanner:
         logger.debug(f"Selected Strategy: {plan.selected_strategy}")
         logger.debug(f"CC Budget: {plan.cc_start} → {plan.cc_after_plan}")
         logger.debug(f"Expected cards to sleep: {plan.expected_cards_slept}")
-        logger.debug(f"CC Efficiency: {plan.cc_efficiency}")
         logger.debug("-" * 40)
         logger.debug("Action Sequence:")
         for i, action in enumerate(plan.action_sequence, 1):

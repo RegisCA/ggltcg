@@ -237,12 +237,6 @@ def convert_sequence_to_turn_plan(
     total_cc_spent = sequence.get("total_cc_spent", 0)
     cards_slept = sequence.get("cards_slept", 0)
     
-    # Calculate efficiency
-    if cards_slept > 0:
-        efficiency = f"{total_cc_spent} CC / {cards_slept} cards = {total_cc_spent/cards_slept:.2f} CC/card"
-    else:
-        efficiency = f"{total_cc_spent} CC / 0 cards = N/A (no cards slept)"
-    
     # Threat assessment based on opponent board
     threat_summary = ", ".join(c.name for c in opponent.in_play) if opponent.in_play else "None"
     
@@ -255,7 +249,6 @@ def convert_sequence_to_turn_plan(
         "cc_start": player.cc,
         "cc_after_plan": cc_remaining,
         "expected_cards_slept": cards_slept,
-        "cc_efficiency": efficiency,
         "plan_reasoning": reasoning,
         "residual_cc_justification": None if cc_remaining < 2 else "CC remaining but no valid attacks available",
     }

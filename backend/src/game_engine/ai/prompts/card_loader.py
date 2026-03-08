@@ -80,6 +80,40 @@ def get_relevant_card_names(game_state: "GameState", player_id: str) -> Set[str]
     return relevant_names
 
 
+def generate_threat_priorities(game_state: "GameState", player_id: str) -> str:
+    """
+    Generate threat priority guidance based on opponent's cards actually in play.
+
+    Only surfaces CRITICAL and HIGH threats, and only for cards present in the
+    current game — avoids listing cards that aren't on the board.
+    """
+    guidance_data = load_card_guidance()
+    opponent = game_state.get_opponent(player_id)
+
+    critical: list[str] = []
+    high: list[str] = []
+
+    for card in opponent.in_play:
+        card_info = guidance_data.get(card.name)
+        if not card_info:
+            continue
+        threat = card_info.get("threat", "MEDIUM")
+        if threat == "CRITICAL":
+            critical.append(card.name)
+        elif threat == "HIGH":
+            high.append(card.name)
+
+    if not critical and not high:
+        return ""
+
+    lines = ["# THREAT PRIORITIES (opponent in play)"]
+    if critical:
+        lines.append(f"CRITICAL: {', '.join(critical)}")
+    if high:
+        lines.append(f"HIGH: {', '.join(high)}")
+    return "\n".join(lines)
+
+
 def get_relevant_card_guidance(game_state: "GameState", player_id: str) -> str:
     """
     Get formatted card guidance for cards relevant to current game state.

@@ -217,7 +217,9 @@ def find_matching_action_index(
         desc_lower = action.description.lower()
         
         # Match end_turn
-        if action_type == "end_turn" and "end turn" in desc_lower:
+        if action_type == "end_turn" and (
+            action.action_type == "end_turn" or "end turn" in desc_lower
+        ):
             return i
         
         # Match play_card - by ID first, then by name
