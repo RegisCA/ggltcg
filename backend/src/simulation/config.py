@@ -7,10 +7,9 @@ from enum import Enum
 
 # Suggested AI models for simulation presets.
 SUPPORTED_MODELS = [
-    "gemini-2.0-flash",
+    "gemini-flash-lite-latest",
     "gemini-2.5-flash-lite",
-    "gemini-3-flash-preview",
-    "gemini-3.1-flash-lite-preview",
+    "gemini-2.0-flash",
     "llama-3.1-8b-instant",
     "llama-3.3-70b-versatile",
     "openai/gpt-oss-20b",
