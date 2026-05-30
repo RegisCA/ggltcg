@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 SUPPORTED_PROVIDERS = ("gemini", "groq", "openrouter")
 
 _DEFAULT_MODELS = {
-    "gemini": "gemini-3.1-flash-lite-preview",
+    "gemini": "gemini-flash-lite-latest",  # Stable alias for latest Flash Lite; no geographic restriction
     # llama-3.1-8b-instant is too small for rule-following; use 70b by default.
     "groq": "llama-3.3-70b-versatile",
     "openrouter": "openai/gpt-oss-20b",
@@ -335,6 +335,7 @@ class GeminiProvider(BaseLLMProvider):
 
     def get_display_name(self, model_name: str) -> str:
         model_map = {
+            "gemini-flash-lite-latest": "Gemini Flash Lite (Latest)",
             "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite",
             "gemini-2.0-flash": "Gemini 2.0 Flash",
             "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",

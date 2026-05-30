@@ -87,11 +87,11 @@ class StartSimulationRequest(BaseModel):
         min_length=1
     )
     player1_model: str = Field(
-        default="gemini-3.1-flash-lite-preview",
+        default="gemini-flash-lite-latest",
         description="Model identifier for player 1"
     )
     player2_model: str = Field(
-        default="gemini-3.1-flash-lite-preview",
+        default="gemini-flash-lite-latest",
         description="Model identifier for player 2"
     )
     player1_ai_version: int = Field(

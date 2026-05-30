@@ -18,6 +18,6 @@ services:
       - key: GOOGLE_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-flash-lite-latest
       - key: GEMINI_FALLBACK_MODEL
         value: gemini-2.5-flash-lite

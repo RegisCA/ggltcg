@@ -126,8 +126,8 @@ class GameResult:
 class SimulationConfig:
     """Configuration for a simulation run."""
     deck_names: list[str]  # List of deck names to use (will run all combinations)
-    player1_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
-    player2_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
+    player1_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+    player2_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
     player1_ai_version: int = 4  # AI planning version (2, 3, or 4)
     player2_ai_version: int = 4  # AI planning version (2, 3, or 4)
     iterations_per_matchup: int = 10  # Games per deck matchup
