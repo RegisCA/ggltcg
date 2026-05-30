@@ -2,7 +2,7 @@
 #
 # Web Framework
 fastapi==0.136.3  # Updated for starlette 1.x compatibility and security fixes
-uvicorn[standard]==0.34.0
+uvicorn==0.34.0
 python-multipart==0.0.27
 starlette>=1.0.1  # Security: Fix CVE-2025-62727 (ReDoS) and CVE-2025-54121
 urllib3>=2.6.0  # Security: Fix CVE-2025-66471 and CVE-2025-66418
