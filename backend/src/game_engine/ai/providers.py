@@ -218,6 +218,16 @@ class GeminiProvider(BaseLLMProvider):
                 return response.text.strip()
             except Exception as exc:
                 last_exception = exc
+                if self._is_location_precondition(exc):
+                    logger.error(
+                        "Gemini location precondition failed for model %s (fallback %s). "
+                        "This is typically a key/project policy or hosting egress geolocation issue; "
+                        "model fallback will not resolve it.",
+                        current_model,
+                        resolved_fallback,
+                    )
+                    raise
+
                 if self._is_retryable(exc) and attempt < retry_count - 1:
                     wait_time = 2 ** attempt
                     logger.warning(
@@ -231,7 +241,7 @@ class GeminiProvider(BaseLLMProvider):
 
                 if allow_fallback and current_model != resolved_fallback:
                     logger.warning(
-                        "Gemini model %s exhausted, falling back to %s.",
+                        "Gemini model %s failed, falling back to %s.",
                         current_model,
                         resolved_fallback,
                     )
@@ -299,6 +309,16 @@ class GeminiProvider(BaseLLMProvider):
                 return response.text.strip()
             except Exception as exc:
                 last_exception = exc
+                if self._is_location_precondition(exc):
+                    logger.error(
+                        "Gemini location precondition failed for model %s (fallback %s). "
+                        "This is typically a key/project policy or hosting egress geolocation issue; "
+                        "model fallback will not resolve it.",
+                        current_model,
+                        resolved_fallback,
+                    )
+                    raise
+
                 if self._is_retryable(exc) and attempt < retry_count - 1:
                     wait_time = 2 ** attempt
                     logger.warning(
@@ -312,7 +332,7 @@ class GeminiProvider(BaseLLMProvider):
 
                 if allow_fallback and current_model != resolved_fallback:
                     logger.warning(
-                        "Gemini model %s exhausted, falling back to %s.",
+                        "Gemini model %s failed, falling back to %s.",
                         current_model,
                         resolved_fallback,
                     )
@@ -353,6 +373,14 @@ class GeminiProvider(BaseLLMProvider):
             "429" in error_text
             or "ResourceExhausted" in error_text
             or "Resource exhausted" in error_text
+        )
+
+    @staticmethod
+    def _is_location_precondition(exc: Exception) -> bool:
+        error_text = str(exc)
+        return (
+            "FAILED_PRECONDITION" in error_text
+            and "location is not supported" in error_text.lower()
         )
 
 

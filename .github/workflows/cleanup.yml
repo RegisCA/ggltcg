@@ -15,7 +15,7 @@ jobs:
       - name: Run cleanup
         env:
           MAINTENANCE_API_KEY: ${{ secrets.MAINTENANCE_API_KEY }}
-          API_URL: https://ggltcg.onrender.com
+          API_URL: https://ggltcg-backend-oregon.onrender.com
         run: |
           echo "🧹 Running database cleanup..."
           
