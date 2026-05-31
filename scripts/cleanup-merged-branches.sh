@@ -5,6 +5,39 @@
 
 set -e
 
+AUTO_CONFIRM=false
+DRY_RUN=false
+
+print_usage() {
+    echo "Usage: ./scripts/cleanup-merged-branches.sh [--yes|-y] [--dry-run]"
+    echo ""
+    echo "Options:"
+    echo "  --yes, -y   Delete matched branches without prompting"
+    echo "  --dry-run   Show branches that would be deleted, but do not delete"
+    echo "  --help, -h  Show this help"
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        --yes|-y)
+            AUTO_CONFIRM=true
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            ;;
+        --help|-h)
+            print_usage
+            exit 0
+            ;;
+        *)
+            echo "❌ Unknown option: $arg"
+            echo ""
+            print_usage
+            exit 1
+            ;;
+    esac
+done
+
 echo "🧹 GGLTCG Branch Cleanup Script"
 echo "================================"
 echo ""
@@ -75,9 +108,16 @@ fi
 
 echo ""
 
-# Ask for confirmation
-read -p "❓ Delete these branches? (y/N) " -n 1 -r
-echo ""
+# Ask for confirmation unless explicitly auto-confirmed
+if [ "$AUTO_CONFIRM" = true ]; then
+    REPLY="y"
+elif [ "$DRY_RUN" = true ]; then
+    REPLY="n"
+    echo "🔎 Dry run mode: no branches will be deleted"
+else
+    read -p "❓ Delete these branches? (y/N) " -n 1 -r
+    echo ""
+fi
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
@@ -87,7 +127,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     for branch in $BRANCHES_TO_DELETE; do
         if [ ! -z "$branch" ]; then
             echo "   Deleting: $branch"
-            git branch -D "$branch" 2>/dev/null || echo "   ⚠️  Could not delete $branch"
+            if [ "$DRY_RUN" = true ]; then
+                echo "   (dry-run) Skipped deletion"
+            else
+                git branch -D "$branch" 2>/dev/null || echo "   ⚠️  Could not delete $branch"
+            fi
         fi
     done
     
