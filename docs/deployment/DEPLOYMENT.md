@@ -48,7 +48,7 @@ In your Render service settings, add these environment variables:
 | `JWT_SECRET_KEY` | `your-random-secret` | Required for auth token signing |
 | `GOOGLE_CLIENT_ID` | `your-google-client-id` | Required for Google login token verification |
 | `GOOGLE_API_KEY` | `your-actual-api-key` | From Google AI Studio |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Primary model |
+| `GEMINI_MODEL` | `gemini-flash-lite-latest` | Primary model |
 | `GEMINI_FALLBACK_MODEL` | `gemini-2.5-flash-lite` | Fallback for capacity issues |
 | `PYTHON_VERSION` | `3.13.0` | Python version |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Update after Vercel deployment |
@@ -66,7 +66,7 @@ Ohio to Oregon).
    - Start Command: `alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`
    - `PYTHON_VERSION=3.13.0`
 
-1. Copy env vars from the old service.
+1. Copy env vars from the old service (export to a `.env` from old service and import into new one).
 1. **Replace `DATABASE_URL` with the DB External URL** from Render Postgres.
 
    - Do not use partial/internal hosts like `dpg-...-a` without domain.
@@ -79,13 +79,13 @@ Ohio to Oregon).
    - AI turn endpoint succeeds
 
 1. Point frontend `VITE_API_URL` to the new backend URL.
-1. Keep old backend live briefly for rollback, then decommission.
+1. Keep old backend in a `suspended` state briefly for rollback, then decommission.
 
 ### Step 3: Deploy Backend
 
 1. Click **"Manual Deploy"** → **"Deploy latest commit"**
 1. Wait for build to complete (3-5 minutes)
-1. Once deployed, note your backend URL: `https://ggltcg.onrender.com`
+1. Once deployed, note your backend URL: `https://ggltcg-backend-oregon.onrender.com`
 
 ### Step 4: Update CORS After Frontend Deployment
 
