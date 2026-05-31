@@ -26,8 +26,9 @@ Here's how to fix it:
 1. **Update the Start Command:**
 
    - Find the "Start Command" field
-   - Change from: `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
-   - Change to: **`cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`**
+    - Change from: `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
+    - Change to:
+       **`alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`**
 
 1. **Update the Root Directory:**
 
@@ -43,17 +44,48 @@ In your Render service settings, add these environment variables:
 
 | Key | Value | Notes |
 | :--- | :--- | :--- |
+| `DATABASE_URL` | `postgresql://...` | Use the Render **External Database URL** (full hostname) |
+| `JWT_SECRET_KEY` | `your-random-secret` | Required for auth token signing |
+| `GOOGLE_CLIENT_ID` | `your-google-client-id` | Required for Google login token verification |
 | `GOOGLE_API_KEY` | `your-actual-api-key` | From Google AI Studio |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Primary model |
+| `GEMINI_MODEL` | `gemini-flash-lite-latest` | Primary model |
 | `GEMINI_FALLBACK_MODEL` | `gemini-2.5-flash-lite` | Fallback for capacity issues |
 | `PYTHON_VERSION` | `3.13.0` | Python version |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Update after Vercel deployment |
+
+### Step 2.1: Region Migration Checklist (Render to Render)
+
+Use this when creating a second backend service in another region (for example,
+Ohio to Oregon).
+
+1. Create a new Render web service from the same repo/branch.
+1. Keep these service settings aligned:
+
+   - Root Directory: `backend`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`
+   - `PYTHON_VERSION=3.13.0`
+
+1. Copy env vars from the old service (export to a `.env` from old service and import into new one).
+1. **Replace `DATABASE_URL` with the DB External URL** from Render Postgres.
+
+   - Do not use partial/internal hosts like `dpg-...-a` without domain.
+   - Use full hostnames such as `dpg-...-a.ohio-postgres.render.com`.
+
+1. Deploy and verify:
+
+   - `/health` returns healthy
+   - login works
+   - AI turn endpoint succeeds
+
+1. Point frontend `VITE_API_URL` to the new backend URL.
+1. Keep old backend in a `suspended` state briefly for rollback, then decommission.
 
 ### Step 3: Deploy Backend
 
 1. Click **"Manual Deploy"** → **"Deploy latest commit"**
 1. Wait for build to complete (3-5 minutes)
-1. Once deployed, note your backend URL: `https://ggltcg.onrender.com`
+1. Once deployed, note your backend URL: `https://ggltcg-backend-oregon.onrender.com`
 
 ### Step 4: Update CORS After Frontend Deployment
 
@@ -164,6 +196,19 @@ $PORT`
 
 - Check that `requirements.txt` is in the `backend/` directory
 - Verify Build Command is: `pip install -r requirements.txt`
+
+### Build fails with pydantic-core metadata generation on Render
+
+- Verify `PYTHON_VERSION` is pinned to `3.13.0` in service env vars.
+- Render may otherwise use a newer Python runtime that is incompatible with
+   pinned dependencies.
+
+### Deploy fails at startup with database host resolution error
+
+- Symptom: `could not translate host name "dpg-..." to address`.
+- Cause: `DATABASE_URL` uses an internal/partial host value.
+- Fix: set `DATABASE_URL` to the full **External Database URL** from Render
+   Postgres settings.
 
 ### AI not responding
 
