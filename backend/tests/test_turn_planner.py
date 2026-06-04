@@ -78,12 +78,11 @@ class TestTurnPlannerBasic:
         print(f"Selected Strategy: {plan.selected_strategy}")
         print(f"CC: {plan.cc_start} → {plan.cc_after_plan}")
         print(f"Expected cards slept: {plan.expected_cards_slept}")
-        print(f"Efficiency: {plan.cc_efficiency}")
         print("Actions:")
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'} ({action.cc_cost} CC)")
         print("=" * 60)
-    
+
     def test_planner_creates_plan_with_threats(self, turn_planner):
         """Test planning when opponent has cards in play (threats)."""
         # Setup: Opponent has Knight and Paper Plane, AI has Archer in hand
@@ -117,7 +116,6 @@ class TestTurnPlannerBasic:
         print(f"Selected Strategy: {plan.selected_strategy}")
         print(f"CC: {plan.cc_start} → {plan.cc_after_plan}")
         print(f"Expected cards slept: {plan.expected_cards_slept}")
-        print(f"Efficiency: {plan.cc_efficiency}")
         print("Actions:")
         for i, action in enumerate(plan.action_sequence, 1):
             target_info = f" → {action.target_names}" if action.target_names else ""
@@ -186,7 +184,6 @@ class TestTurnPlannerScenarios:
         print("ARCHER PATH SCENARIO:")
         print(f"Strategy: {plan.selected_strategy}")
         print(f"Sequences considered: {plan.sequences_considered}")
-        print(f"CC Efficiency: {plan.cc_efficiency}")
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name} ({action.cc_cost} CC → {action.cc_after} CC)")
         print("=" * 60)

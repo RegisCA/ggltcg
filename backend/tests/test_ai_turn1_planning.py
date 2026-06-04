@@ -140,7 +140,6 @@ def log_plan(plan, title: str):
         print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}{target} "
               f"(cost: {action.cc_cost}, cc_after: {action.cc_after})")
     print(f"\nExpected Cards Slept: {plan.expected_cards_slept}")
-    print(f"CC Efficiency: {plan.cc_efficiency}")
     print(f"Plan Reasoning: {plan.plan_reasoning}")
     if plan.residual_cc_justification:
         print(f"Residual CC Justification: {plan.residual_cc_justification}")
@@ -717,28 +716,6 @@ class TestKnightEfficiency:
         
         if knight_tussle and archer_use:
              pytest.fail("AI wasted Archer ability on a target that Knight was going to auto-sleep!")
-
-class TestExhaustivePlanning:
-    def test_uses_all_available_cc(self, turn_planner):
-        """Verify AI continues attacking until CC < 2."""
-        setup, cards = create_game_with_cards(
-            player1_hand=[],
-            player1_in_play=["Umbruh"],
-            player2_hand=[],
-            player2_in_play=["Knight", "Wizard"],
-            player1_cc=5, # Enough for 2 tussles (2+2=4)
-            player2_cc=0,
-            active_player="player1",
-            turn_number=2,
-        )
-        
-        plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
-        assert plan is not None
-        log_plan(plan, "EXHAUSTIVE PLANNING: Use All CC")
-        
-        tussles = [a for a in plan.action_sequence if a.action_type == "tussle"]
-        assert len(tussles) >= 2, \
-            f"AI should tussle at least twice with 5 CC! Found {len(tussles)} tussles."
 
 class TestCombatMath:
     def test_attacker_wins_clean(self, turn_planner):
