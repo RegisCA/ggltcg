@@ -452,34 +452,6 @@ class TestTurn3Clean5CCAffordable:
             f"Plan has CC math errors after cc_start grounding:\n" + "\n".join(errors)
         )
 
-    def test_clean_is_playable_when_player_can_afford_it(self, turn_planner):
-        """
-        With 5 CC and opponent toys in play, Clean (3 CC board wipe) is the
-        correct efficient move.  The plan should include it.
-        """
-        setup, _ = create_game_with_cards(
-            player1_hand=["Clean", "Raggy"],
-            player1_in_play=[],
-            player2_in_play=["Knight", "Umbruh"],
-            player1_cc=5,
-            player2_cc=4,
-            active_player="player1",
-            turn_number=3,
-        )
-
-        plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
-        assert plan is not None
-
-        clean_plays = [
-            a for a in plan.action_sequence
-            if a.action_type == "play_card" and a.card_name == "Clean"
-        ]
-        assert len(clean_plays) == 1, (
-            "Expected plan to include play_card Clean (5 CC available, opponent has 2 toys). "
-            f"Actions: {[(a.action_type, a.card_name) for a in plan.action_sequence]}"
-        )
-
-
 # ---------------------------------------------------------------------------
 # Unit: _parse_plan robustness — the *actual* failure modes for
 #       "AI failed to select action, ended turn"

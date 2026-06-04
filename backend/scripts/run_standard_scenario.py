@@ -49,7 +49,6 @@ def log_plan_details(plan, title: str):
         print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}{target} "
               f"(cost: {action.cc_cost}, cc_after: {action.cc_after})")
     print(f"\nExpected Cards Slept: {plan.expected_cards_slept}")
-    print(f"CC Efficiency: {plan.cc_efficiency}")
     print("=" * 70)
 
 
