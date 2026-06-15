@@ -90,12 +90,12 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with database and migration status."""
+    """Health check endpoint with database, migration, deploy, and AI config status."""
     from .game_service import get_game_service
     from .database import SessionLocal
     from .db_models import GameModel
-    import os
-    
+    from game_engine.ai.turn_planner import get_planner_mode
+
     service = get_game_service()
     
     # Get game counts by status
@@ -131,6 +131,16 @@ async def health_check():
         "games": {
             "in_progress": games_in_progress,
             "total": total_games,
+        },
+        "deploy": {
+            # Render sets these automatically per deploy; useful to confirm
+            # which commit/branch is actually live without playing a game.
+            "git_commit": os.getenv("RENDER_GIT_COMMIT"),
+            "git_branch": os.getenv("RENDER_GIT_BRANCH"),
+        },
+        "ai": {
+            "planner_mode_env": os.getenv("AI_PLANNER_MODE"),
+            "planner_mode_effective": get_planner_mode(),
         },
     }
 
