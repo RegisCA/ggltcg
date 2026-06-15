@@ -7,20 +7,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { plannerModeLabel } from '../utils/plannerMode';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
-/**
- * Human-readable planner label. Prefers the authoritative planner_mode
- * ('single' | 'dual' | 'enum'); falls back to the legacy ai_version integer for
- * older logs that predate planner_mode (4 → dual, ≥3 → single, 2 → per-action).
- */
-function plannerModeLabel(plannerMode?: string | null, aiVersion?: number | null): string {
-  if (plannerMode) return plannerMode;
-  if (aiVersion === 4) return 'dual';
-  if (aiVersion !== null && aiVersion !== undefined && aiVersion >= 3) return 'single';
-  return 'per-action';
-}
 
 interface SummaryStats {
   users: { total: number };
@@ -62,7 +51,6 @@ interface AILog {
     cc_start: number;
     cc_after_plan: number;
     expected_cards_slept: number;
-    cc_efficiency: string;
     // Full action sequence (new)
     action_sequence?: Array<{
       action_type: string;
@@ -1137,9 +1125,6 @@ const AdminDataViewer: React.FC = () => {
                         <div className="flex flex-wrap text-sm" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-sm)' }}>
                           <span><span className="text-gray-500">CC:</span> {turnGroup.turn_plan.cc_start} → {turnGroup.turn_plan.cc_after_plan}</span>
                           <span><span className="text-gray-500">Target:</span> Sleep {turnGroup.turn_plan.expected_cards_slept} cards</span>
-                          {turnGroup.turn_plan.cc_efficiency && (
-                            <span><span className="text-gray-500">Efficiency:</span> {turnGroup.turn_plan.cc_efficiency}</span>
-                          )}
                         </div>
 
                         {/* V4 Diagnostics (if available) */}

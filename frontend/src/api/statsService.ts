@@ -73,7 +73,7 @@ export interface AILogData {
   ai_version: number | null;
   turn_plan: {
     strategy: string;
-    cc_efficiency: string;
+    planner_mode?: string | null;
   } | null;
   plan_execution_status: 'complete' | 'fallback' | null;
   fallback_reason: string | null;
