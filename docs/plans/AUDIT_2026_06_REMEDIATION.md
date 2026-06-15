@@ -2,7 +2,7 @@
 
 **Created**: June 11, 2026
 **Source**: Full-codebase audit (engine, docs, AI player) — June 11 session
-**Status**: WP-0 ✅ · WP-1 ✅ (PR #327, merged) · WP-2 ✅ (PR #326, merged) · WP-3 ✅ (this PR) · WP-4 not started
+**Status**: WP-0 ✅ · WP-1 ✅ (#327) · WP-2 ✅ (#326) · WP-3 ✅ (#328) · AI-config correction ✅ (#329) · **WP-4 ready (next, hands-on)**
 
 Each work package (WP) is one PR-sized unit with explicit acceptance criteria and a
 self-contained starter prompt. Starter prompts are written for a cold agent session —
@@ -301,45 +301,85 @@ The "HLK" entries never match (name mismatch) and are semantically wrong twice o
 
 ---
 
-## WP-4: Deterministic sequence enumerator (EXPERIMENT — after WP-1..3)
+## WP-4: Deterministic sequence enumerator (EXPERIMENT — hands-on)
 
 **Branch**: `feat/deterministic-enumerator` · **Estimate**: 2–3 sessions, phased · **Type**: new planner mode, experimental
+**Dependencies**: WP-1..3 ✅ merged. Do this hands-on (lots of live AI testing).
+
+### Context for a fresh session (read first — corrected June 2026)
+
+- **Authoritative AI doc**: `docs/development/ai/AI_CURRENT_STATE.md`. Read it before
+  touching the planner — the env-var story is genuinely confusing.
+- **What prod actually runs**: **V4 / dual-request on Gemini** (`gemini-flash-lite-latest`),
+  selected by **`AI_VERSION=4`**. NOT single. `AI_PLANNER_MODE` is a **no-op in the live
+  path** (KNOWN_ISSUES Active Issue #1) — `get_ai_player()` derives the mode from
+  `AI_VERSION` and bypasses `get_planner_mode()`. This directly affects integration
+  (see Design → Integration below).
+- **The path you are replacing** is V4's **Request 1** (LLM sequence generation), in
+  `turn_planner.py::_create_plan_v4`. The current flow:
+  `sequence_generator.generate_sequence_prompt` → LLM → `parse_sequences_response`
+  → `TurnPlanValidator` (via `_sequence_to_temp_plan`) → `add_tactical_labels`
+  → `strategic_selector.generate_strategic_prompt` → LLM (Request 2)
+  → `parse_selector_response` → `convert_sequence_to_turn_plan`.
+  The enumerator replaces **only the first LLM call**; Request 2 (selection) stays.
+- **Environment**: repo-root `.venv` (Python 3.13, built with `uv`; install with
+  `uv pip install`, not `python -m pip`). Run tests:
+  `cd backend && GOOGLE_API_KEY=dummy ../.venv/bin/python -m pytest tests/ -q`
+  (baseline: 382 passed, 39 skipped). The 39 skips are live-LLM tests needing a real
+  `GOOGLE_API_KEY` — you'll want a real key for hands-on WP-4 testing.
 
 ### Hypothesis
 
-Legal-sequence generation is a computation, not a judgment call. Replacing the LLM
-sequence-generation step with engine-side enumeration should: eliminate the illegal-
-action failure class entirely (including the two documented V4 failure modes —
-mid-sequence state-change reasoning and zone confusion), cut LLM usage to **one call
-per turn** (strategic selection only), and produce exact CC math by construction.
+Legal-sequence generation is a computation, not a judgment call. Replacing V4's
+Request 1 with engine-side enumeration should: eliminate the illegal-action failure
+class entirely (including the two documented V4 failure modes — mid-sequence
+state-change reasoning and zone confusion), **cut Gemini usage from 2 calls/turn to 1**
+(strategic selection only), and produce exact CC math by construction. The comparison
+baseline is **dual/V4 (current prod)**, not single.
 
 ### Design sketch
 
 - New module: `backend/src/game_engine/ai/enumerator.py`.
-- Depth-limited DFS over the action space from the current state, using a **cloned**
-  GameState (clone via the existing JSON serialize/deserialize round-trip) and real
-  GameEngine transitions — so "tussle sleeps last toy → direct_attack becomes legal"
-  falls out for free.
+- Depth-limited DFS over the action space from the current state, using a **cloned,
+  full-fidelity GameState** and real `GameEngine` transitions — so "tussle sleeps last
+  toy → direct_attack becomes legal" falls out for free.
+  - **Clone gotcha**: use `serialize_game_state` / `deserialize_game_state`
+    (`api/serialization.py`) or `GameState.from_dict(gs.to_dict())` **without** a
+    `requesting_player_id` — `to_dict(requesting_player_id=...)` *redacts the opponent's
+    hand*, and the enumerator needs the complete state. Phase 4.0 must assert the clone
+    is full-fidelity (opponent hand present, not hidden).
+- **Output the structured sequence dict directly** — do NOT emit the LLM's lossy string
+  format ("play X | CC: 3/4 | Sleeps: 1") that `parse_sequences_response` regex-parses.
+  Match the dict shape that `add_tactical_labels` + `convert_sequence_to_turn_plan`
+  consume: a list of `{action_type, card_id, card_name, target_ids, cc_cost}` actions
+  plus `total_cc_spent` and `cards_slept`. Real `card_id`s and exact per-step CC are a
+  strict improvement over the parsed-string path (no UUID-enrichment guesswork).
 - Budget guards: CC budget prunes naturally; cap sequence length (~8 actions); cap
-  Archer activations per sequence (e.g. ≤ target's stamina); dedupe order-equivalent
-  sequences (frozenset of action signatures); cap total sequences returned (~12),
-  ranked by a trivial score (cards slept desc, CC wasted asc) before selection.
+  Archer activations per sequence (≤ target's stamina); dedupe order-equivalent
+  sequences (frozenset of action signatures); cap total returned (~12), ranked by a
+  trivial score (cards slept desc, CC wasted asc) before selection.
 - Direct attack's random hand-card choice: enumerate as a single action with
   expected-value annotation; do not branch on outcomes.
-- Integration: new planner mode `AI_PLANNER_MODE=enum` in turn_planner.py — enumerator
-  output formatted with the existing `add_tactical_labels()` +
-  `generate_strategic_prompt()` / Request-2 selection path (reuse, don't fork).
-  TurnPlanValidator stays in the loop initially as a cross-check (it should never
-  fire; alert if it does).
+- **Integration (note the env-var reality)**: the new mode must be reachable from the
+  *live* path, which keys off `AI_VERSION` — so `AI_PLANNER_MODE=enum` alone will NOT
+  work. **Recommended: fold in the KNOWN_ISSUES #1 fix first** — make `AI_PLANNER_MODE`
+  authoritative in `get_ai_player()` (so `single`/`dual`/`enum` all select correctly),
+  then add `enum` as a third mode. This kills the footgun and gives a clean selector in
+  one move. (Fallback if you want to avoid the migration: add an `AI_PLANNER` override
+  consulted first by `get_ai_player()`.) Reuse `add_tactical_labels()` +
+  `generate_strategic_prompt()` for selection — don't fork. Keep `TurnPlanValidator` in
+  the loop initially as a **cross-check that should never fire**; log loudly if it does
+  (that means the enumerator produced something the validator thinks is illegal — a bug
+  in one of them).
 
 ### Phases
 
 | Phase | Deliverable | Gate |
 |-------|-------------|------|
-| 4.0 | State-clone utility + perf check (clone+apply ≤ a few ms) | Unit tests; round-trip equality |
-| 4.1 | Enumerator + unit tests on the standard scenarios (Turn 1 Surge+Knight hand must include the Surge→Knight→direct_attack line) | Validator agreement: 0 enumerated sequences rejected across test scenarios |
-| 4.2 | `enum` planner mode wired through turn_planner + selector | tests/test_ai_standard_scenario.py passes in enum mode with CC waste ≤ current single mode |
-| 4.3 | Simulation comparison: enum vs single, ≥40 games (Groq for selection keeps cost ~zero) | Win rate ≥ single mode; illegal actions = 0; 1 LLM call/turn confirmed |
+| 4.0 | Full-fidelity state-clone utility + perf check | Unit test: clone round-trips opponent hand (not redacted); clone+apply a few actions ≤ a few ms |
+| 4.1 | Enumerator + unit tests on standard scenarios (Turn 1 Surge+Knight hand MUST include the Surge→Knight→direct_attack line) | **Validator agreement: 0 enumerated sequences rejected** across test scenarios; enumeration time measured and bounded |
+| 4.2 | `enum` mode wired through `get_ai_player()` + selector, with the `AI_PLANNER_MODE`-authoritative fix folded in | `tests/test_ai_standard_scenario.py` passes in enum mode with CC waste ≤ dual; KNOWN_ISSUES #1 resolved |
+| 4.3 | Sim comparison: **enum vs dual** (prod), ≥40 games | Win rate ≥ dual; illegal actions = 0; **1 Gemini call/turn confirmed** (vs dual's 2) |
 
 ### Risks
 
@@ -347,8 +387,19 @@ per turn** (strategic selection only), and produce exact CC math by construction
   mitigated by caps above; measure enumeration time in Phase 4.1.
 - Copy/Twist branching on targets multiplies sequences — cap targets considered per
   card to the top-N by simple score if needed.
-- If GameEngine has hidden global state that survives cloning, Phase 4.0 will surface
-  it — fix there before proceeding.
+- If `GameEngine` has hidden global state that survives cloning (module-level singletons,
+  the effect registry mutating cards), Phase 4.0 surfaces it — fix there before proceeding.
+- **Env-var coupling**: Phase 4.2 deliberately touches planner selection (the migration
+  fix). Keep that change small and well-tested — it affects how *all* modes are selected,
+  including prod's dual. Add a test asserting `AI_VERSION=4` still resolves to dual after
+  the change (back-compat), so deployed prod behavior doesn't shift unexpectedly.
+
+### Optional follow-up (not WP-4 scope, but natural next step)
+
+Once sequences are enumerated deterministically, a **code-only scorer** (greedy or 2-ply
+over the enumerated set) could replace Request 2 entirely → **0 LLM calls/turn**, giving
+a free "easy AI" difficulty and a fixed benchmark to measure the LLM versions against.
+This is audit recommendation #2 (heuristic baseline). Decide after 4.3.
 
 ---
 
@@ -358,7 +409,9 @@ per turn** (strategic selection only), and produce exact CC math by construction
   shrinks dramatically if WP-4 succeeds, since most hardcoded knowledge exists to help
   the LLM do math it would no longer do. Decide after WP-4 Phase 4.3.
 - **Split AdminDataViewer.tsx** (2,440 lines) — admin-only, works, lowest urgency.
-- **Finish AI_VERSION → AI_PLANNER_MODE migration** in admin UI/DB round-trip.
+- **Finish AI_VERSION → AI_PLANNER_MODE migration** — now **folded into WP-4 Phase 4.2**
+  (the enumerator needs a clean mode selector). Tracked in detail as KNOWN_ISSUES
+  Active Issue #1. If WP-4 is deferred, this is still worth doing standalone.
 - **Sleeped-CC-gain owner vs controller**: the live data-driven `GainCCWhenSleepedEffect`
   (`continuous_effects.py`) grants CC to `get_card_owner`, not `get_card_controller`.
   Surfaced when removing the dead `UmbruhEffect` in WP-2 (Copilot review). It's a real
