@@ -447,9 +447,9 @@ python scripts/validate_new_cards.py
 
 This checks:
 
-- All effect_definitions are recognized
-- No orphaned test files
-- Card count matches expected
+- Every active card in `cards.csv` has a `CARD_EFFECTS_LIBRARY` entry
+- All `effect_definitions` use recognized effect types
+- No orphaned library entries (cards in `CARD_EFFECTS_LIBRARY` that are absent from the CSV)
 
 ---
 
