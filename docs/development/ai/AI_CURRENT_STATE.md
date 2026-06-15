@@ -14,31 +14,32 @@ fallbacks.
 
 ## Architecture: Planner Modes
 
-There are two planner modes, **single** and **dual** (a.k.a. "V4").
+There are three planner modes, **single**, **dual** (a.k.a. "V4"), and **enum**
+(the WP-4 deterministic enumerator).
 
 > **Production runs `dual` (V4) on Gemini.** Prod sets `AI_VERSION=4`, which
-> selects dual-request planning. "single" is the bare-checkout default, **not**
-> what the deployed game uses.
+> resolves to dual-request planning. "single" is the bare-checkout default, **not**
+> what the deployed game uses. `enum` is a newer experimental mode.
 
-### What actually selects the mode (read this — it is genuinely confusing)
+### What selects the mode
 
-The live request path (`routes_actions.py` → `get_ai_player()`) derives the mode
-**from `AI_VERSION`**, not from `AI_PLANNER_MODE`:
+The live request path (`routes_actions.py` → `get_ai_player()`) resolves the mode
+via `get_planner_mode()`, so **`AI_PLANNER_MODE` is authoritative**:
 
-- `AI_VERSION=4` → **dual**; any other value (or unset → default `3`) → **single**.
-- `get_ai_player()` computes the mode from `AI_VERSION` and passes it *explicitly*
-  into the planner, so `get_planner_mode()` — the only function that reads
-  `AI_PLANNER_MODE` — is **never reached in the running application**.
-- **So `AI_PLANNER_MODE` has no effect in the deployed app.** It is vestigial from
-  an incomplete `AI_VERSION → AI_PLANNER_MODE` migration: setting it alone changes
-  nothing; `AI_VERSION` is the real switch. (Tracked in
-  [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).)
+- `AI_PLANNER_MODE=single|dual|enum` selects that mode directly.
+- If `AI_PLANNER_MODE` is unset, the resolver falls back to legacy `AI_VERSION`
+  (`4` → **dual**; any other value or unset → **single**).
+- This was previously broken — `get_ai_player()` derived the mode from `AI_VERSION`
+  and never consulted `AI_PLANNER_MODE`, making the latter a no-op. Fixed in WP-4
+  Phase 4.2 (now Resolved in [KNOWN_ISSUES.md](../KNOWN_ISSUES.md)).
 
 | You set… | Live app behavior |
 |----------|-------------------|
-| `AI_VERSION=4` | **dual / V4** (this is prod) |
-| `AI_VERSION=3` or unset | single |
-| `AI_PLANNER_MODE=…` (alone) | **ignored** — no effect in the running app |
+| `AI_PLANNER_MODE=dual` | **dual / V4** |
+| `AI_PLANNER_MODE=enum` | **enum** (deterministic enumerator) |
+| `AI_PLANNER_MODE=single` | single |
+| `AI_VERSION=4` (no `AI_PLANNER_MODE`) | **dual / V4** (this is prod) |
+| `AI_VERSION=3`/unset (no `AI_PLANNER_MODE`) | single |
 
 ### single (code default — not what prod runs)
 
@@ -70,6 +71,22 @@ Dual mode uses the few-shot examples under `prompts/examples/`. It costs roughly
 double the API calls of single mode; production accepts that for the higher plan
 quality from validated sequence selection. Single mode exists as the lighter
 fallback and the bare-checkout default.
+
+### enum (deterministic enumerator — WP-4, experimental)
+
+Same dual-request *pipeline*, but **Request 1 is computed engine-side instead of
+asked of the LLM**:
+
+1. **Sequence enumeration** (`enumerator.py::enumerate_sequences`) — a
+   depth-limited DFS over the real action space on cloned states, using the same
+   `ActionValidator` / `ActionExecutor` the live game trusts. Produces only
+   engine-legal sequences with exact CC by construction.
+2. **`TurnPlanValidator`** — kept as a cross-check that must *never* fire (a
+   rejection is logged loudly as an enumerator/validator bug).
+3. **Strategic selection** (`prompts/strategic_selector.py`) — unchanged.
+
+Result: the illegal-action failure class is eliminated, and Gemini usage drops
+from 2 calls/turn to 1 (selection only). Select with `AI_PLANNER_MODE=enum`.
 
 ---
 
@@ -119,8 +136,8 @@ All providers use native/structured JSON output for reliable parsing.
 
 | Variable | Purpose |
 |----------|---------|
-| `AI_VERSION` | **The real planner-mode switch in the live app.** `4` → dual/V4 (prod); `3` or unset → single. |
-| `AI_PLANNER_MODE` | **No effect in the running app** — vestigial; the live path reads `AI_VERSION` instead (see Planner Modes). |
+| `AI_PLANNER_MODE` | **The authoritative planner-mode switch.** `single` / `dual` / `enum`. When unset, falls back to `AI_VERSION`. |
+| `AI_VERSION` | Legacy fallback for the mode when `AI_PLANNER_MODE` is unset: `4` → dual/V4 (prod); `3` or unset → single. |
 | `AI_PROVIDER` | Provider to use: `gemini` (default and what prod uses), `groq`, `openrouter`. |
 | `AI_MODEL` | Generic model override for the selected provider. Ignored for Gemini (use `GEMINI_MODEL`). |
 | `AI_FALLBACK_MODEL` | Generic fallback model when the primary hits capacity. |
@@ -130,9 +147,9 @@ All providers use native/structured JSON output for reliable parsing.
 | `GROQ_API_KEY` | Groq API key (required when provider is `groq`). |
 | `OPENROUTER_API_KEY` | OpenRouter API key (required when provider is `openrouter`). |
 
-> **Two env vars, one switch.** `AI_VERSION` and `AI_PLANNER_MODE` both look like
-> they select the planner mode, but only `AI_VERSION` does in the running app.
-> This is an unfinished migration — until it's resolved, set `AI_VERSION`.
+> **One switch, with a legacy fallback.** Set `AI_PLANNER_MODE` to choose the
+> planner (`single` / `dual` / `enum`). If it is unset, the resolver falls back to
+> `AI_VERSION` (`4` → dual) so existing deployments keep working unchanged.
 
 See `backend/.env.example` for the canonical commented list.
 
@@ -146,7 +163,8 @@ See `backend/.env.example` for the canonical commented list.
 | V2 | Dec 2025 | Structured JSON output and card IDs (not names). |
 | V3 | Dec 2025 | Single-request whole-turn planning. Prompts grew to 12–13k chars; illegal actions persisted. |
 | V4 | Jan 2026 | Dual-request: sequence generation → server-side `TurnPlanValidator` → strategic selection. Balanced 160-game baseline. |
-| Provider era | May–Jun 2026 | Provider abstraction (Groq/OpenRouter) added; `AI_PLANNER_MODE` introduced but left vestigial (the live path still reads `AI_VERSION`). Prod stays on **Gemini + V4/dual**. |
+| Provider era | May–Jun 2026 | Provider abstraction (Groq/OpenRouter) added; `AI_PLANNER_MODE` introduced but left vestigial (the live path still read `AI_VERSION`). Prod stays on **Gemini + V4/dual**. |
+| enum (WP-4) | Jun 2026 | Deterministic enumerator replaces dual's Request 1 with engine-side sequence enumeration (1 LLM call/turn). `AI_PLANNER_MODE` made authoritative. Experimental; prod still **Gemini + V4/dual**. |
 
 ---
 

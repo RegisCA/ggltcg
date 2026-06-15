@@ -927,26 +927,37 @@ def get_ai_player(provider: str = None, version: int = None, planner_mode: str =
         LLMPlayer or LLMPlayerV3 instance
     """
     global _ai_players
-    
+
     # Use environment default if version not specified
     if version is None:
         version = get_default_ai_version()
     provider_name = provider or get_default_provider_name()
 
-    # Derive planner_mode from version when not explicitly given.
-    effective_mode = planner_mode
-    if effective_mode is None and version >= 3:
-        from .turn_planner import ai_version_to_planner_mode
-        effective_mode = ai_version_to_planner_mode(version)
+    # Resolve the planner mode. An explicit `planner_mode` arg wins; otherwise
+    # AI_PLANNER_MODE is authoritative (falling back to AI_VERSION inside
+    # get_planner_mode). This closes the long-standing footgun where the live
+    # path derived the mode from AI_VERSION and ignored AI_PLANNER_MODE
+    # entirely (KNOWN_ISSUES Active Issue #1). Back-compat is preserved:
+    # AI_VERSION=4 with no AI_PLANNER_MODE still resolves to 'dual'.
+    from .turn_planner import get_planner_mode
+    effective_mode = planner_mode or get_planner_mode()
 
-    cache_key = (provider_name, effective_mode or "v2")
-    
-    if version >= 3:
+    # The legacy v2 per-action path is only used when explicitly on AI_VERSION<3
+    # and no planner mode has been requested in any form.
+    use_planner = (
+        version >= 3
+        or planner_mode is not None
+        or os.getenv("AI_PLANNER_MODE") is not None
+    )
+
+    if use_planner:
+        cache_key = (provider_name, effective_mode)
         if cache_key not in _ai_players:
             logger.debug("🤖 Initializing AI player (planner_mode=%s)", effective_mode)
             _ai_players[cache_key] = LLMPlayerV3(provider=provider_name, planner_mode=effective_mode)
         return _ai_players[cache_key]
     else:
+        cache_key = (provider_name, "v2")
         if cache_key not in _ai_players:
             logger.debug("🤖 Initializing AI player v2 (per-action)")
             _ai_players[cache_key] = LLMPlayer(provider=provider_name)
