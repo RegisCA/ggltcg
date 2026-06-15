@@ -7,6 +7,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { plannerModeLabel } from '../utils/plannerMode';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -39,16 +40,17 @@ interface AILog {
   action_number: number | null;
   reasoning: string | null;
   created_at: string;
-  // V3 fields
+  // Planner fields. ai_version is the legacy integer (kept for back-compat);
+  // planner_mode is the authoritative label ('single' | 'dual' | 'enum').
   ai_version: number | null;
   turn_plan: {
+    planner_mode?: string | null;
     strategy: string;
     total_actions: number;
     current_action: number;
     cc_start: number;
     cc_after_plan: number;
     expected_cards_slept: number;
-    cc_efficiency: string;
     // Full action sequence (new)
     action_sequence?: Array<{
       action_type: string;
@@ -388,6 +390,7 @@ const AdminDataViewer: React.FC = () => {
     model_name: string;
     prompts_version: string;
     ai_version: number;
+    planner_mode: string | null;
     turn_plan: NonNullable<AILog['turn_plan']>;
     created_at: string;
     logs: AILog[];
@@ -412,6 +415,7 @@ const AdminDataViewer: React.FC = () => {
             model_name: log.model_name,
             prompts_version: log.prompts_version,
             ai_version: log.ai_version,
+            planner_mode: log.turn_plan?.planner_mode ?? null,
             turn_plan: log.turn_plan,
             created_at: log.created_at,
             logs: [],
@@ -549,7 +553,7 @@ const AdminDataViewer: React.FC = () => {
     lines.push(`Turn: ${turnGroup.turn_number}`);
     lines.push(`Player: ${turnGroup.player_id}`);
     lines.push(`Model: ${turnGroup.model_name}`);
-    lines.push(`AI Version: v${turnGroup.ai_version}`);
+    lines.push(`Planner: ${plannerModeLabel(turnGroup.planner_mode, turnGroup.ai_version)}`);
     if (turnGroup.fallback_reason) lines.push(`Fallback: ${turnGroup.fallback_reason}`);
     lines.push('');
 
@@ -560,7 +564,7 @@ const AdminDataViewer: React.FC = () => {
     }
 
     if (tp?.v4_turn_debug) {
-      lines.push('=== V4 Diagnostics ===');
+      lines.push('=== Planner Diagnostics ===');
       lines.push(safeJsonString(tp.v4_turn_debug));
       lines.push('');
     }
@@ -581,19 +585,19 @@ const AdminDataViewer: React.FC = () => {
     }
 
     if (r1p && !isR1PromptSameAsPlanning) {
-      pushPromptBlock('V4 Request 1 Prompt (sequence generator)', String(r1p));
+      pushPromptBlock('Request 1 Prompt (sequence generation)', String(r1p));
     }
     if (r1r && !isR1ResponseSameAsPlanning) {
-      pushPromptBlock('V4 Request 1 Response (sequence generator)', String(r1r));
+      pushPromptBlock('Request 1 Response (sequence generation)', String(r1r));
     }
     if (tp?.v4_request2_prompt) {
-      pushPromptBlock('V4 Request 2 Prompt (strategic selector)', String(tp.v4_request2_prompt));
+      pushPromptBlock('Request 2 Prompt (strategic selection)', String(tp.v4_request2_prompt));
     }
     if (tp?.v4_request2_response) {
-      pushPromptBlock('V4 Request 2 Response (strategic selector)', String(tp.v4_request2_response));
+      pushPromptBlock('Request 2 Response (strategic selection)', String(tp.v4_request2_response));
     }
     if (tp?.v4_metrics) {
-      lines.push('=== V4 Metrics Snapshot ===');
+      lines.push('=== Planner Metrics Snapshot ===');
       lines.push(safeJsonString(tp.v4_metrics));
       lines.push('');
     }
@@ -1036,7 +1040,7 @@ const AdminDataViewer: React.FC = () => {
                 </div>
               ) : (
                 <p className="text-gray-400 text-sm">
-                  Showing {aiLogsData?.count || 0} most recent AI decisions (v3+ grouped by turn)
+                  Showing {aiLogsData?.count || 0} most recent AI decisions (planner turns grouped)
                 </p>
               )}
             </div>
@@ -1064,7 +1068,7 @@ const AdminDataViewer: React.FC = () => {
                       onClick={() => toggleTurnExpanded(turnGroup.key)}
                     >
                       <div className="flex items-center flex-wrap" style={{ gap: 'var(--spacing-component-sm)' }}>
-                        <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }}>v{turnGroup.ai_version}</span>
+                        <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }} title="Planner mode">{plannerModeLabel(turnGroup.planner_mode, turnGroup.ai_version)}</span>
                         <span className="font-semibold">Turn {turnGroup.turn_number}</span>
                         <span className="text-gray-400 text-sm">Game: {turnGroup.game_id.substring(0, 8)}...</span>
                         <span className="text-gray-500 text-sm">{turnGroup.model_name}</span>
@@ -1121,15 +1125,12 @@ const AdminDataViewer: React.FC = () => {
                         <div className="flex flex-wrap text-sm" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-sm)' }}>
                           <span><span className="text-gray-500">CC:</span> {turnGroup.turn_plan.cc_start} → {turnGroup.turn_plan.cc_after_plan}</span>
                           <span><span className="text-gray-500">Target:</span> Sleep {turnGroup.turn_plan.expected_cards_slept} cards</span>
-                          {turnGroup.turn_plan.cc_efficiency && (
-                            <span><span className="text-gray-500">Efficiency:</span> {turnGroup.turn_plan.cc_efficiency}</span>
-                          )}
                         </div>
 
                         {/* V4 Diagnostics (if available) */}
                         {hasV4Artifacts && (
                           <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
-                            <span className="text-gray-500">V4 diagnostics: </span>
+                            <span className="text-gray-500">Planner diagnostics: </span>
                             <span className="text-gray-300">
                               R1 attempts: {(v4Debug?.request1_attempts as number | undefined) ?? 'N/A'}
                               {' · '}sequences: {(v4Debug?.sequences_generated as number | undefined) ?? 'N/A'} gen
@@ -1267,7 +1268,7 @@ const AdminDataViewer: React.FC = () => {
                         {turnGroup.turn_plan.v4_request1_prompt && normalizeText(turnGroup.turn_plan.v4_request1_prompt) !== normalizeText(turnGroup.turn_plan.planning_prompt) && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View v4 request1 prompt (sequence generator) ({turnGroup.turn_plan.v4_request1_prompt.length} chars)
+                              View Request 1 prompt (sequence generation) ({turnGroup.turn_plan.v4_request1_prompt.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {turnGroup.turn_plan.v4_request1_prompt}
@@ -1277,7 +1278,7 @@ const AdminDataViewer: React.FC = () => {
                         {turnGroup.turn_plan.v4_request1_response && normalizeText(turnGroup.turn_plan.v4_request1_response) !== normalizeText(turnGroup.turn_plan.planning_response) && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View v4 request1 response (sequence generator) ({turnGroup.turn_plan.v4_request1_response.length} chars)
+                              View Request 1 response (sequence generation) ({turnGroup.turn_plan.v4_request1_response.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {turnGroup.turn_plan.v4_request1_response}
@@ -1289,7 +1290,7 @@ const AdminDataViewer: React.FC = () => {
                         {turnGroup.turn_plan.v4_request2_prompt && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View v4 request2 prompt (strategic selector) ({turnGroup.turn_plan.v4_request2_prompt.length} chars)
+                              View Request 2 prompt (strategic selection) ({turnGroup.turn_plan.v4_request2_prompt.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {turnGroup.turn_plan.v4_request2_prompt}
@@ -1299,7 +1300,7 @@ const AdminDataViewer: React.FC = () => {
                         {turnGroup.turn_plan.v4_request2_response && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View v4 request2 response (strategic selector) ({turnGroup.turn_plan.v4_request2_response.length} chars)
+                              View Request 2 response (strategic selection) ({turnGroup.turn_plan.v4_request2_response.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {turnGroup.turn_plan.v4_request2_response}
@@ -1311,7 +1312,7 @@ const AdminDataViewer: React.FC = () => {
                         {turnGroup.turn_plan.v4_metrics != null && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View v4 metrics snapshot
+                              View planner metrics snapshot
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {safeJsonString(turnGroup.turn_plan.v4_metrics)}
