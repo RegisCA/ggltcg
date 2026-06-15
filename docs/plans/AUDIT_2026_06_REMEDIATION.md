@@ -2,7 +2,7 @@
 
 **Created**: June 11, 2026
 **Source**: Full-codebase audit (engine, docs, AI player) — June 11 session
-**Status**: WP-0 not started, WP-1 not started, WP-2 not started, WP-3 not started, WP-4 not started
+**Status**: WP-0 ✅ complete · WP-1 ✅ (PR #327) · WP-2 ✅ (PR #326, this PR) · WP-3 not started · WP-4 not started
 
 Each work package (WP) is one PR-sized unit with explicit acceptance criteria and a
 self-contained starter prompt. Starter prompts are written for a cold agent session —
@@ -24,31 +24,16 @@ gh pr create --base main
 
 ---
 
-## WP-0: Rebuild local venv (LOCAL TASK, not a PR)
+## WP-0: Rebuild local venv (LOCAL TASK, not a PR) ✅ COMPLETE
 
-The repo-root `.venv` symlinks to Homebrew Python 3.13, which was removed during a
-brew upgrade (only 3.11/3.12/3.14 remain installed). Production pins 3.13.0
-(`render.yaml` → `PYTHON_VERSION`), so stay on 3.13 locally.
+The repo-root `.venv` had broken (its interpreter symlink pointed at a Python that
+was removed by a package-manager upgrade). Rebuilt on Python 3.13 — the version
+production pins via `render.yaml` → `PYTHON_VERSION`. Full backend suite passes
+locally with a dummy `GOOGLE_API_KEY`.
 
-**Recommended (uv — immune to future brew upgrades):**
-
-```bash
-cd /Users/regis/Projects/ggltcg
-rm -rf .venv
-uv venv --python 3.13 .venv          # uv downloads a standalone 3.13
-# NOTE: uv venvs do NOT include pip. Use `uv pip install` (it targets the venv via
-# VIRTUAL_ENV), NOT `.venv/bin/python -m pip install` — the latter fails with
-# "No module named pip" and silently installs nothing.
-VIRTUAL_ENV="$PWD/.venv" uv pip install -r backend/requirements.txt pytest pytest-asyncio httpx
-cd backend && GOOGLE_API_KEY=dummy ../.venv/bin/python -m pytest tests/ -q
-```
-
-Alternative (plain venv ships pip, so `python -m pip` works):
-`brew install python@3.13` then `python3.13 -m venv .venv` and
-`.venv/bin/python -m pip install -r backend/requirements.txt pytest pytest-asyncio httpx`
-(will break again on the next brew major-version cleanup).
-
-**Acceptance**: full backend suite passes locally with dummy key.
+> Gotcha for next time: a `uv`-created venv does **not** include `pip`. Install
+> with `uv pip install`, not `python -m pip install` (the latter no-ops with
+> "No module named pip"). A plain `python -m venv` ships pip and works the usual way.
 
 ---
 
@@ -165,9 +150,23 @@ A single page that makes the AI subsystem inheritable. Contents:
 
 ---
 
-## WP-2: Dead-code sweep + CI hygiene
+## WP-2: Dead-code sweep + CI hygiene ✅ COMPLETE (PR #326)
 
 **Branch**: `chore/audit-dead-code-sweep` · **Estimate**: short session · **Type**: deletions + one-liners, no behavior change
+
+### As shipped (deviations from the starter prompt below)
+
+- **Task 3 went further**: removed not only the dead Snuggles effect but also the
+  legacy `UmbruhEffect` class — both were unregistered dead code (Umbruh resolves via
+  the data-driven `gain_cc_when_sleeped:1`). That emptied `triggered_effects.py`, so
+  the whole module and its `from . import triggered_effects` were dropped.
+- **Task 4 was scoped down**: only the `turn3_analysis/` log dump and its one-off
+  generator (`investigate_turn3_failure.py`) were removed. Broader `backend/scripts/`
+  archiving was **deferred** — several one-off scripts are still referenced by
+  AI-history docs (edited in WP-1's PR #327), so moving them now would orphan those
+  links. Tracked in the "Deferred" section.
+- Also added `.venv/` to `.gitignore` (the repo ignored `venv/` but not the
+  now-documented repo-root `.venv/`).
 
 ### Starter prompt
 
