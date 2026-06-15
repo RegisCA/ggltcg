@@ -41,17 +41,25 @@ logger = logging.getLogger(__name__)
 PROMPT_TOKEN_ESTIMATE_DIVISOR = 4
 
 
+PLANNER_MODES = ("single", "dual", "enum")
+
+
 def get_planner_mode() -> str:
     """Get the AI planner mode from environment.
 
-    Returns 'single' or 'dual'.  Reads ``AI_PLANNER_MODE`` first;
-    falls back to legacy ``AI_VERSION`` for backward compatibility
-    (version 4 maps to 'dual', everything else to 'single').
+    Returns one of ``PLANNER_MODES`` ('single', 'dual', 'enum'). Reads
+    ``AI_PLANNER_MODE`` first; falls back to legacy ``AI_VERSION`` for backward
+    compatibility (version 4 maps to 'dual', everything else to 'single').
+
+    ``enum`` is the WP-4 deterministic enumerator: same dual-request pipeline as
+    'dual' but Request 1 (sequence generation) is computed engine-side instead
+    of asked of the LLM. It is only selectable via ``AI_PLANNER_MODE`` — there
+    is no legacy ``AI_VERSION`` integer for it.
     """
     mode = os.getenv("AI_PLANNER_MODE")
     if mode:
         mode = mode.strip().lower()
-        if mode in ("single", "dual"):
+        if mode in PLANNER_MODES:
             return mode
         logger.warning("Invalid AI_PLANNER_MODE '%s', defaulting to 'single'", mode)
         return "single"
@@ -200,10 +208,18 @@ class TurnPlanner:
         
         logger.debug(f"📋 Planner mode: {self.planner_mode}")
         
-        # Dual-request architecture
-        if self.planner_mode == "dual":
-            logger.debug("✅ Using dual-request planning")
-            result = self._create_plan_v4(game_state, player_id, game_engine)
+        # Dual-request architecture (V4). 'enum' shares the same pipeline but
+        # computes Request 1 (the candidate sequences) deterministically instead
+        # of asking the LLM — see _create_plan_v4(use_enumerator=...).
+        if self.planner_mode in ("dual", "enum"):
+            use_enumerator = self.planner_mode == "enum"
+            logger.debug(
+                "✅ Using %s planning",
+                "enumerator + strategic-selection" if use_enumerator else "dual-request",
+            )
+            result = self._create_plan_v4(
+                game_state, player_id, game_engine, use_enumerator=use_enumerator
+            )
             # Log V4 metrics summary (DEBUG - summary logged at game end)
             m = TurnPlanner._v4_metrics
             if m["total_turns"] > 0:
@@ -414,21 +430,26 @@ class TurnPlanner:
         self,
         game_state: GameState,
         player_id: str,
-        game_engine=None
+        game_engine=None,
+        use_enumerator: bool = False,
     ) -> Optional[TurnPlan]:
         """
         V4 dual-request planning architecture.
-        
+
         Request 1 (temp 0.2): Generate LEGAL sequences
         Request 2 (temp 0.7): Select STRATEGICALLY with examples
-        
+
         Fallback: If no valid sequences, retry with temp 1.0, then V2 single-action.
-        
+
         Args:
             game_state: Current GameState object
             player_id: ID of the AI player
             game_engine: Optional GameEngine for validation
-            
+            use_enumerator: WP-4 'enum' mode. When True, Request 1 is computed
+                engine-side by enumerate_sequences() instead of asked of the LLM
+                (eliminating the illegal-action failure class and one LLM call).
+                Request 2 (strategic selection) is unchanged.
+
         Returns:
             TurnPlan object if successful, None if failed
         """
@@ -472,51 +493,79 @@ class TurnPlanner:
             "request2_fallback_used": False,
         }
         
-        # === REQUEST 1: Generate sequences (low temperature) ===
-        logger.debug("📝 V4 Request 1: Generating action sequences...")
-        
-        seq_prompt = generate_sequence_prompt(game_state, player_id, game_engine)
-        self._last_prompt = seq_prompt
-        self._v4_request1_prompt = seq_prompt
-        logger.debug(
-            "Sequence generator prompt (%s chars, ~%s tokens)",
-            len(seq_prompt),
-            self._estimate_prompt_tokens(seq_prompt),
-        )
-        
+        # === REQUEST 1: Generate sequences ===
         sequences = []
-        for temp in [get_sequence_generator_temperature(), 1.0]:  # Retry with higher temp
-            if self._v4_turn_debug is not None:
-                self._v4_turn_debug["request1_attempts"] += 1
-                self._v4_turn_debug["request1_temps_tried"].append(temp)
+        if use_enumerator:
+            # WP-4 'enum' mode: compute candidate sequences engine-side instead
+            # of asking the LLM. No prompt, no API call, no parse step.
+            logger.debug("🧮 Request 1: Enumerating action sequences (deterministic)...")
+            from .enumerator import enumerate_sequences
             try:
-                response_text = self.provider_client.generate_json(
-                    seq_prompt,
-                    SEQUENCE_GENERATOR_SCHEMA,
-                    temperature=temp,
-                    max_output_tokens=self._get_sequence_output_budget(),
-                    retry_count=3,
-                    allow_fallback=True,
-                    model=self.model_name,
-                    fallback_model=self.fallback_model,
-                )
-                self._last_response = response_text
-                self._v4_request1_response = response_text
-                sequences = parse_sequences_response(response_text)
-                if self._v4_turn_debug is not None:
-                    self._v4_turn_debug["sequences_generated"] = len(sequences)
-                logger.debug(f"   Generated {len(sequences)} sequences (temp={temp})")
-
-                if sequences:
-                    break
-                        
+                sequences = enumerate_sequences(game_state, player_id)
             except Exception as e:
-                logger.warning(f"Request 1 failed (temp={temp}): {e}")
-                continue
-        
-        # Validate sequences with TurnPlanValidator
+                logger.error(f"Enumeration failed: {e}", exc_info=True)
+                sequences = []
+            if self._v4_turn_debug is not None:
+                self._v4_turn_debug["sequences_generated"] = len(sequences)
+            logger.debug(f"   Enumerated {len(sequences)} sequences")
+        else:
+            # Dual mode: ask the LLM for candidate sequences (low temperature).
+            logger.debug("📝 V4 Request 1: Generating action sequences...")
+
+            seq_prompt = generate_sequence_prompt(game_state, player_id, game_engine)
+            self._last_prompt = seq_prompt
+            self._v4_request1_prompt = seq_prompt
+            logger.debug(
+                "Sequence generator prompt (%s chars, ~%s tokens)",
+                len(seq_prompt),
+                self._estimate_prompt_tokens(seq_prompt),
+            )
+
+            for temp in [get_sequence_generator_temperature(), 1.0]:  # Retry with higher temp
+                if self._v4_turn_debug is not None:
+                    self._v4_turn_debug["request1_attempts"] += 1
+                    self._v4_turn_debug["request1_temps_tried"].append(temp)
+                try:
+                    response_text = self.provider_client.generate_json(
+                        seq_prompt,
+                        SEQUENCE_GENERATOR_SCHEMA,
+                        temperature=temp,
+                        max_output_tokens=self._get_sequence_output_budget(),
+                        retry_count=3,
+                        allow_fallback=True,
+                        model=self.model_name,
+                        fallback_model=self.fallback_model,
+                    )
+                    self._last_response = response_text
+                    self._v4_request1_response = response_text
+                    sequences = parse_sequences_response(response_text)
+                    if self._v4_turn_debug is not None:
+                        self._v4_turn_debug["sequences_generated"] = len(sequences)
+                    logger.debug(f"   Generated {len(sequences)} sequences (temp={temp})")
+
+                    if sequences:
+                        break
+
+                except Exception as e:
+                    logger.warning(f"Request 1 failed (temp={temp}): {e}")
+                    continue
+
+        # Validate sequences with TurnPlanValidator.
+        #
+        # For the LLM 'dual' path this FILTERS: illegal LLM sequences are dropped.
+        #
+        # For 'enum' the validator is ADVISORY ONLY. Enumerated sequences are
+        # engine-legal by construction (every step was applied through the real
+        # GameEngine). TurnPlanValidator is a weaker heuristic with hardcoded,
+        # incomplete card knowledge — e.g. it assumes tussle/direct always cost 2
+        # (wrong for Raggy, whose tussles cost 0) and only models Drop/Twist/Clean
+        # as toy-removal (missing Jumpscare's return-to-hand). It therefore
+        # produces FALSE positives on engine-perfect input. Dropping those would
+        # wrongly empty the list and force a V2 fallback, so enum keeps every
+        # sequence and only logs disagreements for telemetry.
         if sequences and self._validator:
             valid_sequences = []
+            enum_disagreements: list[str] = []
             for i, seq in enumerate(sequences):
                 # Convert sequence to TurnPlan for validation
                 temp_plan = self._sequence_to_temp_plan(seq, ai_player.cc)
@@ -525,6 +574,11 @@ class TurnPlanner:
                 )
                 if not errors:
                     valid_sequences.append(seq)
+                elif use_enumerator:
+                    # Advisory: keep the (engine-legal) sequence, record the
+                    # disagreement for visibility.
+                    valid_sequences.append(seq)
+                    enum_disagreements.append(f"seq {i}: {errors[0].message}")
                 else:
                     logger.warning(f"   Sequence {i} rejected: {errors[0].message}")
                     TurnPlanner._v4_metrics["validation_rejections"] += 1
@@ -535,7 +589,18 @@ class TurnPlanner:
                         if len(msgs) < 8:
                             msgs.append(f"rejected: {errors[0].message}")
                             self._v4_turn_debug["sequence_rejection_messages"] = msgs
-            
+
+            if enum_disagreements:
+                # Not an error: expected while the validator's hardcoded card
+                # knowledge lags the engine. Useful as a signal of which cards
+                # the validator can't reason about (see KNOWN_ISSUES metadata
+                # centralization). A genuine enumerator bug would also show here.
+                logger.info(
+                    "enum: validator flagged %d/%d enumerated sequences (advisory — "
+                    "enumerator output is authoritative). e.g. %s",
+                    len(enum_disagreements), len(sequences), enum_disagreements[0],
+                )
+
             sequences = valid_sequences
             if self._v4_turn_debug is not None:
                 self._v4_turn_debug["sequences_after_validation"] = len(sequences)
@@ -611,11 +676,17 @@ class TurnPlanner:
             logger.debug(f"   Reasoning: {reasoning[:100]}...")
 
             plan_data = convert_sequence_to_turn_plan(
-                selected_sequence, game_state, player_id, reasoning
+                selected_sequence, game_state, player_id, reasoning,
+                trust_action_costs=use_enumerator,
             )
             plan = self._parse_plan(plan_data)
             plan.cc_start = ai_player.cc
-            self._reground_cc_chain(plan)
+            # Enumerated sequences already carry exact, engine-derived CC (incl.
+            # discounted tussles like Raggy=0 / Wizard=1). _reground_cc_chain is
+            # an LLM-output correction pass that enforces canonical costs and
+            # would wrongly drop those affordable actions — skip it for enum.
+            if not use_enumerator:
+                self._reground_cc_chain(plan)
             self._last_plan = plan
 
             TurnPlanner._v4_metrics["v4_success"] += 1
@@ -638,11 +709,13 @@ class TurnPlanner:
                 if self._v4_turn_debug is not None:
                     self._v4_turn_debug["request2_fallback_used"] = True
                 plan_data = convert_sequence_to_turn_plan(
-                    sequences[0], game_state, player_id, "Selection failed, using first sequence"
+                    sequences[0], game_state, player_id, "Selection failed, using first sequence",
+                    trust_action_costs=use_enumerator,
                 )
                 plan = self._parse_plan(plan_data)
                 plan.cc_start = ai_player.cc
-                self._reground_cc_chain(plan)
+                if not use_enumerator:  # enum costs are engine-exact; see above
+                    self._reground_cc_chain(plan)
                 self._last_plan = plan
                 TurnPlanner._v4_metrics["v4_success"] += 1  # Still V4 success, just with fallback selection
                 

@@ -8,23 +8,7 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## 🔴 Active Issues
 
-### 1. `AI_VERSION` vs `AI_PLANNER_MODE` — unfinished migration (confusing footgun)
-
-- **Where**: `backend/src/game_engine/ai/llm_player.py` (`get_ai_player()`) and
-  `turn_planner.py` (`get_planner_mode()`).
-- **Problem**: two env vars appear to select the planner mode, but only
-  **`AI_VERSION`** does in the running app. `get_ai_player()` derives the mode from
-  `AI_VERSION` (`4` → dual/V4, else → single) and passes it explicitly, so
-  `get_planner_mode()` — the only reader of `AI_PLANNER_MODE` — is never reached.
-  **`AI_PLANNER_MODE` is therefore a no-op in the deployed app** (prod has it set to
-  `single` while actually running V4/dual via `AI_VERSION=4`).
-- **Impact**: high confusion; easy to "switch modes" by editing `AI_PLANNER_MODE`
-  and have nothing change. `AI_MODEL` is similarly ignored when `AI_PROVIDER=gemini`.
-- **Fix**: pick one authoritative variable (recommend `AI_PLANNER_MODE`), make
-  `get_ai_player()` honor it, and retire/alias the other. Until then, set
-  `AI_VERSION`. See `docs/development/ai/AI_CURRENT_STATE.md`.
-
-### 2. AI card-metadata centralization pending
+### 1. AI card-metadata centralization pending
 
 - **Where**: card names are hardcoded across ~10 files under
   `backend/src/game_engine/ai/` (e.g. `turn_planner.py` `_CC_GAIN_ON_PLAY`,
@@ -44,6 +28,23 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## ✅ Resolved
 
+### `AI_VERSION` vs `AI_PLANNER_MODE` — unfinished migration (confusing footgun)
+
+- **Fixed**: June 15, 2026 (WP-4 Phase 4.2, branch `feat/deterministic-enumerator`).
+- **What it was**: two env vars appeared to select the planner mode, but only
+  **`AI_VERSION`** did in the running app. `get_ai_player()` derived the mode from
+  `AI_VERSION` and passed it explicitly, so `get_planner_mode()` — the only reader
+  of `AI_PLANNER_MODE` — was never reached, making `AI_PLANNER_MODE` a no-op in the
+  deployed app.
+- **Fix**: `get_ai_player()` now resolves the mode via `get_planner_mode()`, making
+  **`AI_PLANNER_MODE` authoritative** (`single` / `dual` / `enum`). Back-compat is
+  preserved — `AI_VERSION=4` with no `AI_PLANNER_MODE` still resolves to `dual`
+  (`get_planner_mode()` falls back to `AI_VERSION`). Pinned by
+  `tests/test_planner_mode_selection.py`, including the `AI_VERSION=4 → dual`
+  back-compat case so deployed prod behavior does not shift.
+- **Note**: `AI_MODEL` is still ignored when `AI_PROVIDER=gemini` (use `GEMINI_MODEL`)
+  — that is by design, documented in `AI_CURRENT_STATE.md`, not a bug.
+
 ### `HLK` CC-gain mapping bug + phantom card cluster (planner/validator)
 
 - **Fixed**: June 15, 2026 (WP-3, branch `fix/hlk-cc-gain-mapping`).
@@ -55,7 +56,8 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 - **Fix**: removed all phantom/wrong entries; corrected two direct-attack error
   messages; added `tests/test_cc_gain_tables.py` pinning both tables to real cards
   whose CSV effect is a play-triggered `gain_cc:` (and keeping the two tables in sync).
-- **Note**: the broader hardcoded-card-name problem remains — see Active Issue #1.
+- **Note**: the broader hardcoded-card-name problem remains — see Active Issue #1
+  (AI card-metadata centralization).
 
 ## How to Use This Document
 
