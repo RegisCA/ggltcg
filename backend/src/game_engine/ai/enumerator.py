@@ -24,6 +24,7 @@ plus ``total_cc_spent``, ``cc_available``, ``cards_slept`` and a human-readable
 per-step CC are a strict improvement over the LLM's regex-parsed string path.
 """
 
+import contextlib
 import copy
 import itertools
 import logging
@@ -48,6 +49,28 @@ DEFAULT_MAX_SEQUENCES = 12       # max sequences returned (ranked) for selection
 DEFAULT_MAX_TARGET_OPTIONS = 5   # target ids considered per targeted action
 DEFAULT_MAX_TARGET_COMBOS = 8    # multi-target combinations considered per action
 MAX_NODES = 4000                 # hard safety stop on total states expanded
+
+
+@contextlib.contextmanager
+def _quiet_simulation_logs():
+    """Silence ActionExecutor's per-play INFO logging during enumeration.
+
+    The DFS drives ``ActionExecutor`` hundreds of times on cloned states; each
+    play would otherwise emit an INFO line ("Playing X with target ..."),
+    flooding the logs with *simulated* (non-real) moves. We raise only that one
+    logger to WARNING for the search and restore it afterward.
+
+    Note: logger levels are process-global, so under heavy concurrency a parallel
+    real action could be briefly de-noised too. Acceptable for the experimental
+    enum path — the window is the (sub-second) enumeration only.
+    """
+    exec_logger = logging.getLogger("game_engine.validation.action_executor")
+    prev = exec_logger.level
+    exec_logger.setLevel(logging.WARNING)
+    try:
+        yield
+    finally:
+        exec_logger.setLevel(prev)
 
 
 def clone_game_state(game_state: "GameState") -> "GameState":
@@ -311,7 +334,8 @@ def enumerate_sequences(
                 dfs(child, path + [step], costs + [cost])
 
     root = clone_game_state(game_state)
-    dfs(root, [], [])
+    with _quiet_simulation_logs():
+        dfs(root, [], [])
 
     sequences = sorted(recorded.values(), key=_rank_key, reverse=True)[:max_sequences]
     for seq in sequences:  # strip internal ranking fields

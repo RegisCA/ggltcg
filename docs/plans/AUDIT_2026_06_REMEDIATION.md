@@ -391,6 +391,20 @@ legality is engine-derived. `enum` selected via `AI_PLANNER_MODE=enum` (now
 authoritative; `AI_VERSION=4`→dual back-compat preserved). Live enum standard
 scenario verified: cc_wasted=0.
 
+**Important correction to the design note** (found during local hands-on
+testing): the plan said to keep `TurnPlanValidator` as a cross-check that
+"should never fire." It *does* fire — the validator is a **weaker heuristic than
+the engine** (hardcoded card knowledge: assumes tussle/direct cost 2, so wrong
+for Raggy's 0-cost tussles; only models Drop/Twist/Clean as toy-removal, so
+misses Jumpscare's return-to-hand in both the toy-tracker and dependency-tracker).
+It therefore false-rejects engine-legal enumerated lines. Filtering on it emptied
+the candidate list and forced a V2 fallback. **Fix: in enum mode the validator is
+advisory only — log disagreements, never drop sequences** (the enumerator is
+authoritative). Also silenced `ActionExecutor` INFO spam during enumeration.
+Pinned by `tests/test_enum_planner_integration.py`. This reinforces the
+"AI card-metadata centralization" deferred item — the validator is one of the
+files with incomplete hardcoded card knowledge.
+
 **Phase 4.3 (remaining)**: deferred — deliberate LLM-credit spend. Needs small
 sim-harness plumbing: `runner.py` already threads `planner_mode` to
 `LLMPlayerV3`, but `SimulationConfig`/`cli.py`/`orchestrator.py` key off

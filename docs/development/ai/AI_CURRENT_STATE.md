@@ -81,8 +81,14 @@ asked of the LLM**:
    depth-limited DFS over the real action space on cloned states, using the same
    `ActionValidator` / `ActionExecutor` the live game trusts. Produces only
    engine-legal sequences with exact CC by construction.
-2. **`TurnPlanValidator`** — kept as a cross-check that must *never* fire (a
-   rejection is logged loudly as an enumerator/validator bug).
+2. **`TurnPlanValidator`** — **advisory only** in enum mode (it filters in dual
+   mode). The enumerator's sequences are engine-legal by construction, but the
+   validator is a weaker heuristic with incomplete hardcoded card knowledge
+   (e.g. it assumes tussle/direct always cost 2 — wrong for Raggy's 0-cost
+   tussles — and doesn't model Jumpscare returning a toy to hand), so it
+   false-rejects valid lines. Enum keeps every enumerated sequence and only logs
+   disagreements (a signal of validator blind spots, or a genuine enumerator
+   bug). Filtering here would wrongly empty the list and force a V2 fallback.
 3. **Strategic selection** (`prompts/strategic_selector.py`) — unchanged.
 
 Result: the illegal-action failure class is eliminated, and Gemini usage drops

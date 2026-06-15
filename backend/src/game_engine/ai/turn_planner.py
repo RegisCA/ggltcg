@@ -551,11 +551,21 @@ class TurnPlanner:
                     continue
 
         # Validate sequences with TurnPlanValidator.
-        # For enum mode this is a cross-check that must NEVER fire: the enumerator
-        # only ever emits engine-legal sequences. A rejection means a bug in the
-        # enumerator or the validator — log it loudly (see below).
+        #
+        # For the LLM 'dual' path this FILTERS: illegal LLM sequences are dropped.
+        #
+        # For 'enum' the validator is ADVISORY ONLY. Enumerated sequences are
+        # engine-legal by construction (every step was applied through the real
+        # GameEngine). TurnPlanValidator is a weaker heuristic with hardcoded,
+        # incomplete card knowledge — e.g. it assumes tussle/direct always cost 2
+        # (wrong for Raggy, whose tussles cost 0) and only models Drop/Twist/Clean
+        # as toy-removal (missing Jumpscare's return-to-hand). It therefore
+        # produces FALSE positives on engine-perfect input. Dropping those would
+        # wrongly empty the list and force a V2 fallback, so enum keeps every
+        # sequence and only logs disagreements for telemetry.
         if sequences and self._validator:
             valid_sequences = []
+            enum_disagreements: list[str] = []
             for i, seq in enumerate(sequences):
                 # Convert sequence to TurnPlan for validation
                 temp_plan = self._sequence_to_temp_plan(seq, ai_player.cc)
@@ -564,17 +574,13 @@ class TurnPlanner:
                 )
                 if not errors:
                     valid_sequences.append(seq)
+                elif use_enumerator:
+                    # Advisory: keep the (engine-legal) sequence, record the
+                    # disagreement for visibility.
+                    valid_sequences.append(seq)
+                    enum_disagreements.append(f"seq {i}: {errors[0].message}")
                 else:
-                    if use_enumerator:
-                        # This should be impossible — the enumerator only emits
-                        # engine-legal lines. Surface it as a bug, not a warning.
-                        logger.error(
-                            "🐛 ENUMERATOR/VALIDATOR DISAGREEMENT — enumerated "
-                            "sequence %d rejected by validator: %s | seq=%s",
-                            i, errors[0].message, seq.get("raw_string"),
-                        )
-                    else:
-                        logger.warning(f"   Sequence {i} rejected: {errors[0].message}")
+                    logger.warning(f"   Sequence {i} rejected: {errors[0].message}")
                     TurnPlanner._v4_metrics["validation_rejections"] += 1
                     if self._v4_turn_debug is not None:
                         self._v4_turn_debug["sequences_rejected"] += 1
@@ -583,7 +589,18 @@ class TurnPlanner:
                         if len(msgs) < 8:
                             msgs.append(f"rejected: {errors[0].message}")
                             self._v4_turn_debug["sequence_rejection_messages"] = msgs
-            
+
+            if enum_disagreements:
+                # Not an error: expected while the validator's hardcoded card
+                # knowledge lags the engine. Useful as a signal of which cards
+                # the validator can't reason about (see KNOWN_ISSUES metadata
+                # centralization). A genuine enumerator bug would also show here.
+                logger.info(
+                    "enum: validator flagged %d/%d enumerated sequences (advisory — "
+                    "enumerator output is authoritative). e.g. %s",
+                    len(enum_disagreements), len(sequences), enum_disagreements[0],
+                )
+
             sequences = valid_sequences
             if self._v4_turn_debug is not None:
                 self._v4_turn_debug["sequences_after_validation"] = len(sequences)
