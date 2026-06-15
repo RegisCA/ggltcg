@@ -333,8 +333,11 @@ per turn** (strategic selection only), and produce exact CC math by construction
   the LLM do math it would no longer do. Decide after WP-4 Phase 4.3.
 - **Split AdminDataViewer.tsx** (2,440 lines) — admin-only, works, lowest urgency.
 - **Finish AI_VERSION → AI_PLANNER_MODE migration** in admin UI/DB round-trip.
-- **.gitignore AGENTS.md contradiction**: the uncommitted .gitignore change ignores
-  AGENTS.md, but 3 AGENTS.md files are tracked (and referenced by docs + Copilot).
-  Decision needed: keep AGENTS.md tracked (drop it from the ignore list, keep
-  CLAUDE.md ignored) — recommended — or `git rm --cached` all three and accept losing
-  them for contributors.
+- **Sleeped-CC-gain owner vs controller**: the live data-driven `GainCCWhenSleepedEffect`
+  (`continuous_effects.py`) grants CC to `get_card_owner`, not `get_card_controller`.
+  Surfaced when removing the dead `UmbruhEffect` in WP-2 (Copilot review). It's a real
+  rules question — if a stolen (Twisted) card is sleeped, does the thief or the original
+  owner gain the CC? — but changing it is a behavior change, so it's out of scope for the
+  sweep. Decide deliberately with a test before touching.
+- **.gitignore AGENTS.md contradiction** ✅ resolved in WP-2: AGENTS.md dropped from the
+  ignore list (the 3 tracked AGENTS.md files stay tracked); CLAUDE.md remains ignored.
