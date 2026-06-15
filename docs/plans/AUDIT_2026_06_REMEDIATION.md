@@ -2,7 +2,7 @@
 
 **Created**: June 11, 2026
 **Source**: Full-codebase audit (engine, docs, AI player) — June 11 session
-**Status**: WP-0 ✅ · WP-1 ✅ (#327) · WP-2 ✅ (#326) · WP-3 ✅ (#328) · AI-config correction ✅ (#329) · **WP-4 ready (next, hands-on)**
+**Status**: WP-0 ✅ · WP-1 ✅ (#327) · WP-2 ✅ (#326) · WP-3 ✅ (#328) · AI-config correction ✅ (#329) · **WP-4 in progress: Phases 4.0–4.2 ✅ (branch `feat/deterministic-enumerator`); Phase 4.3 (enum-vs-dual sim) remaining — deferred, deliberate LLM-credit spend**
 
 Each work package (WP) is one PR-sized unit with explicit acceptance criteria and a
 self-contained starter prompt. Starter prompts are written for a cold agent session —
@@ -376,10 +376,27 @@ baseline is **dual/V4 (current prod)**, not single.
 
 | Phase | Deliverable | Gate |
 |-------|-------------|------|
-| 4.0 | Full-fidelity state-clone utility + perf check | Unit test: clone round-trips opponent hand (not redacted); clone+apply a few actions ≤ a few ms |
-| 4.1 | Enumerator + unit tests on standard scenarios (Turn 1 Surge+Knight hand MUST include the Surge→Knight→direct_attack line) | **Validator agreement: 0 enumerated sequences rejected** across test scenarios; enumeration time measured and bounded |
-| 4.2 | `enum` mode wired through `get_ai_player()` + selector, with the `AI_PLANNER_MODE`-authoritative fix folded in | `tests/test_ai_standard_scenario.py` passes in enum mode with CC waste ≤ dual; KNOWN_ISSUES #1 resolved |
-| 4.3 | Sim comparison: **enum vs dual** (prod), ≥40 games | Win rate ≥ dual; illegal actions = 0; **1 Gemini call/turn confirmed** (vs dual's 2) |
+| 4.0 ✅ | Full-fidelity state-clone utility + perf check | Unit test: clone round-trips opponent hand (not redacted); clone+apply a few actions ≤ a few ms |
+| 4.1 ✅ | Enumerator + unit tests on standard scenarios (Turn 1 Surge+Knight hand MUST include the Surge→Knight→direct_attack line) | **Validator agreement: 0 enumerated sequences rejected** across test scenarios; enumeration time measured and bounded |
+| 4.2 ✅ | `enum` mode wired through `get_ai_player()` + selector, with the `AI_PLANNER_MODE`-authoritative fix folded in | `tests/test_ai_standard_scenario.py` passes in enum mode with CC waste ≤ dual; KNOWN_ISSUES #1 resolved |
+| 4.3 ⬜ | Sim comparison: **enum vs dual** (prod), ≥40 games | Win rate ≥ dual; illegal actions = 0; **1 Gemini call/turn confirmed** (vs dual's 2) |
+
+**Phases 4.0–4.2 status (branch `feat/deterministic-enumerator`)**: done, committed,
+407 backend tests passing (0 regressions). Clone via `copy.deepcopy`
+(`enumerator.clone_game_state`) — note `GameState.from_dict(to_dict())` redacts
+*both* hands without a `requesting_player_id`, so it is NOT usable for cloning;
+`serialize_game_state` drops `cc_history`. Enumerator reuses
+`ActionValidator.get_valid_actions(filter_for_ai=True)` + `ActionExecutor` so
+legality is engine-derived. `enum` selected via `AI_PLANNER_MODE=enum` (now
+authoritative; `AI_VERSION=4`→dual back-compat preserved). Live enum standard
+scenario verified: cc_wasted=0.
+
+**Phase 4.3 (remaining)**: deferred — deliberate LLM-credit spend. Needs small
+sim-harness plumbing: `runner.py` already threads `planner_mode` to
+`LLMPlayerV3`, but `SimulationConfig`/`cli.py`/`orchestrator.py` key off
+`ai_version` ints (no int maps to `enum`). Add a per-player `planner_mode`
+override through that chain, then run enum-vs-dual ≥40 games and confirm the
+1-call/turn claim (enum sets no Request-1 prompt; check AI logs / metrics).
 
 ### Risks
 
