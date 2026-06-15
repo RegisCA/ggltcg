@@ -816,8 +816,9 @@ class TurnPlanner:
         
         return plan
     
-    # Cards that gain CC when played (mirrors TurnPlanValidator.CC_GAIN_ON_PLAY)
-    _CC_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2, "HLK": 1}
+    # Cards that gain CC when played (mirrors CCBudgetValidator.CC_GAIN_ON_PLAY).
+    # Keys are pinned to real cards by tests/test_cc_gain_tables.py.
+    _CC_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2}
 
     # Canonical CC cost for non-play_card actions — these are fixed by game rules.
     # Override whatever the LLM stated so regrounding is correct even if the LLM

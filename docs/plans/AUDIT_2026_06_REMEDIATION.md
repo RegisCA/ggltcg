@@ -2,7 +2,7 @@
 
 **Created**: June 11, 2026
 **Source**: Full-codebase audit (engine, docs, AI player) — June 11 session
-**Status**: WP-0 ✅ complete · WP-1 ✅ (PR #327) · WP-2 ✅ (PR #326, this PR) · WP-3 not started · WP-4 not started
+**Status**: WP-0 ✅ · WP-1 ✅ (PR #327, merged) · WP-2 ✅ (PR #326, merged) · WP-3 ✅ (this PR) · WP-4 not started
 
 Each work package (WP) is one PR-sized unit with explicit acceptance criteria and a
 self-contained starter prompt. Starter prompts are written for a cold agent session —
@@ -227,9 +227,27 @@ below but you must confirm imports/usages yourself.
 
 ---
 
-## WP-3: Fix HLK CC-gain mapping bug
+## WP-3: Fix HLK CC-gain mapping bug ✅ COMPLETE
 
 **Branch**: `fix/hlk-cc-gain-mapping` · **Estimate**: < 1 hour · **Type**: small behavior fix + regression test
+
+### As shipped (deviations from the starter prompt below)
+
+Scope expanded to the full cluster of phantom/wrong card knowledge found in
+`turn_plan_validator.py` (same bug class as HLK):
+
+- Removed phantom `"HLK"` from both `CC_GAIN_ON_PLAY` tables + fixed the two
+  direct-attack messages (the core task).
+- Removed the dead `CC_GAIN_TRIGGERS` dict (defined, never referenced) and the
+  unreachable "Red Solo Cup" branches (not a real card) — pure dead-code removal.
+- **Behavior change (one)**: removed the reachable-but-wrong credit that gave
+  Umbruh +1 CC on *tussle*. Umbruh gains CC when *sleeped*, not on tussle, so the
+  validator was over-crediting CC and could accept overspent plans. Removing it is
+  strictly more correct. Sleep-based CC gain is intentionally not modeled (it
+  happens off the active turn). No test depended on the old credit; full suite green.
+- Regression test `tests/test_cc_gain_tables.py` pins both tables to real cards with
+  a play-triggered `gain_cc:` effect, keeps the two tables in sync, and asserts they
+  cover every such card. Proven to fail if "HLK" (or any phantom) returns.
 
 ### Starter prompt
 
