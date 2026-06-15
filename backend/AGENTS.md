@@ -253,11 +253,15 @@ def apply_damage(self, amount: int) -> None:
 
 ## AI System
 
-Two planner modes selected via `AI_PLANNER_MODE`: **single** (default,
-whole-turn planning in one request) and **dual** (experimental V4:
-sequence generation → validator → strategic selection).
+Two planner modes. **Prod runs `dual` (V4) on Gemini.** The live path
+(`get_ai_player()`) selects the mode from **`AI_VERSION`** (`4` → dual, else →
+single), not `AI_PLANNER_MODE` — that var is read only by `get_planner_mode()`,
+which the live path bypasses, so it has no effect in the running app (unfinished
+migration). `single` = whole-turn planning in one request; `dual` (V4) =
+sequence generation → validator → strategic selection. See
+`docs/development/ai/AI_CURRENT_STATE.md`.
 
-### Dual-Request Pattern (experimental)
+### Dual-Request Pattern (V4 — production)
 
 1. **Request 1** (Sequence Generator): Generate valid action sequences
 2. **Request 2** (Strategic Selector): Evaluate and select best sequence

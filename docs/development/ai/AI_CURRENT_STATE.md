@@ -14,10 +14,33 @@ fallbacks.
 
 ## Architecture: Planner Modes
 
-The planner mode is selected by the `AI_PLANNER_MODE` environment variable and
-resolved in `backend/src/game_engine/ai/turn_planner.py` (`get_planner_mode()`).
+There are two planner modes, **single** and **dual** (a.k.a. "V4").
 
-### single (DEFAULT)
+> **Production runs `dual` (V4) on Gemini.** Prod sets `AI_VERSION=4`, which
+> selects dual-request planning. "single" is the bare-checkout default, **not**
+> what the deployed game uses.
+
+### What actually selects the mode (read this — it is genuinely confusing)
+
+The live request path (`routes_actions.py` → `get_ai_player()`) derives the mode
+**from `AI_VERSION`**, not from `AI_PLANNER_MODE`:
+
+- `AI_VERSION=4` → **dual**; any other value (or unset → default `3`) → **single**.
+- `get_ai_player()` computes the mode from `AI_VERSION` and passes it *explicitly*
+  into the planner, so `get_planner_mode()` — the only function that reads
+  `AI_PLANNER_MODE` — is **never reached in the running application**.
+- **So `AI_PLANNER_MODE` has no effect in the deployed app.** It is vestigial from
+  an incomplete `AI_VERSION → AI_PLANNER_MODE` migration: setting it alone changes
+  nothing; `AI_VERSION` is the real switch. (Tracked in
+  [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).)
+
+| You set… | Live app behavior |
+|----------|-------------------|
+| `AI_VERSION=4` | **dual / V4** (this is prod) |
+| `AI_VERSION=3` or unset | single |
+| `AI_PLANNER_MODE=…` (alone) | **ignored** — no effect in the running app |
+
+### single (code default — not what prod runs)
 
 - **One LLM request** plans the entire turn (sequence of actions ending in
   `end_turn`).
@@ -31,7 +54,7 @@ resolved in `backend/src/game_engine/ai/turn_planner.py` (`get_planner_mode()`).
     later steps see the correct CC after earlier ones.
 - No second LLM call, no example injection.
 
-### dual (EXPERIMENTAL — "V4")
+### dual / V4 (what production runs)
 
 Two LLM requests with a server-side validator between them:
 
@@ -44,7 +67,9 @@ Two LLM requests with a server-side validator between them:
    the valid sequences.
 
 Dual mode uses the few-shot examples under `prompts/examples/`. It costs roughly
-double the API calls of single mode, which is why single is the default.
+double the API calls of single mode; production accepts that for the higher plan
+quality from validated sequence selection. Single mode exists as the lighter
+fallback and the bare-checkout default.
 
 ---
 
@@ -69,6 +94,13 @@ The plan is executed action-by-action in `llm_player.py`. For each planned step:
 
 ## Providers
 
+> **In practice the game always runs on Gemini.** Production is
+> `AI_PROVIDER=gemini`, `GEMINI_MODEL=gemini-flash-lite-latest`, fallback
+> `gemini-2.5-flash-lite`. The Groq/OpenRouter abstraction works *mechanically*,
+> but the prompts are tuned for Gemini — pointing the game at another provider
+> runs without errors yet degrades gameplay, because each model needs its prompts
+> re-optimized. Treat non-Gemini providers as experiments, not a drop-in swap.
+
 Provider abstraction lives in `backend/src/game_engine/ai/providers.py`.
 Selected via `AI_PROVIDER`; the model via `AI_MODEL` (or provider-specific
 overrides). Supported providers and their default models:
@@ -87,18 +119,20 @@ All providers use native/structured JSON output for reliable parsing.
 
 | Variable | Purpose |
 |----------|---------|
-| `AI_PROVIDER` | Provider to use: `gemini` (default), `groq`, `openrouter`. |
-| `AI_MODEL` | Generic model override for the selected provider. |
+| `AI_VERSION` | **The real planner-mode switch in the live app.** `4` → dual/V4 (prod); `3` or unset → single. |
+| `AI_PLANNER_MODE` | **No effect in the running app** — vestigial; the live path reads `AI_VERSION` instead (see Planner Modes). |
+| `AI_PROVIDER` | Provider to use: `gemini` (default and what prod uses), `groq`, `openrouter`. |
+| `AI_MODEL` | Generic model override for the selected provider. Ignored for Gemini (use `GEMINI_MODEL`). |
 | `AI_FALLBACK_MODEL` | Generic fallback model when the primary hits capacity. |
-| `AI_PLANNER_MODE` | `single` (default) or `dual` (experimental). |
-| `GEMINI_MODEL` | Gemini-specific model override (takes precedence over `AI_MODEL` for Gemini). |
-| `GEMINI_FALLBACK_MODEL` | Gemini-specific fallback model. |
+| `GEMINI_MODEL` | Gemini model (prod: `gemini-flash-lite-latest`). Takes precedence over `AI_MODEL` for Gemini. |
+| `GEMINI_FALLBACK_MODEL` | Gemini fallback model (prod: `gemini-2.5-flash-lite`). |
 | `GOOGLE_API_KEY` | Gemini API key (required when provider is `gemini`). |
 | `GROQ_API_KEY` | Groq API key (required when provider is `groq`). |
 | `OPENROUTER_API_KEY` | OpenRouter API key (required when provider is `openrouter`). |
 
-> Legacy note: `AI_VERSION=4` is still honored and maps to `dual`; any other
-> value maps to `single`.
+> **Two env vars, one switch.** `AI_VERSION` and `AI_PLANNER_MODE` both look like
+> they select the planner mode, but only `AI_VERSION` does in the running app.
+> This is an unfinished migration — until it's resolved, set `AI_VERSION`.
 
 See `backend/.env.example` for the canonical commented list.
 
@@ -112,7 +146,7 @@ See `backend/.env.example` for the canonical commented list.
 | V2 | Dec 2025 | Structured JSON output and card IDs (not names). |
 | V3 | Dec 2025 | Single-request whole-turn planning. Prompts grew to 12–13k chars; illegal actions persisted. |
 | V4 | Jan 2026 | Dual-request: sequence generation → server-side `TurnPlanValidator` → strategic selection. Balanced 160-game baseline. |
-| Provider era | May–Jun 2026 | `AI_PLANNER_MODE` (`single`/`dual`); Groq and OpenRouter providers added; **single-request planning became the default**. |
+| Provider era | May–Jun 2026 | Provider abstraction (Groq/OpenRouter) added; `AI_PLANNER_MODE` introduced but left vestigial (the live path still reads `AI_VERSION`). Prod stays on **Gemini + V4/dual**. |
 
 ---
 

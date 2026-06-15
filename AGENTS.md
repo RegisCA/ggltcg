@@ -24,14 +24,14 @@ Remember that your context window is limited - especially the output size. So yo
 
 ## AI System
 
-Two planner modes, selected via `AI_PLANNER_MODE` (`backend/src/game_engine/ai/turn_planner.py`, `get_planner_mode()`):
+Two planner modes. **Production runs `dual` (V4) on Gemini.** The live path selects the mode from **`AI_VERSION`** (`4` → dual, else → single), *not* `AI_PLANNER_MODE` — the latter is read only by `get_planner_mode()`, which `get_ai_player()` bypasses, so `AI_PLANNER_MODE` has no effect in the running app (unfinished migration).
 
-- **single (DEFAULT)** — one request plans the whole turn, with server-side plan pruning and CC regrounding. Optimized for Groq token budgets; works with all providers.
-- **dual (EXPERIMENTAL, a.k.a. V4)** — Request 1 generates action sequences, Request 2 selects the best, with a server-side `TurnPlanValidator` in between.
+- **dual (a.k.a. V4) — what prod runs** — Request 1 generates action sequences, Request 2 selects the best, with a server-side `TurnPlanValidator` in between.
   - Sequence Generator: `backend/src/game_engine/ai/prompts/sequence_generator.py`
   - Strategic Selector: `backend/src/game_engine/ai/prompts/strategic_selector.py`
+- **single (bare-checkout default)** — one request plans the whole turn, with server-side plan pruning and CC regrounding.
 
-Provider abstraction (`backend/src/game_engine/ai/providers.py`) supports Gemini (default), Groq, and OpenRouter via `AI_PROVIDER` / `AI_MODEL`.
+Provider abstraction (`backend/src/game_engine/ai/providers.py`) supports Gemini/Groq/OpenRouter via `AI_PROVIDER` / `AI_MODEL`, but the deployed game always uses Gemini — prompts are Gemini-tuned, so swapping providers degrades play.
 
 See `docs/development/ai/AI_CURRENT_STATE.md` for the full reference.
 
@@ -65,6 +65,6 @@ Access to GitHub MCP tools is enabled.
 |-------|------------|
 | Backend | Python 3.13, FastAPI, SQLAlchemy |
 | Frontend | TypeScript, React 19, TanStack Query, Vite 7 |
-| AI | Provider abstraction (`AI_PROVIDER` / `AI_PLANNER_MODE`): Gemini (default, `gemini-flash-lite-latest`), Groq, OpenRouter |
+| AI | Google Gemini (`gemini-flash-lite-latest`), V4 dual-request planning. Provider abstraction for Groq/OpenRouter exists but prod is Gemini-only. |
 | Database | SQLite (local/simulation), PostgreSQL (production) |
 | Deploy | Render (backend), Vercel (frontend) - auto-deploy from main |

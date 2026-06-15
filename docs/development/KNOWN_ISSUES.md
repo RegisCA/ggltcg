@@ -8,7 +8,23 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## 🔴 Active Issues
 
-### 1. AI card-metadata centralization pending
+### 1. `AI_VERSION` vs `AI_PLANNER_MODE` — unfinished migration (confusing footgun)
+
+- **Where**: `backend/src/game_engine/ai/llm_player.py` (`get_ai_player()`) and
+  `turn_planner.py` (`get_planner_mode()`).
+- **Problem**: two env vars appear to select the planner mode, but only
+  **`AI_VERSION`** does in the running app. `get_ai_player()` derives the mode from
+  `AI_VERSION` (`4` → dual/V4, else → single) and passes it explicitly, so
+  `get_planner_mode()` — the only reader of `AI_PLANNER_MODE` — is never reached.
+  **`AI_PLANNER_MODE` is therefore a no-op in the deployed app** (prod has it set to
+  `single` while actually running V4/dual via `AI_VERSION=4`).
+- **Impact**: high confusion; easy to "switch modes" by editing `AI_PLANNER_MODE`
+  and have nothing change. `AI_MODEL` is similarly ignored when `AI_PROVIDER=gemini`.
+- **Fix**: pick one authoritative variable (recommend `AI_PLANNER_MODE`), make
+  `get_ai_player()` honor it, and retire/alias the other. Until then, set
+  `AI_VERSION`. See `docs/development/ai/AI_CURRENT_STATE.md`.
+
+### 2. AI card-metadata centralization pending
 
 - **Where**: card names are hardcoded across ~10 files under
   `backend/src/game_engine/ai/` (e.g. `turn_planner.py` `_CC_GAIN_ON_PLAY`,
