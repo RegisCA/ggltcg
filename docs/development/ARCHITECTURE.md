@@ -504,7 +504,7 @@ player.sleep_zone.append(card)
 
 ```
 
-#### Unsleping a Card (Wake effect)
+#### Unsleeping a Card (Wake effect)
 
 ```python
 # game_state.py -> unsleep_card()
