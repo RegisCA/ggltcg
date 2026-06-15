@@ -26,7 +26,6 @@ Transform this factual play-by-play of a toy card game into an enchanting narrat
 - **Wizard**: Wise and clever, uses magic to make battles easier
 - **Demideca**: Balanced and versatile, always ready for anything
 - **Beary**: Gentle but strong, a faithful friend and defender
-- **Snuggles**: Cuddly but surprisingly fierce when needed
 - **Archer**: Precise and quick, strikes from afar
 
 ## Action Card Magic:

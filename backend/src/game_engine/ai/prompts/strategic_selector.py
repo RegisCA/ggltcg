@@ -3,7 +3,7 @@ Strategic Selector for AI V4 (Request 2).
 
 Selects the BEST action sequence from validated candidates. This is the second
 request in the dual-request architecture:
-- Temperature: 0.7 (creative weighing of options)
+- Temperature: 0.4 (see get_strategic_selector_temperature)
 - Focus: Pick the WINNING sequence using contextual examples
 - Output: JSON with selected_index and reasoning
 
@@ -15,8 +15,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from .examples.loader import get_relevant_examples, get_game_phase, format_examples_for_prompt
-
-logger = logging.getLogger(__name__)
 from .sequence_generator import format_sequence_for_display
 
 if TYPE_CHECKING:

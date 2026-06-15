@@ -4,8 +4,7 @@ Effect system for GGLTCG.
 This package contains all card effects organized by type:
 - base_effect: Abstract base classes for all effects
 - effect_registry: Central registry for looking up effects by card name
-- continuous_effects: Effects that apply while cards are in play
-- triggered_effects: Effects that activate when conditions are met
+- continuous_effects: Effects that apply while cards are in play (incl. triggered effects)
 - action_effects: Effects for Action cards and activated abilities
 
 Usage:
@@ -39,7 +38,6 @@ from .effect_registry import EffectRegistry
 # Import all effect modules to trigger registration
 # This ensures all effects are registered when the package is imported
 from . import continuous_effects
-from . import triggered_effects
 from . import action_effects
 
 __all__ = [

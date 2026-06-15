@@ -787,7 +787,5 @@ class DirectAttackEffect(ContinuousEffect):
         return True
 
 
-# Register legacy effects (cards not yet migrated to data-driven system)
-# Note: All cards now use data-driven effect_definitions from CSV!
-# (Snuggles is registered in triggered_effects.py)
+# All cards use data-driven effect_definitions from CSV — no manual registration here.
 

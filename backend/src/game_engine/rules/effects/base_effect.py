@@ -3,7 +3,7 @@ Base effect classes for the GGLTCG card game.
 
 Effects are applied when:
 - Continuous: While card is in play (Ka, Wizard, Demideca)
-- Triggered: When specific condition occurs (Beary, Umbruh, Snuggles)
+- Triggered: When specific condition occurs (Beary, Umbruh)
 - Activated: Player pays cost to activate (Archer)
 - Play: When card is played (Actions)
 """
@@ -28,9 +28,9 @@ class EffectType(Enum):
 
 class TriggerTiming(Enum):
     """When triggered effects can activate."""
-    WHEN_SLEEPED = "when_sleeped"           # Umbruh, Snuggles
+    WHEN_SLEEPED = "when_sleeped"           # Umbruh
     WHEN_OPPONENT_TUSSLES = "when_opponent_tussles"  # Beary
-    WHEN_PLAYED = "when_played"             # Snuggles (on entry)
+    WHEN_PLAYED = "when_played"
     START_OF_TURN = "start_of_turn"         # Belchaletta
     END_OF_TURN = "end_of_turn"
     WHEN_OTHER_CARD_PLAYED = "when_other_card_played"  # Hind Leg Kicker
@@ -127,9 +127,8 @@ class TriggeredEffect(BaseEffect):
     """
     Base class for triggered effects that activate when a condition is met.
     
-    Examples: Beary (cancel tussle), Umbruh (gain CC when sleeped), 
-              Snuggles (sleep opponent card on entry)
-    
+    Examples: Beary (cancel tussle), Umbruh (gain CC when sleeped)
+
     Triggered effects:
     - Have a specific trigger condition (timing)
     - May be optional (using "may") or mandatory
