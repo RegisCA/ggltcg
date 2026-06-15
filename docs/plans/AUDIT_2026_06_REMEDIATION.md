@@ -37,9 +37,17 @@ locally with a dummy `GOOGLE_API_KEY`.
 
 ---
 
-## WP-1: Documentation truth pass + AI current-state doc
+## WP-1: Documentation truth pass + AI current-state doc ✅ COMPLETE (PR #327)
 
 **Branch**: `docs/audit-truth-pass` · **Estimate**: one session · **Type**: docs only, no code changes
+
+> **Correction (post-merge, PR docs/ai-config-correction):** the starter prompt
+> below told the agent "single-request planning is the default / dual is
+> experimental." That was wrong — it came from reading `.env.example` /
+> `get_planner_mode()` without tracing `get_ai_player()`. **Production actually
+> runs dual/V4 on Gemini, selected by `AI_VERSION=4`; `AI_PLANNER_MODE` is a no-op
+> in the live path.** The merged docs were corrected accordingly. See
+> `docs/development/ai/AI_CURRENT_STATE.md` and KNOWN_ISSUES Active Issue #1.
 
 ### Starter prompt
 

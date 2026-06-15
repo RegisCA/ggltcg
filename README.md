@@ -62,11 +62,15 @@ for lobby, gameplay, and stats.
   profiles, and display names.
 - **LLM-Powered AI Opponent**: Whole-turn planning—the LLM generates a
   complete turn plan with threat assessment and action sequence at turn
-  start, then heuristic matching executes actions. Single-request planning
-  is the default; an experimental dual-request mode (sequence generation →
-  server-side validator → strategic selection) is available via
-  `AI_PLANNER_MODE=dual`. Multi-provider: Gemini (default), Groq, and
-  OpenRouter, all using **native structured output** for reliable play.
+  start, then heuristic matching executes actions on the server. Production
+  runs the **dual-request "V4"** flow (sequence generation → server-side
+  validator → strategic selection) on **Google Gemini**; a lighter
+  single-request mode also exists. The game always uses a Gemini endpoint —
+  a provider abstraction for Groq/OpenRouter exists but the prompts are
+  Gemini-tuned. Uses **native structured output** for reliable play. See
+  [AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md) for the
+  authoritative config (including the `AI_VERSION` vs `AI_PLANNER_MODE`
+  gotcha).
 - **CC Efficiency Tracking**: Monitors command counter usage per turn
   to analyze AI performance and strategy effectiveness.
 - **Persistent Stats**: PostgreSQL-backed tracking of game results and
