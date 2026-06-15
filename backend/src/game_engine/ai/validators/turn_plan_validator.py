@@ -39,24 +39,18 @@ class CCBudgetValidator:
     The game engine validates individual actions, but the AI must budget
     CC across the entire sequence, accounting for CC gains from cards like:
     - Surge: +1 CC when played
-    - Rush: +2 CC when played  
-    - HLK: +1 CC when cards played after HLK
-    - Umbruh: +1 CC when sleeped
-    - Belchaletta: +2 CC at start of turn (continuous effect)
-    - Red Solo Cup: +1 CC when you play another card
+    - Rush: +2 CC when played
+    - Umbruh: +1 CC when sleeped (not modeled — happens off the active turn)
+    - Belchaletta: +2 CC at start of turn (continuous effect, not modeled here)
     """
-    
-    # Cards that gain CC when played
+
+    # Cards that gain CC when played (mirrors turn_planner._CC_GAIN_ON_PLAY).
+    # Keys MUST be real card names whose CSV effect is a play-triggered `gain_cc:`
+    # — pinned by test_cc_gain_tables_match_cards. CC gains from other triggers
+    # (start-of-turn, when-sleeped, on-card-played) are intentionally NOT modeled.
     CC_GAIN_ON_PLAY = {
         "Surge": 1,
         "Rush": 2,
-        "HLK": 1,
-    }
-    
-    # Cards that gain CC from other triggers (requires plan analysis)
-    CC_GAIN_TRIGGERS = {
-        "Umbruh": "tussle",  # Gains 1 CC when it tussles
-        "Red Solo Cup": "play_card",  # Gains 1 CC when you play another card
     }
 
     # Canonical CC cost for non-play_card actions (fixed by game rules).
@@ -78,30 +72,14 @@ class CCBudgetValidator:
         errors = []
         cc_remaining = starting_cc
         
-        # Track which CC-generating cards are in play
-        red_solo_cup_in_play = False
-        umbruh_in_play = False
-        
         for i, action in enumerate(plan.action_sequence):
             # Track CC gains from playing cards
             cc_gain = 0
-            
+
             if action.action_type == "play_card" and action.card_name:
-                # Direct CC gain from playing the card
+                # Direct CC gain from playing the card (Surge/Rush)
                 cc_gain += self.CC_GAIN_ON_PLAY.get(action.card_name, 0)
-                
-                # Red Solo Cup triggers when you play other cards
-                if red_solo_cup_in_play and action.card_name != "Red Solo Cup":
-                    cc_gain += 1
-                
-                # Track if we just played Red Solo Cup
-                if action.card_name == "Red Solo Cup":
-                    red_solo_cup_in_play = True
-            
-            # Umbruh gains CC when it tussles
-            if action.action_type == "tussle" and action.card_name == "Umbruh":
-                cc_gain += 1
-            
+
             # Apply CC gains first
             cc_remaining += cc_gain
             
@@ -231,7 +209,7 @@ class OpponentToyTracker:
                         error_type="no_attacker",
                         message=(
                             "Cannot direct attack: you have no toys with STR > 0 in play. "
-                            "Action cards (Rush, Surge, HLK) do not enter play — play a toy first."
+                            "Action cards (Rush, Surge) do not enter play — play a toy first."
                         )
                     ))
                 elif action.card_id and action.card_id not in player_toys_in_play:
@@ -242,7 +220,7 @@ class OpponentToyTracker:
                         message=(
                             f"Cannot direct attack with {action.card_name or action.card_id}: "
                             f"that card is not a toy currently in your In Play zone. "
-                            f"Action cards (Rush, Surge, HLK) resolve immediately and do not enter play."
+                            f"Action cards (Rush, Surge) resolve immediately and do not enter play."
                         )
                     ))
 
@@ -337,9 +315,7 @@ class DependencyValidator:
     Certain cards must be played before their effects are used:
     - Surge: Must play before spending the +1 CC it grants
     - Wake: Must play before using the woken card
-    - HLK: Must play before spending the +1 CC it grants
     - VeryVeryAppleJuice: Should play before tussling (stat boost)
-    - Red Solo Cup: Should play before other cards (triggers CC gain)
     """
     
     def validate(
