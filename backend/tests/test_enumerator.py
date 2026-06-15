@@ -5,9 +5,14 @@ Gates pinned here:
 
 1. **Standard opening** — the Turn-1 Surge+Knight hand MUST yield the
    Surge → Knight → direct_attack line (the canonical optimal opener).
-2. **Validator agreement** — every enumerated sequence passes the live
-   ``TurnPlanValidator`` across the test scenarios. Zero rejections: the
-   enumerator and the validator must never disagree about legality.
+2. **Validator agreement on common cards** — for these scenarios every
+   enumerated sequence passes the live ``TurnPlanValidator`` (zero rejections).
+   Note this is NOT a universal invariant: ``TurnPlanValidator`` is a weaker
+   heuristic with incomplete hardcoded card knowledge and *will* false-reject
+   some engine-legal lines (e.g. Raggy's 0-cost tussles, Jumpscare's
+   return-to-hand), which is why it is advisory — not a filter — in enum mode
+   (see test_enum_planner_integration.py). These scenarios use cards it models
+   correctly, so agreement here is a useful regression on the enumerator output.
 3. **Engine-derived legality** — "tussle the last toy away → direct_attack
    becomes legal" falls out of real transitions, not hand-written rules.
 4. **Bounded time** — enumeration on a rich state stays in the low-ms range.
@@ -187,6 +192,17 @@ def test_enumeration_is_bounded_and_fast():
     print(f"\nenumeration: {len(sequences)} seqs in {elapsed_ms:.1f} ms")
     assert len(sequences) <= 12  # capped
     assert elapsed_ms < 750, f"enumeration too slow: {elapsed_ms:.1f} ms"
+
+
+def test_pass_line_is_always_offered():
+    """Even with actions available, the explicit pass (end_turn only) is recorded."""
+    setup, _ = _turn1_surge_knight()
+    sequences = enumerate_sequences(setup.game_state, "player1")
+    signatures = [_action_signature(s) for s in sequences]
+    assert [] in signatures, (
+        "The pure pass line (do nothing, then end_turn) must be among the options.\n"
+        f"Got: {signatures}"
+    )
 
 
 def test_no_actions_returns_end_turn_line():

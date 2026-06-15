@@ -676,11 +676,17 @@ class TurnPlanner:
             logger.debug(f"   Reasoning: {reasoning[:100]}...")
 
             plan_data = convert_sequence_to_turn_plan(
-                selected_sequence, game_state, player_id, reasoning
+                selected_sequence, game_state, player_id, reasoning,
+                trust_action_costs=use_enumerator,
             )
             plan = self._parse_plan(plan_data)
             plan.cc_start = ai_player.cc
-            self._reground_cc_chain(plan)
+            # Enumerated sequences already carry exact, engine-derived CC (incl.
+            # discounted tussles like Raggy=0 / Wizard=1). _reground_cc_chain is
+            # an LLM-output correction pass that enforces canonical costs and
+            # would wrongly drop those affordable actions — skip it for enum.
+            if not use_enumerator:
+                self._reground_cc_chain(plan)
             self._last_plan = plan
 
             TurnPlanner._v4_metrics["v4_success"] += 1
@@ -703,11 +709,13 @@ class TurnPlanner:
                 if self._v4_turn_debug is not None:
                     self._v4_turn_debug["request2_fallback_used"] = True
                 plan_data = convert_sequence_to_turn_plan(
-                    sequences[0], game_state, player_id, "Selection failed, using first sequence"
+                    sequences[0], game_state, player_id, "Selection failed, using first sequence",
+                    trust_action_costs=use_enumerator,
                 )
                 plan = self._parse_plan(plan_data)
                 plan.cc_start = ai_player.cc
-                self._reground_cc_chain(plan)
+                if not use_enumerator:  # enum costs are engine-exact; see above
+                    self._reground_cc_chain(plan)
                 self._last_plan = plan
                 TurnPlanner._v4_metrics["v4_success"] += 1  # Still V4 success, just with fallback selection
                 

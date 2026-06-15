@@ -152,17 +152,23 @@ def convert_sequence_to_turn_plan(
     sequence: dict,
     game_state: "GameState",
     player_id: str,
-    reasoning: str
+    reasoning: str,
+    trust_action_costs: bool = False,
 ) -> dict:
     """
     Convert a validated sequence to TurnPlan format for execution.
-    
+
     Args:
         sequence: Selected sequence dictionary
         game_state: Current GameState
         player_id: AI player ID
         reasoning: Strategic reasoning from selector
-        
+        trust_action_costs: When True, use each action's own ``cc_cost`` instead
+            of re-deriving from canonical game-rule costs. Set by the enum
+            planner, whose costs are engine-derived and exact (including
+            discounted tussles like Raggy=0 / Wizard=1). Left False for LLM
+            (dual) sequences, where a hallucinated cc_cost must not be trusted.
+
     Returns:
         Dictionary matching TurnPlan schema
     """
@@ -180,8 +186,12 @@ def convert_sequence_to_turn_plan(
         card_name = action.get("card_name", "")
         action_type = action.get("action_type")
         
-        # Determine actual CC cost based on action type
-        if action_type == "play_card":
+        # Determine actual CC cost based on action type.
+        provided_cost = action.get("cc_cost")
+        if trust_action_costs and provided_cost is not None:
+            # Enum: the action carries the real engine-derived cost.
+            cc_cost = max(0, provided_cost)
+        elif action_type == "play_card":
             # Look up actual card cost from hand
             # Note: -1 means "copy target's cost" for Copy card, treat as 0 for planning
             cc_cost = max(0, hand_costs.get(card_name, 0))

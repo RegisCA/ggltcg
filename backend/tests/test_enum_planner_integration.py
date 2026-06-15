@@ -58,6 +58,15 @@ def test_enum_keeps_validator_flagged_sequences_and_makes_one_call():
     assert any(a.action_type != "end_turn" for a in plan.action_sequence), \
         "plan should take a real action, not just end the turn"
 
+    # Raggy's tussles cost 0. With only 2 CC, canonical-cost grounding (2/attack)
+    # would drop these as "unaffordable". The enum plan must keep them at their
+    # real engine cost (0) — pins that enum trusts engine-derived costs and skips
+    # _reground_cc_chain (Copilot review, turn_planner.py).
+    attacks = [a for a in plan.action_sequence if a.action_type in ("tussle", "direct_attack")]
+    assert attacks, "discounted Raggy attacks must survive plan grounding, not be dropped"
+    assert all(a.cc_cost == 0 for a in attacks), \
+        f"Raggy attacks should carry real cost 0, got {[a.cc_cost for a in attacks]}"
+
 
 def test_enum_handles_jumpscare_toy_return_without_fallback():
     """Jumpscare's return-to-hand isn't modeled by the validator; enum keeps the line."""

@@ -124,7 +124,7 @@ def _expand_action(va, game_state: "GameState") -> List[Dict[str, Any]]:
     at = va.action_type
 
     if at == "end_turn":
-        return []  # represented implicitly by recording each prefix
+        return []  # implicit: every recorded prefix (incl. the empty one) is "…then end_turn"
 
     if at == "tussle":
         opts = va.target_options or []
@@ -267,18 +267,22 @@ def enumerate_sequences(
     rest of the V4 pipeline (validation cross-check, ``add_tactical_labels``,
     strategic selection, ``convert_sequence_to_turn_plan``) is unchanged.
     """
-    start_player = game_state.players[player_id]
-    start_cc = start_player.cc
     start_opp_slept = len(game_state.get_opponent(player_id).sleep_zone)
 
     # multiset-of-steps signature -> best recorded sequence (order-equivalent dedupe)
     recorded: Dict[frozenset, Dict[str, Any]] = {}
-    seen_states: set = set()
+    # state signature -> shallowest depth it was expanded at. A plain set would be
+    # depth-insensitive: reaching a state via a *longer* path first would prune a
+    # later *shorter* path that still has more depth budget under max_actions,
+    # dropping valid (possibly best) continuations. Tracking the min depth lets us
+    # re-expand when we arrive with more budget to spend.
+    expanded_depth: Dict[Tuple, int] = {}
     node_budget = [MAX_NODES]
 
     def record(state: "GameState", path: List[Dict[str, Any]], costs: List[int]) -> None:
-        if not path:
-            return
+        # The empty path is the explicit "pass" line (do nothing, then end_turn);
+        # recording it keeps behavior consistent with _expand_action's "every
+        # prefix is recorded" contract and always gives the selector a pass option.
         # frozenset of (signature, count) makes order-equivalent paths collide.
         sig_counts: Dict[Tuple, int] = {}
         for s in path:
@@ -315,9 +319,13 @@ def enumerate_sequences(
         if len(path) >= max_actions or node_budget[0] <= 0 or state.winner_id is not None:
             return
         sig = _state_signature(state)
-        if sig in seen_states:
+        # Prune only if we already expanded this state at an equal-or-shallower
+        # depth (i.e. with at least as much remaining budget). Arriving via a
+        # shorter path means more depth left, so re-expand and update the record.
+        prev_depth = expanded_depth.get(sig)
+        if prev_depth is not None and prev_depth <= len(path):
             return
-        seen_states.add(sig)
+        expanded_depth[sig] = len(path)
         node_budget[0] -= 1
 
         engine = GameEngine(state)
@@ -331,26 +339,27 @@ def enumerate_sequences(
                     continue
                 cc_after = child.players[player_id].cc
                 cost = _action_cc_cost(step, cc_before, cc_after)
+                step["cc_cost"] = cost  # real engine-derived cost (e.g. Raggy tussle = 0)
                 dfs(child, path + [step], costs + [cost])
 
     root = clone_game_state(game_state)
     with _quiet_simulation_logs():
         dfs(root, [], [])
 
-    sequences = sorted(recorded.values(), key=_rank_key, reverse=True)[:max_sequences]
+    # recorded always contains at least the empty "pass" line (recorded at the
+    # root), so sequences is never empty.
+    ranked = sorted(recorded.values(), key=_rank_key, reverse=True)
+    # The pass line always ranks last; reserve a slot so the cap can't truncate it
+    # away — the selector should always have an explicit "do nothing" option.
+    pass_seq = recorded.get(frozenset())
+    if pass_seq is not None and len(ranked) > max_sequences:
+        sequences = [s for s in ranked if s is not pass_seq][:max_sequences - 1]
+        sequences.append(pass_seq)
+    else:
+        sequences = ranked[:max_sequences]
     for seq in sequences:  # strip internal ranking fields
         for k in ("_wins", "_cc_wasted", "_length"):
             seq.pop(k, None)
-
-    if not sequences:
-        # No actions beyond end_turn: hand the selector a single pass line.
-        sequences = [{
-            "actions": [_end_turn_action()],
-            "total_cc_spent": 0,
-            "cc_available": start_cc,
-            "cards_slept": 0,
-            "raw_string": f"end_turn | CC: 0/{start_cc} | Sleeps: 0",
-        }]
 
     logger.debug(
         "enumerator: %d sequences (from %d unique lines) for %s",
@@ -382,8 +391,11 @@ def _format_actions(path: List[Dict[str, Any]], state: "GameState") -> List[Dict
             t.name for tid in target_ids
             if (t := state.find_card_by_id(tid)) is not None
         ]
-        cc_cost = {"tussle": 2, "direct_attack": 2, "activate_ability": 1}.get(
-            step["action_type"], 0
+        # Prefer the real engine-derived cost recorded during the search; fall
+        # back to nominal costs only if it is somehow absent.
+        cc_cost = step.get(
+            "cc_cost",
+            {"tussle": 2, "direct_attack": 2, "activate_ability": 1}.get(step["action_type"], 0),
         )
         actions.append({
             "action_type": step["action_type"],
@@ -428,5 +440,5 @@ def _raw_string(path: List[Dict[str, Any]], cc_spent: int, cc_available: int,
         elif step["action_type"] == "activate_ability":
             tgt = step["target_ids"][0] if step["target_ids"] else "?"
             parts.append(f"activate {name}->{tgt}")
-    actions_str = " -> ".join(parts)
+    actions_str = " -> ".join(parts) if parts else "end_turn"  # empty path = pass
     return f"{actions_str} | CC: {cc_spent}/{cc_available} | Sleeps: {cards_slept}"
