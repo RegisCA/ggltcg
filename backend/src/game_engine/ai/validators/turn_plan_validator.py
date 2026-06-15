@@ -44,9 +44,9 @@ class CCBudgetValidator:
     - Belchaletta: +2 CC at start of turn (continuous effect, not modeled here)
     """
 
-    # Cards that gain CC when played (mirrors turn_planner._CC_GAIN_ON_PLAY).
+    # Cards that gain CC when played (mirrors TurnPlanner._CC_GAIN_ON_PLAY).
     # Keys MUST be real card names whose CSV effect is a play-triggered `gain_cc:`
-    # — pinned by test_cc_gain_tables_match_cards. CC gains from other triggers
+    # — pinned by tests/test_cc_gain_tables.py. CC gains from other triggers
     # (start-of-turn, when-sleeped, on-card-played) are intentionally NOT modeled.
     CC_GAIN_ON_PLAY = {
         "Surge": 1,
