@@ -1,5 +1,7 @@
 # AI V4 Design: Dual-Request with Contextual Examples
 
+*Historical — superseded by [AI_CURRENT_STATE.md](AI_CURRENT_STATE.md). Retained for context.*
+
 **Date**: January 2, 2026  
 **Status**: Ready for Implementation  
 **Authors**: Based on lessons learned from V3/V3.2 failures  

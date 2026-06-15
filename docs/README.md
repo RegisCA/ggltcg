@@ -16,9 +16,7 @@ Welcome to the GGLTCG documentation.
 ```
 docs/
 ├── plans/                 # Active plans (actionable)
-│   ├── AI_V4_REMEDIATION_PLAN.md
-│   ├── INSTRUCTION_FILES_MIGRATION_PLAN.md
-│   └── DOCS_RESTRUCTURING_PLAN.md (archive after this session)
+│   └── AI_V4_REMEDIATION_PLAN.md
 ├── development/           # Technical documentation
 │   ├── ai/               # AI system docs
 │   ├── sessions/         # Session notes & postmortems
@@ -36,15 +34,16 @@ docs/
 
 ### For AI Development
 
-- **[AI V4 Remediation Plan](plans/AI_V4_REMEDIATION_PLAN.md)** - Current work plan (Phase 0 ✅, Phase 1 ready)
-- **[AI V4 Design](development/ai/AI_V4_DESIGN.md)** - Dual-request architecture
+- **[AI Current State](development/ai/AI_CURRENT_STATE.md)** - Current AI subsystem reference (planner modes, providers, env vars)
+- **[AI V4 Remediation Plan](plans/AI_V4_REMEDIATION_PLAN.md)** - Historical V4 work plan
+- **[AI V4 Design](development/ai/AI_V4_DESIGN.md)** - Historical dual-request architecture design
 - **[Session Postmortem](development/sessions/SESSION_POSTMORTEM_2026_01_05.md)** - January 5 disaster analysis
 
 ### For General Development
 
 - **[Architecture](development/ARCHITECTURE.md)** - System design and components
 - **[Effect System](development/EFFECT_SYSTEM_ARCHITECTURE.md)** - Data-driven card effects
-- **[Adding New Cards](development/features/ADDING_NEW_CARDS.md)** - Card implementation guide
+- **[Adding New Cards](development/ADDING_NEW_CARDS.md)** - Card implementation guide
 
 ### For Operations
 
@@ -54,7 +53,6 @@ docs/
 
 These files provide context for AI agents:
 
-- **[AGENTS.md](../AGENTS.md)** - "Check Facts First" verification checklist
 - **[AGENTS.md](../AGENTS.md)** - Root project context and architecture
 - **[.github/instructions/](../.github/instructions/)** - Domain-specific coding standards
 
