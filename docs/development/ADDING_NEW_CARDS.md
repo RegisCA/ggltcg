@@ -10,7 +10,7 @@ Use this checklist when adding new cards:
 
 - [ ] **Step 1**: Add card to `backend/data/cards.csv`
 - [ ] **Step 2**: Add effect handler(s) if needed
-- [ ] **Step 3**: Add card to `backend/src/game_engine/ai/prompts.py`
+- [ ] **Step 3**: Wire up the AI layer (guidance, metadata, optional examples)
 - [ ] **Step 4**: Write comprehensive tests
 - [ ] **Step 5**: Run full test suite
 - [ ] **Step 6**: Playtest the card
@@ -210,9 +210,34 @@ Import and add to the registry if using class-based effects.
 
 ---
 
-## Step 3: Add to AI Prompts
+## Step 3: Wire Up the AI Layer
 
-When adding a new card, you need to provide guidance for the AI in two places:
+> **Note**: The old `backend/src/game_engine/ai/prompts.py` module was
+> **deleted in November 2025** and split into the `ai/prompts/` package.
+> Do not look for `prompts.py` — the AI touchpoints are the files below.
+
+The AI-layer touchpoints for a new card are:
+
+- **`backend/src/game_engine/ai/prompts/card_guidance.yaml`** — strategic
+  guidance (traps, reminders, threat level). See 3a.
+- **`backend/src/game_engine/ai/prompts/effect_metadata.py`** — effect
+  metadata, required only if you introduced a new effect type. See 3b.
+- **`backend/src/game_engine/ai/prompts/examples/card_examples.py`** and
+  **`examples/loader.py`** — optional few-shot examples. These are consumed
+  by the **dual** planner mode only (`AI_PLANNER_MODE=dual`); the default
+  **single** mode does not use them. See 3c.
+
+> **⚠️ Hardcoded card names**: several AI files still hardcode card names
+> until card metadata is centralized. A card with a **CC-gain on play** or a
+> **target-requirement** effect may need a manual entry in one or more of:
+>
+> - `backend/src/game_engine/ai/prompts/sequence_generator.py` (restriction hints)
+> - `backend/src/game_engine/ai/turn_planner.py` (`_CC_GAIN_ON_PLAY`)
+> - `backend/src/game_engine/ai/validators/turn_plan_validator.py`
+> - `backend/src/game_engine/ai/quality_metrics.py`
+>
+> Grep these files for an existing card with a similar effect before assuming
+> CSV alone is enough.
 
 ### 3a. Card-Specific Guidance (Optional but Recommended)
 
@@ -270,6 +295,16 @@ If your card introduces a new effect type, add metadata to the `EFFECT_METADATA_
 - `temporary` - Lasts this turn only (turn_stat_boost)
 
 **Important**: The effect metadata is dynamically loaded based on cards in play, so the AI only sees guidance for effects actually present in the game.
+
+### 3c. Few-Shot Examples (Optional, dual mode only)
+
+**Files**: `backend/src/game_engine/ai/prompts/examples/card_examples.py`
+and `backend/src/game_engine/ai/prompts/examples/loader.py`
+
+If the card has a non-obvious play pattern that the AI keeps getting wrong,
+add a worked example. These examples are only injected when the AI runs in
+the **dual** planner mode (`AI_PLANNER_MODE=dual`); the default **single**
+mode ignores them, so do not rely on examples alone to fix single-mode play.
 
 ### Strategic Use Categories
 
@@ -408,14 +443,13 @@ Run the validation script to catch common issues:
 ```bash
 python scripts/validate_new_cards.py
 
-```text
+```
 
 This checks:
 
-- All CSV cards have prompts.py entries
-- All effect_definitions are recognized
-- No orphaned test files
-- Card count matches expected
+- Every active card in `cards.csv` has a `CARD_EFFECTS_LIBRARY` entry
+- All `effect_definitions` use recognized effect types
+- No orphaned library entries (cards in `CARD_EFFECTS_LIBRARY` that are absent from the CSV)
 
 ---
 
@@ -436,8 +470,10 @@ This checks:
 
 ### AI doesn't play card well
 
-1. Verify `prompts.py` entry exists
-1. Check `strategic_use` gives clear guidance
+1. Verify a `card_guidance.yaml` entry exists for the card
+1. Check the guidance gives clear strategic direction
+1. If a CC-gain or target-requirement effect, check the hardcoded card-name
+   lists noted in Step 3
 1. Test if AI understands when card is valuable
 
 ### Tests fail after adding card
@@ -451,7 +487,7 @@ This checks:
 ## Files Modified When Adding Cards
 
 - `backend/data/cards.csv` — Card definition (always)
-- `backend/src/game_engine/ai/prompts.py` — AI strategic guidance (always)
+- `backend/src/game_engine/ai/prompts/card_guidance.yaml` — AI strategic guidance (recommended)
 - `backend/tests/test_*.py` — Unit tests (always)
 - `backend/src/game_engine/rules/effects/*.py` — Effect implementation (if adding
   a new effect)
@@ -490,16 +526,15 @@ class DamageTargetEffect(PlayEffect):
 
 ```
 
-### 3. Prompts Entry
+### 3. AI Guidance Entry
 
-```python
-"Zap": {
-    "type": "Action",
-    "effect": "Target: Deal 1 damage to any Toy in play",
-    "strategic_use": "PRECISION DAMAGE - Finish wounded cards or weaken targets.",
-    "threat_level": "MEDIUM - Useful for sniping weakened cards"
-},
+In `backend/src/game_engine/ai/prompts/card_guidance.yaml`:
 
+```yaml
+Zap:
+  trap: "Requires an opponent Toy in play to target"
+  reminder: "PRECISION DAMAGE — finish wounded cards or weaken targets"
+  threat: "MEDIUM"
 ```
 
 ### 4. Test

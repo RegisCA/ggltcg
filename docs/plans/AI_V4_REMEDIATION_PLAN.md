@@ -1,5 +1,7 @@
 # AI V4 Remediation Plan
 
+*Historical — superseded by [AI_CURRENT_STATE.md](../development/ai/AI_CURRENT_STATE.md). Retained for context.*
+
 **Created**: January 5, 2026  
 **Updated**: January 7, 2026 (Phase 2 Complete)  
 **Status**: Phase 0 ✅ Complete, Phase 1 ✅ Complete, Phase 2 ✅ Complete  

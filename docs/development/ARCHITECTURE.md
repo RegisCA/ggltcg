@@ -87,7 +87,9 @@ backend/
 │       ├── game_engine.py     # Main game orchestrator
 │       ├── ai/                # AI player implementation
 │       │   ├── llm_player.py # LLM-based AI decision making
-│       │   └── prompts.py    # Prompt templates
+│       │   ├── turn_planner.py # Planner modes (single/dual) + execution
+│       │   ├── providers.py  # Gemini / Groq / OpenRouter abstraction
+│       │   └── prompts/      # Prompt-building package (formatters, schemas, examples)
 │       ├── data/
 │       │   └── card_loader.py # Load cards from CSV
 │       ├── models/
@@ -124,10 +126,7 @@ backend/
 
 **Recent Improvements (Nov 2025):**
 
-- Eliminated ~457 lines of code duplication with ActionValidator/ActionExecutor
-
-refactor
-
+- Eliminated ~457 lines of code duplication with the ActionValidator/ActionExecutor refactor
 - Migrated from in-memory storage to PostgreSQL with Alembic migrations
 - Unified AI and human player code paths through structured actions
 
@@ -177,7 +176,7 @@ Wake,Action,1,unsleep:1,...
 - Data-driven effects implemented for 10+ cards
 - Generic effects: StatBoostEffect, GainCCEffect, UnsleepEffect, SleepAllEffect
 - Complex cards use custom effects: Knight, Beary, Copy, Twist, Archer
-- 27 cards total in production
+- 30 cards total in production
 
 ### Effect Type Hierarchy
 
@@ -207,7 +206,7 @@ BaseEffect (abstract)
 └── ActivatedEffect
     └── ArcherEffect
 
-```text
+```
 
 ### Effect Lifecycle
 
@@ -219,7 +218,7 @@ Effects are registered in `effect_registry.py`:
 # Example: Register Twist effect
 EffectRegistry.register("Twist", TwistEffect)
 
-```text
+```
 
 **When:** Application startup **Where:** `effect_registry.py` static
 
@@ -233,7 +232,7 @@ Effects are instantiated when cards are loaded:
 effects = EffectRegistry.get_effects(card)
 # Returns list of effect instances bound to that card
 
-```text
+```
 
 **When:** Card loader creates cards from CSV **Where:**
 
@@ -252,7 +251,7 @@ for effect in effects:
     if isinstance(effect, PlayEffect):
         effect.apply(game_state, player=player, **kwargs)
 
-```text
+```
 
 **TriggeredEffect** - Executed when trigger condition met:
 
@@ -262,7 +261,7 @@ if effect.trigger == TriggerTiming.WHEN_PLAYED:
     if effect.should_trigger(game_state, played_card=card):
         effect.apply(game_state, player=player, **kwargs)
 
-```text
+```
 
 **ContinuousEffect** - Checked during stat calculations:
 
@@ -271,7 +270,7 @@ if effect.trigger == TriggerTiming.WHEN_PLAYED:
 for effect in all_continuous_effects:
     value = effect.modify_stat(card, stat_name, value, game_state)
 
-```text
+```
 
 **CostModificationEffect** - Checked during cost calculation:
 
@@ -305,7 +304,7 @@ class GameState:
     play_by_play: List[Dict] = field(default_factory=list)
     game_log: List[str] = field(default_factory=list)
 
-```text
+```
 
 **Key Methods:**
 
@@ -338,7 +337,7 @@ class GameService:
             self.games[game_id] = GameEngine(game_state)
             return self.games[game_id]
 
-```text
+```
 
 **Benefits:**
 - ✅ Games persist across server restarts
@@ -372,7 +371,7 @@ CREATE INDEX idx_games_player2 ON games(player2_id);
 CREATE INDEX idx_games_status ON games(status);
 CREATE INDEX idx_games_updated_at ON games(updated_at DESC);
 
-```text
+```
 
 **See Also:** `docs/development/archive/POSTGRES_IMPLEMENTATION.md` for
 
@@ -399,7 +398,7 @@ END PHASE
 ├── Increment turn number
 └── Transition back to START (new game)
 
-```text
+```
 
 **Implemented in:** `turn_manager.py` and `game_engine.py`
 
@@ -427,7 +426,7 @@ class Zone(Enum):
     IN_PLAY = "in_play"
     SLEEP = "sleep"
 
-```text
+```
 
 ### Card Data Model
 
@@ -452,7 +451,7 @@ class Card:
     current_stamina: Optional[int] = None
     modifications: Dict[str, int] = field(default_factory=dict)
 
-```text
+```
 
 ### Card Movement
 
@@ -467,7 +466,7 @@ card = Card(
     controller=owner_id,  # Initially same as owner
 )
 
-```text
+```
 
 **Starting zone:** HAND
 
@@ -481,7 +480,7 @@ card.zone = Zone.IN_PLAY
 card.controller = player.player_id
 player.in_play.append(card)
 
-```text
+```
 
 **ACTION Cards:**
 
@@ -491,7 +490,7 @@ engine._resolve_action_card(card, player, **kwargs)
 card.zone = Zone.SLEEP
 player.sleep_zone.append(card)
 
-```text
+```
 
 #### Sleeping a Card
 
@@ -503,9 +502,9 @@ card.zone = Zone.SLEEP
 player.sleep_zone.append(card)
 # Trigger "when sleeped" effects
 
-```text
+```
 
-#### Unsleping a Card (Wake effect)
+#### Unsleeping a Card (Wake effect)
 
 ```python
 # game_state.py -> unsleep_card()
@@ -513,7 +512,7 @@ player.sleep_zone.remove(card)
 card.zone = Zone.HAND
 player.hand.append(card)
 
-```text
+```
 
 #### Control Change (Twist effect)
 
@@ -523,7 +522,7 @@ old_controller.in_play.remove(card)
 card.controller = new_controller.player_id
 new_controller.in_play.append(card)
 
-```text
+```
 
 **Key Concepts:** Ownership vs Control
 - `card.owner` never changes (used when card leaves play)
@@ -586,7 +585,7 @@ def _get_target_info(self, card: Card, player: Player) -> dict:
         "min_targets": 0,
     }
 
-```text
+```
 
 **Card Identification:**
 
@@ -605,7 +604,7 @@ class PlayEffect:
         """Return list of valid target cards for this effect."""
         return []
 
-```text
+```
 
 **Used by:** Both AI player and ActionValidator to determine valid targets
 
@@ -663,7 +662,7 @@ Frontend Response:
   "game_state": { "turn": 2, "phase": "Main" }
 }
 
-```text
+```
 
 ### State Serialization
 
@@ -691,7 +690,7 @@ return GameStateResponse(
     play_by_play=game_state.play_by_play
 )
 
-```text
+```
 
 **⚠️ Issue:** Full state sent on every request (no delta updates)
 
@@ -714,7 +713,7 @@ const { data: gameState } = useQuery({
   refetchInterval: 1000  // Poll every second
 });
 
-```text
+```
 
 **Local React state** for UI:
 - Selected card
@@ -741,7 +740,7 @@ App
     ├── LoadingScreen
     └── VictoryScreen
 
-```text
+```
 
 ### Card Rendering
 
@@ -753,7 +752,7 @@ App
   effectiveStats={calculateEffectiveStats(card)}
 />
 
-```text
+```
 
 **⚠️ Issue:** Card selection uses `card.name` for matching (should use ID)
 
@@ -783,7 +782,7 @@ All spacing uses CSS custom properties (design tokens) defined in
 <div style={{ padding: 'var(--spacing-component-md)' }}>
 <div style={{ gap: 'var(--spacing-component-sm)' }}>
 
-```text
+```
 
 **Rule:** NEVER use hardcoded pixel values or Tailwind spacing utilities (`p-4`,
 
@@ -816,7 +815,7 @@ The `useResponsive` hook provides consistent breakpoint detection:
 ```tsx
 const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
 
-```text
+```
 
 **Breakpoints:**
 - **Desktop:** ≥1024px - Full 2-column layout
@@ -840,7 +839,7 @@ const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
 │            My Hand (full-width)     │              │
 └─────────────────────────────────────┴──────────────┘
 
-```text
+```
 
 ---
 
@@ -881,18 +880,9 @@ action types (Nov 2025)
 
 ### Resolved Issues ✅
 
-1. **Code Duplication Between AI and Human Player Paths** - Resolved with
-
-ActionValidator and ActionExecutor classes (Nov 2025)
-
-1. **Complex and Ambiguous Function Arguments** - Resolved with structured
-
-action types (Nov 2025)
-
 1. **In-Memory Game State** - Migrated to PostgreSQL with Alembic (Nov 2025)
 1. **AI Can't Handle Targets** - AI now successfully selects targets and
-
-alternative costs (Nov 2025)
+   alternative costs (Nov 2025)
 
 ### Active Issues
 
@@ -909,7 +899,7 @@ alternative costs (Nov 2025)
 - All 30 cards now use data-driven effect definitions in CSV (`effects` column)
 - `EffectFactory` parses effect definitions from CSV at runtime
 - Only 1 legacy manual registration remains (Snuggles - marked as NOT WORKING)
-- 97% of cards (30/31) use automated data-driven effect system
+- Nearly all of the 30 cards use the automated data-driven effect system
 
 **Frontend Uses Card Names:** - ✅ MOSTLY RESOLVED (Dec 2025)
 
@@ -955,7 +945,7 @@ CREATE TABLE games (
     game_state JSONB NOT NULL
 );
 
-```text
+```
 
 **See:** `docs/development/DATABASE_SCHEMA.md` for complete schema details.
 
@@ -984,7 +974,7 @@ CREATE TABLE games (
 - Regression protection
 
 1. **✅ Complete data-driven effect migration** - MOSTLY COMPLETED
-- 30/31 cards migrated to data-driven effects
+- Nearly all of the 30 cards migrated to data-driven effects
 - Effect factory has comprehensive error handling
 - Effect string syntax documented in effect_registry.py
 

@@ -9,7 +9,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06B6D4.svg?logo=tailwindcss&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI%20v3-4285F4.svg?logo=google&logoColor=white)
+![AI Providers](https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20OpenRouter-4285F4.svg?logo=google&logoColor=white)
 ![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-EB5424.svg)
 
 A tactical two-player card game with no randomness in draws—only skill
@@ -36,11 +36,11 @@ for lobby, gameplay, and stats.
 
    ```bash
    git clone https://github.com/RegisCA/ggltcg.git
-   cd ggltcg/backend
+   cd ggltcg
    python3.13 -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   cp .env.example .env  # Add your GOOGLE_API_KEY
-   python run_server.py
+   pip install -r backend/requirements.txt
+   cp backend/.env.example backend/.env  # Add your GOOGLE_API_KEY
+   cd backend && python run_server.py
    ```
 
 2. **Setup Frontend**:
@@ -60,10 +60,13 @@ for lobby, gameplay, and stats.
 - **Quick Play vs AI**: Start a game against the AI with a single click.
 - **Google OAuth Authentication**: Secure sign-in with Google, user
   profiles, and display names.
-- **LLM-Powered AI Opponent (v3)**: Two-phase turn planning—the LLM 
-  generates a complete turn plan with threat assessment and action 
-  sequence at turn start, then heuristic matching executes actions.
-  Uses Google Gemini with **native structured output** for reliable play.
+- **LLM-Powered AI Opponent**: Whole-turn planning—the LLM generates a
+  complete turn plan with threat assessment and action sequence at turn
+  start, then heuristic matching executes actions. Single-request planning
+  is the default; an experimental dual-request mode (sequence generation →
+  server-side validator → strategic selection) is available via
+  `AI_PLANNER_MODE=dual`. Multi-provider: Gemini (default), Groq, and
+  OpenRouter, all using **native structured output** for reliable play.
 - **CC Efficiency Tracking**: Monitors command counter usage per turn
   to analyze AI performance and strategy effectiveness.
 - **Persistent Stats**: PostgreSQL-backed tracking of game results and
@@ -208,17 +211,17 @@ ggltcg/
 │   │   ├── game_engine/
 │   │   │   ├── models/          # Card, Player, GameState classes
 │   │   │   ├── rules/           # Game logic, turn management, tussles
-│   │   │   │   └── effects/     # Card effect system (27 cards)
-│   │   │   ├── ai/              # LLM player integration (Gemini)
+│   │   │   │   └── effects/     # Card effect system (30 cards)
+│   │   │   ├── ai/              # LLM player integration (multi-provider)
 │   │   │   └── data/            # Card loader, CSV handling
-│   │   └── api/                 # FastAPI routes (37 endpoints)
+│   │   └── api/                 # FastAPI routes
 │   ├── data/
-│   │   └── cards.csv            # 27-card set (SINGLE SOURCE OF TRUTH)
+│   │   └── cards.csv            # 30-card set (SINGLE SOURCE OF TRUTH)
 │   ├── tests/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/          # React UI components (34 components)
+│   │   ├── components/          # React UI components
 │   │   ├── hooks/               # React Query hooks
 │   │   ├── api/                 # API client
 │   │   ├── types/               # TypeScript definitions
@@ -245,13 +248,13 @@ ggltcg/
 ### Backend Setup
 
 ```bash
-cd backend
+# From the repo root — the venv lives at the root, not in backend/
 python -m venv .venv
 source .venv/bin/activate  # On macOS/Linux; use .venv\Scripts\activate on Windows
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # Copy example env files if present, then configure auth and DB
-cp .env.example .env 2>/dev/null || true
+cp backend/.env.example backend/.env 2>/dev/null || true
 ```
 
 Then set at minimum:
@@ -305,7 +308,7 @@ The backend server supports the following command-line arguments:
 Example with custom deck and different port:
 
 ```bash
-python run_server.py --deck-csv my_custom_deck.csv --port 8080
+python run_server.py --deck my_custom_deck.csv --port 8080
 ```
 
 **Frontend:**

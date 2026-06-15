@@ -487,10 +487,10 @@ python -m simulation.cli list-runs --limit 5
 
 ## Related Documentation
 
-- [SIMULATION.md](../docs/development/SIMULATION.md) - Original system documentation
-- [SIMULATION_IMPROVEMENTS.md](../docs/development/SIMULATION_IMPROVEMENTS.md) - Enhancement history
-- [AI_V4_ARCHITECTURE.md](../docs/development/AI_V4_ARCHITECTURE.md) - AI player architecture
-- [ARCHITECTURE.md](../docs/development/ARCHITECTURE.md) - Overall game architecture
+- [SIMULATION_SYSTEM.md](../../../docs/development/SIMULATION_SYSTEM.md) - Simulation system guide
+- [SIMULATION_IMPROVEMENTS.md](../../../docs/development/archive/SIMULATION_IMPROVEMENTS.md) - Enhancement history (archived)
+- [AI_V4_DESIGN.md](../../../docs/development/ai/AI_V4_DESIGN.md) - AI dual-request design (historical)
+- [ARCHITECTURE.md](../../../docs/development/ARCHITECTURE.md) - Overall game architecture
 
 ## Version History
 

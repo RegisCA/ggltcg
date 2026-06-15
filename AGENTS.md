@@ -22,12 +22,18 @@ Remember that your context window is limited - especially the output size. So yo
 
 **Data-Driven Effects**: Card effects in `cards.csv`, parsed by EffectRegistry. Complex effects (Copy, Transform) still need code.
 
-## AI System (V4)
+## AI System
 
-Dual-request architecture: Request 1 generates action sequences, Request 2 selects the best.
-- Sequence Generator: `backend/src/game_engine/ai/prompts/sequence_generator.py`
-- Strategic Selector: `backend/src/game_engine/ai/prompts/strategic_selector.py`
-- Status: V4 in development, see `docs/plans/AI_V4_REMEDIATION_PLAN.md`
+Two planner modes, selected via `AI_PLANNER_MODE` (`backend/src/game_engine/ai/turn_planner.py`, `get_planner_mode()`):
+
+- **single (DEFAULT)** — one request plans the whole turn, with server-side plan pruning and CC regrounding. Optimized for Groq token budgets; works with all providers.
+- **dual (EXPERIMENTAL, a.k.a. V4)** — Request 1 generates action sequences, Request 2 selects the best, with a server-side `TurnPlanValidator` in between.
+  - Sequence Generator: `backend/src/game_engine/ai/prompts/sequence_generator.py`
+  - Strategic Selector: `backend/src/game_engine/ai/prompts/strategic_selector.py`
+
+Provider abstraction (`backend/src/game_engine/ai/providers.py`) supports Gemini (default), Groq, and OpenRouter via `AI_PROVIDER` / `AI_MODEL`.
+
+See `docs/development/ai/AI_CURRENT_STATE.md` for the full reference.
 
 ## Testing
 
@@ -58,7 +64,7 @@ Access to GitHub MCP tools is enabled.
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3.13, FastAPI, SQLAlchemy |
-| Frontend | TypeScript, React 18, TanStack Query, Vite |
-| AI | Google Gemini 1.5 Flash |
+| Frontend | TypeScript, React 19, TanStack Query, Vite 7 |
+| AI | Provider abstraction (`AI_PROVIDER` / `AI_PLANNER_MODE`): Gemini (default, `gemini-flash-lite-latest`), Groq, OpenRouter |
 | Database | SQLite (local/simulation), PostgreSQL (production) |
 | Deploy | Render (backend), Vercel (frontend) - auto-deploy from main |

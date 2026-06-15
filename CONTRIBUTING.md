@@ -24,13 +24,13 @@ The following is a set of guidelines for contributing to GGLTCG. These are mostl
 2. **Backend Setup**
 
     ```bash
-    cd backend
-    python3.13 -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-    pip install -r requirements.txt
+    # From the repo root — the venv lives at the root, not in backend/
+    python3.13 -m venv .venv
+    source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+    pip install -r backend/requirements.txt
     
     # Configure Environment
-    cp .env.example .env
+    cp backend/.env.example backend/.env
     # Edit .env and add:
     # GOOGLE_API_KEY=your_key_here
     # DATABASE_URL=postgresql://user:password@localhost/ggltcg_db
@@ -51,8 +51,8 @@ The following is a set of guidelines for contributing to GGLTCG. These are mostl
     *Terminal 1 (Backend):*
 
     ```bash
+    source .venv/bin/activate  # from repo root
     cd backend
-    source venv/bin/activate
     python run_server.py
     ```
 

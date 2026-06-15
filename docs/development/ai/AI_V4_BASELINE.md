@@ -1,5 +1,7 @@
 # AI V4 Baseline Performance Results
 
+*Historical — superseded by [AI_CURRENT_STATE.md](AI_CURRENT_STATE.md). Retained for context.*
+
 **Date**: January 3, 2026  
 **Status**: Baseline Established  
 **Simulation Run**: #8 (Run ID 39 in database)

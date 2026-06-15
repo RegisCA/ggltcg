@@ -251,19 +251,23 @@ def apply_damage(self, amount: int) -> None:
 
 ---
 
-## AI System (V4 Architecture)
+## AI System
 
-### Dual-Request Pattern
+Two planner modes selected via `AI_PLANNER_MODE`: **single** (default,
+whole-turn planning in one request) and **dual** (experimental V4:
+sequence generation → validator → strategic selection).
+
+### Dual-Request Pattern (experimental)
 
 1. **Request 1** (Sequence Generator): Generate valid action sequences
 2. **Request 2** (Strategic Selector): Evaluate and select best sequence
 
 **Files**:
+- `backend/src/game_engine/ai/turn_planner.py` (planner-mode entry point)
 - `backend/src/game_engine/ai/prompts/sequence_generator.py`
 - `backend/src/game_engine/ai/prompts/strategic_selector.py`
-- `backend/src/game_engine/ai/prompts/turn_planner.py`
 
-**Roadmap**: `docs/plans/AI_V4_REMEDIATION_PLAN.md`
+**Reference**: `docs/development/ai/AI_CURRENT_STATE.md`
 
 ### Common AI Issues
 
