@@ -1,0 +1,341 @@
+# Audit Remediation Plan — June 2026
+
+**Created**: June 11, 2026
+**Source**: Full-codebase audit (engine, docs, AI player) — June 11 session
+**Status**: WP-0 not started, WP-1 not started, WP-2 not started, WP-3 not started, WP-4 not started
+
+Each work package (WP) is one PR-sized unit with explicit acceptance criteria and a
+self-contained starter prompt. Starter prompts are written for a cold agent session —
+they embed the audit findings so no re-discovery is needed.
+
+**Workflow for every WP** (per `bot-workflow.instructions.md`):
+
+```bash
+gh auth switch -u regisca-bot
+git checkout main && git pull
+git checkout -b <branch>
+# ... work, commit ...
+git push -u origin <branch>
+gh pr create --base main
+# Review and merge as RegisCA
+```
+
+**Execution order**: WP-0 (local, 10 min) → WP-1 and WP-2 (parallel-safe) → WP-3 → WP-4.
+
+---
+
+## WP-0: Rebuild local venv (LOCAL TASK, not a PR)
+
+The repo-root `.venv` symlinks to Homebrew Python 3.13, which was removed during a
+brew upgrade (only 3.11/3.12/3.14 remain installed). Production pins 3.13.0
+(`render.yaml` → `PYTHON_VERSION`), so stay on 3.13 locally.
+
+**Recommended (uv — immune to future brew upgrades):**
+
+```bash
+cd /Users/regis/Projects/ggltcg
+rm -rf .venv
+uv venv --python 3.13 .venv          # uv downloads a standalone 3.13
+# NOTE: uv venvs do NOT include pip. Use `uv pip install` (it targets the venv via
+# VIRTUAL_ENV), NOT `.venv/bin/python -m pip install` — the latter fails with
+# "No module named pip" and silently installs nothing.
+VIRTUAL_ENV="$PWD/.venv" uv pip install -r backend/requirements.txt pytest pytest-asyncio httpx
+cd backend && GOOGLE_API_KEY=dummy ../.venv/bin/python -m pytest tests/ -q
+```
+
+Alternative (plain venv ships pip, so `python -m pip` works):
+`brew install python@3.13` then `python3.13 -m venv .venv` and
+`.venv/bin/python -m pip install -r backend/requirements.txt pytest pytest-asyncio httpx`
+(will break again on the next brew major-version cleanup).
+
+**Acceptance**: full backend suite passes locally with dummy key.
+
+---
+
+## WP-1: Documentation truth pass + AI current-state doc
+
+**Branch**: `docs/audit-truth-pass` · **Estimate**: one session · **Type**: docs only, no code changes
+
+### Starter prompt
+
+```
+## Context
+You are fixing documentation drift identified in a June 2026 codebase audit.
+This is a docs-only PR — do not modify any .py or .ts files.
+Read docs/plans/AUDIT_2026_06_REMEDIATION.md (WP-1 section) first.
+
+Ground truth to verify against before writing:
+- backend/data/cards.csv has 30 cards (count the rows).
+- The AI default is AI_PLANNER_MODE=single (see backend/src/game_engine/ai/turn_planner.py
+  get_planner_mode() and backend/.env.example). "dual" (V4) is experimental.
+- Supported providers: gemini, groq, openrouter (backend/src/game_engine/ai/providers.py).
+  Default models: gemini-flash-lite-latest (gemini), llama-3.3-70b-versatile (groq).
+- Frontend is React 19, Vite 7, Tailwind 4 (frontend/package.json).
+- The venv lives at the REPO ROOT (.venv), not in backend/.
+- run_server.py's flag is --deck (not --deck-csv).
+
+## Task A — fix these specific stale references (all verified broken in the audit)
+1. docs/README.md:
+   - Links to plans/INSTRUCTION_FILES_MIGRATION_PLAN.md and DOCS_RESTRUCTURING_PLAN.md
+     → both moved to docs/development/archive/. Fix or drop.
+   - Link to development/features/ADDING_NEW_CARDS.md → actual path is
+     development/ADDING_NEW_CARDS.md.
+   - The "Root Context Files" section lists AGENTS.md twice — deduplicate.
+2. AGENTS.md (root): tech-stack table says React 18 and "Google Gemini 1.5 Flash" —
+   update to React 19 and the provider abstraction (Gemini default
+   gemini-flash-lite-latest; Groq/OpenRouter supported; AI_PROVIDER/AI_PLANNER_MODE
+   env vars). Update the "AI System (V4)" section: dual-request is the experimental
+   mode; single-request planning is the default. Keep file structure otherwise.
+3. README.md:
+   - "Google Gemini AI v3" badge and the "LLM-Powered AI Opponent (v3)" feature bullet
+     → describe current state (single-request turn planning by default, experimental
+     dual-request mode, multi-provider).
+   - "27-card set" / "(27 cards)" in the project-structure tree → 30 cards.
+   - Quickstart: venv commands create it in backend/ — change to repo root .venv,
+     matching reality. Also fix the --deck-csv example → --deck.
+   - Verify the "37 endpoints" / "34 components" counts or remove the numbers.
+4. CONTRIBUTING.md: venv path says backend/venv → repo-root .venv, consistent with README.
+5. docs/development/ARCHITECTURE.md:
+   - Repair the broken markdown code fences (many blocks close with ```text, mangling
+     rendering from the "Effect Lifecycle" section onward).
+   - Card counts: says 27 in one place, 30/31 in another → 30 throughout.
+   - "Known Issues & Technical Debt" section repeats the same two resolved items twice
+     → deduplicate.
+   - Directory tree shows ai/prompts.py → it is now the ai/prompts/ package.
+6. docs/development/ADDING_NEW_CARDS.md: Step 3 says "Add card to
+   backend/src/game_engine/ai/prompts.py" — that file was deleted in Nov 2025.
+   Replace with the actual AI-layer touchpoints for a new card:
+   - backend/src/game_engine/ai/prompts/card_guidance.yaml (strategic guidance)
+   - backend/src/game_engine/ai/prompts/examples/card_examples.py and loader.py
+     (optional few-shot examples, dual mode only)
+   - NOTE in the doc: several AI files currently hardcode card names
+     (sequence_generator.py restriction hints, turn_planner.py/_CC_GAIN_ON_PLAY,
+     validators/turn_plan_validator.py, quality_metrics.py) — cards with CC-gain or
+     target-requirement effects need entries there until metadata is centralized.
+7. backend/src/simulation/README.md: "Related Documentation" links to
+   docs/development/SIMULATION.md, AI_V4_ARCHITECTURE.md, SIMULATION_IMPROVEMENTS.md —
+   none exist. Point to docs/development/SIMULATION_SYSTEM.md,
+   docs/development/ai/AI_V4_DESIGN.md, docs/development/archive/SIMULATION_IMPROVEMENTS.md.
+8. backend/AGENTS.md: "Files" list under AI System includes
+   prompts/turn_planner.py — actual path is ai/turn_planner.py. Also note single vs
+   dual planner modes.
+9. docs/development/KNOWN_ISSUES.md: stale empty shell dated January. Either populate
+   with current actives (HLK CC-gain mapping bug — see WP-3; AI card metadata
+   centralization pending) or delete the file and remove references to it.
+
+## Task B — write docs/development/ai/AI_CURRENT_STATE.md (the key deliverable)
+A single page that makes the AI subsystem inheritable. Contents:
+- Current architecture: planner modes (single = default, one request, optimized for
+  Groq token budgets, server-side plan pruning + CC regrounding; dual = V4
+  experimental, sequence generation → TurnPlanValidator → strategic selection).
+- Execution layer: heuristic plan-step matching, LLM fallback matcher, mid-turn
+  replan (cap 2), V2 single-action fallback.
+- Env var reference: AI_PROVIDER, AI_MODEL, AI_FALLBACK_MODEL, AI_PLANNER_MODE,
+  GEMINI_MODEL, GEMINI_FALLBACK_MODEL, GOOGLE_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY.
+- Version history table: V1 per-action (Nov 2025) → V2 structured output (Dec 2025)
+  → V3 single-request turn planning (Dec 2025, prompts too large, illegal actions)
+  → V4 dual-request (Jan 2026, balanced 160-game baseline) → provider era
+  (May–Jun 2026, AI_PLANNER_MODE, Groq default-capable).
+- How to evaluate changes: quality metrics (CC waste), tests/test_ai_standard_scenario.py,
+  the simulation CLI (currently dormant).
+- Add a one-line "Historical — superseded by AI_CURRENT_STATE.md" banner at the top of
+  docs/development/ai/AI_V4_DESIGN.md, AI_V4_BASELINE.md, and
+  docs/plans/AI_V4_REMEDIATION_PLAN.md.
+- Link the new doc from docs/README.md and AGENTS.md.
+
+## Constraints
+- Docs only. Do not "fix" code to match docs — docs match code.
+- Run the markdown linter if configured (.markdownlint-cli2.json exists).
+- Verify every link you touch actually resolves (test -e each target path).
+
+## Verification
+- A link-check pass over every file you edited (no references to nonexistent paths).
+- Commit, push, open PR as regisca-bot per the workflow at the top of the plan doc.
+```
+
+### Acceptance criteria
+
+| # | Criterion |
+|---|-----------|
+| 1.1 | Every link in edited docs resolves to an existing file |
+| 1.2 | No doc claims React 18, Gemini 1.5, 27 cards, or backend-local venv |
+| 1.3 | `AI_CURRENT_STATE.md` exists, linked from docs/README.md and AGENTS.md |
+| 1.4 | V4 docs carry a historical banner |
+| 1.5 | ADDING_NEW_CARDS Step 3 describes real AI-layer touchpoints |
+
+---
+
+## WP-2: Dead-code sweep + CI hygiene
+
+**Branch**: `chore/audit-dead-code-sweep` · **Estimate**: short session · **Type**: deletions + one-liners, no behavior change
+
+### Starter prompt
+
+```
+## Context
+Maintenance PR removing dead code identified in a June 2026 audit. Pure
+deletion/cleanup — zero behavior changes. Read docs/plans/AUDIT_2026_06_REMEDIATION.md
+(WP-2). Verify each claim with grep before deleting; the audit findings are listed
+below but you must confirm imports/usages yourself.
+
+## Tasks
+1. Delete backend/src/game_engine/ai/prompts/planning_prompt_v2.py — audit found
+   nothing imports it. Confirm: grep -rn "planning_prompt_v2" backend/src backend/tests.
+2. Prune backend/src/game_engine/ai/prompts/planning_prompt.py (V1, 618 lines):
+   only some helpers are still used (e.g. format_sleep_zone_for_planning, imported via
+   prompts/__init__.py into turn_planner.py). Grep each symbol exported in
+   prompts/__init__.py from planning_prompt (get_planning_prompt,
+   format_hand_for_planning, format_in_play_for_planning, format_sleep_zone_for_planning,
+   THREAT_PRIORITIES, CC_COST_REFERENCE) for usages outside the prompts package.
+   Delete dead ones from both the module and __init__.py exports; keep live helpers.
+3. Delete SnugglesWhenSleepedEffect (and any other Snuggles effect classes) from
+   backend/src/game_engine/rules/effects/triggered_effects.py — Snuggles is not in
+   backend/data/cards.csv. Remove its registration and the Snuggles mentions in
+   base_effect.py docstrings/comments. Keep Umbruh untouched. Confirm no test
+   references Snuggles effects (grep tests/).
+4. backend/scripts/ holds ~24 one-off debugging scripts (debug_log_6259.py,
+   investigate_turn3_failure.py, analyze_*.py, gate_user_slot3*.py, etc.) plus the
+   committed turn3_analysis/ directory of raw January debug logs.
+   git rm the turn3_analysis/ directory (history preserves it) and move clearly
+   one-off scripts into backend/scripts/archive/ with a one-line README. Keep
+   genuinely reusable tools (run_v4_simulation.py, run_standard_scenario.py,
+   analyze_simulation_results.py, backfill/reset/verify scripts) at top level —
+   use judgment, list your keep/archive split in the PR description.
+5. .github/workflows/ci.yml: node-version '18' → '20' (Vite 7 requires Node 20.19+;
+   18 passing today is luck, not support).
+6. backend/src/game_engine/ai/prompts/strategic_selector.py: module docstring says
+   "Temperature: 0.7" but get_strategic_selector_temperature() returns 0.4. Fix the
+   docstring (code is the truth). Also remove the duplicated
+   `logger = logging.getLogger(__name__)` (it appears twice near the imports).
+7. Do NOT touch card_library.py — it is still imported by formatters.py (V2 fallback
+   path). Out of scope.
+
+## Verification
+- cd backend && GOOGLE_API_KEY=dummy python -m pytest tests/ -q  (full suite green)
+- grep confirms no dangling imports of anything deleted
+- PR as regisca-bot per the workflow at the top of the plan doc; PR description lists
+  every deleted symbol/file
+```
+
+### Acceptance criteria
+
+| # | Criterion |
+|---|-----------|
+| 2.1 | Full backend suite green |
+| 2.2 | No remaining imports of deleted modules/symbols (grep-verified) |
+| 2.3 | turn3_analysis/ removed from tracking; one-off scripts archived |
+| 2.4 | CI on Node 20, both jobs green on the PR |
+
+---
+
+## WP-3: Fix HLK CC-gain mapping bug
+
+**Branch**: `fix/hlk-cc-gain-mapping` · **Estimate**: < 1 hour · **Type**: small behavior fix + regression test
+
+### Starter prompt
+
+```
+## Context
+Audit-confirmed bug: the AI planner's CC-gain tables contain an entry for a card
+that does not exist, modeling an effect the real card does not have.
+
+Facts (verify each):
+- backend/data/cards.csv has "Hind Leg Kicker" — a TOY (3/3/1) with effect
+  on_card_played_gain_cc:1 (gain 1 CC when you play a SUBSEQUENT card while it is
+  in play). There is no card named "HLK".
+- backend/src/game_engine/ai/turn_planner.py:_CC_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2, "HLK": 1}
+- backend/src/game_engine/ai/validators/turn_plan_validator.py has a matching
+  CC_GAIN_ON_PLAY entry for "HLK" and error messages calling HLK an "Action card"
+  ("Action cards (Rush, Surge, HLK) do not enter play...").
+
+The "HLK" entries never match (name mismatch) and are semantically wrong twice over
+(wrong trigger, wrong card type).
+
+## Task — minimal fix
+1. Remove "HLK" from both CC_GAIN_ON_PLAY tables.
+2. Fix the validator messages: "(Rush, Surge, HLK)" → "(Rush, Surge)".
+3. Do NOT attempt to model Hind Leg Kicker's on_card_played trigger in the validator —
+   that is deliberate scope-out (belongs to the future CSV-metadata centralization).
+4. Add a regression test (backend/tests/) asserting that every key in both
+   CC_GAIN_ON_PLAY tables is the exact name of a card in cards.csv whose effects
+   contain a gain_cc effect. This pins the tables to the CSV until centralization.
+
+## Verification
+- New test fails on current main logic if "HLK" is re-added, passes after fix.
+- Full suite green: cd backend && GOOGLE_API_KEY=dummy python -m pytest tests/ -q
+- PR as regisca-bot per the workflow at the top of the plan doc.
+```
+
+### Acceptance criteria
+
+| # | Criterion |
+|---|-----------|
+| 3.1 | No "HLK" string remains in src/ (grep) |
+| 3.2 | Regression test ties CC-gain tables to cards.csv |
+| 3.3 | Full suite green |
+
+---
+
+## WP-4: Deterministic sequence enumerator (EXPERIMENT — after WP-1..3)
+
+**Branch**: `feat/deterministic-enumerator` · **Estimate**: 2–3 sessions, phased · **Type**: new planner mode, experimental
+
+### Hypothesis
+
+Legal-sequence generation is a computation, not a judgment call. Replacing the LLM
+sequence-generation step with engine-side enumeration should: eliminate the illegal-
+action failure class entirely (including the two documented V4 failure modes —
+mid-sequence state-change reasoning and zone confusion), cut LLM usage to **one call
+per turn** (strategic selection only), and produce exact CC math by construction.
+
+### Design sketch
+
+- New module: `backend/src/game_engine/ai/enumerator.py`.
+- Depth-limited DFS over the action space from the current state, using a **cloned**
+  GameState (clone via the existing JSON serialize/deserialize round-trip) and real
+  GameEngine transitions — so "tussle sleeps last toy → direct_attack becomes legal"
+  falls out for free.
+- Budget guards: CC budget prunes naturally; cap sequence length (~8 actions); cap
+  Archer activations per sequence (e.g. ≤ target's stamina); dedupe order-equivalent
+  sequences (frozenset of action signatures); cap total sequences returned (~12),
+  ranked by a trivial score (cards slept desc, CC wasted asc) before selection.
+- Direct attack's random hand-card choice: enumerate as a single action with
+  expected-value annotation; do not branch on outcomes.
+- Integration: new planner mode `AI_PLANNER_MODE=enum` in turn_planner.py — enumerator
+  output formatted with the existing `add_tactical_labels()` +
+  `generate_strategic_prompt()` / Request-2 selection path (reuse, don't fork).
+  TurnPlanValidator stays in the loop initially as a cross-check (it should never
+  fire; alert if it does).
+
+### Phases
+
+| Phase | Deliverable | Gate |
+|-------|-------------|------|
+| 4.0 | State-clone utility + perf check (clone+apply ≤ a few ms) | Unit tests; round-trip equality |
+| 4.1 | Enumerator + unit tests on the standard scenarios (Turn 1 Surge+Knight hand must include the Surge→Knight→direct_attack line) | Validator agreement: 0 enumerated sequences rejected across test scenarios |
+| 4.2 | `enum` planner mode wired through turn_planner + selector | tests/test_ai_standard_scenario.py passes in enum mode with CC waste ≤ current single mode |
+| 4.3 | Simulation comparison: enum vs single, ≥40 games (Groq for selection keeps cost ~zero) | Win rate ≥ single mode; illegal actions = 0; 1 LLM call/turn confirmed |
+
+### Risks
+
+- Combinatorial blowup with multi-target cards (Sun, Clean) and repeated activations —
+  mitigated by caps above; measure enumeration time in Phase 4.1.
+- Copy/Twist branching on targets multiplies sequences — cap targets considered per
+  card to the top-N by simple score if needed.
+- If GameEngine has hidden global state that survives cloning, Phase 4.0 will surface
+  it — fix there before proceeding.
+
+---
+
+## Deferred (tracked, not scheduled)
+
+- **Centralize AI card metadata from CSV** (kills hardcoded names in 10 ai/ files) —
+  shrinks dramatically if WP-4 succeeds, since most hardcoded knowledge exists to help
+  the LLM do math it would no longer do. Decide after WP-4 Phase 4.3.
+- **Split AdminDataViewer.tsx** (2,440 lines) — admin-only, works, lowest urgency.
+- **Finish AI_VERSION → AI_PLANNER_MODE migration** in admin UI/DB round-trip.
+- **.gitignore AGENTS.md contradiction**: the uncommitted .gitignore change ignores
+  AGENTS.md, but 3 AGENTS.md files are tracked (and referenced by docs + Copilot).
+  Decision needed: keep AGENTS.md tracked (drop it from the ignore list, keep
+  CLAUDE.md ignored) — recommended — or `git rm --cached` all three and accept losing
+  them for contributors.

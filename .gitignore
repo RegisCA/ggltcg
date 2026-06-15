@@ -59,6 +59,10 @@ backend/reports/*.json
 logs/
 *.log
 
+# Local AI agent context file (never committed). AGENTS.md files ARE tracked
+# (root, backend/, frontend/) — they're committed project context, not local-only.
+CLAUDE.md
+
 # Temp files
 *.tsv
 

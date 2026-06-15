@@ -29,8 +29,7 @@ def test_effect_registry():
         
         # Triggered effects
         "Umbruh",
-        "Snuggles",  # 2 effects: on play + when sleeped
-        
+
         # Action effects
         "Clean", "Rush", "Wake", "Sun", "Toynado", "Twist", "Copy",
     }
