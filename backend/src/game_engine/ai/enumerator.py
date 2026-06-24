@@ -268,6 +268,7 @@ def enumerate_sequences(
     strategic selection, ``convert_sequence_to_turn_plan``) is unchanged.
     """
     start_opp_slept = len(game_state.get_opponent(player_id).sleep_zone)
+    start_own_slept = len(game_state.players[player_id].sleep_zone)
 
     # multiset-of-steps signature -> best recorded sequence (order-equivalent dedupe)
     recorded: Dict[frozenset, Dict[str, Any]] = {}
@@ -293,6 +294,10 @@ def enumerate_sequences(
         opp = state.get_opponent(player_id)
         me = state.players[player_id]
         cards_slept = max(0, len(opp.sleep_zone) - start_opp_slept)
+        # Net own cards left sleeping by this line. Wake/Sun move cards back out of
+        # the sleep zone, so a Drop+Wake recovery combo nets to 0 (no penalty);
+        # only a self-sleep with no payoff leaves the count positive.
+        own_slept = max(0, len(me.sleep_zone) - start_own_slept)
         wins = state.winner_id == player_id
         total_cc_spent = sum(costs)
         cc_wasted = me.cc  # leftover CC the line did not spend
@@ -306,6 +311,7 @@ def enumerate_sequences(
             "raw_string": _raw_string(path, total_cc_spent, cc_available, cards_slept),
             # internal ranking fields (ignored by downstream consumers)
             "_wins": wins,
+            "_own_slept": own_slept,
             "_cc_wasted": cc_wasted,
             "_length": len(path),
         }
@@ -358,7 +364,7 @@ def enumerate_sequences(
     else:
         sequences = ranked[:max_sequences]
     for seq in sequences:  # strip internal ranking fields
-        for k in ("_wins", "_cc_wasted", "_length"):
+        for k in ("_wins", "_own_slept", "_cc_wasted", "_length"):
             seq.pop(k, None)
 
     logger.debug(
@@ -369,10 +375,19 @@ def enumerate_sequences(
 
 
 def _rank_key(seq: Dict[str, Any]) -> Tuple:
-    """Sort key: winning lines first, then most sleeps, least waste, shortest."""
+    """Sort key: winning lines first, then most opponent sleeps, fewest own cards
+    left sleeping, least CC waste, shortest.
+
+    The ``-_own_slept`` term sits below ``cards_slept`` so a productive line that
+    also self-sleeps (e.g. Clean clearing the whole board) is still preferred when
+    the opponent-sleep payoff justifies it, but above ``-_cc_wasted`` so spending
+    CC to sleep your own card can never out-rank simply not doing so. This is what
+    keeps a pointless self-Drop ranked below the pass line.
+    """
     return (
         1 if seq.get("_wins") else 0,
         seq.get("cards_slept", 0),
+        -seq.get("_own_slept", 0),
         -seq.get("_cc_wasted", 0),
         -seq.get("_length", 0),
     )

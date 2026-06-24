@@ -205,6 +205,65 @@ def test_pass_line_is_always_offered():
     )
 
 
+def test_pointless_self_drop_ranks_below_pass():
+    """A self-Drop with no payoff must rank below the pass line.
+
+    With no opponent cards in play, Drop can only target the AI's own toy.
+    Sleeping it gains nothing, so the perverse "spending CC lowers waste" pull
+    must not float the self-Drop above doing nothing.
+    """
+    setup, _ = create_game_with_cards(
+        player1_hand=["Drop"],
+        player1_in_play=["Knight"],
+        player2_hand=[],
+        player2_in_play=[],
+        player1_cc=2,
+        player2_cc=0,
+        active_player="player1",
+        turn_number=3,
+    )
+    sequences = enumerate_sequences(setup.game_state, "player1")
+    signatures = [_action_signature(s) for s in sequences]
+
+    pass_idx = signatures.index([])
+    drop_idx = signatures.index([("play_card", "Drop")])
+    assert pass_idx < drop_idx, (
+        "Pointless self-Drop should rank below the pass line.\n"
+        f"Got order: {signatures}"
+    )
+
+
+def test_wake_drop_combo_not_penalized():
+    """Drop own card then Wake it back is a real combo and must not be penalized.
+
+    The card is recovered to hand, so net own-cards-slept is 0 — the combo line
+    should rank at or above a bare self-Drop that leaves the card asleep.
+    """
+    setup, _ = create_game_with_cards(
+        player1_hand=["Drop", "Wake"],
+        player1_in_play=["Knight"],
+        player2_hand=[],
+        player2_in_play=[],
+        player1_cc=3,
+        player2_cc=0,
+        active_player="player1",
+        turn_number=3,
+    )
+    sequences = enumerate_sequences(setup.game_state, "player1")
+    signatures = [_action_signature(s) for s in sequences]
+
+    combo = [("play_card", "Drop"), ("play_card", "Wake")]
+    bare_drop = [("play_card", "Drop")]
+    assert combo in signatures, (
+        f"Drop→Wake recovery combo should be enumerated.\nGot: {signatures}"
+    )
+    if bare_drop in signatures:
+        assert signatures.index(combo) <= signatures.index(bare_drop), (
+            "Recovery combo should rank at or above a bare self-Drop.\n"
+            f"Got order: {signatures}"
+        )
+
+
 def test_no_actions_returns_end_turn_line():
     """A state with nothing to do still yields a usable pass line."""
     setup, _ = create_game_with_cards(
