@@ -252,6 +252,26 @@ class LeaderboardResponse(BaseModel):
     card_name: Optional[str] = Field(None, description="Card name if card-specific leaderboard")
 
 
+class CardAggregateEntry(BaseModel):
+    """Aggregate statistics for a single card across all players."""
+    rank: int = Field(..., description="Position when sorted by win rate")
+    card_name: str = Field(..., description="Name of the card")
+    games_played: int = Field(..., description="Total games this card was picked across all players")
+    games_won: int = Field(..., description="Total games won with this card")
+    games_lost: int = Field(..., description="Total games lost with this card")
+    win_rate: float = Field(..., description="Win percentage with this card")
+    pick_rate: float = Field(..., description="Share of all deck slots that included this card")
+    player_count: int = Field(..., description="Number of distinct players who used this card")
+
+
+class CardAggregateResponse(BaseModel):
+    """Per-card statistics aggregated across all players."""
+    entries: List[CardAggregateEntry] = Field(..., description="Cards ranked by win rate")
+    total_cards: int = Field(..., description="Number of cards returned")
+    total_games: int = Field(..., description="Total player-games (pick rate denominator)")
+    min_games_required: int = Field(..., description="Minimum games to qualify")
+
+
 # ============================================================================
 # ERROR RESPONSES
 # ============================================================================

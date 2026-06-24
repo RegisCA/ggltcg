@@ -7,6 +7,7 @@ import { apiClient } from './client';
 import type {
   PlayerStats,
   LeaderboardResponse,
+  CardAggregateResponse,
 } from '../types/api';
 
 // ============================================================================
@@ -58,6 +59,26 @@ export async function getCardLeaderboard(
       },
     }
   );
+  return response.data;
+}
+
+// ============================================================================
+// CARD STATS (AGGREGATE)
+// ============================================================================
+
+/**
+ * Get per-card statistics aggregated across all players
+ */
+export async function getCardStats(
+  limit: number = 50,
+  minGames: number = 1
+): Promise<CardAggregateResponse> {
+  const response = await apiClient.get<CardAggregateResponse>('/stats/cards', {
+    params: {
+      limit,
+      min_games: minGames,
+    },
+  });
   return response.data;
 }
 // ============================================================================

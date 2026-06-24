@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Leaderboard } from './Leaderboard';
 import { PlayerStats } from './PlayerStats';
+import { CardStats } from './CardStats';
 import { Footer } from './ui/Footer';
 import { HowToPlay } from './HowToPlay';
 
@@ -30,6 +31,7 @@ export function LobbyHome({
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showCardStats, setShowCardStats] = useState(false);
 
   return (
     <div className="min-h-screen bg-game-bg flex items-center justify-center" style={{ padding: 'var(--spacing-component-md)' }}>
@@ -165,6 +167,26 @@ export function LobbyHome({
               </div>
             </button>
 
+            {/* Card Stats Button */}
+            <button
+              onClick={() => setShowCardStats(true)}
+              onMouseEnter={() => setHoveredButton('cardstats')}
+              onMouseLeave={() => setHoveredButton(null)}
+              className={`
+                flex-1 rounded-lg border-4 transition-all
+                ${hoveredButton === 'cardstats'
+                  ? 'border-purple-500 bg-gray-700 scale-105'
+                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                }
+              `}
+              style={{ padding: 'var(--spacing-component-md)' }}
+            >
+              <div className="text-2xl font-bold text-white" style={{ marginBottom: '4px' }}>🃏 Card Stats</div>
+              <div className="text-sm text-gray-300">
+                Win rates per card
+              </div>
+            </button>
+
             {/* How to Play Button */}
             <button
               onClick={() => setShowHowToPlay(true)}
@@ -216,6 +238,11 @@ export function LobbyHome({
             setShowLeaderboard(true);
           }}
         />
+      )}
+
+      {/* Card Stats Modal */}
+      {showCardStats && (
+        <CardStats onClose={() => setShowCardStats(false)} />
       )}
 
       {/* How to Play Modal */}
