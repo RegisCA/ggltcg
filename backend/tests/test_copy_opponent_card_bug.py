@@ -17,6 +17,7 @@ from game_engine.models.game_state import GameState, Phase
 from game_engine.models.player import Player
 from game_engine.game_engine import GameEngine
 from game_engine.validation.action_validator import ActionValidator
+from game_engine.validation.action_executor import ActionExecutor
 
 
 class TestCopyOpponentCardBug(unittest.TestCase):
@@ -36,6 +37,7 @@ class TestCopyOpponentCardBug(unittest.TestCase):
         
         self.game_engine = GameEngine(self.game_state)
         self.validator = ActionValidator(self.game_engine)
+        self.executor = ActionExecutor(self.game_engine)
     
     def _create_copy_card(self, owner_id):
         """Helper to create a Copy card."""
@@ -159,6 +161,37 @@ class TestCopyOpponentCardBug(unittest.TestCase):
             copy_action.target_options,
             "Copy should NOT include opponent's Ka as a valid target"
         )
+    
+    def test_execute_copy_with_opponent_card_raises_error(self):
+        """
+        Test that attempting to execute Copy with an opponent's card ID raises an error.
+        
+        This tests the security aspect - even if a client tries to bypass validation
+        by sending an opponent's card ID directly to the execution endpoint, it should fail.
+        """
+        # Player 1 has Copy in hand and Knight in play
+        copy_card = self._create_copy_card(self.player1.player_id)
+        self.player1.hand.append(copy_card)
+        self.player1.cc = 10
+        
+        player1_toy = self._create_toy_card("Knight", self.player1.player_id)
+        self.player1.in_play.append(player1_toy)
+        
+        # Player 2 has Ka in play
+        player2_toy = self._create_toy_card("Ka", self.player2.player_id)
+        self.player2.in_play.append(player2_toy)
+        
+        # Try to execute Copy with opponent's card ID (bypassing validation)
+        with self.assertRaises(ValueError) as cm:
+            self.executor.execute_play_card(
+                player_id=self.player1.player_id,
+                card_id=copy_card.id,
+                target_card_id=player2_toy.id  # Opponent's card!
+            )
+        
+        # Verify the error message mentions invalid target
+        self.assertIn("Invalid target", str(cm.exception))
+        self.assertIn(player2_toy.name, str(cm.exception))
 
 
 if __name__ == '__main__':

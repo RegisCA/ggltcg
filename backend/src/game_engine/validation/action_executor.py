@@ -94,6 +94,12 @@ class ActionExecutor:
         # Handle targets
         target_kwargs = self._handle_targets(target_card_id, target_card_ids)
         
+        # Validate targets are actually valid for this card's effect
+        if target_kwargs.get("target") or target_kwargs.get("targets"):
+            validation_error = self._validate_effect_targets(card, player, target_kwargs)
+            if validation_error:
+                raise ValueError(validation_error)
+        
         # Merge kwargs
         kwargs = {**alt_cost_kwargs, **target_kwargs}
         
@@ -446,3 +452,56 @@ class ActionExecutor:
         elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
             return f" (took control of {kwargs['target'].name})"
         return ""
+    
+    def _validate_effect_targets(
+        self,
+        card: Card,
+        player: Player,
+        target_kwargs: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Validate that the provided targets are actually valid for this card's effect.
+        
+        This prevents clients from bypassing target validation by sending arbitrary
+        card IDs that weren't in the valid targets list.
+        
+        Args:
+            card: Card being played
+            player: Player playing the card
+            target_kwargs: Dict containing 'target' and/or 'targets'
+            
+        Returns:
+            Error message if targets are invalid, None if valid
+        """
+        from ..rules.effects.base_effect import PlayEffect
+        from ..rules.effects.effect_registry import EffectRegistry
+        
+        # Get all effects for this card
+        effects = EffectRegistry.get_effects(card)
+        
+        for effect in effects:
+            if isinstance(effect, PlayEffect) and effect.requires_targets():
+                # Get valid targets for this effect
+                valid_targets = effect.get_valid_targets(self.game_state, player)
+                valid_target_ids = {t.id for t in valid_targets}
+                
+                # Check single target
+                if target_kwargs.get("target"):
+                    target = target_kwargs["target"]
+                    if target.id not in valid_target_ids:
+                        return (
+                            f"Invalid target: {target.name} (ID: {target.id}) is not a valid target "
+                            f"for {card.name}. Valid targets: {[t.name for t in valid_targets]}"
+                        )
+                
+                # Check multiple targets
+                if target_kwargs.get("targets"):
+                    for target in target_kwargs["targets"]:
+                        if target.id not in valid_target_ids:
+                            return (
+                                f"Invalid target: {target.name} (ID: {target.id}) is not a valid target "
+                                f"for {card.name}. Valid targets: {[t.name for t in valid_targets]}"
+                            )
+        
+        return None  # All targets are valid
+
