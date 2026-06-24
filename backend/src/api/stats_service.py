@@ -564,6 +564,85 @@ class StatsService:
         finally:
             db.close()
 
+    def get_card_stats_aggregate(self, min_games: int = 1) -> tuple[list[dict], int]:
+        """
+        Aggregate per-card statistics across ALL players.
+
+        Sums each card's games_played / games_won over every player's
+        ``card_stats`` (deck-inclusion counts; one per game per player).
+
+        Args:
+            min_games: Minimum total games played with a card to include it
+
+        Returns:
+            Tuple of (list of card stat dicts sorted by win rate then games
+            played, total_player_games). ``total_player_games`` is the sum of
+            games_played over all players and is the denominator for pick rate.
+        """
+        if not self.use_database:
+            return [], 0
+
+        SessionLocal = _get_session_local()
+        _, _, PlayerStatsModel, _ = _get_models()
+
+        db = SessionLocal()
+        try:
+            all_stats = db.query(PlayerStatsModel).all()
+
+            # Accumulate per-card totals across all players
+            aggregate: dict[str, dict] = {}
+            total_player_games = 0
+            for stats in all_stats:
+                total_player_games += stats.games_played or 0
+                if not stats.card_stats:
+                    continue
+                for card_name, card_data in stats.card_stats.items():
+                    games_played = card_data.get("games_played", 0)
+                    games_won = card_data.get("games_won", 0)
+                    if games_played <= 0:
+                        continue
+                    entry = aggregate.setdefault(
+                        card_name,
+                        {"games_played": 0, "games_won": 0, "player_count": 0},
+                    )
+                    entry["games_played"] += games_played
+                    entry["games_won"] += games_won
+                    entry["player_count"] += 1
+
+            card_list = []
+            for card_name, entry in aggregate.items():
+                games_played = entry["games_played"]
+                games_won = entry["games_won"]
+                if games_played < min_games:
+                    continue
+                win_rate = (games_won / games_played * 100) if games_played > 0 else 0.0
+                pick_rate = (
+                    games_played / total_player_games * 100
+                    if total_player_games > 0 else 0.0
+                )
+                card_list.append({
+                    "card_name": card_name,
+                    "games_played": games_played,
+                    "games_won": games_won,
+                    "games_lost": games_played - games_won,
+                    "win_rate": win_rate,
+                    "pick_rate": pick_rate,
+                    "player_count": entry["player_count"],
+                })
+
+            # Sort by win rate (descending), then by games played (descending)
+            card_list.sort(
+                key=lambda c: (c["win_rate"], c["games_played"]),
+                reverse=True,
+            )
+
+            return card_list, total_player_games
+        except Exception as e:
+            logger.error(f"Failed to get card stats aggregate: {e}")
+            return [], 0
+        finally:
+            db.close()
+
 
 # Global singleton instance
 _stats_service: Optional[StatsService] = None

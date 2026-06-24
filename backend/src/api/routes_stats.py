@@ -12,6 +12,8 @@ from api.schemas import (
     LeaderboardResponse,
     LeaderboardEntry,
     CardStatsResponse,
+    CardAggregateEntry,
+    CardAggregateResponse,
 )
 from api.stats_service import get_stats_service
 
@@ -156,4 +158,48 @@ async def get_card_leaderboard(
         total_players=len(entries),
         min_games_required=min_games,
         card_name=card_name,
+    )
+
+
+# ============================================================================
+# Card Aggregate Stats Endpoint
+# ============================================================================
+
+
+@router.get("/cards", response_model=CardAggregateResponse)
+async def get_card_stats(
+    limit: int = Query(default=50, ge=1, le=200, description="Number of cards to return"),
+    min_games: int = Query(default=1, ge=1, le=100, description="Minimum games with card to qualify"),
+) -> CardAggregateResponse:
+    """
+    Get per-card statistics aggregated across all players.
+
+    - **limit**: Maximum number of cards to return (default: 50)
+    - **min_games**: Minimum games a card was picked to appear (default: 1)
+
+    Returns cards sorted by win rate (descending), then by games played. Note
+    that usage reflects deck inclusion (counted once per game per player), not
+    in-game plays.
+    """
+    stats_service = get_stats_service()
+    cards, total_games = stats_service.get_card_stats_aggregate(min_games=min_games)
+
+    entries = []
+    for rank, card in enumerate(cards[:limit], start=1):
+        entries.append(CardAggregateEntry(
+            rank=rank,
+            card_name=card["card_name"],
+            games_played=card["games_played"],
+            games_won=card["games_won"],
+            games_lost=card["games_lost"],
+            win_rate=round(card["win_rate"], 1),
+            pick_rate=round(card["pick_rate"], 1),
+            player_count=card["player_count"],
+        ))
+
+    return CardAggregateResponse(
+        entries=entries,
+        total_cards=len(entries),
+        total_games=total_games,
+        min_games_required=min_games,
     )

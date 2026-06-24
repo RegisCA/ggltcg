@@ -172,3 +172,21 @@ export interface LeaderboardResponse {
   min_games_required: number;
   card_name?: string;
 }
+
+export interface CardAggregateEntry {
+  rank: number;
+  card_name: string;
+  games_played: number;
+  games_won: number;
+  games_lost: number;
+  win_rate: number;
+  pick_rate: number;
+  player_count: number;
+}
+
+export interface CardAggregateResponse {
+  entries: CardAggregateEntry[];
+  total_cards: number;
+  total_games: number;
+  min_games_required: number;
+}

@@ -223,17 +223,195 @@ class TestCardLeaderboardEndpoint:
             assert call_args.kwargs["card_name"] == "Copy of Ka"
 
 
+class TestCardStatsAggregateEndpoint:
+    """Tests for GET /stats/cards"""
+
+    def test_get_card_stats_empty(self):
+        """Test card stats with no data."""
+        with patch('api.routes_stats.get_stats_service') as mock_get_service:
+            mock_service = MagicMock()
+            mock_service.get_card_stats_aggregate.return_value = ([], 0)
+            mock_get_service.return_value = mock_service
+
+            response = client.get("/stats/cards")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["entries"] == []
+            assert data["total_cards"] == 0
+            assert data["total_games"] == 0
+
+    def test_get_card_stats_success(self):
+        """Test successful card stats retrieval, ranked and shaped."""
+        mock_cards = [
+            {
+                "card_name": "Ka", "games_played": 20, "games_won": 16,
+                "games_lost": 4, "win_rate": 80.0, "pick_rate": 50.0,
+                "player_count": 3,
+            },
+            {
+                "card_name": "Knight", "games_played": 10, "games_won": 4,
+                "games_lost": 6, "win_rate": 40.0, "pick_rate": 25.0,
+                "player_count": 2,
+            },
+        ]
+
+        with patch('api.routes_stats.get_stats_service') as mock_get_service:
+            mock_service = MagicMock()
+            mock_service.get_card_stats_aggregate.return_value = (mock_cards, 40)
+            mock_get_service.return_value = mock_service
+
+            response = client.get("/stats/cards")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total_cards"] == 2
+            assert data["total_games"] == 40
+            assert data["entries"][0]["rank"] == 1
+            assert data["entries"][0]["card_name"] == "Ka"
+            assert data["entries"][0]["games_lost"] == 4
+            assert data["entries"][0]["pick_rate"] == 50.0
+            assert data["entries"][0]["player_count"] == 3
+            assert data["entries"][1]["rank"] == 2
+
+    def test_get_card_stats_with_params(self):
+        """Test card stats passes min_games to the service."""
+        with patch('api.routes_stats.get_stats_service') as mock_get_service:
+            mock_service = MagicMock()
+            mock_service.get_card_stats_aggregate.return_value = ([], 0)
+            mock_get_service.return_value = mock_service
+
+            response = client.get("/stats/cards?limit=10&min_games=5")
+
+            assert response.status_code == 200
+            assert response.json()["min_games_required"] == 5
+            mock_service.get_card_stats_aggregate.assert_called_once_with(min_games=5)
+
+    def test_get_card_stats_limit_validation(self):
+        """Test that limit parameter is validated."""
+        assert client.get("/stats/cards?limit=201").status_code == 422
+        assert client.get("/stats/cards?limit=0").status_code == 422
+
+
 class TestStatsServiceIntegration:
     """Tests for StatsService card leaderboard method."""
-    
+
     def test_get_card_leaderboard_no_db(self):
         """Test card leaderboard returns empty without database."""
         from api.stats_service import StatsService
-        
+
         service = StatsService(use_database=False)
         result = service.get_card_leaderboard("Ka", limit=10, min_games=3)
-        
+
         assert result == []
+
+    def test_get_card_stats_aggregate_no_db(self):
+        """Test card stats aggregate returns empty without database."""
+        from api.stats_service import StatsService
+
+        service = StatsService(use_database=False)
+        result = service.get_card_stats_aggregate(min_games=1)
+
+        assert result == ([], 0)
+
+    def test_get_card_stats_aggregate_sums_across_players(self):
+        """Test aggregation sums per-card stats across all players (real DB)."""
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        from api.db_models import Base, PlayerStatsModel
+        from api.stats_service import StatsService
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(bind=engine)
+        TestSession = sessionmaker(bind=engine)
+
+        # Two players both used Ka; only player1 used Knight
+        seed = TestSession()
+        seed.add_all([
+            PlayerStatsModel(
+                player_id="p1", display_name="Alice",
+                games_played=10, games_won=6,
+                total_tussles=0, tussles_won=0,
+                card_stats={
+                    "Ka": {"games_played": 8, "games_won": 5},
+                    "Knight": {"games_played": 4, "games_won": 1},
+                },
+            ),
+            PlayerStatsModel(
+                player_id="p2", display_name="Bob",
+                games_played=6, games_won=2,
+                total_tussles=0, tussles_won=0,
+                card_stats={
+                    "Ka": {"games_played": 6, "games_won": 3},
+                },
+            ),
+        ])
+        seed.commit()
+        seed.close()
+
+        service = StatsService(use_database=True)
+        with patch('api.stats_service._get_session_local', return_value=TestSession):
+            cards, total_games = service.get_card_stats_aggregate(min_games=1)
+
+        assert total_games == 16  # 10 + 6
+        by_name = {c["card_name"]: c for c in cards}
+
+        ka = by_name["Ka"]
+        assert ka["games_played"] == 14  # 8 + 6
+        assert ka["games_won"] == 8       # 5 + 3
+        assert ka["games_lost"] == 6
+        assert ka["player_count"] == 2
+        assert ka["win_rate"] == 8 / 14 * 100
+        assert ka["pick_rate"] == 14 / 16 * 100
+
+        knight = by_name["Knight"]
+        assert knight["games_played"] == 4
+        assert knight["player_count"] == 1
+
+        # Sorted by win rate descending: Ka (57%) before Knight (25%)
+        assert [c["card_name"] for c in cards] == ["Ka", "Knight"]
+
+    def test_get_card_stats_aggregate_min_games_filter(self):
+        """Test that min_games filters out rarely-picked cards (real DB)."""
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        from api.db_models import Base, PlayerStatsModel
+        from api.stats_service import StatsService
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(bind=engine)
+        TestSession = sessionmaker(bind=engine)
+
+        seed = TestSession()
+        seed.add(PlayerStatsModel(
+            player_id="p1", display_name="Alice",
+            games_played=5, games_won=3,
+            total_tussles=0, tussles_won=0,
+            card_stats={
+                "Ka": {"games_played": 5, "games_won": 3},
+                "Rush": {"games_played": 1, "games_won": 0},
+            },
+        ))
+        seed.commit()
+        seed.close()
+
+        service = StatsService(use_database=True)
+        with patch('api.stats_service._get_session_local', return_value=TestSession):
+            cards, _ = service.get_card_stats_aggregate(min_games=3)
+
+        assert [c["card_name"] for c in cards] == ["Ka"]
     
     def test_get_leaderboard_with_min_games_no_db(self):
         """Test leaderboard with min_games param without database."""
