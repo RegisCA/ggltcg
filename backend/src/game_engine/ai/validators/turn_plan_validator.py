@@ -51,6 +51,7 @@ class CCBudgetValidator:
     CC_GAIN_ON_PLAY = {
         "Surge": 1,
         "Rush": 2,
+        "Cake": 5,
     }
 
     # Canonical CC cost for non-play_card actions (fixed by game rules).

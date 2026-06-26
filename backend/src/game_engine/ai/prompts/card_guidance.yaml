@@ -167,6 +167,26 @@ That was fun:
   reminder: "0 CC. Great for rebuying Rush/Clean/Twist. Must specify target_ids"
   threat: "LOW"
 
+MaBookBook:
+  trap: "Mirror of Dream - costs 1 MORE per card in YOUR sleep zone. Can become unaffordable late game"
+  reminder: "Play EARLY before your sleep zone fills up. Don't hold it hoping for a better moment"
+  threat: "MEDIUM"
+
+Plane Plus:
+  trap: "Tussles cost 1 CC (not 2) AND bypasses blockers for direct attack - strong combo card"
+  reminder: "Cheap tussles + guaranteed direct attack access. Prioritize using both abilities each turn"
+  threat: "HIGH"
+
+Bubble Blocker:
+  trap: "Blocks ALL opponent effects on your toys (Drop, Clean, Twist, etc.) - same as Sock Sorcerer, cheaper and weaker stats"
+  reminder: "Can still be tussled. Only blocks targeted/team effects, not combat"
+  threat: "MEDIUM"
+
+Cake:
+  trap: "Same as Rush's CC gain but no turn restriction - costs 3 CC, nets only +2 CC overall"
+  reminder: "Worse CC efficiency than Rush. Only play if you specifically need it on turn 1 (Rush can't be played then)"
+  threat: "LOW"
+
 Toynado:
   trap: "Returns EVERY card in play (both sides) to hand — including your own board!"
   reminder: "Use when behind on board or to undo an opponent's Twist steal. No target needed"

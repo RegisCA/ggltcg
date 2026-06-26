@@ -72,6 +72,9 @@ class EffectFactory:
             elif effect_type == "reduce_cost_by_sleeping":
                 effect = cls._parse_reduce_cost_by_sleeping(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "self_cost_increase_by_sleeping":
+                effect = cls._parse_self_cost_increase_by_sleeping(parts, source_card)
+                effects.append(effect)
             elif effect_type == "gain_cc_when_sleeped":
                 effect = cls._parse_gain_cc_when_sleeped(parts, source_card)
                 effects.append(effect)
@@ -384,7 +387,35 @@ class EffectFactory:
         # Import here to avoid circular dependency
         from .continuous_effects import ReduceCostBySleepingEffect
         return ReduceCostBySleepingEffect(source_card)
-    
+
+    @classmethod
+    def _parse_self_cost_increase_by_sleeping(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse a self_cost_increase_by_sleeping effect definition.
+
+        Format: "self_cost_increase_by_sleeping"
+        No parameters - increases cost by 1 per sleeping card.
+
+        Args:
+            parts: Split effect definition parts
+            source_card: The card providing this effect
+
+        Returns:
+            SelfCostIncreaseBySleepingEffect instance
+
+        Raises:
+            ValueError: If format is invalid
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"self_cost_increase_by_sleeping effect takes no parameters. "
+                f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
+            )
+
+        # Import here to avoid circular dependency
+        from .continuous_effects import SelfCostIncreaseBySleepingEffect
+        return SelfCostIncreaseBySleepingEffect(source_card)
+
     @classmethod
     def _parse_gain_cc_when_sleeped(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
