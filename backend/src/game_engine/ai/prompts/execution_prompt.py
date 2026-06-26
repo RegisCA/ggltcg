@@ -249,7 +249,7 @@ def find_matching_action_index(
         # Match tussle - by IDs first (both attacker and target), then by names
         if action_type == "tussle":
             # Try attacker ID match (most reliable for disambiguation)
-            if card_id and hasattr(action, 'card_id') and action.card_id == card_id:
+            if action.action_type == "tussle" and card_id and hasattr(action, 'card_id') and action.card_id == card_id:
                 # Also check target matches if we have target_ids
                 if target_ids and hasattr(action, 'target_options') and action.target_options:
                     if target_ids[0] in action.target_options:
@@ -261,9 +261,23 @@ def find_matching_action_index(
             # Fallback: LLM sometimes puts the target's ID in card_id instead of
             # target_ids (a common prompt-following error). If card_id appears in
             # a tussle action's target_options, treat it as a target match.
-            if card_id and hasattr(action, 'target_options') and action.target_options:
-                if card_id in action.target_options:
-                    return i
+            #
+            # MUST be gated on action.action_type == "tussle": without it, this
+            # silently matched any action with a target_options list that happened
+            # to contain the planned attacker's id - e.g. a play_card Jumpscare
+            # entry, since Jumpscare's targets are "any card in play" and the
+            # attacker had just been played. That produced a clean heuristic
+            # "success" while executing a completely different action (see
+            # production incident: planned tussle Beary->Dino silently became
+            # "play Jumpscare").
+            if (
+                action.action_type == "tussle"
+                and card_id
+                and hasattr(action, 'target_options')
+                and action.target_options
+                and card_id in action.target_options
+            ):
+                return i
             
             # Fall back to name match (legacy compatibility)
             if card_name and "tussle" in desc_lower and card_name.lower() in desc_lower:
