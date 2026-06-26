@@ -299,6 +299,35 @@ class LLMPlayer:
         logger.debug("Structured output: %s", response_text)
         return response_text
     
+    def _filter_to_valid_targets(
+        self,
+        requested_ids: Optional[List[str]],
+        valid_options: Optional[List[str]],
+    ) -> List[str]:
+        """
+        Drop any AI-requested target IDs that aren't in the validated option list.
+
+        The LLM picks an action by number from a menu whose target_options is
+        already restricted to legal targets (e.g. Copy can only ever list the
+        player's own cards), but the model's free-form JSON can still name a
+        different ID it saw elsewhere in the prompt (e.g. an opponent's card).
+        Without this check that hallucinated ID would be sent straight to the
+        API, where it's rejected and the AI's turn is wasted instead of
+        silently falling back to a legal target.
+        """
+        if not requested_ids or not valid_options:
+            return requested_ids or []
+
+        valid_set = set(valid_options)
+        filtered = [t for t in requested_ids if t in valid_set]
+        if filtered != requested_ids:
+            logger.warning(
+                f"AI selected target(s) outside the valid option list (likely "
+                f"hallucination); dropping invalid ones. Requested: {requested_ids}, "
+                f"valid: {valid_options}, kept: {filtered}"
+            )
+        return filtered
+
     def get_action_details(
         self,
         selected_action: ValidAction
@@ -306,28 +335,30 @@ class LLMPlayer:
         """
         Convert a ValidAction into the request parameters needed for the API.
         Uses target_id and alternative_cost_id from the last LLM response.
-        
+
         Args:
             selected_action: The action selected by the AI
-            
+
         Returns:
             Dictionary with request parameters for the API endpoint
         """
         result: Dict[str, Any] = {}
-        
+
         if selected_action.action_type == "play_card":
             result["action_type"] = "play_card"
             result["card_id"] = selected_action.card_id
-            
+
             # v2.0: Handle target selection with target_ids (array) for multi-target support
             # This enables Sun card to select 2 targets
-            if self._last_target_ids:
-                result["target_ids"] = self._last_target_ids
-                logger.debug(f"Using AI-selected targets ({len(self._last_target_ids)}): {self._last_target_ids}")
+            valid_ids = self._filter_to_valid_targets(self._last_target_ids, selected_action.target_options)
+            if valid_ids:
+                result["target_ids"] = valid_ids
+                logger.debug(f"Using AI-selected targets ({len(valid_ids)}): {valid_ids}")
             elif selected_action.target_options:
-                # Fallback: Use first available target if AI didn't specify
+                # Fallback: Use first available target if AI didn't specify (or specified
+                # only invalid ones)
                 result["target_ids"] = [selected_action.target_options[0]]
-                logger.warning(f"AI didn't specify target, using first option: {result['target_ids']}")
+                logger.warning(f"AI didn't specify a valid target, using first option: {result['target_ids']}")
             
             # Handle alternative cost (for Ballaber)
             if self._last_alternative_cost_id:
@@ -343,16 +374,17 @@ class LLMPlayer:
             result["attacker_id"] = selected_action.card_id
             
             # Handle target selection for tussles (still single target)
-            if self._last_target_ids and len(self._last_target_ids) > 0:
-                result["defender_id"] = self._last_target_ids[0]  # Use first target for tussle
-                logger.debug(f"Using AI-selected tussle target: {self._last_target_ids[0]}")
+            valid_defender_ids = self._filter_to_valid_targets(self._last_target_ids, selected_action.target_options)
+            if valid_defender_ids:
+                result["defender_id"] = valid_defender_ids[0]  # Use first target for tussle
+                logger.debug(f"Using AI-selected tussle target: {valid_defender_ids[0]}")
             elif selected_action.target_options:
                 # Check if this is a direct attack or targeted tussle
                 if selected_action.target_options[0] == "direct_attack":
                     result["defender_id"] = None  # Direct attack
                 else:
                     result["defender_id"] = selected_action.target_options[0]
-                    logger.warning(f"AI didn't specify tussle target, using first option: {result['defender_id']}")
+                    logger.warning(f"AI didn't specify a valid tussle target, using first option: {result['defender_id']}")
             else:
                 result["defender_id"] = None  # Direct attack
         
@@ -362,13 +394,15 @@ class LLMPlayer:
             result["amount"] = 1  # Always use 1 for now (can be repeated)
             
             # Handle target selection for activated abilities (still single target)
-            if self._last_target_ids and len(self._last_target_ids) > 0:
-                result["target_id"] = self._last_target_ids[0]  # Use first target for ability
-                logger.debug(f"Using AI-selected ability target: {self._last_target_ids[0]}")
+            valid_ability_target_ids = self._filter_to_valid_targets(self._last_target_ids, selected_action.target_options)
+            if valid_ability_target_ids:
+                result["target_id"] = valid_ability_target_ids[0]  # Use first target for ability
+                logger.debug(f"Using AI-selected ability target: {valid_ability_target_ids[0]}")
             elif selected_action.target_options:
-                # Fallback: Use first available target if AI didn't specify
+                # Fallback: Use first available target if AI didn't specify (or specified
+                # only invalid ones)
                 result["target_id"] = selected_action.target_options[0]
-                logger.warning(f"AI didn't specify ability target, using first option: {result['target_id']}")
+                logger.warning(f"AI didn't specify a valid ability target, using first option: {result['target_id']}")
         
         elif selected_action.action_type == "end_turn":
             result["action_type"] = "end_turn"

@@ -85,20 +85,21 @@ class ActionExecutor:
         card = next((c for c in player.hand if c.id == card_id), None)
         if card is None:
             raise ValueError(f"Card with ID '{card_id}' not found in hand")
-        
-        # Handle alternative cost and calculate cost
-        alt_cost_kwargs, cost = self._handle_alternative_cost(
-            card, alternative_cost_card_id, player
-        )
-        
-        # Handle targets
+
+        # Handle targets first - cost for variable-cost cards (Copy, Glue, Stomp)
+        # depends on the chosen target, so it must be resolved before cost is calculated
         target_kwargs = self._handle_targets(target_card_id, target_card_ids)
-        
+
         # Validate targets are actually valid for this card's effect
         if target_kwargs.get("target") or target_kwargs.get("targets"):
             validation_error = self._validate_effect_targets(card, player, target_kwargs)
             if validation_error:
                 raise ValueError(validation_error)
+
+        # Handle alternative cost and calculate cost
+        alt_cost_kwargs, cost = self._handle_alternative_cost(
+            card, alternative_cost_card_id, player, target_id=target_kwargs.get("target_id")
+        )
         
         # Merge kwargs
         kwargs = {**alt_cost_kwargs, **target_kwargs}
@@ -243,16 +244,22 @@ class ActionExecutor:
         self,
         card: Card,
         alternative_cost_card_id: Optional[str],
-        player: Player
+        player: Player,
+        target_id: Optional[str] = None
     ) -> tuple[Dict[str, Any], int]:
         """
         Handle alternative cost for cards like Ballaber.
-        
+
+        Args:
+            target_id: The card's already-resolved target (if any), used so
+                variable-cost cards (Copy, Glue, Stomp) report the cost of the
+                actual chosen target rather than a conservative estimate.
+
         Returns:
             tuple: (kwargs dict with alternative cost info, effective cost)
         """
         kwargs = {}
-        
+
         if alternative_cost_card_id and card.has_effect_type(BallaberCostEffect):
             # Find card to sleep (can be in hand or play)
             card_to_sleep = next(
@@ -272,9 +279,9 @@ class ActionExecutor:
             kwargs["alternative_cost_card"] = card_to_sleep.name
             cost = 0
         else:
-            # Calculate normal cost
-            cost = self.engine.calculate_card_cost(card, player)
-        
+            # Calculate normal cost, using the resolved target for variable-cost cards
+            cost = self.engine.calculate_card_cost(card, player, target_id=target_id)
+
         return kwargs, cost
     
     def _handle_targets(

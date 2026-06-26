@@ -32,3 +32,6 @@ Monster,18,2,"When played, set all cards' stamina to 1, if they naturally have 1
 Car,18,0,No effect.,7,2,2,,,#CC5500,#CC5500,
 Dino,18,0,No effect.,3,7,1,,,#CC5500,#CC5500,
 Block,18,0,No effect.,2,3,5,,,#CC5500,#CC5500,
+Clone,18,2,This card acts as an exact copy of a card you have in play.,,,,,,#FFB6C1,#FFB6C1,copy_card
+Glue,18,-1,You may fix 1 of your cards.,,,,,,#FFB6C1,#FFB6C1,unsleep:1
+Stomp,18,-1,You may sleep a card that is in play.,,,,,,#FFB6C1,#FFB6C1,sleep_target:1
