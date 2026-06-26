@@ -455,10 +455,9 @@ def _raw_string(path: List[Dict[str, Any]], cc_spent: int, cc_available: int,
     Tussle/ability/play_card targets are rendered via ``card_labels`` (the same
     Y1/O2-style short labels shown in the prompt's board legend) instead of
     raw card-id UUIDs, so the model can actually tell which card a candidate
-    sequence targets. ``card_labels`` only covers hand/in_play (see
-    build_card_labels); a play_card target sitting in a sleep zone (Wake/Sun/
-    Glue/"That was fun" recursion) has no label and falls back to its raw id,
-    same as before this labeling existed.
+    sequence targets. ``card_labels`` covers the AI's own hand/in_play/
+    sleep_zone and the opponent's in_play (see build_card_labels), so this
+    also resolves Wake/Sun/Glue/"That was fun" recursion targets correctly.
     """
     parts = []
     for step in path:

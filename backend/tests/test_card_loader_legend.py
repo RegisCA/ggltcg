@@ -1,18 +1,21 @@
 """
 Board-state legend / short-label resolution (issue #338).
 
-Pins three things:
+Pins four things:
 1. build_card_labels/format_board_legend (card_loader.py) produce the
-   expected Y1/O2-style label scheme over the AI's own hand+in_play and the
-   opponent's in_play only.
+   expected Y1/O2-style label scheme over the AI's own hand+in_play+
+   sleep_zone and the opponent's in_play only.
 2. The opponent's HAND is never labeled or shown - this game does not reveal
    hand contents to the opponent (see get_relevant_card_names, which scopes
    card_guidance lookups the same way), and a board legend must not leak it.
-3. The enumerator's raw_string (which independently calls build_card_labels
-   on the same root game_state) resolves tussle/ability targets to the exact
-   same labels the legend would show for that card - the whole point of the
-   change is that a label in a candidate sequence is resolvable via the
-   legend in the same prompt.
+3. The AI's own sleep zone IS labeled and shown - it's the AI's own zone (not
+   hidden information), and recursion cards (Wake/Sun/Glue/"That was fun")
+   target it, so the model needs to see what's actually recoverable.
+4. The enumerator's raw_string (which independently calls build_card_labels
+   on the same root game_state) resolves tussle/ability/recursion targets to
+   the exact same labels the legend would show for that card - the whole
+   point of the change is that a label in a candidate sequence is resolvable
+   against the legend in the same prompt.
 """
 
 from conftest import create_game_with_cards
@@ -101,6 +104,82 @@ def test_format_board_legend_excludes_opponent_hand():
     assert "OPP hand" not in legend
     assert "Ka" not in legend
     assert "Wizard" not in legend
+
+
+def test_build_card_labels_includes_own_sleep_zone():
+    """The AI's own sleep zone is visible information (not hidden, unlike the
+    opponent's hand) and recursion cards target it, so it must be labeled."""
+    setup, _ = create_game_with_cards(
+        player1_hand=["Wake"],
+        player1_in_play=[],
+        player1_sleep=["Knight", "Ka"],
+        player2_hand=[],
+        player2_in_play=["Paper Plane"],
+        player1_cc=3,
+        player2_cc=0,
+        active_player="player1",
+        turn_number=3,
+    )
+    gs = setup.game_state
+    labels = build_card_labels(gs, "player1")
+
+    p1 = gs.players["player1"]
+    wake = next(c for c in p1.hand if c.name == "Wake")
+    knight = next(c for c in p1.sleep_zone if c.name == "Knight")
+    ka = next(c for c in p1.sleep_zone if c.name == "Ka")
+
+    assert labels[wake.id] == "Y1"
+    # Sleep zone continues the same Y-sequence after hand/in_play.
+    assert labels[knight.id] == "Y2"
+    assert labels[ka.id] == "Y3"
+
+
+def test_format_board_legend_shows_own_sleep_zone_contents():
+    setup, _ = create_game_with_cards(
+        player1_hand=["Wake"],
+        player1_in_play=[],
+        player1_sleep=["Knight", "Ka"],
+        player2_hand=[],
+        player2_in_play=["Paper Plane"],
+        player1_cc=3,
+        player2_cc=0,
+        active_player="player1",
+        turn_number=3,
+    )
+    legend = format_board_legend(setup.game_state, "player1", setup.engine)
+
+    assert "YOU sleep_zone" in legend
+    knight_line = next(line for line in legend.splitlines() if "sleep_zone" in line and "Knight" in line)
+    assert "Y2" in knight_line
+    assert "STA]" in knight_line  # Toy stats still shown for a sleeping card
+
+
+def test_enumerator_wake_target_uses_sleep_zone_label():
+    """Wake's target (a card in the AI's own sleep zone) must resolve to a
+    label, not a raw UUID - this is exactly the case Wake/Sun/Glue/"That was
+    fun" need in order to be reasoned about at all."""
+    setup, _ = create_game_with_cards(
+        player1_hand=["Wake"],
+        player1_in_play=[],
+        player1_sleep=["Knight", "Ka"],
+        player2_hand=[],
+        player2_in_play=["Paper Plane"],
+        player1_cc=3,
+        player2_cc=0,
+        active_player="player1",
+        turn_number=3,
+    )
+    gs = setup.game_state
+    sequences = enumerate_sequences(gs, "player1")
+    labels = build_card_labels(gs, "player1")
+
+    knight = next(c for c in gs.players["player1"].sleep_zone if c.name == "Knight")
+    expected_label = labels[knight.id]
+
+    wake_knight_seqs = [s for s in sequences if f"play Wake->{expected_label}" in s["raw_string"]]
+    assert wake_knight_seqs, f"Expected a Wake->{expected_label} sequence, got: {[s['raw_string'] for s in sequences]}"
+    for seq in wake_knight_seqs:
+        assert knight.id not in seq["raw_string"]
 
 
 def test_format_board_legend_in_play_stats_reflect_continuous_effects():

@@ -48,6 +48,12 @@ Every sequence shown to you already passed legality validation - your job is pur
 
 Respond with only the JSON object the schema requires - no prose outside it."""
 
+# Cards named explicitly by STRATEGIC_SELECTOR_SYSTEM_INSTRUCTION above (Knight's
+# auto-win, Raggy/Wizard's tussle-cost overrides). Excluded from the <card_guidance>
+# block below so the model isn't told the same mechanic twice - once generically in
+# the system framing, once again as a per-card bullet pulled from card_guidance.yaml.
+_CARDS_COVERED_BY_SYSTEM_INSTRUCTION = {"Knight", "Raggy", "Wizard"}
+
 
 def get_strategic_selector_system_instruction() -> str:
     """Return the Request-2-specific system_instruction (see module docstring above)."""
@@ -119,7 +125,9 @@ def generate_strategic_prompt(
     )
 
     legend_text = format_board_legend(game_state, player_id, game_engine)
-    guidance_text = format_card_guidance_compact(game_state, player_id)
+    guidance_text = format_card_guidance_compact(
+        game_state, player_id, exclude_names=_CARDS_COVERED_BY_SYSTEM_INSTRUCTION
+    )
 
     # Count opponent cards
     opp_remaining = len(opponent.hand) + len(opponent.in_play)
