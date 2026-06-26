@@ -114,27 +114,19 @@ def generate_threat_priorities(game_state: "GameState", player_id: str) -> str:
     return "\n".join(lines)
 
 
-def get_relevant_card_guidance(
-    game_state: "GameState", player_id: str, exclude_names: Optional[Set[str]] = None
-) -> str:
+def get_relevant_card_guidance(game_state: "GameState", player_id: str) -> str:
     """
     Get formatted card guidance for cards relevant to current game state.
 
     Args:
         game_state: Current game state
         player_id: AI player's ID
-        exclude_names: Card names to omit even if relevant and guidance exists -
-            for callers (e.g. the Request 2 strategic-selector prompt) whose
-            own system framing already explains that card's mechanic by name,
-            where a per-card bullet would just repeat it.
 
     Returns:
         Formatted string with card guidance (empty if no relevant cards)
     """
     guidance_data = load_card_guidance()
     relevant_names = get_relevant_card_names(game_state, player_id)
-    if exclude_names:
-        relevant_names -= exclude_names
 
     # Filter to only cards with guidance entries
     relevant_with_guidance = relevant_names & guidance_data.keys()
@@ -165,9 +157,7 @@ def get_relevant_card_guidance(
     return "\n".join(lines)
 
 
-def format_card_guidance_compact(
-    game_state: "GameState", player_id: str, exclude_names: Optional[Set[str]] = None
-) -> str:
+def format_card_guidance_compact(game_state: "GameState", player_id: str) -> str:
     """
     Format card guidance in ultra-compact format for minimal token usage.
 
@@ -176,12 +166,11 @@ def format_card_guidance_compact(
     Args:
         game_state: Current game state
         player_id: AI player's ID
-        exclude_names: See get_relevant_card_guidance.
 
     Returns:
         Compact formatted guidance string
     """
-    guidance_text = get_relevant_card_guidance(game_state, player_id, exclude_names)
+    guidance_text = get_relevant_card_guidance(game_state, player_id)
 
     if not guidance_text:
         return "# CARD-SPECIFIC GUIDANCE\nNo special guidance needed for cards in current game."

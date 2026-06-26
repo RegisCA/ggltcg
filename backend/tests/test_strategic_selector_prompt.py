@@ -49,8 +49,15 @@ def test_prompt_includes_board_legend_and_card_guidance():
     assert "Wizard" not in prompt
 
     assert "<card_guidance>" in prompt
-    # Surge has a card_guidance.yaml entry not covered by the system_instruction.
+    # Surge has a card_guidance.yaml entry.
     assert "Surge" in prompt
+    # Knight is in play and has a card_guidance.yaml entry ("CRITICAL" threat,
+    # auto-win quirk) - the system_instruction must not hardcode this by name
+    # (see test_system_instruction_has_no_card_specific_knowledge below), so
+    # card_guidance.yaml is the only place this information can come from.
+    import re
+    guidance_block = re.search(r"<card_guidance>(.*?)</card_guidance>", prompt, re.S).group(1)
+    assert "Knight" in guidance_block
 
     # Candidate sequences should reference labels, not raw UUIDs, for any tussle target.
     for seq in sequences:
@@ -59,34 +66,19 @@ def test_prompt_includes_board_legend_and_card_guidance():
             assert "tussle Knight->O1" in raw
 
 
-def test_card_guidance_omits_cards_already_named_by_system_instruction():
-    """Knight/Raggy/Wizard's mechanics are explicitly named in
-    STRATEGIC_SELECTOR_SYSTEM_INSTRUCTION (Knight's auto-win, Raggy/Wizard's
-    tussle-cost overrides) - their card_guidance.yaml bullets would just repeat
-    that, so the <card_guidance> block must exclude them even when they're on
-    the board. They may still appear elsewhere in the prompt (the legend,
-    valid_sequences) - only the per-card guidance bullet is suppressed."""
-    setup, _ = create_game_with_cards(
-        player1_hand=[],
-        player1_in_play=["Knight"],
-        player2_hand=[],
-        player2_in_play=["Wizard"],
-        player1_cc=5,
-        player2_cc=0,
-        active_player="player1",
-        turn_number=3,
-    )
-    sequences = _build_sequences(setup, "player1")
-    prompt = generate_strategic_prompt(setup.game_state, "player1", sequences, setup.engine)
+def test_system_instruction_has_no_card_specific_knowledge():
+    """The system_instruction is supposed to be generic framing - per-card quirks
+    (Knight's auto-win, Raggy's free tussles, Wizard's 1cc tussles, etc.) belong
+    only in card_guidance.yaml, which is dynamically filtered to cards actually
+    in the current game. Hardcoding a specific card's name here would duplicate
+    that data-driven source and go stale as cards are added/changed."""
+    instruction = get_strategic_selector_system_instruction()
 
-    import re
-    guidance_block = re.search(r"<card_guidance>(.*?)</card_guidance>", prompt, re.S).group(1)
-
-    assert "Knight" not in guidance_block
-    assert "Wizard" not in guidance_block
-    # Knight/Wizard still appear in the legend - just not duplicated as guidance bullets.
-    assert "Knight" in prompt
-    assert "Wizard" in prompt
+    for card_name in ("Knight", "Raggy", "Wizard", "Ka", "Archer", "Gibbers"):
+        assert card_name not in instruction, (
+            f"system_instruction must not name specific cards like {card_name!r} - "
+            "that knowledge belongs in card_guidance.yaml"
+        )
 
 
 def test_prompt_works_without_game_engine():
