@@ -33,7 +33,7 @@ Knight:
 Gibbers:
   trap: "While in opponent's play: YOUR cards cost +1 CC"
   reminder: "Remove FIRST to restore normal costs. Priority target!"
-  threat: "HIGH"
+  threat: "CRITICAL"
 
 Umbruh:
   trap: "Gives controller +1 CC when sleeped. Still worth sleeping if efficient"
@@ -43,27 +43,27 @@ Umbruh:
 Belchaletta:
   trap: "Gives controller +2 CC each turn. Long-term value"
   reminder: "Remove early or opponent snowballs CC advantage"
-  threat: "HIGH"
+  threat: "MEDIUM"
 
 Hind Leg Kicker:
   trap: "Play FIRST to gain +1 CC when playing other cards"
   reminder: "Maximize value by playing other cards after"
-  threat: "MEDIUM"
+  threat: "HIGH"
 
 Sock Sorcerer:
   trap: "Blocks ALL opponent effects on your toys (Drop, Clean, Twist, etc.)"
   reminder: "Can still be tussled. Only blocks targeted effects"
-  threat: "CRITICAL"
+  threat: "MEDIUM"
 
 Dream:
   trap: "Costs 1 less per card in YOUR sleep zone. Can be 0 CC!"
   reminder: "Play actions first to fill sleep zone, then play Dream cheap"
-  threat: "MEDIUM"
+  threat: "HIGH"
 
 Beary:
   trap: "Immune to opponent Action cards. NOT immune to tussles"
   reminder: "High speed (5). Must remove via tussle"
-  threat: "HIGH"
+  threat: "MEDIUM"
 
 Monster:
   trap: "Sets ALL toys' STA to 1 (yours too!). Sleeps 1-STA toys (Gibbers)"
@@ -78,7 +78,22 @@ Ka:
 Violin:
   trap: "Gives all toys (including self) +2 STR. Low combat stats"
   reminder: "Support toy. Stacks with Ka for +4 STR total"
-  threat: "MEDIUM"
+  threat: "LOW"
+
+Ballaber:
+  trap: "Alt cost: sleep ANY of your cards instead of paying CC. Don't sleep a card you need!"
+  reminder: "Sleep a card you haven't committed CC to yet, never one already in play"
+  threat: "LOW"
+
+Demideca:
+  trap: "Buffs ALL toys in play +1/+1/+1 stats — including opponent's if they control it"
+  reminder: "If you can't kill the buffed target outright, remove Demideca first"
+  threat: "LOW"
+
+Drum:
+  trap: "Weak stats alone (1/3/2), but +2 SPD to all your toys lets them strike first"
+  reminder: "Pairs well with high-STR attackers that need to land the first hit"
+  threat: "LOW"
 
 # ACTIONS - Strategic Cards
 
@@ -105,7 +120,7 @@ Wake:
 Twist:
   trap: "Requires opponent toy in play. Steals to YOUR side (stays in play)"
   reminder: "3 CC cost. Must specify target_ids. No toys = useless"
-  threat: "LOW"
+  threat: "MEDIUM"
 
 Clean:
   trap: "Sleeps ALL toys CURRENTLY IN PLAY (yours too!). USELESS if no toys in play — spends 3 CC for nothing!"
@@ -114,13 +129,13 @@ Clean:
 
 VeryVeryAppleJuice:
   trap: "Buff expires end of turn! Only play if tussling THIS turn"
-  reminder: "+1/+1/+1 to YOUR toys. Wasted if you don't attack"
+  reminder: "+1/+1/+1 to YOUR toys. Use AFTER playing toys and BEFORE tussling. Wasted if you don't attack"
   threat: "LOW"
 
 Copy:
   trap: "Can ONLY copy YOUR toys, not opponent's!"
   reminder: "Costs = copied toy's cost. Must specify target_ids"
-  threat: "LOW"
+  threat: "MEDIUM"
 
 Sun:
   trap: "Returns 2 cards from sleep to HAND. Must pay to play them"
@@ -141,3 +156,18 @@ Stomp:
   trap: "Cost is NOT fixed - it equals the cost of whichever card in play you sleep, yours or opponent's"
   reminder: "Targeting an expensive opponent toy costs more CC. Must specify target_ids. Respects protection (Beary etc.)"
   threat: "MEDIUM"
+
+Jumpscare:
+  trap: "Returns a card in play to its owner's HAND with NO sleep trigger (Umbruh won't fire)"
+  reminder: "0 CC. Can bounce your own card to replay it later. Must specify target_ids"
+  threat: "LOW"
+
+That was fun:
+  trap: "Only returns ACTION cards from YOUR sleep zone — cannot recur Toys"
+  reminder: "0 CC. Great for rebuying Rush/Clean/Twist. Must specify target_ids"
+  threat: "LOW"
+
+Toynado:
+  trap: "Returns EVERY card in play (both sides) to hand — including your own board!"
+  reminder: "Use when behind on board or to undo an opponent's Twist steal. No target needed"
+  threat: "LOW"

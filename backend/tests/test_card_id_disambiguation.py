@@ -302,6 +302,101 @@ class TestHeuristicMatcherWithIDs:
             "Should match the tussle action whose target_options contain the confused card_id"
         )
 
+    def test_tussle_fallback_does_not_match_non_tussle_action(self):
+        """
+        Regression for a production incident: a planned "tussle Beary->Dino"
+        was silently executed as "play Jumpscare" instead.
+
+        Jumpscare (play_card) can target any card in play, so its
+        target_options legitimately contains the planned tussle's attacker
+        id (Beary, just played). The card_id-in-target_options fallback
+        branch must only ever match an actual tussle ValidAction - it must
+        not treat an unrelated play_card action as a match just because the
+        attacker's id happens to appear in that action's target list.
+        """
+        beary_id = "beary-uuid"
+        dino_id = "dino-uuid"
+        jumpscare_id = "jumpscare-uuid"
+
+        planned = PlannedAction(
+            action_type="tussle",
+            card_name="Beary",
+            card_id=beary_id,
+            target_ids=[dino_id],
+            cc_cost=2,
+            cc_after=1,
+            reasoning="Tussle Beary into Dino",
+        )
+
+        valid_actions = [
+            # Appears BEFORE the real tussle action - if the type guard is
+            # missing, the loop returns this index first.
+            ValidAction(
+                action_type="play_card",
+                card_id=jumpscare_id,
+                card_name="Jumpscare",
+                target_options=[beary_id, dino_id],  # any card in play
+                cost_cc=0,
+                description="Play Jumpscare (Cost: 0 CC)",
+            ),
+            ValidAction(
+                action_type="tussle",
+                card_id=beary_id,
+                card_name="Beary",
+                target_options=[dino_id],
+                cost_cc=2,
+                description="Beary tussle Dino (Cost: 2 CC)",
+            ),
+            ValidAction(
+                action_type="end_turn",
+                description="End turn",
+            ),
+        ]
+
+        index = find_matching_action_index(planned, valid_actions)
+
+        assert index == 1, (
+            "Must match the real tussle action, not the play_card action whose "
+            "target_options happens to contain the attacker's id"
+        )
+        assert valid_actions[index].action_type == "tussle"
+
+    def test_tussle_returns_none_when_only_non_tussle_action_shares_id(self):
+        """If no real tussle action exists, the matcher must return None (so the
+        caller falls back to availability-check/LLM) rather than mis-selecting
+        an unrelated action that merely shares the attacker's id in its targets."""
+        beary_id = "beary-uuid"
+        dino_id = "dino-uuid"
+
+        planned = PlannedAction(
+            action_type="tussle",
+            card_name="Beary",
+            card_id=beary_id,
+            target_ids=[dino_id],
+            cc_cost=2,
+            cc_after=1,
+            reasoning="Tussle Beary into Dino",
+        )
+
+        valid_actions = [
+            ValidAction(
+                action_type="play_card",
+                card_id="jumpscare-uuid",
+                card_name="Jumpscare",
+                target_options=[beary_id, dino_id],
+                cost_cc=0,
+                description="Play Jumpscare (Cost: 0 CC)",
+            ),
+            ValidAction(
+                action_type="end_turn",
+                description="End turn",
+            ),
+        ]
+
+        index = find_matching_action_index(planned, valid_actions)
+
+        assert index is None
+
 
 class TestIDExtractionFromSequence:
     """Test that IDs flow through the full sequence parsing pipeline."""

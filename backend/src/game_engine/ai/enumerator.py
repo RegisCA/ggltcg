@@ -35,6 +35,8 @@ from game_engine.rules.effects import EffectRegistry
 from game_engine.rules.effects.base_effect import ActivatedEffect
 from game_engine.validation import ActionExecutor, ActionValidator
 
+from .prompts.card_loader import build_card_labels
+
 if TYPE_CHECKING:
     from game_engine.models.game_state import GameState
 
@@ -270,6 +272,13 @@ def enumerate_sequences(
     start_opp_slept = len(game_state.get_opponent(player_id).sleep_zone)
     start_own_slept = len(game_state.players[player_id].sleep_zone)
 
+    # Built once from the root state, before any simulated action moves cards
+    # between zones. Card ids are stable through deepcopy, so this same
+    # mapping resolves any target id encountered mid-search, and the
+    # strategic-selector prompt computes the identical mapping independently
+    # for its board legend (see build_card_labels' docstring).
+    card_labels = build_card_labels(game_state, player_id)
+
     # multiset-of-steps signature -> best recorded sequence (order-equivalent dedupe)
     recorded: Dict[frozenset, Dict[str, Any]] = {}
     # state signature -> shallowest depth it was expanded at. A plain set would be
@@ -308,7 +317,7 @@ def enumerate_sequences(
             "total_cc_spent": total_cc_spent,
             "cc_available": cc_available,
             "cards_slept": cards_slept,
-            "raw_string": _raw_string(path, total_cc_spent, cc_available, cards_slept),
+            "raw_string": _raw_string(path, total_cc_spent, cc_available, cards_slept, card_labels),
             # internal ranking fields (ignored by downstream consumers)
             "_wins": wins,
             "_own_slept": own_slept,
@@ -440,20 +449,35 @@ def _end_turn_action() -> Dict[str, Any]:
 
 
 def _raw_string(path: List[Dict[str, Any]], cc_spent: int, cc_available: int,
-                cards_slept: int) -> str:
-    """Human-readable line for the Request-2 selector prompt (format_sequence_for_display)."""
+                cards_slept: int, card_labels: Dict[str, str]) -> str:
+    """Human-readable line for the Request-2 selector prompt (format_sequence_for_display).
+
+    Tussle/ability/play_card targets are rendered via ``card_labels`` (the same
+    Y1/O2-style short labels shown in the prompt's board legend) instead of
+    raw card-id UUIDs, so the model can actually tell which card a candidate
+    sequence targets. ``card_labels`` covers the AI's own hand/in_play/
+    sleep_zone and the opponent's in_play (see build_card_labels), so this
+    also resolves Wake/Sun/Glue/"That was fun" recursion targets correctly.
+    """
     parts = []
     for step in path:
         name = step["card_name"] or step["card_id"] or ""
         if step["action_type"] == "play_card":
-            parts.append(f"play {name}".strip())
+            target_ids = step["target_ids"]
+            if target_ids:
+                targets = ",".join(card_labels.get(tid, tid) for tid in target_ids)
+                parts.append(f"play {name}->{targets}".strip())
+            else:
+                parts.append(f"play {name}".strip())
         elif step["action_type"] == "tussle":
-            tgt = step["target_ids"][0] if step["target_ids"] else "?"
+            tgt_id = step["target_ids"][0] if step["target_ids"] else "?"
+            tgt = card_labels.get(tgt_id, tgt_id)
             parts.append(f"tussle {name}->{tgt}")
         elif step["action_type"] == "direct_attack":
             parts.append(f"direct_attack {name}".strip())
         elif step["action_type"] == "activate_ability":
-            tgt = step["target_ids"][0] if step["target_ids"] else "?"
+            tgt_id = step["target_ids"][0] if step["target_ids"] else "?"
+            tgt = card_labels.get(tgt_id, tgt_id)
             parts.append(f"activate {name}->{tgt}")
     actions_str = " -> ".join(parts) if parts else "end_turn"  # empty path = pass
     return f"{actions_str} | CC: {cc_spent}/{cc_available} | Sleeps: {cards_slept}"

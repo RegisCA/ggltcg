@@ -8,7 +8,7 @@ into prompts for the AI player.
 import logging
 from typing import List, Optional, Any
 
-from .card_library import CARD_EFFECTS_LIBRARY
+from .card_loader import load_card_guidance
 from .system_prompt import ACTION_SELECTION_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -33,8 +33,7 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
     # Format AI's hand with effect descriptions and stats for Toys
     ai_hand_details = []
     for card in ai_player.hand:
-        card_info = CARD_EFFECTS_LIBRARY.get(card.name, {})
-        effect = card_info.get("effect", "Unknown effect")
+        effect = card.effect_text
         # Include stats for Toy cards so AI can compare with opponent's board
         if card.is_toy():
             # Show base stats (cards in hand don't have continuous effects applied yet)
@@ -82,8 +81,8 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
             lookup_name = card.name
             if card.name.startswith("Copy of "):
                 lookup_name = card.name[8:]  # Remove "Copy of " prefix
-            card_info = CARD_EFFECTS_LIBRARY.get(lookup_name, {})
-            threat = card_info.get("threat_level", "UNKNOWN")
+            card_info = load_card_guidance().get(lookup_name, {})
+            threat = card_info.get("threat", "UNKNOWN")
             if game_engine:
                 # Use GameEngine to get stats with continuous effects (Ka, Demideca, etc.)
                 spd = game_engine.get_card_stat(card, "speed")

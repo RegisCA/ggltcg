@@ -12,15 +12,45 @@ The selector focuses purely on strategy, receiving only pre-validated legal sequ
 
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from .examples.loader import get_relevant_examples, get_game_phase, format_examples_for_prompt
 from .sequence_generator import format_sequence_for_display
+from .card_loader import format_card_guidance_compact, format_board_legend
 
 if TYPE_CHECKING:
     from game_engine.models.game_state import GameState
 
 logger = logging.getLogger(__name__)
+
+
+# Request-2-specific system framing. Deliberately NOT system_prompt.py's
+# SYSTEM_PROMPT verbatim: that prompt's "CRITICAL OUTPUT RULES" section is
+# written for V2's action_number + [ID: xxx]-extraction schema, which doesn't
+# apply here (Request 2 just picks a 0-based index into already-legal,
+# already-built sequences) and would be actively confusing if included as-is.
+# Prompt size is not a real constraint for this project (see issue #338) -
+# this is written for clarity, not minimality.
+STRATEGIC_SELECTOR_SYSTEM_INSTRUCTION = """You are selecting the best candidate action sequence for one turn of GGLTCG (Googooland Trading Card Game), a fully deterministic 2-player card game with no hidden information and no randomness.
+
+## Win condition
+You win when ALL of the opponent's cards are in their Sleep Zone. A sequence that sleeps the opponent's last remaining card this turn is lethal - always select it over any non-lethal alternative.
+
+## CC and tussle basics
+- Command Counters (CC) pay for playing cards, tussling, direct attacks, and activated abilities. Standard tussle/direct_attack cost is 2 CC and activate_ability is 1 CC - but some cards override these costs, or override normal tussle resolution entirely (e.g. an auto-win effect). Check the card_guidance section below for any such exception on a card actually in this game; don't assume the standard rule applies to every card.
+- Tussle resolution (absent any card-specific override from card_guidance): the active player's attacking Toy gets a +1 Speed bonus for ordering. Whichever card is faster strikes first, dealing its Strength as damage to the other's current Stamina. If that drops the target to 0 Stamina or below, it sleeps immediately. If it survives, it strikes back the same way before the exchange ends.
+- A tussle being offered in a candidate sequence only means it is LEGAL, not that it is a good trade. Judge each one with the rule above (and any card_guidance override): does the attacker actually sleep the defender, before or without being struck back itself? If not, that tussle trades your card's health for nothing and should count against the sequence, not for it.
+- Direct attack only works when the opponent has zero Toys in play, and sleeps a random card from their hand.
+
+## How to judge a candidate sequence
+Every sequence shown to you already passed legality validation - your job is purely strategic ranking, not legality checking. Use the board legend below to resolve each sequence's target labels (e.g. Y1, O2) to the actual cards involved, and weigh whether the tussles/abilities in it are good trades by the rule above. Prefer, in this order: a lethal sequence > one that actually sleeps the most real opponent threats > one that improves your board position or tempo without giving up cards for nothing > one that wastes the least CC.
+
+Respond with only the JSON object the schema requires - no prose outside it."""
+
+
+def get_strategic_selector_system_instruction() -> str:
+    """Return the Request-2-specific system_instruction (see module docstring above)."""
+    return STRATEGIC_SELECTOR_SYSTEM_INSTRUCTION
 
 
 # JSON Schema for strategic selector output
@@ -47,46 +77,56 @@ def generate_strategic_prompt(
     game_state: "GameState",
     player_id: str,
     validated_sequences: list[dict],
+    game_engine: Optional[Any] = None,
 ) -> str:
     """
     Generate the Request 2 prompt for strategic selection.
-    
-    This prompt is ~5k chars and includes:
+
+    Includes:
     - Strategic goal and priorities
+    - A board-state legend (short label, name, cost, stats, effect for every
+      card in hand/in-play on both sides) so the model can resolve the
+      sequences' Y1/O2-style target labels to actual cards
+    - Card-specific guidance (traps/reminders/threats) for cards in this game
     - 3 contextual examples from the example library
     - Validated sequences with tactical labels
-    
+
     Args:
         game_state: Current GameState object
         player_id: ID of the AI player
         validated_sequences: List of validated sequence dicts with tactical labels
-        
+        game_engine: Optional GameEngine, used so the legend's in-play stats
+            reflect continuous effects (Ka's aura, Gibbers' cost tax, etc).
+
     Returns:
-        Prompt string (~5k chars target)
+        Prompt string
     """
     player = game_state.players[player_id]
     opponent = game_state.get_opponent(player_id)
-    
+
     # Get game phase
     phase = get_game_phase(game_state.turn_number)
-    
+
     # Get contextual examples (exactly 3)
     examples = get_relevant_examples(game_state, player_id)
     examples_text = format_examples_for_prompt(examples)
-    
+
     # Format sequences
     sequences_text = "\n\n".join(
         format_sequence_for_display(seq, i)
         for i, seq in enumerate(validated_sequences)
     )
-    
+
+    legend_text = format_board_legend(game_state, player_id, game_engine)
+    guidance_text = format_card_guidance_compact(game_state, player_id)
+
     # Count opponent cards
     opp_remaining = len(opponent.hand) + len(opponent.in_play)
     opp_slept = len(opponent.sleep_zone)
     opener_hint = ""
     if len(opponent.in_play) == 0:
         opener_hint = "With 0 opponent toys, a legal direct_attack line that sleeps a card now usually beats a setup-only line."
-    
+
     prompt = f"""<system>Select the best legal sequence.</system>
 
 <goal>
@@ -98,6 +138,14 @@ Lethal means sleeping all {opp_remaining} remaining opponent cards this turn.
 <context>
 phase={phase} turn={game_state.turn_number} your_cc={player.cc} your_toys={len(player.in_play)} opponent_toys={len(opponent.in_play)} opponent_remaining={opp_remaining} opponent_slept={opp_slept}
 </context>
+
+<board_legend>
+{legend_text}
+</board_legend>
+
+<card_guidance>
+{guidance_text}
+</card_guidance>
 
 <examples>
 {examples_text}

@@ -1,8 +1,94 @@
 """Unit tests for AI provider configuration, selection, and planner mode resolution."""
 
+from types import SimpleNamespace
+
 from game_engine.ai.llm_player import LLMPlayer
-from game_engine.ai.providers import OpenAICompatibleProvider, build_provider, resolve_provider_config
+from game_engine.ai.providers import (
+    AIProviderConfig,
+    GeminiProvider,
+    OpenAICompatibleProvider,
+    build_provider,
+    resolve_provider_config,
+)
 from game_engine.ai.turn_planner import get_planner_mode, ai_version_to_planner_mode
+
+
+class _FakeGeminiModels:
+    """Records generate_content calls and returns a minimal well-formed response."""
+
+    def __init__(self):
+        self.calls: list[dict] = []
+
+    def generate_content(self, model, contents, config):
+        self.calls.append({"model": model, "contents": contents, "config": config})
+        part = SimpleNamespace(text='{"ok": true}')
+        content = SimpleNamespace(parts=[part])
+        candidate = SimpleNamespace(content=content, finish_reason="STOP")
+        return SimpleNamespace(candidates=[candidate], text='{"ok": true}')
+
+
+class _FakeGeminiClient:
+    def __init__(self):
+        self.models = _FakeGeminiModels()
+
+
+def _build_fake_gemini_provider() -> tuple[GeminiProvider, _FakeGeminiClient]:
+    config = AIProviderConfig(
+        provider="gemini", api_key="x" * 32, model="gemini-test", fallback_model="gemini-test"
+    )
+    client = _FakeGeminiClient()
+    return GeminiProvider(config, client=client), client
+
+
+def test_gemini_generate_json_passes_system_instruction_via_config() -> None:
+    """system_instruction must reach GenerateContentConfig, not be concatenated into the prompt."""
+    provider, client = _build_fake_gemini_provider()
+
+    provider.generate_json(
+        "USER PROMPT TEXT",
+        {"type": "object"},
+        temperature=0.4,
+        max_output_tokens=200,
+        system_instruction="SYSTEM TEXT",
+    )
+
+    call = client.models.calls[0]
+    assert call["config"].system_instruction == "SYSTEM TEXT"
+    sent_text = call["contents"][0].parts[0].text
+    assert sent_text == "USER PROMPT TEXT"
+    assert "SYSTEM TEXT" not in sent_text
+
+
+def test_gemini_generate_text_passes_system_instruction_via_config() -> None:
+    provider, client = _build_fake_gemini_provider()
+
+    provider.generate_text(
+        "USER PROMPT TEXT",
+        temperature=0.4,
+        max_output_tokens=200,
+        system_instruction="SYSTEM TEXT",
+    )
+
+    call = client.models.calls[0]
+    assert call["config"].system_instruction == "SYSTEM TEXT"
+    sent_text = call["contents"][0].parts[0].text
+    assert sent_text == "USER PROMPT TEXT"
+
+
+def test_gemini_generate_json_without_system_instruction() -> None:
+    """No system_instruction passed should leave the prompt and config field untouched."""
+    provider, client = _build_fake_gemini_provider()
+
+    provider.generate_json(
+        "USER PROMPT TEXT",
+        {"type": "object"},
+        temperature=0.4,
+        max_output_tokens=200,
+    )
+
+    call = client.models.calls[0]
+    assert call["config"].system_instruction is None
+    assert call["contents"][0].parts[0].text == "USER PROMPT TEXT"
 
 
 def test_resolve_provider_config_uses_gemini_legacy_env(monkeypatch) -> None:

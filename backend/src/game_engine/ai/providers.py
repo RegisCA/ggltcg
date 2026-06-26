@@ -186,7 +186,6 @@ class GeminiProvider(BaseLLMProvider):
 
         current_model = model or self.config.model
         resolved_fallback = fallback_model or self.config.fallback_model
-        full_prompt = f"{system_instruction}\n\n{prompt}" if system_instruction else prompt
         last_exception: Exception | None = None
 
         for attempt in range(retry_count):
@@ -196,7 +195,7 @@ class GeminiProvider(BaseLLMProvider):
                     contents=[
                         types.Content(
                             role="user",
-                            parts=[types.Part.from_text(text=full_prompt)],
+                            parts=[types.Part.from_text(text=prompt)],
                         )
                     ],
                     config=types.GenerateContentConfig(
@@ -204,6 +203,7 @@ class GeminiProvider(BaseLLMProvider):
                         max_output_tokens=max_output_tokens,
                         response_mime_type="application/json",
                         response_json_schema=schema,
+                        system_instruction=system_instruction,
                     ),
                 )
 
@@ -279,7 +279,6 @@ class GeminiProvider(BaseLLMProvider):
 
         current_model = model or self.config.model
         resolved_fallback = fallback_model or self.config.fallback_model
-        full_prompt = f"{system_instruction}\n\n{prompt}" if system_instruction else prompt
         last_exception: Exception | None = None
 
         for attempt in range(retry_count):
@@ -289,12 +288,13 @@ class GeminiProvider(BaseLLMProvider):
                     contents=[
                         types.Content(
                             role="user",
-                            parts=[types.Part.from_text(text=full_prompt)],
+                            parts=[types.Part.from_text(text=prompt)],
                         )
                     ],
                     config=types.GenerateContentConfig(
                         temperature=temperature,
                         max_output_tokens=max_output_tokens,
+                        system_instruction=system_instruction,
                     ),
                 )
 
