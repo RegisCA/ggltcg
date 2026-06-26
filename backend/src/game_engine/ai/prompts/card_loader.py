@@ -13,7 +13,7 @@ Architecture:
 
 import os
 import yaml
-from typing import Set, Dict, Any, TYPE_CHECKING
+from typing import Set, Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from game_engine.models.game_state import GameState
@@ -171,8 +171,87 @@ def format_card_guidance_compact(game_state: "GameState", player_id: str) -> str
         Compact formatted guidance string
     """
     guidance_text = get_relevant_card_guidance(game_state, player_id)
-    
+
     if not guidance_text:
         return "# CARD-SPECIFIC GUIDANCE\nNo special guidance needed for cards in current game."
-    
+
     return guidance_text
+
+
+def build_card_labels(game_state: "GameState", player_id: str) -> Dict[str, str]:
+    """
+    Assign a short, stable label to every card the AI is allowed to see: its
+    own hand + in_play (Y1, Y2, ...) and the opponent's in_play (O1, O2, ...).
+
+    Deliberately excludes the opponent's hand - this game hides hand contents
+    from the opponent (see ``get_relevant_card_names``, which the same module
+    already scopes the same way for card_guidance lookups); a label/legend
+    entry must not leak it. No action ever targets a card sitting in a hand,
+    so nothing downstream needs a label for one.
+
+    Built fresh from whatever ``game_state`` snapshot is passed in, but pure
+    and deterministic given that snapshot — the enumerator (raw_string target
+    labels) and the strategic-selector prompt (board legend) each call this
+    independently on the same turn's root game state and get identical
+    mappings, with no need to thread a shared dict between them.
+    """
+    player = game_state.players[player_id]
+    opponent = game_state.get_opponent(player_id)
+
+    labels: Dict[str, str] = {}
+    for i, card in enumerate(list(player.hand) + list(player.in_play), start=1):
+        labels[card.id] = f"Y{i}"
+    for i, card in enumerate(opponent.in_play, start=1):
+        labels[card.id] = f"O{i}"
+    return labels
+
+
+def format_board_legend(
+    game_state: "GameState", player_id: str, game_engine: Optional[Any] = None
+) -> str:
+    """
+    Render the board-state legend for the Request 2 prompt: one line per card
+    in the AI's own hand/in-play and the opponent's in-play (see
+    ``build_card_labels`` - the opponent's hand is intentionally omitted,
+    since this game does not reveal hand contents to the opponent), giving
+    its short label, name, cost, stats (Toys only), and effect text.
+
+    Passing ``game_engine`` lets in-play stats reflect continuous effects
+    (Ka's +2 STR aura, Gibbers' cost tax, etc); without it, base stats/cost
+    are shown.
+    """
+    labels = build_card_labels(game_state, player_id)
+    player = game_state.players[player_id]
+    opponent = game_state.get_opponent(player_id)
+
+    lines = ["# BOARD LEGEND (label [side zone] Name (cost) stats - effect)"]
+    for side_label, side, zones in (
+        ("YOU", player, (("hand", player.hand), ("in_play", player.in_play))),
+        ("OPP", opponent, (("in_play", opponent.in_play),)),
+    ):
+        for zone_label, zone in zones:
+            for card in zone:
+                label = labels[card.id]
+
+                if game_engine is not None and card.cost >= 0:
+                    cost = game_engine.calculate_card_cost(card, side)
+                else:
+                    cost = card.cost
+
+                if card.is_toy():
+                    if zone_label == "in_play" and game_engine is not None:
+                        spd = game_engine.get_card_stat(card, "speed")
+                        str_val = game_engine.get_card_stat(card, "strength")
+                        cur_sta = game_engine.get_effective_stamina(card)
+                        max_sta = game_engine.get_card_stat(card, "stamina")
+                    else:
+                        spd, str_val = card.speed, card.strength
+                        cur_sta = max_sta = card.stamina
+                    stats = f" [{spd} SPD, {str_val} STR, {cur_sta}/{max_sta} STA]"
+                else:
+                    stats = ""
+
+                lines.append(
+                    f"{label} [{side_label} {zone_label}] {card.name} (cost {cost}){stats} - {card.effect_text}"
+                )
+    return "\n".join(lines)

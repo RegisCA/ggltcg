@@ -173,6 +173,7 @@ class TurnPlanner:
         self._v4_request1_response: Optional[str] = None
         self._v4_request2_prompt: Optional[str] = None
         self._v4_request2_response: Optional[str] = None
+        self._v4_request2_system_instruction: Optional[str] = None
 
         # V4 per-turn diagnostics for admin UI (counts/rejections/attempts)
         self._v4_turn_debug: Optional[Dict[str, Any]] = None
@@ -463,6 +464,7 @@ class TurnPlanner:
         from .prompts.strategic_selector import (
             generate_strategic_prompt,
             get_strategic_selector_temperature,
+            get_strategic_selector_system_instruction,
             STRATEGIC_SELECTOR_SCHEMA,
             parse_selector_response,
             convert_sequence_to_turn_plan,
@@ -478,6 +480,7 @@ class TurnPlanner:
         self._v4_request1_response = None
         self._v4_request2_prompt = None
         self._v4_request2_response = None
+        self._v4_request2_system_instruction = None
         self._v4_turn_debug = {
             "request1_attempts": 0,
             "request1_temps_tried": [],
@@ -627,14 +630,20 @@ class TurnPlanner:
         # === REQUEST 2: Strategic selection (higher temperature) ===
         logger.debug("🎯 V4 Request 2: Selecting best sequence...")
         
-        select_prompt = generate_strategic_prompt(game_state, player_id, sequences)
+        select_prompt = generate_strategic_prompt(game_state, player_id, sequences, game_engine)
+        select_system_instruction = get_strategic_selector_system_instruction()
         self._v4_request2_prompt = select_prompt
+        # Sent via the API's real system_instruction field (providers.py), not
+        # concatenated into select_prompt - recorded separately here so it's
+        # actually visible when inspecting v4_request2_prompt in admin/AI logs,
+        # instead of silently vanishing from view.
+        self._v4_request2_system_instruction = select_system_instruction
         logger.debug(
             "Strategic selector prompt (%s chars, ~%s tokens)",
             len(select_prompt),
             self._estimate_prompt_tokens(select_prompt),
         )
-        
+
         try:
             select_response = self.provider_client.generate_json(
                 select_prompt,
@@ -645,6 +654,7 @@ class TurnPlanner:
                 allow_fallback=True,
                 model=self.model_name,
                 fallback_model=self.fallback_model,
+                system_instruction=select_system_instruction,
             )
             self._v4_request2_response = select_response
             selection = parse_selector_response(select_response)
@@ -993,6 +1003,7 @@ class TurnPlanner:
         if self._v4_request2_prompt:
             info["v4_request2_prompt"] = self._v4_request2_prompt
             info["v4_request2_response"] = self._v4_request2_response
+            info["v4_request2_system_instruction"] = self._v4_request2_system_instruction
         
         # Include V4 metrics
         info["v4_metrics"] = TurnPlanner.get_v4_metrics()
