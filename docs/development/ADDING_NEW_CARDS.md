@@ -38,11 +38,13 @@ name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accen
 - `speed` — Toys only — Speed stat for tussles
 - `strength` — Toys only — Strength stat for tussles
 - `stamina` — Toys only — Base stamina (health)
-| `faction` | Optional | Reserved for future set/faction metadata |
-| `quote` | Optional | Flavor text |
-| `primary_color` | ✅ | Hex color for card display |
-| `accent_color` | ✅ | Hex color for card accent |
-| `effects` | ✅ | Machine-readable effect code(s) used by the effect system |
+- `faction` — **Deprecated / unused** — never adopted. Leave empty. The column
+is kept for now to avoid a schema change; do not put data here.
+- `quote` — **Deprecated / unused** — never adopted. Leave empty.
+- `primary_color` (Required) — Hex color for card display
+- `accent_color` (Required) — Hex color for card accent
+- `effects` (Required) — Machine-readable effect code(s) used by the effect
+system. Leave empty for a vanilla Toy with no effect.
 
 ### Effect Definitions Syntax
 
@@ -103,10 +105,16 @@ turn
 on turn 1
 
 - `cannot_tussle` – This card cannot initiate tussles
+- `direct_attack` – This card may attack the opponent directly even when they
+have cards in play
+
+- `remove_stamina_ability:cc[:amount]` – Activated ability: spend `cc` CC to
+remove `amount` (default 1) stamina from a target card
 
 #### Special Effects
 
 - `sleep_all` – Sleep all Toys in play
+- `damage_all_opponent_cards:N` – Deal N damage to every opponent card in play
 - `return_all_to_hand` – Return all cards in play to owners' hands
 - `copy_card` – Action: copy the effects of another card
 - `take_control` – Action: take control of an opponent's Toy
@@ -131,24 +139,35 @@ same change.
 
 ### Example Cards
 
+> The `faction` and `quote` columns (positions 8 and 9) are deprecated but
+> still present, so every row needs two empty fields between `stamina` and
+> `primary_color`. The examples below show the correct 12-field layout.
+
+**Toy Card (no effect — vanilla stats)**:
+
+```csv
+Blockhead,18,1,A sturdy little toy.,2,2,4,,,#eb9113,#eb9113,
+
+```
+
 **Action Card (simple)**:
 
 ```csv
-Surge,18,0,Gain 1 CC.,,,,#e612d0,#e612d0,gain_cc:1
+Surge,18,0,Gain 1 CC.,,,,,,#e612d0,#e612d0,gain_cc:1
 
 ```
 
 **Toy Card (stat boost)**:
 
 ```csv
-Drum,18,1,Your cards have 2 more speed.,1,3,2,#eb9113,#eb9113,stat_boost:speed:2
+Drum,18,1,Your cards have 2 more speed.,1,3,2,,,#eb9113,#eb9113,stat_boost:speed:2
 
 ```
 
 **Toy Card (triggered effect)**:
 
 ```csv
-Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,#eb9113,#eb9113,start_of_turn_gain_cc:2
+Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,,,#eb9113,#eb9113,start_of_turn_gain_cc:2
 
 ```
 
@@ -501,7 +520,7 @@ Let's add "Zap" - an Action that deals 1 damage to a target.
 ### 1. CSV Entry
 
 ```csv
-Zap,18,1,Deal 1 damage to target card.,,,,#ff0000,#ff0000,damage_target:1
+Zap,18,1,Deal 1 damage to target card.,,,,,,#ff0000,#ff0000,damage_target:1
 
 ```
 
