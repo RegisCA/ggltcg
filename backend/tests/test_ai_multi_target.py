@@ -180,6 +180,81 @@ class TestAIMultiTargetSelection:
         assert result["defender_id"] == "knight-789", "Tussle should use first target_id"
 
 
+class TestHallucinatedTargetGuard:
+    """
+    Regression coverage: the LLM picks an action by number from a menu whose
+    target_options is already restricted to legal targets (e.g. Copy can only
+    ever list the player's own cards), but its free-form JSON response can
+    still name a different ID it saw elsewhere in the prompt (e.g. an
+    opponent's card). That ID must be dropped rather than trusted, or the
+    play gets rejected server-side and the AI wastes its turn.
+    """
+
+    def test_play_card_drops_hallucinated_target_and_falls_back(self):
+        player = LLMPlayer.__new__(LLMPlayer)
+        player.provider = "gemini"
+        # "knight-789" is the opponent's card the LLM saw in the board state,
+        # but Copy's menu only ever offers the player's own cards.
+        player._last_target_ids = ["knight-789"]
+        player._last_alternative_cost_id = None
+
+        action = MagicMock()
+        action.action_type = "play_card"
+        action.card_id = "copy-123"
+        action.target_options = ["ka-456"]  # only the player's own toy
+        action.alternative_cost_options = None
+
+        result = player.get_action_details(action)
+
+        assert result["target_ids"] == ["ka-456"], "Should fall back to the validated menu, not the hallucinated ID"
+
+    def test_play_card_keeps_valid_subset_and_drops_invalid_id(self):
+        player = LLMPlayer.__new__(LLMPlayer)
+        player.provider = "gemini"
+        player._last_target_ids = ["ka-456", "opponent-999"]
+        player._last_alternative_cost_id = None
+
+        action = MagicMock()
+        action.action_type = "play_card"
+        action.card_id = "sun-123"
+        action.target_options = ["ka-456", "knight-789"]
+        action.alternative_cost_options = None
+
+        result = player.get_action_details(action)
+
+        assert result["target_ids"] == ["ka-456"], "Should keep the valid ID and drop the hallucinated one"
+
+    def test_tussle_drops_hallucinated_defender_and_falls_back(self):
+        player = LLMPlayer.__new__(LLMPlayer)
+        player.provider = "gemini"
+        player._last_target_ids = ["not-a-real-defender"]
+        player._last_alternative_cost_id = None
+
+        action = MagicMock()
+        action.action_type = "tussle"
+        action.card_id = "ka-456"
+        action.target_options = ["knight-789"]
+
+        result = player.get_action_details(action)
+
+        assert result["defender_id"] == "knight-789"
+
+    def test_activate_ability_drops_hallucinated_target_and_falls_back(self):
+        player = LLMPlayer.__new__(LLMPlayer)
+        player.provider = "gemini"
+        player._last_target_ids = ["opponent-999"]
+        player._last_alternative_cost_id = None
+
+        action = MagicMock()
+        action.action_type = "activate_ability"
+        action.card_id = "archer-1"
+        action.target_options = ["knight-789"]
+
+        result = player.get_action_details(action)
+
+        assert result["target_id"] == "knight-789"
+
+
 class TestIssue188Scenario:
     """
     Test the specific scenario from Issue #188.

@@ -192,4 +192,40 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "BOARD EQUALIZER - Affects ALL cards in play (yours and opponent's). Cards with base 1 stamina (Ka, Hind Leg Kicker, Paper Plane, Gibbers) get sleeped. Use when opponent has more high-stamina cards than you.",
         "threat_level": "MEDIUM - Affects YOUR cards too. Dangerous if you have more high-stamina cards in play."
     },
+    "Car": {
+        "type": "Toy",
+        "effect": "None - vanilla stats only",
+        "strategic_use": "FAST TUSSLER - High speed (7), low strength/stamina (2/2). Strikes first but loses extended fights.",
+        "threat_level": "LOW - No effect to play around, just combat stats"
+    },
+    "Dino": {
+        "type": "Toy",
+        "effect": "None - vanilla stats only",
+        "strategic_use": "HEAVY HITTER - High strength (7), low speed/stamina (3/1). Wins fights it strikes in, but fragile.",
+        "threat_level": "LOW - No effect to play around, just combat stats"
+    },
+    "Block": {
+        "type": "Toy",
+        "effect": "None - vanilla stats only",
+        "strategic_use": "TANK - High stamina (5), low speed/strength (2/3). Hard to kill, weak attacker.",
+        "threat_level": "LOW - No effect to play around, just combat stats"
+    },
+    "Clone": {
+        "type": "Action",
+        "effect": "Target: Create a copy of one of YOUR Toys in play (you must control the target)",
+        "strategic_use": "FLAT-COST CLONE - Same effect as Copy but always costs 2 CC regardless of the target's own cost. Better value than Copy when copying an expensive Toy; worse when copying a cheap one. Can ONLY copy your own Toys, not opponent's.",
+        "threat_level": "LOW - Can copy your best cards for a flat 2 CC"
+    },
+    "Glue": {
+        "type": "Action",
+        "effect": "Target: Return 1 card from your Sleep Zone to your hand. Costs the same as the EFFECTIVE cost of the card you choose to return (variable cost)",
+        "strategic_use": "RECURSION - Like Wake, but cost scales with what you're getting back. Cheap when fixing a cheap card, expensive when fixing an expensive one. Must specify target_ids",
+        "threat_level": "LOW - Can undo opponent's progress by recovering slept cards"
+    },
+    "Stomp": {
+        "type": "Action",
+        "effect": "Target: Sleep any card in play (yours or opponent's). Costs the same as the EFFECTIVE cost of the card you choose to sleep (variable cost)",
+        "strategic_use": "PRECISION REMOVAL - Like Drop, but cost scales with the target. Cheap removal against a cheap threat, expensive against a costly one. Must specify target_ids. Triggers when-sleeped effects!",
+        "threat_level": "HIGH - Can sleep your best card, and the cost is based on that card's own cost"
+    },
 }

@@ -126,3 +126,18 @@ Sun:
   trap: "Returns 2 cards from sleep to HAND. Must pay to play them"
   reminder: "3 CC for Sun. Specify target_ids. Total cost adds up fast"
   threat: "LOW"
+
+Clone:
+  trap: "Can ONLY copy YOUR toys, not opponent's! Unlike Copy, cost is ALWAYS 2 CC flat"
+  reminder: "Costs 2 CC no matter what you copy - good value on expensive toys. Must specify target_ids"
+  threat: "LOW"
+
+Glue:
+  trap: "Cost is NOT fixed - it equals the cost of whichever sleeping card you pick"
+  reminder: "Pick a CHEAP sleeping card to fix it cheaply. Must specify target_ids (your own Sleep Zone only)"
+  threat: "LOW"
+
+Stomp:
+  trap: "Cost is NOT fixed - it equals the cost of whichever card in play you sleep, yours or opponent's"
+  reminder: "Targeting an expensive opponent toy costs more CC. Must specify target_ids. Respects protection (Beary etc.)"
+  threat: "MEDIUM"

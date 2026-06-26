@@ -196,10 +196,11 @@ class GameEngine:
                 else:
                     return False, "Alternative cost card not found"
         
-        # Calculate cost (pass target_id for Copy if available)
+        # Calculate cost (pass target_id/target_ids for variable-cost cards if available)
         target_id = kwargs.get("target_id")
-        cost = self.calculate_card_cost(card, player, target_id=target_id)
-        
+        target_ids = kwargs.get("target_ids")
+        cost = self.calculate_card_cost(card, player, target_id=target_id, target_ids=target_ids)
+
         # Check if player has enough CC
         if not player.has_cc(cost):
             return False, f"Not enough CC (need {cost}, have {player.cc})"
@@ -225,22 +226,23 @@ class GameEngine:
                 return card
         return None
     
-    def _calculate_card_base_cost_for_copy(self, target_card: Card, target_player: Player) -> int:
+    def _calculate_effective_cost_of_card(self, target_card: Card, target_player: Player) -> int:
         """
-        Calculate a card's effective cost for Copy purposes.
-        
-        This applies self-modifying effects (like Dream's cost reduction)
-        but NOT opponent effects (like Gibbers) since those affect the Copy card itself.
-        
+        Calculate a card's effective cost for variable-cost effects (Copy, Glue, Stomp).
+
+        This applies the target card's own self-modifying effects (like Dream's cost
+        reduction) but NOT opponent effects (like Gibbers) since those affect whichever
+        card is actually being played, not the card being referenced for its cost.
+
         Args:
-            target_card: The card being copied
+            target_card: The card being referenced for cost purposes
             target_player: The player who controls the target card
-            
+
         Returns:
             The effective base cost of the target card
         """
         base_cost = target_card.cost if target_card.cost >= 0 else 0
-        
+
         # Apply only the target card's own cost modifications (e.g., Dream)
         card_effects = EffectRegistry.get_effects(target_card)
         for effect in card_effects:
@@ -248,46 +250,74 @@ class GameEngine:
                 base_cost = effect.modify_card_cost(
                     target_card, base_cost, self.game_state, target_player
                 )
-        
+
         return max(0, base_cost)
-    
-    def calculate_card_cost(self, card: Card, player: Player, target_id: Optional[str] = None) -> int:
+
+    def _get_variable_cost_effect(self, card: Card) -> Optional[PlayEffect]:
+        """
+        Return the card's variable-cost effect (Copy, Glue's unsleep, Stomp's sleep_target)
+        if it has one, else None.
+
+        Variable cost only applies when the CSV cost is literally -1 (the sentinel) -
+        a card can carry one of these effect types with a normal flat cost (e.g. Wake,
+        Drop) and must NOT be treated as variable.
+        """
+        if card.cost != -1:
+            return None
+
+        from .rules.effects.action_effects import CopyEffect, UnsleepEffect, SleepTargetEffect
+        for effect in EffectRegistry.get_effects(card):
+            if isinstance(effect, (CopyEffect, UnsleepEffect, SleepTargetEffect)):
+                return effect
+        return None
+
+    def calculate_card_cost(
+        self,
+        card: Card,
+        player: Player,
+        target_id: Optional[str] = None,
+        target_ids: Optional[List[str]] = None,
+    ) -> int:
         """
         Calculate the actual cost to play a card after modifications.
-        
+
         Args:
             card: Card being played
             player: Player playing the card
-            target_id: Optional target card ID (for Copy)
-            
+            target_id: Optional single target card ID (for variable-cost effects)
+            target_ids: Optional list of target card IDs (used if target_id is absent)
+
         Returns:
             Final cost in CC
         """
-        from .rules.effects.action_effects import CopyEffect
         base_cost = card.cost
-        
-        # Special handling for cards with variable cost based on target (e.g., Copy)
-        if card.has_effect_type(CopyEffect):
-            # For Copy, the cost equals the EFFECTIVE cost of the card being copied
-            # This includes cost modifications like Dream's reduction for sleeping cards
+
+        # Special handling for cards with variable cost based on target (Copy, Glue, Stomp)
+        variable_cost_effect = self._get_variable_cost_effect(card)
+        if variable_cost_effect is not None:
             target_card = None
-            
-            # If a specific target ID is provided, use that
-            if target_id:
-                target_card = self.game_state.find_card_by_id(target_id)
-            
-            # Otherwise, use the lowest cost card in play (most conservative estimate)
-            if target_card is None and player.in_play:
-                target_card = min(player.in_play, key=lambda c: c.cost)
-            
+
+            # If a specific target was chosen, use that
+            resolved_id = target_id or (target_ids[0] if target_ids else None)
+            if resolved_id:
+                target_card = self.game_state.find_card_by_id(resolved_id)
+
+            # Otherwise, use the lowest cost valid target (most conservative estimate)
+            if target_card is None:
+                valid_targets = variable_cost_effect.get_valid_targets(self.game_state, player=player)
+                if valid_targets:
+                    target_card = min(
+                        valid_targets, key=lambda c: c.cost if c.cost >= 0 else 0
+                    )
+
             if target_card:
                 # Calculate the target card's effective cost (e.g., Dream's reduced cost)
                 # Use the target card's controller for proper cost calculation context
                 target_player = self.game_state.players.get(target_card.controller, player)
-                base_cost = self._calculate_card_base_cost_for_copy(target_card, target_player)
+                base_cost = self._calculate_effective_cost_of_card(target_card, target_player)
             else:
                 base_cost = 0  # No valid targets, effect will fizzle
-        
+
         # Apply cost modifications from continuous effects
         final_cost = base_cost
         
@@ -357,7 +387,8 @@ class GameEngine:
         else:
             # Calculate and pay normal cost
             target_id = kwargs.get("target_id")
-            cost = self.calculate_card_cost(card, player, target_id=target_id)
+            target_ids = kwargs.get("target_ids")
+            cost = self.calculate_card_cost(card, player, target_id=target_id, target_ids=target_ids)
             if not player.spend_cc(cost):
                 return False
             
