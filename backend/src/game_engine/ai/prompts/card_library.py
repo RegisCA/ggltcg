@@ -192,4 +192,22 @@ CARD_EFFECTS_LIBRARY = {
         "strategic_use": "BOARD EQUALIZER - Affects ALL cards in play (yours and opponent's). Cards with base 1 stamina (Ka, Hind Leg Kicker, Paper Plane, Gibbers) get sleeped. Use when opponent has more high-stamina cards than you.",
         "threat_level": "MEDIUM - Affects YOUR cards too. Dangerous if you have more high-stamina cards in play."
     },
+    "Car": {
+        "type": "Toy",
+        "effect": "None - vanilla stats only",
+        "strategic_use": "FAST TUSSLER - High speed (7), low strength/stamina (2/2). Strikes first but loses extended fights.",
+        "threat_level": "LOW - No effect to play around, just combat stats"
+    },
+    "Dino": {
+        "type": "Toy",
+        "effect": "None - vanilla stats only",
+        "strategic_use": "HEAVY HITTER - High strength (7), low speed/stamina (3/1). Wins fights it strikes in, but fragile.",
+        "threat_level": "LOW - No effect to play around, just combat stats"
+    },
+    "Block": {
+        "type": "Toy",
+        "effect": "None - vanilla stats only",
+        "strategic_use": "TANK - High stamina (5), low speed/strength (2/3). Hard to kill, weak attacker.",
+        "threat_level": "LOW - No effect to play around, just combat stats"
+    },
 }
