@@ -272,11 +272,13 @@ MyNewCard:
 ```
 
 **Action Type Specifications** (critical for abilities):
+
 - **Passive effects** (automatic): `"No activate_ability - happens on play"`
 - **Activated abilities**: `"Use action_type: activate_ability (costs N CC)"`
 - **Combat abilities**: `"Can tussle (action_type: tussle) OR direct_attack"`
 
 **Examples**:
+
 ```yaml
 Paper Plane:
   trap: "PASSIVE bypass: Can direct_attack with opponent toys present (NO activate_ability!)"
@@ -307,6 +309,7 @@ If your card introduces a new effect type, add metadata to the `EFFECT_METADATA_
 ```
 
 **Classifications**:
+
 - `continuous` - Always active while in play (stat boosts, opponent_immunity)
 - `triggered` - Automatic on game events (start_of_turn_gain_cc, gain_cc_when_sleeped)
 - `activated` - Requires `action_type: activate_ability` (sleep_target, unsleep)
