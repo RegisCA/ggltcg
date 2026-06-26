@@ -326,6 +326,52 @@ class ReduceCostBySleepingEffect(CostModificationEffect):
         return max(0, modified_cost)  # Cost can't go below 0
 
 
+class SelfCostIncreaseBySleepingEffect(CostModificationEffect):
+    """
+    Generic effect that increases a card's cost based on sleeping cards.
+
+    Increases the source card's play cost by 1 for each card in the controller's
+    sleep zone. Mirror image of ReduceCostBySleepingEffect.
+
+    Examples:
+    - MaBookBook: SelfCostIncreaseBySleepingEffect(source_card)
+    """
+
+    def __init__(self, source_card: "Card"):
+        """
+        Initialize sleeping card cost increase.
+
+        Args:
+            source_card: The card whose cost is increased (e.g., MaBookBook)
+        """
+        super().__init__(source_card)
+
+    def modify_stat(self, card: "Card", stat_name: str, base_value: int,
+                   game_state: "GameState") -> int:
+        """Cost increase doesn't modify card stats."""
+        return base_value
+
+    def modify_card_cost(self, card: "Card", base_cost: int,
+                        game_state: "GameState", player: "Player") -> int:
+        """Increase source card's cost based on sleeping cards."""
+        # Only applies to the source card itself
+        if card != self.source_card:
+            return base_cost
+
+        # Get the card owner (the player trying to play it)
+        card_owner = game_state.get_card_owner(self.source_card)
+
+        # Only applies when the owner is playing it
+        if card_owner != player:
+            return base_cost
+
+        # Count sleeping cards
+        sleeping_count = len(player.sleep_zone)
+
+        # Increase cost by 1 per sleeping card
+        return base_cost + sleeping_count
+
+
 class OpponentCostIncreaseEffect(CostModificationEffect):
     """
     Generic effect that increases the cost of opponent's cards while in play.

@@ -35,3 +35,7 @@ Block,18,0,No effect.,2,3,5,,,#CC5500,#CC5500,
 Clone,18,2,This card acts as an exact copy of a card you have in play.,,,,,,#FFB6C1,#FFB6C1,copy_card
 Glue,18,-1,You may fix 1 of your cards.,,,,,,#FFB6C1,#FFB6C1,unsleep:1
 Stomp,18,-1,You may sleep a card that is in play.,,,,,,#FFB6C1,#FFB6C1,sleep_target:1
+MaBookBook,18,0,This card costs 1 more for each of your sleeping cards.,4,5,4,,,#4A0E4E,#8B008B,self_cost_increase_by_sleeping
+Plane Plus,18,2,"This cards' tussles cost 1. This card can direct tussle, even if your opponent has cards in play.",4,2,2,,,#87CEEB,#87CEEB,direct_attack;set_self_tussle_cost:1
+Bubble Blocker,18,0,Your opponent's cards' effects don't affect your cards.,2,2,1,,,#87CEEB,#87CEEB,team_opponent_immunity
+Cake,18,3,Gain 5 CC.,,,,,,#FFB6C1,#FFB6C1,gain_cc:5

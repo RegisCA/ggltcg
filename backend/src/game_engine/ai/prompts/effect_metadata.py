@@ -283,6 +283,14 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         target_description=None,
         strategic_note="Cost reduced by 1 per card in sleep zone. Gets cheaper as game progresses.",
     ),
+    "self_cost_increase_by_sleeping": EffectMetadata(
+        effect_type="self_cost_increase_by_sleeping",
+        classification="continuous",
+        action_type=None,
+        requires_targets=False,
+        target_description=None,
+        strategic_note="Cost increased by 1 per card in your sleep zone. Play early before your sleep zone fills up.",
+    ),
     "alternative_cost_sleep_card": EffectMetadata(
         effect_type="alternative_cost_sleep_card",
         classification="passive",
