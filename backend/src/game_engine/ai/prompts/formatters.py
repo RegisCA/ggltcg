@@ -121,18 +121,18 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
     state_summary = f"""## CURRENT GAME STATE (Turn {game_state.turn_number})
 
 ### YOUR STATUS (You are: {ai_player.name})
-- CC: {ai_player.cc}/7
+- Charge: {ai_player.charge}/7
 - Hand ({len(ai_player.hand)} cards):
     {ai_hand}
 - In Play ({len(ai_player.in_play)}): {', '.join(ai_in_play) if ai_in_play else "NONE"}
-- Sleep Zone ({len(ai_player.sleep_zone)} cards): {', '.join([c.name for c in ai_player.sleep_zone])}
+- Break Zone ({len(ai_player.break_zone)} cards): {', '.join([c.name for c in ai_player.break_zone])}
 
 ### OPPONENT STATUS ({opponent.name})
-- CC: {opponent.cc}/7
+- Charge: {opponent.charge}/7
 - Hand: {len(opponent.hand)} cards{' (hidden)' if len(opponent.hand) > 0 else ' - EMPTY, no hand cards to attack!'}
 - In Play ({len(opponent.in_play)}):
     {opp_in_play}
-- Sleep Zone ({len(opponent.sleep_zone)} cards): {', '.join([c.name for c in opponent.sleep_zone])}
+- Break Zone ({len(opponent.break_zone)} cards): {', '.join([c.name for c in opponent.break_zone])}
 
 ### BOARD ANALYSIS
 - Your Total Strength: {ai_total_str}
@@ -140,9 +140,9 @@ def format_game_state_for_ai(game_state, ai_player_id: str, game_engine=None) ->
 - {board_state}
 
 ### VICTORY CHECK
-- Your cards sleeped: {len(ai_player.sleep_zone)}/{len(ai_player.hand) + len(ai_player.in_play) + len(ai_player.sleep_zone)}
-- Opponent cards sleeped: {len(opponent.sleep_zone)}/{len(opponent.hand) + len(opponent.in_play) + len(opponent.sleep_zone)}
-- **YOU WIN IF: Opponent's Sleep Zone = {len(opponent.hand) + len(opponent.in_play) + len(opponent.sleep_zone)} cards**
+- Your cards broken: {len(ai_player.break_zone)}/{len(ai_player.hand) + len(ai_player.in_play) + len(ai_player.break_zone)}
+- Opponent cards broken: {len(opponent.break_zone)}/{len(opponent.hand) + len(opponent.in_play) + len(opponent.break_zone)}
+- **YOU WIN IF: Opponent's Break Zone = {len(opponent.hand) + len(opponent.in_play) + len(opponent.break_zone)} cards**
 """
     
     return state_summary
@@ -175,7 +175,7 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
             return (card_id, card_id, "")
         # Search all zones for the card
         for player in game_state.players.values():
-            for card in player.hand + player.in_play + player.sleep_zone:
+            for card in player.hand + player.in_play + player.break_zone:
                 if card.id == card_id:
                     # Determine ownership label
                     if player.player_id == ai_player_id:
@@ -243,7 +243,7 @@ def format_valid_actions_for_ai(valid_actions: list, game_state=None, ai_player_
                 alt_cost_details.append(f"[ID: {actual_id}] {display_name}")
             # Format alternative cost list (extract join logic to avoid backslash in f-string)
             alt_cost_list = '\n   - '.join(alt_cost_details)
-            action_text += f"\n   Can pay alternative cost by sleeping (use the UUID from [ID: ...]):\n   - {alt_cost_list}"
+            action_text += f"\n   Can pay alternative cost by breaking (use the UUID from [ID: ...]):\n   - {alt_cost_list}"
         
         # NOTE: Strategic hints removed from action list to avoid confusion
         # Generic hints like "Return opponent's threat" contradict specific targets like "YOUR Knight"

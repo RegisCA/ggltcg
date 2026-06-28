@@ -59,24 +59,24 @@ class DeckConfig:
 
 
 @dataclass
-class TurnCC:
-    """CC tracking for a single turn."""
+class TurnCharge:
+    """Charge tracking for a single turn."""
     turn: int
     player_id: str
-    cc_start: int  # CC at start of turn
-    cc_gained: int  # CC gained during turn
-    cc_spent: int  # CC spent during turn
-    cc_end: int  # CC at end of turn
-    
+    charge_start: int  # Charge at start of turn
+    charge_gained: int  # Charge gained during turn
+    charge_spent: int  # Charge spent during turn
+    charge_end: int  # Charge at end of turn
+
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
             "turn": self.turn,
             "player_id": self.player_id,
-            "cc_start": self.cc_start,
-            "cc_gained": self.cc_gained,
-            "cc_spent": self.cc_spent,
-            "cc_end": self.cc_end,
+            "charge_start": self.charge_start,
+            "charge_gained": self.charge_gained,
+            "charge_spent": self.charge_spent,
+            "charge_end": self.charge_end,
         }
 
 
@@ -92,11 +92,11 @@ class GameResult:
     winner_deck: Optional[str]  # None for draw
     turn_count: int
     duration_ms: int
-    cc_tracking: list[TurnCC]
+    charge_tracking: list[TurnCharge]
     action_log: list[dict]
     error_message: Optional[str] = None
     # V4 metrics for AI performance tracking
-    total_cc_spent_by_winner: int = 0  # CC efficiency metric
+    total_charge_spent_by_winner: int = 0  # Charge efficiency metric
     illegal_action_count: int = 0  # Actions rejected by validator
     v2_fallback_count: int = 0  # Times V4 fell back to V2 single-action mode
     
@@ -112,10 +112,10 @@ class GameResult:
             "winner_deck": self.winner_deck,
             "turn_count": self.turn_count,
             "duration_ms": self.duration_ms,
-            "cc_tracking": [cc.to_dict() for cc in self.cc_tracking],
+            "charge_tracking": [charge.to_dict() for charge in self.charge_tracking],
             "action_log": self.action_log,
             "error_message": self.error_message,
-            "total_cc_spent_by_winner": self.total_cc_spent_by_winner,
+            "total_charge_spent_by_winner": self.total_charge_spent_by_winner,
             "illegal_action_count": self.illegal_action_count,
             "v2_fallback_count": self.v2_fallback_count,
         }

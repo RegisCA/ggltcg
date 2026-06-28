@@ -5,15 +5,15 @@ This test replaces the manual "play 2 turns, check if AI is reasonable" workflow
 It validates the standard Turn 1 + Turn 2 scenario with quality metrics.
 
 Expected Behavior (Baseline):
-- Turn 1 (P1): Surge → Knight → direct_attack = 3 CC used, 1 sleep, 0 CC wasted
-- Turn 2 (P2): Tussle + aggressive play = 4-5 CC used, 1-2 sleeps, 0-1 CC wasted
-- Full scenario: Total CC wasted ≤ 2, total sleeps ≥ 2
+- Turn 1 (P1): Surge → Knight → direct_attack = 3 Charge used, 1 break, 0 Charge wasted
+- Turn 2 (P2): Tussle + aggressive play = 4-5 Charge used, 1-2 breaks, 0-1 Charge wasted
+- Full scenario: Total Charge wasted ≤ 2, total breaks ≥ 2
 
 Run with: pytest backend/tests/test_ai_standard_scenario.py -v -s
 
 Purpose:
 - Catch regressions in prompt structure/behavior
-- Validate CC efficiency and sleep metrics
+- Validate Charge efficiency and break metrics
 - Provide automated quality gate for future changes
 """
 
@@ -65,10 +65,10 @@ def log_turn_result(metrics: TurnMetrics, title: str):
     print(f"📊 {title}")
     print("=" * 70)
     print(f"Turn {metrics.turn_number} ({metrics.player_id}):")
-    print(f"  CC Budget: {metrics.cc_start} + {metrics.cc_gained} gained = {metrics.cc_available} available")
-    print(f"  CC Used: {metrics.cc_spent} ({metrics.efficiency_pct:.1f}%)")
-    print(f"  CC Wasted: {metrics.cc_wasted} (target: ≤1)")
-    print(f"  Cards Slept: {metrics.cards_slept}")
+    print(f"  Charge Budget: {metrics.charge_start} + {metrics.charge_gained} gained = {metrics.charge_available} available")
+    print(f"  Charge Used: {metrics.charge_spent} ({metrics.efficiency_pct:.1f}%)")
+    print(f"  Charge Wasted: {metrics.charge_wasted} (target: ≤1)")
+    print(f"  Cards Slept: {metrics.cards_broken}")
     print(f"  Actions Taken: {metrics.actions_taken}")
     print(f"  Efficiency: {metrics.efficiency_rating.upper()}")
     passed, reason = metrics.meets_expectations()
@@ -90,26 +90,26 @@ class TestStandardScenario:
         Turn 1 (P1): Standard opening with Surge + Knight.
         
         Setup:
-            - Player 1: 2 CC, Hand=[Surge, Knight, Umbruh, Wake]
+            - Player 1: 2 Charge, Hand=[Surge, Knight, Umbruh, Wake]
             - Player 2: No toys in play (can't tussle)
         
         Expected Behavior:
-            - Surge (0 CC) → +1 CC
-            - Knight (1 CC) → 2 CC remaining
-            - Direct Attack (2 CC) → 0 CC remaining
-            - Result: 3 CC used, 1 card slept, 0 CC wasted
+            - Surge (0 Charge) → +1 Charge
+            - Knight (1 Charge) → 2 Charge remaining
+            - Direct Attack (2 Charge) → 0 Charge remaining
+            - Result: 3 Charge used, 1 card slept, 0 Charge wasted
         
         Acceptance:
-            - cc_wasted ≤ 1 (optimal efficiency)
-            - cards_slept ≥ 1 (minimum damage dealt)
+            - charge_wasted ≤ 1 (optimal efficiency)
+            - cards_broken ≥ 1 (minimum damage dealt)
         """
         setup, cards = create_game_with_cards(
             player1_hand=["Surge", "Knight", "Umbruh", "Wake"],
             player1_in_play=[],
             player2_hand=["Knight", "Ka", "Archer", "Wizard", "Drop", "Surge"],
             player2_in_play=[],
-            player1_cc=2,  # Turn 1 CC
-            player2_cc=0,
+            player1_charge=2,  # Turn 1 Charge
+            player2_charge=0,
             active_player="player1",
             turn_number=1,
         )
@@ -127,13 +127,13 @@ class TestStandardScenario:
         log_turn_result(metrics, "TURN 1: Surge + Knight Opening")
         
         # Phase 2 Acceptance Criteria
-        assert metrics.cc_wasted <= 1, (
-            f"Turn 1 should waste ≤1 CC (actual: {metrics.cc_wasted}). "
+        assert metrics.charge_wasted <= 1, (
+            f"Turn 1 should waste ≤1 Charge (actual: {metrics.charge_wasted}). "
             "Check if Surge→Knight→direct_attack combo is being used."
         )
         
-        assert metrics.cards_slept >= 1, (
-            f"Turn 1 should sleep ≥1 card with Surge+Knight (actual: {metrics.cards_slept}). "
+        assert metrics.cards_broken >= 1, (
+            f"Turn 1 should break ≥1 card with Surge+Knight (actual: {metrics.cards_broken}). "
             "Check if direct_attack is being executed."
         )
     
@@ -142,25 +142,25 @@ class TestStandardScenario:
         Turn 2 (P2): Aggressive response with Knight in play.
         
         Setup:
-            - Player 2: 4 CC, Knight in play, Hand=[Umbruh, Wake, Archer]
+            - Player 2: 4 Charge, Knight in play, Hand=[Umbruh, Wake, Archer]
             - Player 1: Knight in play (can tussle)
         
         Expected Behavior:
-            - Option A: Tussle + play more toys = 4-5 CC used
-            - Option B: Play multiple toys + direct attacks = 4-5 CC used
-            - Result: 4-5 CC used, 1-2 sleeps, 0-1 CC wasted
+            - Option A: Tussle + play more toys = 4-5 Charge used
+            - Option B: Play multiple toys + direct attacks = 4-5 Charge used
+            - Result: 4-5 Charge used, 1-2 breaks, 0-1 Charge wasted
         
         Acceptance:
-            - cc_wasted ≤ 1 (optimal efficiency)
-            - cards_slept ≥ 1 (minimum damage dealt)
+            - charge_wasted ≤ 1 (optimal efficiency)
+            - cards_broken ≥ 1 (minimum damage dealt)
         """
         setup, cards = create_game_with_cards(
             player2_hand=["Umbruh", "Wake", "Archer"],
             player2_in_play=["Knight"],
             player1_hand=["Ka", "Archer", "Wizard", "Drop", "Surge"],
             player1_in_play=["Knight"],
-            player2_cc=4,  # Turn 2 CC (P2's first turn)
-            player1_cc=0,
+            player2_charge=4,  # Turn 2 Charge (P2's first turn)
+            player1_charge=0,
             active_player="player2",
             turn_number=2,  # Turn 2 = P2's turn (odd=P1, even=P2)
         )
@@ -178,13 +178,13 @@ class TestStandardScenario:
         log_turn_result(metrics, "TURN 2: Aggressive Response")
         
         # Phase 2 Acceptance Criteria
-        assert metrics.cc_wasted <= 1, (
-            f"Turn 2 should waste ≤1 CC (actual: {metrics.cc_wasted}). "
+        assert metrics.charge_wasted <= 1, (
+            f"Turn 2 should waste ≤1 Charge (actual: {metrics.charge_wasted}). "
             "Check if AI is using tussle and/or playing additional toys."
         )
         
-        assert metrics.cards_slept >= 1, (
-            f"Turn 2 should sleep ≥1 card (actual: {metrics.cards_slept}). "
+        assert metrics.cards_broken >= 1, (
+            f"Turn 2 should break ≥1 card (actual: {metrics.cards_broken}). "
             "Check if AI is being aggressive with tussle/attacks."
         )
     
@@ -200,13 +200,13 @@ class TestStandardScenario:
             - Turn 2: P2 responds with Knight in play
         
         Expected Behavior:
-            - Turn 1: Surge→Knight→direct_attack (3 CC, 1 sleep)
-            - Turn 2: Tussle + aggressive play (4-5 CC, 1-2 sleeps)
-            - Combined: 7-8 CC used, 2-3 sleeps, 0-2 CC wasted
+            - Turn 1: Surge→Knight→direct_attack (3 Charge, 1 break)
+            - Turn 2: Tussle + aggressive play (4-5 Charge, 1-2 breaks)
+            - Combined: 7-8 Charge used, 2-3 breaks, 0-2 Charge wasted
         
         Acceptance:
-            - total_cc_wasted ≤ 2
-            - total_sleeps ≥ 2
+            - total_charge_wasted ≤ 2
+            - total_breaks ≥ 2
         """
         # Turn 1: Player 1 opening
         setup1, cards1 = create_game_with_cards(
@@ -214,8 +214,8 @@ class TestStandardScenario:
             player1_in_play=[],
             player2_hand=["Knight", "Ka", "Archer", "Wizard", "Drop", "Surge"],
             player2_in_play=[],
-            player1_cc=2,
-            player2_cc=0,
+            player1_charge=2,
+            player2_charge=0,
             active_player="player1",
             turn_number=1,
         )
@@ -245,8 +245,8 @@ class TestStandardScenario:
             player2_in_play=["Knight"],
             player1_hand=["Ka", "Archer", "Wizard"],
             player1_in_play=["Knight"],  # From Turn 1
-            player2_cc=4,
-            player1_cc=0,
+            player2_charge=4,
+            player1_charge=0,
             active_player="player2",
             turn_number=2,
         )
@@ -263,27 +263,27 @@ class TestStandardScenario:
         log_turn_result(metrics2, "TURN 2: Response")
         
         # Aggregate metrics
-        total_cc_wasted = metrics1.cc_wasted + metrics2.cc_wasted
-        total_sleeps = metrics1.cards_slept + metrics2.cards_slept
-        total_cc_used = metrics1.cc_spent + metrics2.cc_spent
+        total_charge_wasted = metrics1.charge_wasted + metrics2.charge_wasted
+        total_breaks = metrics1.cards_broken + metrics2.cards_broken
+        total_charge_used = metrics1.charge_spent + metrics2.charge_spent
         
         print("\n" + "=" * 70)
         print("📈 FULL SCENARIO SUMMARY")
         print("=" * 70)
-        print(f"Total CC Used: {total_cc_used} / {metrics1.cc_available + metrics2.cc_available}")
-        print(f"Total CC Wasted: {total_cc_wasted} (target: ≤2)")
-        print(f"Total Cards Slept: {total_sleeps} (target: ≥2)")
+        print(f"Total Charge Used: {total_charge_used} / {metrics1.charge_available + metrics2.charge_available}")
+        print(f"Total Charge Wasted: {total_charge_wasted} (target: ≤2)")
+        print(f"Total Cards Slept: {total_breaks} (target: ≥2)")
         print(f"Turn 1 Efficiency: {metrics1.efficiency_rating}")
         print(f"Turn 2 Efficiency: {metrics2.efficiency_rating}")
         print("=" * 70)
         
         # Phase 2 Acceptance Criteria (Aggregate)
-        assert total_cc_wasted <= 2, (
-            f"Full scenario should waste ≤2 CC total (actual: {total_cc_wasted}). "
-            f"Turn 1: {metrics1.cc_wasted} CC, Turn 2: {metrics2.cc_wasted} CC"
+        assert total_charge_wasted <= 2, (
+            f"Full scenario should waste ≤2 Charge total (actual: {total_charge_wasted}). "
+            f"Turn 1: {metrics1.charge_wasted} Charge, Turn 2: {metrics2.charge_wasted} Charge"
         )
         
-        assert total_sleeps >= 2, (
-            f"Full scenario should sleep ≥2 cards total (actual: {total_sleeps}). "
-            f"Turn 1: {metrics1.cards_slept} sleeps, Turn 2: {metrics2.cards_slept} sleeps"
+        assert total_breaks >= 2, (
+            f"Full scenario should break ≥2 cards total (actual: {total_breaks}). "
+            f"Turn 1: {metrics1.cards_broken} breaks, Turn 2: {metrics2.cards_broken} breaks"
         )

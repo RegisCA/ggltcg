@@ -71,7 +71,7 @@ for lobby, gameplay, and stats.
   [AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md) for the
   authoritative config (including the `AI_VERSION` vs `AI_PLANNER_MODE`
   gotcha).
-- **CC Efficiency Tracking**: Monitors command counter usage per turn
+- **Charge Efficiency Tracking**: Monitors Charge usage per turn
   to analyze AI performance and strategy effectiveness.
 - **Persistent Stats**: PostgreSQL-backed tracking of game results and
   high-level stats.
@@ -159,10 +159,10 @@ graph TD
 
 ## Game Rules
 
-- **Objective:** Put all opponent's cards into their Sleep Zone.
-- **Turn Start:** Gain 4 CC (Player 1 on Turn 1 gains only 2).
-- **CC Cap:** Maximum 7 CC per player at any time.
-- **Tussle:** Pay CC to have two Toys fight. Higher speed strikes first.
+- **Objective:** Put all opponent's cards into their Break Zone.
+- **Turn Start:** Gain 4 Charge (Player 1 on Turn 1 gains only 2).
+- **Charge Cap:** Maximum 7 Charge per player at any time.
+- **Tussle:** Pay Charge to have two Toys fight. Higher speed strikes first.
 
 See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for complete rules.
 
@@ -173,7 +173,7 @@ The simulation system enables automated AI vs AI gameplay for testing and analys
 - **AI Testing**: Validate AI performance and identify bugs across many games
 - **Model Comparison**: Compare different LLM models (e.g., Gemini 2.0 Flash vs 2.5 Flash Lite)
 - **Deck Balancing**: Test deck matchups to identify imbalances
-- **Performance Analysis**: Track command counter (CC) efficiency and turn-by-turn decisions
+- **Performance Analysis**: Track Charge efficiency and turn-by-turn decisions
 
 **Quick Example:**
 

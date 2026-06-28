@@ -87,13 +87,13 @@ def get_valid_actions(engine, player):
         if engine.can_play_card(card, player)[0]:  # Returns (bool, reason) tuple
             cost = engine.calculate_card_cost(card, player)
             # Only add if player can afford it
-            if player.cc >= cost:
+            if player.charge >= cost:
                 valid_actions.append(
                     ValidAction(
                         action_type="play_card",
                         card_name=card.name,
-                        cost_cc=cost,
-                        description=f"Play {card.name} (Cost: {cost} CC)"
+                        cost_charge=cost,
+                        description=f"Play {card.name} (Cost: {cost} Charge)"
                     )
                 )
     
@@ -105,16 +105,16 @@ def get_valid_actions(engine, player):
             if engine.can_tussle(card, None, player):
                 cost = engine.calculate_tussle_cost(card, player)
                 # Check affordability, opponent has no defenders, and has cards in hand
-                if player.cc >= cost and not opponent.has_cards_in_play() and len(opponent.hand) > 0:
+                if player.charge >= cost and not opponent.has_cards_in_play() and len(opponent.hand) > 0:
                     # Also check max 2 direct attacks per turn
                     if player.direct_attacks_this_turn < 2:
                         valid_actions.append(
                             ValidAction(
                                 action_type="tussle",
                                 card_name=card.name,
-                                cost_cc=cost,
+                                cost_charge=cost,
                                 target_options=["direct_attack"],
-                                description=f"{card.name} direct attack (Cost: {cost} CC)"
+                                description=f"{card.name} direct attack (Cost: {cost} Charge)"
                             )
                         )
             
@@ -124,14 +124,14 @@ def get_valid_actions(engine, player):
                     if engine.can_tussle(card, defender, player):
                         cost = engine.calculate_tussle_cost(card, player)
                         # Only add if player can afford it
-                        if player.cc >= cost:
+                        if player.charge >= cost:
                             valid_actions.append(
                                 ValidAction(
                                     action_type="tussle",
                                     card_name=card.name,
-                                    cost_cc=cost,
+                                    cost_charge=cost,
                                     target_options=[defender.name],
-                                    description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
+                                    description=f"{card.name} tussle {defender.name} (Cost: {cost} Charge)"
                                 )
                             )
     
@@ -159,7 +159,7 @@ def main():
     engine.start_turn()
     
     print(f"✓ Game created with AI player (Turn {game_state.turn_number})")
-    print(f"  AI CC: {game_state.players['ai'].cc}")
+    print(f"  AI Charge: {game_state.players['ai'].charge}")
     print(f"  AI Hand: {[c.name for c in game_state.players['ai'].hand]}")
     print(f"  Human Hand: {[c.name for c in game_state.players['human'].hand]}")
     
@@ -191,7 +191,7 @@ def main():
         print(f"\n{'=' * 60}")
         print(f"TURN {game_state.turn_number} - AI")
         print(f"{'=' * 60}")
-        print(f"AI Status: {ai.cc} CC, {len(ai.hand)} in hand, {len(ai.in_play)} in play")
+        print(f"AI Status: {ai.charge} Charge, {len(ai.hand)} in hand, {len(ai.in_play)} in play")
         
         # AI takes actions until it ends its turn
         action_count = 0
@@ -200,21 +200,21 @@ def main():
         while not turn_ended and action_count < max_actions_per_turn:
             action_count += 1
             
-            # Get current CC status
-            current_cc = ai.cc
+            # Get current Charge status
+            current_charge = ai.charge
             
             # Get valid actions (based on CURRENT state)
             valid_actions = get_valid_actions(engine, ai)
             
             # If only action is "end turn", auto-end without calling AI
             if len(valid_actions) == 1 and valid_actions[0].action_type == "end_turn":
-                print(f"\n--- Action {action_count} (AI has {current_cc} CC) ---")
+                print(f"\n--- Action {action_count} (AI has {current_charge} Charge) ---")
                 print("Only action available is 'End your turn' - auto-ending turn")
                 selected_action = valid_actions[0]
                 action_index = 0
             else:
                 # Show what actions are available (for debugging)
-                print(f"\n--- Action {action_count} (AI has {current_cc} CC) ---")
+                print(f"\n--- Action {action_count} (AI has {current_charge} Charge) ---")
                 if len(valid_actions) <= 5:
                     print(f"Available: {[a.description for a in valid_actions]}")
                 else:
@@ -243,33 +243,33 @@ def main():
                     game_state.turn_number += 1
                     
                     # Start new turn for AI
-                    # Only the very first turn (turn 1) gets 2 CC for the starting player
-                    # All other turns get 4 CC
+                    # Only the very first turn (turn 1) gets 2 Charge for the starting player
+                    # All other turns get 4 Charge
                     game_state.phase = Phase.START
                     ai.reset_turn_counters()
                     
                     # Since we just incremented, turn_number is now 2, 3, 4, etc.
-                    # These should all get 4 CC (only turn 1 got 2 CC initially)
-                    cc_gain = 4  # Always 4 CC for turns after turn 1
-                    ai.gain_cc(cc_gain)
+                    # These should all get 4 Charge (only turn 1 got 2 Charge initially)
+                    charge_gain = 4  # Always 4 Charge for turns after turn 1
+                    ai.gain_charge(charge_gain)
                     game_state.phase = Phase.MAIN
                     
-                    print(f"   → Turn {old_turn} ended. Turn {game_state.turn_number} starts: AI gains {cc_gain} CC (now has {ai.cc} CC)")
+                    print(f"   → Turn {old_turn} ended. Turn {game_state.turn_number} starts: AI gains {charge_gain} Charge (now has {ai.charge} Charge)")
                     
                 elif selected_action.action_type == "play_card":
                     card = next((c for c in ai.hand if c.name == selected_action.card_name), None)
                     if card:
-                        cc_before = ai.cc
+                        charge_before = ai.charge
                         engine.play_card(ai, card)
-                        cc_after = ai.cc
-                        print(f"   → {card.name} moved to play zone (spent {cc_before - cc_after} CC, now has {cc_after} CC)")
+                        charge_after = ai.charge
+                        print(f"   → {card.name} moved to play zone (spent {charge_before - charge_after} Charge, now has {charge_after} Charge)")
                     else:
                         print(f"   ⚠ Card {selected_action.card_name} not found in hand!")
                         
                 elif selected_action.action_type == "tussle":
                     attacker = next((c for c in ai.in_play if c.name == selected_action.card_name), None)
                     if attacker:
-                        cc_before = ai.cc
+                        charge_before = ai.charge
                         # Determine defender (None for direct attack)
                         defender = None
                         if selected_action.target_options and selected_action.target_options[0] != "direct_attack":
@@ -281,26 +281,26 @@ def main():
                         if not can_do:
                             opponent = game_state.get_opponent(ai.player_id)
                             print(f"   ⚠ Tussle validation failed: {reason}")
-                            print(f"      Debug: Opponent has {len(opponent.hand)} in hand, {len(opponent.in_play)} in play, {len(opponent.sleep_zone)} sleeped")
+                            print(f"      Debug: Opponent has {len(opponent.hand)} in hand, {len(opponent.in_play)} in play, {len(opponent.break_zone)} broken")
                         
-                        result, sleeped_from_hand = engine.initiate_tussle(attacker, defender, ai)
-                        cc_after = ai.cc
+                        result, broken_from_hand = engine.initiate_tussle(attacker, defender, ai)
+                        charge_after = ai.charge
                         
                         if not result:
-                            print(f"   ⚠ Tussle failed! (CC unchanged: {cc_after})")
+                            print(f"   ⚠ Tussle failed! (Charge unchanged: {charge_after})")
                         elif defender:
-                            print(f"   → Tussle succeeded! (spent {cc_before - cc_after} CC, now has {cc_after} CC)")
-                        elif sleeped_from_hand:
-                            # Direct attack - show what card was sleeped
-                            print(f"   → Direct attack succeeded! Sleeped {sleeped_from_hand} from opponent's hand")
-                            print(f"      Spent {cc_before - cc_after} CC, now has {cc_after} CC")
+                            print(f"   → Tussle succeeded! (spent {charge_before - charge_after} Charge, now has {charge_after} Charge)")
+                        elif broken_from_hand:
+                            # Direct attack - show what card was broken
+                            print(f"   → Direct attack succeeded! Broken {broken_from_hand} from opponent's hand")
+                            print(f"      Spent {charge_before - charge_after} Charge, now has {charge_after} Charge")
                             opponent = game_state.get_opponent(ai.player_id)
-                            print(f"      Opponent now: {len(opponent.hand)} in hand, {len(opponent.sleep_zone)} sleeped")
+                            print(f"      Opponent now: {len(opponent.hand)} in hand, {len(opponent.break_zone)} broken")
                             
                             # Check for win condition
-                            total_opponent_cards = len(opponent.hand) + len(opponent.in_play) + len(opponent.sleep_zone)
-                            if len(opponent.sleep_zone) == total_opponent_cards:
-                                print(f"\n🎉 GAME WON! All {total_opponent_cards} opponent cards are sleeped!")
+                            total_opponent_cards = len(opponent.hand) + len(opponent.in_play) + len(opponent.break_zone)
+                            if len(opponent.break_zone) == total_opponent_cards:
+                                print(f"\n🎉 GAME WON! All {total_opponent_cards} opponent cards are broken!")
                                 return  # Exit early - game is over
                         else:
                             print(f"   → Direct attack succeeded!")

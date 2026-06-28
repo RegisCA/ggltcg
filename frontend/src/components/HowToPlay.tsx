@@ -139,21 +139,21 @@ function OverviewTab() {
     <>
       <SectionTitle>Objective</SectionTitle>
       <Paragraph>
-        Put all of your opponent's cards into their <Highlight>Sleep Zone</Highlight> to win!
+        Put all of your opponent's cards into their <Highlight>Break Zone</Highlight> to win!
         This includes cards in their hand, in play, and any they draw.
       </Paragraph>
 
-      <SectionTitle>Command Counters (CC)</SectionTitle>
+      <SectionTitle>Charge</SectionTitle>
       <Paragraph>
-        CC is the resource you use to play cards and initiate tussles. 
-        You gain <Highlight>4 CC</Highlight> at the start of each turn 
-        (only 2 CC on the very first turn). Unspent CC carries over to your next turn, 
-        up to a maximum of <Highlight>7 CC</Highlight>.
+        Charge is the resource you use to play cards and initiate tussles. 
+        You gain <Highlight>4 Charge</Highlight> at the start of each turn 
+        (only 2 Charge on the very first turn). Unspent Charge carries over to your next turn, 
+        up to a maximum of <Highlight>7 Charge</Highlight>.
       </Paragraph>
 
       <SectionTitle>Turn Structure</SectionTitle>
       <BulletList items={[
-        'Start Phase: Gain 4 CC (2 on Turn 1)',
+        'Start Phase: Gain 4 Charge (2 on Turn 1)',
         'Main Phase: Play cards, initiate tussles, use abilities',
         'End Phase: Your turn ends, opponent begins theirs',
       ]} />
@@ -171,12 +171,12 @@ function CardsTab() {
       <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)', marginBottom: 'var(--spacing-component-md)' }}>
         <StatBadge label="Speed" description="Who strikes first in a tussle" />
         <StatBadge label="Strength" description="Damage dealt when striking" />
-        <StatBadge label="Stamina" description="Health - when it hits 0, the Toy sleeps" />
+        <StatBadge label="Stamina" description="Health - when it hits 0, the Toy breaks" />
       </div>
 
       <SectionTitle>Action Cards</SectionTitle>
       <Paragraph>
-        Actions have immediate effects and then go to your Sleep Zone. 
+        Actions have immediate effects and then go to your Break Zone. 
         Use them to buff your Toys, disrupt opponents, or recover cards!
       </Paragraph>
 
@@ -184,7 +184,7 @@ function CardsTab() {
       <BulletList items={[
         'Hand: Cards you can play (hidden from opponent)',
         'In Play: Active Toys that can tussle',
-        'Sleep Zone: Defeated or used cards (visible to both)',
+        'Break Zone: Defeated or used cards (visible to both)',
       ]} />
     </>
   );
@@ -195,7 +195,7 @@ function TusslingTab() {
     <>
       <SectionTitle>How Tussles Work</SectionTitle>
       <Paragraph>
-        Tussling is combat between Toys. It costs <Highlight>2 CC</Highlight> by default 
+        Tussling is combat between Toys. It costs <Highlight>2 Charge</Highlight> by default 
         (some cards can reduce this).
       </Paragraph>
 
@@ -205,13 +205,13 @@ function TusslingTab() {
         'Your Toys get +1 Speed during your turn (attacker advantage)',
         'Each Toy deals damage equal to its Strength',
         'If Speed is tied, both Toys strike simultaneously',
-        'Toys at 0 Stamina go to Sleep Zone',
+        'Toys at 0 Stamina go to Break Zone',
       ]} />
 
       <SectionTitle>Direct Attacks</SectionTitle>
       <Paragraph>
         If your opponent has no Toys in play, you can attack their hand directly!
-        This sleeps a random card from their hand. You can do this <Highlight>twice per turn</Highlight>.
+        This breaks a random card from their hand. You can do this <Highlight>twice per turn</Highlight>.
       </Paragraph>
 
       <SectionTitle>Special Abilities</SectionTitle>
@@ -229,10 +229,10 @@ function TipsTab() {
     <>
       <SectionTitle>Beginner Tips</SectionTitle>
       <BulletList items={[
-        'Save CC for key moments - banking resources can set up big plays',
+        'Save Charge for key moments - banking resources can set up big plays',
         'Pay attention to Speed - striking first can win the game',
         'Buff cards like Ka and Demideca affect ALL your Toys',
-        'Action cards go to Sleep Zone - this can help cards like Dream cost less',
+        'Action cards go to Break Zone - this can help cards like Dream cost less',
         "Don't forget direct attacks when the opponent's field is empty!",
       ]} />
 
@@ -240,7 +240,7 @@ function TipsTab() {
       <BulletList items={[
         'Mix Toys and Actions in your deck for flexibility',
         'Consider card synergies when building your 6-card deck',
-        'Watch your opponent\'s CC - they might be saving for something big',
+        'Watch your opponent\'s Charge - they might be saving for something big',
         'Some cards have restrictions (e.g., Rush can\'t be played Turn 1)',
       ]} />
 

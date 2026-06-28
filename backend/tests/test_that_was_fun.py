@@ -3,7 +3,7 @@ Tests for the 'That was fun' card.
 
 That was fun is an Action card with:
 - Cost: 0
-- Effect: Unsleep an action card (returns 1 Action from Sleep Zone to hand)
+- Effect: Fix an action card (returns 1 Action from Break Zone to hand)
 
 Related to Issue #235: https://github.com/RegisCA/ggltcg/issues/235
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from conftest import create_game_with_cards, get_card_template
 from game_engine.rules.effects.effect_registry import EffectRegistry
-from game_engine.rules.effects.action_effects import UnsleepEffect
+from game_engine.rules.effects.action_effects import FixEffect
 from game_engine.effects_constants import EffectDefinitions
 
 
@@ -21,19 +21,19 @@ class TestThatWasFunEffectParsing:
     """Tests for effect parsing of 'That was fun' card."""
     
     def test_effect_definition_constant_exists(self):
-        """Verify UNSLEEP_ACTIONS_1 constant is defined."""
-        assert hasattr(EffectDefinitions, "UNSLEEP_ACTIONS_1")
-        assert EffectDefinitions.UNSLEEP_ACTIONS_1 == "unsleep:actions:1"
+        """Verify FIX_ACTIONS_1 constant is defined."""
+        assert hasattr(EffectDefinitions, "FIX_ACTIONS_1")
+        assert EffectDefinitions.FIX_ACTIONS_1 == "fix:actions:1"
     
     def test_that_was_fun_effect_parsing(self):
         """Test that 'That was fun' effect is parsed correctly from CSV."""
         card = get_card_template("That was fun")
         
-        assert card.effect_definitions == "unsleep:actions:1"
+        assert card.effect_definitions == "fix:actions:1"
         
         effects = EffectRegistry.get_effects(card)
         assert len(effects) == 1
-        assert isinstance(effects[0], UnsleepEffect)
+        assert isinstance(effects[0], FixEffect)
         assert effects[0].count == 1
         assert effects[0].card_type_filter == "actions"
     
@@ -48,22 +48,22 @@ class TestThatWasFunTargeting:
     """Tests for target selection of 'That was fun'."""
     
     def test_only_action_cards_are_valid_targets(self):
-        """That was fun should only target Action cards in sleep zone."""
+        """That was fun should only target Action cards in break zone."""
         setup, cards = create_game_with_cards(
             player1_hand=["That was fun"],
-            player1_sleep=["Rush", "Ka", "Wake"],  # Rush and Wake are Actions, Ka is a Toy
+            player1_break=["Rush", "Ka", "Wake"],  # Rush and Wake are Actions, Ka is a Toy
             active_player="player1",
         )
         
         that_was_fun = cards["p1_hand_That was fun"]
-        rush = cards["p1_sleep_Rush"]
-        ka = cards["p1_sleep_Ka"]
-        wake = cards["p1_sleep_Wake"]
+        rush = cards["p1_break_Rush"]
+        ka = cards["p1_break_Ka"]
+        wake = cards["p1_break_Wake"]
         
         effects = EffectRegistry.get_effects(that_was_fun)
-        unsleep_effect = effects[0]
+        fix_effect = effects[0]
         
-        valid_targets = unsleep_effect.get_valid_targets(
+        valid_targets = fix_effect.get_valid_targets(
             setup.game_state, setup.player1
         )
         
@@ -73,27 +73,27 @@ class TestThatWasFunTargeting:
         assert ka not in valid_targets
         assert len(valid_targets) == 2
     
-    def test_no_valid_targets_when_no_actions_in_sleep(self):
-        """No valid targets when sleep zone has only Toys."""
+    def test_no_valid_targets_when_no_actions_in_break(self):
+        """No valid targets when break zone has only Toys."""
         setup, cards = create_game_with_cards(
             player1_hand=["That was fun"],
-            player1_sleep=["Ka", "Knight"],  # Only Toys
+            player1_break=["Ka", "Knight"],  # Only Toys
             active_player="player1",
         )
         
         that_was_fun = cards["p1_hand_That was fun"]
         
         effects = EffectRegistry.get_effects(that_was_fun)
-        unsleep_effect = effects[0]
+        fix_effect = effects[0]
         
-        valid_targets = unsleep_effect.get_valid_targets(
+        valid_targets = fix_effect.get_valid_targets(
             setup.game_state, setup.player1
         )
         
         assert len(valid_targets) == 0
     
-    def test_no_valid_targets_when_sleep_zone_empty(self):
-        """No valid targets when sleep zone is empty."""
+    def test_no_valid_targets_when_break_zone_empty(self):
+        """No valid targets when break zone is empty."""
         setup, cards = create_game_with_cards(
             player1_hand=["That was fun"],
             active_player="player1",
@@ -102,9 +102,9 @@ class TestThatWasFunTargeting:
         that_was_fun = cards["p1_hand_That was fun"]
         
         effects = EffectRegistry.get_effects(that_was_fun)
-        unsleep_effect = effects[0]
+        fix_effect = effects[0]
         
-        valid_targets = unsleep_effect.get_valid_targets(
+        valid_targets = fix_effect.get_valid_targets(
             setup.game_state, setup.player1
         )
         
@@ -114,66 +114,66 @@ class TestThatWasFunTargeting:
 class TestThatWasFunExecution:
     """Tests for playing 'That was fun' card."""
     
-    def test_unsleep_action_card(self):
-        """Playing 'That was fun' returns an Action from sleep zone to hand."""
+    def test_fix_action_card(self):
+        """Playing 'That was fun' returns an Action from break zone to hand."""
         setup, cards = create_game_with_cards(
             player1_hand=["That was fun"],
-            player1_sleep=["Rush"],
+            player1_break=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         that_was_fun = cards["p1_hand_That was fun"]
-        rush = cards["p1_sleep_Rush"]
+        rush = cards["p1_break_Rush"]
         
         # Play That was fun targeting Rush
         setup.engine.play_card(setup.player1, that_was_fun, target_ids=[rush.id])
         
         # Rush should be in hand now
         assert rush in setup.player1.hand
-        assert rush not in setup.player1.sleep_zone
+        assert rush not in setup.player1.break_zone
         
-        # That was fun (Action) should be in sleep zone
-        assert that_was_fun in setup.player1.sleep_zone
+        # That was fun (Action) should be in break zone
+        assert that_was_fun in setup.player1.break_zone
         assert that_was_fun not in setup.player1.hand
     
-    def test_costs_zero_cc(self):
-        """Playing 'That was fun' costs 0 CC."""
+    def test_costs_zero_charge(self):
+        """Playing 'That was fun' costs 0 Charge."""
         setup, cards = create_game_with_cards(
             player1_hand=["That was fun"],
-            player1_sleep=["Rush"],
+            player1_break=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
-        initial_cc = setup.player1.cc
+        initial_charge = setup.player1.charge
         that_was_fun = cards["p1_hand_That was fun"]
-        rush = cards["p1_sleep_Rush"]
+        rush = cards["p1_break_Rush"]
         
         setup.engine.play_card(setup.player1, that_was_fun, target_ids=[rush.id])
         
-        # CC should be unchanged (0 cost)
-        assert setup.player1.cc == initial_cc
+        # Charge should be unchanged (0 cost)
+        assert setup.player1.charge == initial_charge
     
     def test_can_play_without_targets(self):
         """Can play 'That was fun' even with no valid targets (does nothing)."""
         setup, cards = create_game_with_cards(
             player1_hand=["That was fun"],
-            player1_sleep=["Ka"],  # Only a Toy, not valid for That was fun
+            player1_break=["Ka"],  # Only a Toy, not valid for That was fun
             active_player="player1",
         )
         
         that_was_fun = cards["p1_hand_That was fun"]
-        ka = cards["p1_sleep_Ka"]
+        ka = cards["p1_break_Ka"]
         
-        # Play without targets (since no Action cards in sleep zone)
+        # Play without targets (since no Action cards in break zone)
         setup.engine.play_card(setup.player1, that_was_fun, target_ids=[])
         
-        # Ka should still be in sleep zone (not affected)
-        assert ka in setup.player1.sleep_zone
+        # Ka should still be in break zone (not affected)
+        assert ka in setup.player1.break_zone
         
-        # That was fun should be in sleep zone
-        assert that_was_fun in setup.player1.sleep_zone
+        # That was fun should be in break zone
+        assert that_was_fun in setup.player1.break_zone
 
 
 class TestWakeVsThatWasFun:
@@ -183,18 +183,18 @@ class TestWakeVsThatWasFun:
         """Wake can target both Toys and Actions."""
         setup, cards = create_game_with_cards(
             player1_hand=["Wake"],
-            player1_sleep=["Ka", "Rush"],
+            player1_break=["Ka", "Rush"],
             active_player="player1",
         )
         
         wake = cards["p1_hand_Wake"]
-        ka = cards["p1_sleep_Ka"]
-        rush = cards["p1_sleep_Rush"]
+        ka = cards["p1_break_Ka"]
+        rush = cards["p1_break_Rush"]
         
         effects = EffectRegistry.get_effects(wake)
-        unsleep_effect = effects[0]
+        fix_effect = effects[0]
         
-        valid_targets = unsleep_effect.get_valid_targets(
+        valid_targets = fix_effect.get_valid_targets(
             setup.game_state, setup.player1
         )
         
@@ -206,18 +206,18 @@ class TestWakeVsThatWasFun:
         """That was fun can only target Actions, not Toys."""
         setup, cards = create_game_with_cards(
             player1_hand=["That was fun"],
-            player1_sleep=["Ka", "Rush"],
+            player1_break=["Ka", "Rush"],
             active_player="player1",
         )
         
         that_was_fun = cards["p1_hand_That was fun"]
-        ka = cards["p1_sleep_Ka"]
-        rush = cards["p1_sleep_Rush"]
+        ka = cards["p1_break_Ka"]
+        rush = cards["p1_break_Rush"]
         
         effects = EffectRegistry.get_effects(that_was_fun)
-        unsleep_effect = effects[0]
+        fix_effect = effects[0]
         
-        valid_targets = unsleep_effect.get_valid_targets(
+        valid_targets = fix_effect.get_valid_targets(
             setup.game_state, setup.player1
         )
         

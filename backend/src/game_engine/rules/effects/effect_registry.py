@@ -22,7 +22,7 @@ class EffectFactory:
     Examples:
     - "stat_boost:strength:2" -> StatBoostEffect(card, "strength", 2)
     - "stat_boost:all:1" -> StatBoostEffect(card, "all", 1)
-    - "stat_boost:strength:2;unsleep" -> [StatBoostEffect(...), UnsleepEffect(...)]
+    - "stat_boost:strength:2;fix" -> [StatBoostEffect(...), FixEffect(...)]
     """
     
     @classmethod
@@ -57,26 +57,26 @@ class EffectFactory:
             if effect_type == "stat_boost":
                 effect = cls._parse_stat_boost(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "gain_cc":
-                effect = cls._parse_gain_cc(parts, source_card)
+            elif effect_type == "gain_charge":
+                effect = cls._parse_gain_charge(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "unsleep":
-                effect = cls._parse_unsleep(parts, source_card)
+            elif effect_type == "fix":
+                effect = cls._parse_fix(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "sleep_all":
-                effect = cls._parse_sleep_all(parts, source_card)
+            elif effect_type == "break_all":
+                effect = cls._parse_break_all(parts, source_card)
                 effects.append(effect)
             elif effect_type == "set_tussle_cost":
                 effect = cls._parse_set_tussle_cost(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "reduce_cost_by_sleeping":
-                effect = cls._parse_reduce_cost_by_sleeping(parts, source_card)
+            elif effect_type == "reduce_cost_by_broken":
+                effect = cls._parse_reduce_cost_by_broken(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "self_cost_increase_by_sleeping":
-                effect = cls._parse_self_cost_increase_by_sleeping(parts, source_card)
+            elif effect_type == "self_cost_increase_by_broken":
+                effect = cls._parse_self_cost_increase_by_broken(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "gain_cc_when_sleeped":
-                effect = cls._parse_gain_cc_when_sleeped(parts, source_card)
+            elif effect_type == "gain_charge_when_broken":
+                effect = cls._parse_gain_charge_when_broken(parts, source_card)
                 effects.append(effect)
             elif effect_type == "set_self_tussle_cost":
                 effect = cls._parse_set_self_tussle_cost(parts, source_card)
@@ -96,8 +96,8 @@ class EffectFactory:
             elif effect_type == "copy_card":
                 effect = cls._parse_copy_card(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "alternative_cost_sleep_card":
-                effect = cls._parse_alternative_cost_sleep_card(parts, source_card)
+            elif effect_type == "alternative_cost_break_card":
+                effect = cls._parse_alternative_cost_break_card(parts, source_card)
                 effects.append(effect)
             elif effect_type == "cannot_tussle":
                 effect = cls._parse_cannot_tussle(parts, source_card)
@@ -108,8 +108,8 @@ class EffectFactory:
             elif effect_type == "remove_stamina_ability":
                 effect = cls._parse_remove_stamina_ability(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "sleep_target":
-                effect = cls._parse_sleep_target(parts, source_card)
+            elif effect_type == "break_target":
+                effect = cls._parse_break_target(parts, source_card)
                 effects.append(effect)
             elif effect_type == "return_target_to_hand":
                 effect = cls._parse_return_target_to_hand(parts, source_card)
@@ -120,11 +120,11 @@ class EffectFactory:
             elif effect_type == "turn_stat_boost":
                 effect = cls._parse_turn_stat_boost(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "start_of_turn_gain_cc":
-                effect = cls._parse_start_of_turn_gain_cc(parts, source_card)
+            elif effect_type == "start_of_turn_gain_charge":
+                effect = cls._parse_start_of_turn_gain_charge(parts, source_card)
                 effects.append(effect)
-            elif effect_type == "on_card_played_gain_cc":
-                effect = cls._parse_on_card_played_gain_cc(parts, source_card)
+            elif effect_type == "on_card_played_gain_charge":
+                effect = cls._parse_on_card_played_gain_charge(parts, source_card)
                 effects.append(effect)
             elif effect_type == "opponent_cost_increase":
                 effect = cls._parse_opponent_cost_increase(parts, source_card)
@@ -185,12 +185,12 @@ class EffectFactory:
         return StatBoostEffect(source_card, stat_name, amount)
     
     @classmethod
-    def _parse_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_gain_charge(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse a gain_cc effect definition.
+        Parse a gain_charge effect definition.
         
-        Format: "gain_cc:amount" or "gain_cc:amount:not_first_turn"
-        - amount: integer CC to gain
+        Format: "gain_charge:amount" or "gain_charge:amount:not_first_turn"
+        - amount: integer Charge to gain
         - not_first_turn: optional restriction
         
         Args:
@@ -198,14 +198,14 @@ class EffectFactory:
             source_card: The card providing this effect
             
         Returns:
-            GainCCEffect instance
+            GainChargeEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) < 2 or len(parts) > 3:
             raise ValueError(
-                f"gain_cc effect requires 1-2 parameters: amount and optional restriction. "
+                f"gain_charge effect requires 1-2 parameters: amount and optional restriction. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -214,7 +214,7 @@ class EffectFactory:
             amount = int(parts[1].strip())
         except ValueError:
             raise ValueError(
-                f"Invalid amount '{parts[1]}' for gain_cc. Must be an integer."
+                f"Invalid amount '{parts[1]}' for gain_charge. Must be an integer."
             )
         
         # Parse optional restriction
@@ -225,36 +225,36 @@ class EffectFactory:
                 not_first_turn = True
             else:
                 raise ValueError(
-                    f"Invalid restriction '{restriction}' for gain_cc. "
+                    f"Invalid restriction '{restriction}' for gain_charge. "
                     f"Only 'not_first_turn' is supported."
                 )
         
         # Import here to avoid circular dependency
-        from .action_effects import GainCCEffect
-        return GainCCEffect(source_card, amount, not_first_turn)
+        from .action_effects import GainChargeEffect
+        return GainChargeEffect(source_card, amount, not_first_turn)
     
     @classmethod
-    def _parse_unsleep(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_fix(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse an unsleep effect definition.
+        Parse a fix effect definition.
         
         Formats:
-        - "unsleep:count" - unsleep N cards (any type)
-        - "unsleep:card_type:count" - unsleep N cards of specific type
+        - "fix:count" - fix N cards (any type)
+        - "fix:card_type:count" - fix N cards of specific type
         
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
             
         Returns:
-            UnsleepEffect instance
+            FixEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) not in (2, 3):
             raise ValueError(
-                f"unsleep effect requires 1-2 parameters: [card_type:]count. "
+                f"fix effect requires 1-2 parameters: [card_type:]count. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -262,16 +262,16 @@ class EffectFactory:
         count_str = None
         
         if len(parts) == 2:
-            # Format: unsleep:count
+            # Format: fix:count
             count_str = parts[1].strip()
         else:
-            # Format: unsleep:card_type:count
+            # Format: fix:card_type:count
             card_type_filter = parts[1].strip().lower()
             count_str = parts[2].strip()
             
             if card_type_filter not in ("actions", "toys"):
                 raise ValueError(
-                    f"Invalid card_type_filter '{card_type_filter}' for unsleep. "
+                    f"Invalid card_type_filter '{card_type_filter}' for fix. "
                     f"Must be 'actions' or 'toys'."
                 )
         
@@ -280,44 +280,44 @@ class EffectFactory:
             count = int(count_str)
         except ValueError:
             raise ValueError(
-                f"Invalid count '{count_str}' for unsleep. Must be an integer."
+                f"Invalid count '{count_str}' for fix. Must be an integer."
             )
         
         if count < 1:
             raise ValueError(
-                f"Invalid count '{count}' for unsleep. Must be at least 1."
+                f"Invalid count '{count}' for fix. Must be at least 1."
             )
         
         # Import here to avoid circular dependency
-        from .action_effects import UnsleepEffect
-        return UnsleepEffect(source_card, count, card_type_filter)
+        from .action_effects import FixEffect
+        return FixEffect(source_card, count, card_type_filter)
     
     @classmethod
-    def _parse_sleep_all(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_break_all(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse a sleep_all effect definition.
+        Parse a break_all effect definition.
         
-        Format: "sleep_all" (no parameters)
+        Format: "break_all" (no parameters)
         
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
             
         Returns:
-            SleepAllEffect instance
+            BreakAllEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) != 1:
             raise ValueError(
-                f"sleep_all effect takes no parameters. "
+                f"break_all effect takes no parameters. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
         # Import here to avoid circular dependency
-        from .action_effects import SleepAllEffect
-        return SleepAllEffect(source_card)
+        from .action_effects import BreakAllEffect
+        return BreakAllEffect(source_card)
     
     @classmethod
     def _parse_set_tussle_cost(cls, parts: List[str], source_card: "Card") -> BaseEffect:
@@ -361,82 +361,82 @@ class EffectFactory:
         return SetTussleCostEffect(source_card, cost)
     
     @classmethod
-    def _parse_reduce_cost_by_sleeping(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_reduce_cost_by_broken(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse a reduce_cost_by_sleeping effect definition.
+        Parse a reduce_cost_by_broken effect definition.
         
-        Format: "reduce_cost_by_sleeping"
-        No parameters - reduces cost by 1 per sleeping card.
+        Format: "reduce_cost_by_broken"
+        No parameters - reduces cost by 1 per broken card.
         
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
             
         Returns:
-            ReduceCostBySleepingEffect instance
+            ReduceCostByBrokenEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) != 1:
             raise ValueError(
-                f"reduce_cost_by_sleeping effect takes no parameters. "
+                f"reduce_cost_by_broken effect takes no parameters. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
         # Import here to avoid circular dependency
-        from .continuous_effects import ReduceCostBySleepingEffect
-        return ReduceCostBySleepingEffect(source_card)
+        from .continuous_effects import ReduceCostByBrokenEffect
+        return ReduceCostByBrokenEffect(source_card)
 
     @classmethod
-    def _parse_self_cost_increase_by_sleeping(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_self_cost_increase_by_broken(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse a self_cost_increase_by_sleeping effect definition.
+        Parse a self_cost_increase_by_broken effect definition.
 
-        Format: "self_cost_increase_by_sleeping"
-        No parameters - increases cost by 1 per sleeping card.
+        Format: "self_cost_increase_by_broken"
+        No parameters - increases cost by 1 per broken card.
 
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
 
         Returns:
-            SelfCostIncreaseBySleepingEffect instance
+            SelfCostIncreaseByBrokenEffect instance
 
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) != 1:
             raise ValueError(
-                f"self_cost_increase_by_sleeping effect takes no parameters. "
+                f"self_cost_increase_by_broken effect takes no parameters. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
 
         # Import here to avoid circular dependency
-        from .continuous_effects import SelfCostIncreaseBySleepingEffect
-        return SelfCostIncreaseBySleepingEffect(source_card)
+        from .continuous_effects import SelfCostIncreaseByBrokenEffect
+        return SelfCostIncreaseByBrokenEffect(source_card)
 
     @classmethod
-    def _parse_gain_cc_when_sleeped(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_gain_charge_when_broken(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse a gain_cc_when_sleeped effect definition.
+        Parse a gain_charge_when_broken effect definition.
         
-        Format: "gain_cc_when_sleeped:amount"
-        - amount: integer CC to gain when sleeped
+        Format: "gain_charge_when_broken:amount"
+        - amount: integer Charge to gain when broken
         
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
             
         Returns:
-            GainCCWhenSleepedEffect instance
+            GainChargeWhenBrokenEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) != 2:
             raise ValueError(
-                f"gain_cc_when_sleeped effect requires 1 parameter: amount. "
+                f"gain_charge_when_broken effect requires 1 parameter: amount. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -445,17 +445,17 @@ class EffectFactory:
             amount = int(parts[1].strip())
         except ValueError:
             raise ValueError(
-                f"Invalid amount '{parts[1]}' for gain_cc_when_sleeped. Must be an integer."
+                f"Invalid amount '{parts[1]}' for gain_charge_when_broken. Must be an integer."
             )
         
         if amount < 1:
             raise ValueError(
-                f"Invalid amount {amount} for gain_cc_when_sleeped. Must be at least 1."
+                f"Invalid amount {amount} for gain_charge_when_broken. Must be at least 1."
             )
         
         # Import here to avoid circular dependency
-        from .continuous_effects import GainCCWhenSleepedEffect
-        return GainCCWhenSleepedEffect(source_card, amount)
+        from .continuous_effects import GainChargeWhenBrokenEffect
+        return GainChargeWhenBrokenEffect(source_card, amount)
     
     @classmethod
     def _parse_set_self_tussle_cost(cls, parts: List[str], source_card: "Card") -> BaseEffect:
@@ -549,7 +549,7 @@ class EffectFactory:
         Format: "auto_win_tussle_on_own_turn" (no parameters)
         
         On the controller's turn, this card automatically wins all tussles.
-        The opponent is sleeped without striking back.
+        The opponent is broken without striking back.
         
         Args:
             parts: Split effect definition parts
@@ -664,14 +664,14 @@ class EffectFactory:
         return CopyEffect(source_card)
     
     @classmethod
-    def _parse_alternative_cost_sleep_card(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_alternative_cost_break_card(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse an alternative_cost_sleep_card effect definition.
+        Parse an alternative_cost_break_card effect definition.
         
-        Format: "alternative_cost_sleep_card" (no parameters)
+        Format: "alternative_cost_break_card" (no parameters)
         
-        Allows playing this card for free by sleeping one of your cards in play.
-        Provides an alternative to paying the normal CC cost.
+        Allows playing this card for free by breaking one of your cards in play.
+        Provides an alternative to paying the normal Charge cost.
         
         Args:
             parts: Split effect definition parts
@@ -685,7 +685,7 @@ class EffectFactory:
         """
         if len(parts) != 1:
             raise ValueError(
-                f"alternative_cost_sleep_card effect takes no parameters. "
+                f"alternative_cost_break_card effect takes no parameters. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -757,11 +757,11 @@ class EffectFactory:
         """
         Parse a remove_stamina_ability effect definition.
         
-        Format: "remove_stamina_ability:cc_cost" or "remove_stamina_ability:cc_cost:amount"
-        - cc_cost: CC cost per activation (typically 1)
+        Format: "remove_stamina_ability:charge_cost" or "remove_stamina_ability:charge_cost:amount"
+        - charge_cost: Charge cost per activation (typically 1)
         - amount: Amount of stamina to remove per activation (defaults to 1)
         
-        Activated ability: spend CC to remove stamina from any card in play.
+        Activated ability: spend Charge to remove stamina from any card in play.
         
         Args:
             parts: Split effect definition parts
@@ -775,21 +775,21 @@ class EffectFactory:
         """
         if len(parts) < 2 or len(parts) > 3:
             raise ValueError(
-                f"remove_stamina_ability effect requires 1-2 parameters: cc_cost and optional amount. "
+                f"remove_stamina_ability effect requires 1-2 parameters: charge_cost and optional amount. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
-        # Parse cc_cost
+        # Parse charge_cost
         try:
-            cc_cost = int(parts[1].strip())
+            charge_cost = int(parts[1].strip())
         except ValueError:
             raise ValueError(
-                f"Invalid cc_cost '{parts[1]}' for remove_stamina_ability. Must be an integer."
+                f"Invalid charge_cost '{parts[1]}' for remove_stamina_ability. Must be an integer."
             )
         
-        if cc_cost < 0:
+        if charge_cost < 0:
             raise ValueError(
-                f"Invalid cc_cost {cc_cost} for remove_stamina_ability. Must be non-negative."
+                f"Invalid charge_cost {charge_cost} for remove_stamina_ability. Must be non-negative."
             )
         
         # Parse optional amount (default 1)
@@ -809,7 +809,7 @@ class EffectFactory:
         
         # Import here to avoid circular dependency
         from .action_effects import ArcherActivatedAbility
-        # Note: ArcherActivatedAbility currently only uses cc_cost in __init__
+        # Note: ArcherActivatedAbility currently only uses charge_cost in __init__
         # The amount parameter would need to be added if we want variable damage
         return ArcherActivatedAbility(source_card)
 
@@ -822,7 +822,7 @@ class EffectFactory:
         - amount: Damage to deal to each opponent card (typically 1)
         
         One-time effect when played: deals damage to all opponent's cards in play.
-        Cards that reach 0 stamina are sleeped.
+        Cards that reach 0 stamina are broken.
         
         Args:
             parts: Split effect definition parts
@@ -857,28 +857,28 @@ class EffectFactory:
         return DamageAllOpponentCardsEffect(source_card, damage)
 
     @classmethod
-    def _parse_sleep_target(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_break_target(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse a sleep_target effect definition.
+        Parse a break_target effect definition.
         
-        Format: "sleep_target:count"
-        - count: Number of targets to sleep (typically 1)
+        Format: "break_target:count"
+        - count: Number of targets to break (typically 1)
         
-        Targeted action: Sleep a card in play.
+        Targeted action: Break a card in play.
         
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
             
         Returns:
-            SleepTargetEffect instance
+            BreakTargetEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) != 2:
             raise ValueError(
-                f"sleep_target effect requires exactly 1 parameter: count. "
+                f"break_target effect requires exactly 1 parameter: count. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -886,16 +886,16 @@ class EffectFactory:
             count = int(parts[1].strip())
         except ValueError:
             raise ValueError(
-                f"Invalid count '{parts[1]}' for sleep_target. Must be an integer."
+                f"Invalid count '{parts[1]}' for break_target. Must be an integer."
             )
         
         if count < 1:
             raise ValueError(
-                f"Invalid count {count} for sleep_target. Must be at least 1."
+                f"Invalid count {count} for break_target. Must be at least 1."
             )
         
-        from .action_effects import SleepTargetEffect
-        return SleepTargetEffect(source_card, count=count)
+        from .action_effects import BreakTargetEffect
+        return BreakTargetEffect(source_card, count=count)
 
     @classmethod
     def _parse_return_target_to_hand(cls, parts: List[str], source_card: "Card") -> BaseEffect:
@@ -1013,28 +1013,28 @@ class EffectFactory:
         return TurnStatBoostEffect(source_card, stat_name=stat_name, amount=amount)
 
     @classmethod
-    def _parse_start_of_turn_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_start_of_turn_gain_charge(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse a start_of_turn_gain_cc effect definition.
+        Parse a start_of_turn_gain_charge effect definition.
         
-        Format: "start_of_turn_gain_cc:amount"
-        - amount: Integer amount of CC to gain
+        Format: "start_of_turn_gain_charge:amount"
+        - amount: Integer amount of Charge to gain
         
-        Belchaletta: Gain 2 CC at the start of your turn.
+        Belchaletta: Gain 2 Charge at the start of your turn.
         
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
             
         Returns:
-            StartOfTurnGainCCEffect instance
+            StartOfTurnGainChargeEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) != 2:
             raise ValueError(
-                f"start_of_turn_gain_cc effect requires exactly 1 parameter: amount. "
+                f"start_of_turn_gain_charge effect requires exactly 1 parameter: amount. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -1042,40 +1042,40 @@ class EffectFactory:
             amount = int(parts[1].strip())
         except ValueError:
             raise ValueError(
-                f"Invalid amount '{parts[1]}' for start_of_turn_gain_cc. Must be an integer."
+                f"Invalid amount '{parts[1]}' for start_of_turn_gain_charge. Must be an integer."
             )
         
         if amount < 1:
             raise ValueError(
-                f"Invalid amount {amount} for start_of_turn_gain_cc. Must be at least 1."
+                f"Invalid amount {amount} for start_of_turn_gain_charge. Must be at least 1."
             )
         
-        from .continuous_effects import StartOfTurnGainCCEffect
-        return StartOfTurnGainCCEffect(source_card, amount=amount)
+        from .continuous_effects import StartOfTurnGainChargeEffect
+        return StartOfTurnGainChargeEffect(source_card, amount=amount)
 
     @classmethod
-    def _parse_on_card_played_gain_cc(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+    def _parse_on_card_played_gain_charge(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
-        Parse an on_card_played_gain_cc effect definition.
+        Parse an on_card_played_gain_charge effect definition.
         
-        Format: "on_card_played_gain_cc:amount"
-        - amount: Integer amount of CC to gain
+        Format: "on_card_played_gain_charge:amount"
+        - amount: Integer amount of Charge to gain
         
-        Hind Leg Kicker: When you play a card (not this one), gain 1 CC.
+        Hind Leg Kicker: When you play a card (not this one), gain 1 Charge.
         
         Args:
             parts: Split effect definition parts
             source_card: The card providing this effect
             
         Returns:
-            OnCardPlayedGainCCEffect instance
+            OnCardPlayedGainChargeEffect instance
             
         Raises:
             ValueError: If format is invalid
         """
         if len(parts) != 2:
             raise ValueError(
-                f"on_card_played_gain_cc effect requires exactly 1 parameter: amount. "
+                f"on_card_played_gain_charge effect requires exactly 1 parameter: amount. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -1083,16 +1083,16 @@ class EffectFactory:
             amount = int(parts[1].strip())
         except ValueError:
             raise ValueError(
-                f"Invalid amount '{parts[1]}' for on_card_played_gain_cc. Must be an integer."
+                f"Invalid amount '{parts[1]}' for on_card_played_gain_charge. Must be an integer."
             )
         
         if amount < 1:
             raise ValueError(
-                f"Invalid amount {amount} for on_card_played_gain_cc. Must be at least 1."
+                f"Invalid amount {amount} for on_card_played_gain_charge. Must be at least 1."
             )
         
-        from .continuous_effects import OnCardPlayedGainCCEffect
-        return OnCardPlayedGainCCEffect(source_card, amount=amount)
+        from .continuous_effects import OnCardPlayedGainChargeEffect
+        return OnCardPlayedGainChargeEffect(source_card, amount=amount)
 
     @classmethod
     def _parse_opponent_cost_increase(cls, parts: List[str], source_card: "Card") -> BaseEffect:

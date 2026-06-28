@@ -8,7 +8,7 @@ class _DummyPlannedAction:
         self.action_type = "play_card"
         self.card_name = "Archer"
         self.target_names = ["Knight"]
-        self.cc_cost = 1
+        self.charge_cost = 1
         self.reasoning = "test"
 
 
@@ -16,10 +16,10 @@ class _DummyPlan:
     def __init__(self) -> None:
         self.selected_strategy = "test-strategy"
         self.action_sequence = [_DummyPlannedAction()]
-        self.cc_start = 4
-        self.cc_after_plan = 3
-        self.expected_cards_slept = 0
-        self.cc_efficiency = "N/A"
+        self.charge_start = 4
+        self.charge_after_plan = 3
+        self.expected_cards_broken = 0
+        self.charge_efficiency = "N/A"
 
 
 class _DummyTurnPlanner:

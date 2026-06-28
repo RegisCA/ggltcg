@@ -7,7 +7,7 @@ properties the search depends on:
 
 1. **Full fidelity** — the clone reproduces the entire state, including the
    opponent's hand (which the API-facing serialization paths redact) and
-   ``cc_history`` (which serialize/deserialize drops).
+   ``charge_history`` (which serialize/deserialize drops).
 2. **Isolation** — mutating the clone (directly or via a GameEngine) never leaks
    back into the original.
 
@@ -19,12 +19,12 @@ import time
 
 from conftest import create_game_with_cards
 from game_engine.game_engine import GameEngine
-from game_engine.models.game_state import TurnCCRecord
+from game_engine.models.game_state import TurnChargeRecord
 from game_engine.ai.enumerator import clone_game_state
 
 
 def _scenario():
-    """Active P1 with a board; P2 holds a hand, board, and sleep zone.
+    """Active P1 with a board; P2 holds a hand, board, and break zone.
 
     P2's hand is the interesting part: the enumerator must see it, but
     ``to_dict()`` without a requesting player redacts it.
@@ -34,7 +34,7 @@ def _scenario():
         player1_in_play=["Knight"],
         player2_hand=["Drop", "Clean", "Wake"],
         player2_in_play=["Knight"],
-        player2_sleep=["Surge"],
+        player2_break=["Surge"],
         active_player="player1",
         turn_number=2,
     )
@@ -55,49 +55,49 @@ def test_clone_round_trips_opponent_hand_not_redacted():
     ]
 
 
-def test_clone_preserves_all_zones_and_cc():
+def test_clone_preserves_all_zones_and_charge():
     gs = _scenario()
     clone = clone_game_state(gs)
 
     for pid in ("player1", "player2"):
         op, cp = gs.players[pid], clone.players[pid]
-        assert cp.cc == op.cc
+        assert cp.charge == op.charge
         assert [c.id for c in cp.hand] == [c.id for c in op.hand]
         assert [c.id for c in cp.in_play] == [c.id for c in op.in_play]
-        assert [c.id for c in cp.sleep_zone] == [c.id for c in op.sleep_zone]
+        assert [c.id for c in cp.break_zone] == [c.id for c in op.break_zone]
 
     assert clone.turn_number == gs.turn_number
     assert clone.active_player_id == gs.active_player_id
     assert clone.phase == gs.phase
 
 
-def test_clone_preserves_cc_history():
-    """serialize/deserialize drops cc_history; deepcopy must keep it."""
+def test_clone_preserves_charge_history():
+    """serialize/deserialize drops charge_history; deepcopy must keep it."""
     gs = _scenario()
-    gs.cc_history.append(
-        TurnCCRecord(turn=1, player_id="player1", cc_start=0, cc_gained=2,
-                     cc_spent=2, cc_end=0)
+    gs.charge_history.append(
+        TurnChargeRecord(turn=1, player_id="player1", charge_start=0, charge_gained=2,
+                     charge_spent=2, charge_end=0)
     )
     clone = clone_game_state(gs)
 
-    assert len(clone.cc_history) == 1
-    assert clone.cc_history[0].turn == 1
-    assert clone.cc_history[0].cc_gained == 2
+    assert len(clone.charge_history) == 1
+    assert clone.charge_history[0].turn == 1
+    assert clone.charge_history[0].charge_gained == 2
 
 
 def test_mutating_clone_does_not_touch_original():
     gs = _scenario()
     clone = clone_game_state(gs)
 
-    # Direct mutation via game methods. gain_cc caps at 7, so from 10 it lands
+    # Direct mutation via game methods. gain_charge caps at 7, so from 10 it lands
     # at 7 — the value doesn't matter, only that the clone moved and the
     # original did not.
-    clone.players["player1"].gain_cc(5)
+    clone.players["player1"].gain_charge(5)
     clone.players["player2"].hand[0].apply_damage(1)
 
-    assert gs.players["player1"].cc == 10  # unchanged
-    assert clone.players["player1"].cc == 7
-    assert clone.players["player1"].cc != gs.players["player1"].cc
+    assert gs.players["player1"].charge == 10  # unchanged
+    assert clone.players["player1"].charge == 7
+    assert clone.players["player1"].charge != gs.players["player1"].charge
     # The damaged clone card must be a distinct object from the original.
     assert clone.players["player2"].hand[0] is not gs.players["player2"].hand[0]
 

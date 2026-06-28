@@ -2,7 +2,7 @@
 Tests for Phase 3 of data-driven effect refactoring.
 
 Phase 3: Triggered Effects and Self-Cost Modifications
-- Umbruh: Triggered effect (gain CC when sleeped)
+- Umbruh: Triggered effect (gain Charge when broken)
 - Raggy: Self tussle cost 0 with turn 1 restriction
 
 This phase introduces triggered effects that respond to game events
@@ -25,9 +25,9 @@ from game_engine.rules.effects.base_effect import TriggerTiming
 from game_engine.game_engine import GameEngine
 
 
-def test_parse_gain_cc_when_sleeped_effect():
-    """Test parsing gain_cc_when_sleeped effect."""
-    print("Testing gain_cc_when_sleeped effect parsing...")
+def test_parse_gain_charge_when_broken_effect():
+    """Test parsing gain_charge_when_broken effect."""
+    print("Testing gain_charge_when_broken effect parsing...")
     
     csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
     loader = CardLoader(str(csv_path))
@@ -36,8 +36,8 @@ def test_parse_gain_cc_when_sleeped_effect():
     umbruh = next(c for c in all_cards if c.name == "Umbruh")
     print(f"  Umbruh effect_definitions: '{umbruh.effect_definitions}'")
     
-    if umbruh.effect_definitions != "gain_cc_when_sleeped:1":
-        print(f"✗ Umbruh should have effect_definitions='gain_cc_when_sleeped:1'")
+    if umbruh.effect_definitions != "gain_charge_when_broken:1":
+        print(f"✗ Umbruh should have effect_definitions='gain_charge_when_broken:1'")
         return False
     
     effects = EffectRegistry.get_effects(umbruh)
@@ -47,17 +47,17 @@ def test_parse_gain_cc_when_sleeped_effect():
         print(f"✗ Umbruh should have 1 effect")
         return False
     
-    if effects[0].__class__.__name__ != "GainCCWhenSleepedEffect":
-        print(f"✗ Umbruh effect should be GainCCWhenSleepedEffect")
+    if effects[0].__class__.__name__ != "GainChargeWhenBrokenEffect":
+        print(f"✗ Umbruh effect should be GainChargeWhenBrokenEffect")
         return False
     
     effect = effects[0]
     if effect.amount != 1:
-        print(f"✗ Umbruh should gain 1 CC, got {effect.amount}")
+        print(f"✗ Umbruh should gain 1 Charge, got {effect.amount}")
         return False
     
-    if effect.trigger != TriggerTiming.WHEN_SLEEPED:
-        print(f"✗ Umbruh should trigger when sleeped")
+    if effect.trigger != TriggerTiming.WHEN_BROKEN:
+        print(f"✗ Umbruh should trigger when broken")
         return False
     
     print(f"✓ Umbruh effect parsed correctly")
@@ -103,8 +103,8 @@ def test_parse_set_self_tussle_cost_effect():
     return True
 
 
-def test_umbruh_gains_cc_when_sleeped():
-    """Test that Umbruh's controller gains CC when sleeped from play."""
+def test_umbruh_gains_charge_when_broken():
+    """Test that Umbruh's controller gains Charge when broken from play."""
     print("\nTesting Umbruh triggered effect...")
     
     # Setup game
@@ -134,22 +134,22 @@ def test_umbruh_gains_cc_when_sleeped():
     umbruh.controller = player1.player_id
     player1.in_play.append(umbruh)
     
-    # Player starts with 5 CC
-    player1.cc = 5
+    # Player starts with 5 Charge
+    player1.charge = 5
     
-    print(f"  Player CC before: {player1.cc}")
+    print(f"  Player Charge before: {player1.charge}")
     
-    # Sleep Umbruh from play using GameEngine (which triggers effects)
-    game_engine._sleep_card(umbruh, player1, was_in_play=True)
+    # Break Umbruh from play using GameEngine (which triggers effects)
+    game_engine._break_card(umbruh, player1, was_in_play=True)
     
-    print(f"  Player CC after: {player1.cc}")
+    print(f"  Player Charge after: {player1.charge}")
     
-    if player1.cc != 6:
-        print(f"✗ Player should have 6 CC (gained 1), but has {player1.cc}")
+    if player1.charge != 6:
+        print(f"✗ Player should have 6 Charge (gained 1), but has {player1.charge}")
         return False
     
-    if umbruh not in player1.sleep_zone:
-        print(f"✗ Umbruh should be in sleep zone")
+    if umbruh not in player1.break_zone:
+        print(f"✗ Umbruh should be in break zone")
         return False
     
     print(f"✓ Umbruh triggered effect works correctly")
@@ -211,8 +211,8 @@ def test_raggy_tussle_cost_and_turn_restriction():
     return True
 
 
-def test_clean_sleeps_umbruh_and_triggers():
-    """Test that Clean sleeping Umbruh triggers its effect."""
+def test_clean_breaks_umbruh_and_triggers():
+    """Test that Clean broken Umbruh triggers its effect."""
     print("\nTesting Clean + Umbruh interaction...")
     
     # Setup game
@@ -244,27 +244,27 @@ def test_clean_sleeps_umbruh_and_triggers():
     umbruh.controller = player1.player_id
     player1.in_play.append(umbruh)
     
-    # Player starts with 3 CC
-    player1.cc = 3
+    # Player starts with 3 Charge
+    player1.charge = 3
     
-    print(f"  Player CC before Clean: {player1.cc}")
+    print(f"  Player Charge before Clean: {player1.charge}")
     print(f"  Umbruh in play: {umbruh in player1.in_play}")
     
-    # Play Clean (should sleep Umbruh and trigger effect)
+    # Play Clean (should break Umbruh and trigger effect)
     clean_effects = EffectRegistry.get_effects(clean)
     clean_effect = clean_effects[0]
-    # Pass game_engine so Clean can properly trigger when-sleeped effects
+    # Pass game_engine so Clean can properly trigger when-broken effects
     clean_effect.apply(game_engine.game_state, player=player1, game_engine=game_engine)
     
-    print(f"  Player CC after Clean: {player1.cc}")
-    print(f"  Umbruh in sleep: {umbruh in player1.sleep_zone}")
+    print(f"  Player Charge after Clean: {player1.charge}")
+    print(f"  Umbruh in break: {umbruh in player1.break_zone}")
     
-    if player1.cc != 4:
-        print(f"✗ Player should have 4 CC (3 + 1 from Umbruh trigger), but has {player1.cc}")
+    if player1.charge != 4:
+        print(f"✗ Player should have 4 Charge (3 + 1 from Umbruh trigger), but has {player1.charge}")
         return False
     
-    if umbruh not in player1.sleep_zone:
-        print(f"✗ Umbruh should be in sleep zone")
+    if umbruh not in player1.break_zone:
+        print(f"✗ Umbruh should be in break zone")
         return False
     
     print(f"✓ Clean + Umbruh interaction works correctly")
@@ -277,11 +277,11 @@ if __name__ == "__main__":
     print("=" * 70)
     
     tests = [
-        test_parse_gain_cc_when_sleeped_effect,
+        test_parse_gain_charge_when_broken_effect,
         test_parse_set_self_tussle_cost_effect,
-        test_umbruh_gains_cc_when_sleeped,
+        test_umbruh_gains_charge_when_broken,
         test_raggy_tussle_cost_and_turn_restriction,
-        test_clean_sleeps_umbruh_and_triggers,
+        test_clean_breaks_umbruh_and_triggers,
     ]
     
     passed = 0

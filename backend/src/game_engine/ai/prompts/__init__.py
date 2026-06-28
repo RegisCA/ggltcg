@@ -33,7 +33,7 @@ from .narrative import (
     get_narrative_prompt,
 )
 from .planning_prompt import (
-    format_sleep_zone_for_planning,
+    format_break_zone_for_planning,
 )
 from .execution_prompt import (
     get_execution_prompt,
@@ -63,7 +63,7 @@ __all__ = [
     "NARRATIVE_PROMPT",
     "get_narrative_prompt",
     # v3 Planning
-    "format_sleep_zone_for_planning",
+    "format_break_zone_for_planning",
     # v3 Execution
     "get_execution_prompt",
     "get_replan_prompt",

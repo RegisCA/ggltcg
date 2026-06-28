@@ -8,7 +8,7 @@ Test Coverage:
 1. All Card fields (base stats, colors, zones, etc.)
 2. Card modifications and transformations
 3. Effect definitions preservation
-4. Cards in different zones (hand, in_play, sleep_zone)
+4. Cards in different zones (hand, in_play, break_zone)
 5. Multi-effect cards
 6. Edge cases from issue #77
 """
@@ -91,8 +91,8 @@ class TestCardSerialization:
             name="Wake",
             card_type=CardType.ACTION,
             cost=1,
-            effect_text="Unsleep up to 2 cards",
-            effect_definitions="unsleep:2",
+            effect_text="Fix up to 2 cards",
+            effect_definitions="fix:2",
             speed=None,
             strength=None,
             stamina=None,
@@ -157,7 +157,7 @@ class TestCardSerialization:
     
     def test_card_in_different_zones(self):
         """Test cards are preserved correctly in different zones."""
-        zones = [Zone.HAND, Zone.IN_PLAY, Zone.SLEEP]
+        zones = [Zone.HAND, Zone.IN_PLAY, Zone.BREAK]
         
         for zone in zones:
             original = Card(
@@ -303,7 +303,7 @@ class TestPlayerSerialization:
     """Test Player serialization with cards in different zones."""
     
     def test_player_with_cards_in_all_zones(self):
-        """Test player with cards in hand, in_play, and sleep_zone."""
+        """Test player with cards in hand, in_play, and break_zone."""
         hand_card = Card(
             name="Hand Card",
             card_type=CardType.TOY,
@@ -332,24 +332,24 @@ class TestPlayerSerialization:
             zone=Zone.IN_PLAY,
         )
         
-        sleep_card = Card(
-            name="Sleep Card",
+        break_card = Card(
+            name="Break Card",
             card_type=CardType.ACTION,
             cost=1,
-            effect_text="Sleeped",
-            effect_definitions="unsleep:1",
+            effect_text="Broken",
+            effect_definitions="fix:1",
             owner="player1",
             controller="player1",
-            zone=Zone.SLEEP,
+            zone=Zone.BREAK,
         )
         
         original_player = Player(
             player_id="player1",
             name="Test Player",
-            cc=10,
+            charge=10,
             hand=[hand_card],
             in_play=[play_card],
-            sleep_zone=[sleep_card],
+            break_zone=[break_card],
             direct_attacks_this_turn=1,
         )
         
@@ -359,13 +359,13 @@ class TestPlayerSerialization:
         # Check player fields
         assert restored.player_id == original_player.player_id
         assert restored.name == original_player.name
-        assert restored.cc == original_player.cc
+        assert restored.charge == original_player.charge
         assert restored.direct_attacks_this_turn == original_player.direct_attacks_this_turn
         
         # Check all zones preserved
         assert len(restored.hand) == 1
         assert len(restored.in_play) == 1
-        assert len(restored.sleep_zone) == 1
+        assert len(restored.break_zone) == 1
         
         # Check cards preserved correctly
         assert restored.hand[0].name == "Hand Card"
@@ -375,8 +375,8 @@ class TestPlayerSerialization:
         assert restored.in_play[0].zone == Zone.IN_PLAY
         assert restored.in_play[0].effect_definitions == "stat_boost:strength:1"
         
-        assert restored.sleep_zone[0].name == "Sleep Card"
-        assert restored.sleep_zone[0].zone == Zone.SLEEP
+        assert restored.break_zone[0].name == "Break Card"
+        assert restored.break_zone[0].zone == Zone.BREAK
 
 
 class TestGameStateSerialization:
@@ -403,8 +403,8 @@ class TestGameStateSerialization:
             name="Wake",
             card_type=CardType.ACTION,
             cost=1,
-            effect_text="Unsleep",
-            effect_definitions="unsleep:2",
+            effect_text="Fix",
+            effect_definitions="fix:2",
             owner="player1",
             controller="player1",
             zone=Zone.HAND,
@@ -428,20 +428,20 @@ class TestGameStateSerialization:
         player1 = Player(
             player_id="player1",
             name="Alice",
-            cc=8,
+            charge=8,
             hand=[p1_card2],
             in_play=[p1_card1],
-            sleep_zone=[],
+            break_zone=[],
             direct_attacks_this_turn=0,
         )
         
         player2 = Player(
             player_id="player2",
             name="Bob",
-            cc=5,
+            charge=5,
             hand=[],
             in_play=[p2_card1],
-            sleep_zone=[],
+            break_zone=[],
             direct_attacks_this_turn=1,
         )
         
@@ -478,7 +478,7 @@ class TestGameStateSerialization:
         # Check player 1
         p1 = restored.players["player1"]
         assert p1.name == "Alice"
-        assert p1.cc == 8
+        assert p1.charge == 8
         assert len(p1.hand) == 1
         assert len(p1.in_play) == 1
         assert p1.hand[0].name == "Wake"
@@ -488,7 +488,7 @@ class TestGameStateSerialization:
         # Check player 2
         p2 = restored.players["player2"]
         assert p2.name == "Bob"
-        assert p2.cc == 5
+        assert p2.charge == 5
         assert len(p2.in_play) == 1
         assert p2.in_play[0].name == "Knight"
         assert p2.direct_attacks_this_turn == 1
@@ -570,19 +570,19 @@ class TestIssue77Regressions:
         player1 = Player(
             player_id="player1",
             name="Player 1",
-            cc=6,
+            charge=6,
             hand=[],
             in_play=[ka, copy_card],
-            sleep_zone=[],
+            break_zone=[],
         )
         
         player2 = Player(
             player_id="player2",
             name="Player 2",
-            cc=6,
+            charge=6,
             hand=[],
             in_play=[],
-            sleep_zone=[],
+            break_zone=[],
         )
         
         game_state = GameState(

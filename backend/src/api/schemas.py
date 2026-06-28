@@ -93,7 +93,7 @@ class PlayCardRequest(BaseModel):
     card_id: str = Field(..., description="ID of card to play")
     target_card_id: Optional[str] = Field(None, description="Target card ID for effects that require targets")
     target_card_ids: Optional[List[str]] = Field(None, description="Multiple target card IDs (e.g., Sun)")
-    alternative_cost_card_id: Optional[str] = Field(None, description="Card ID to sleep for alternative cost (e.g., Ballaber)")
+    alternative_cost_card_id: Optional[str] = Field(None, description="Card ID to break for alternative cost (e.g., Ballaber)")
 
 
 class TussleRequest(BaseModel):
@@ -149,7 +149,7 @@ class CardState(BaseModel):
     base_speed: Optional[int] = None  # Original speed from card definition
     base_strength: Optional[int] = None  # Original strength from card definition
     base_stamina: Optional[int] = None  # Original stamina from card definition
-    is_sleeped: bool = False
+    is_broken: bool = False
     primary_color: str = "#C74444"
     accent_color: str = "#C74444"
 
@@ -158,11 +158,11 @@ class PlayerState(BaseModel):
     """Current state of a player."""
     player_id: str
     name: str
-    cc: int
+    charge: int
     hand_count: int  # Don't reveal hand to opponent
     hand: Optional[List[CardState]] = None  # Only for the player themselves
     in_play: List[CardState]
-    sleep_zone: List[CardState]
+    break_zone: List[CardState]
     direct_attacks_this_turn: int
 
 
@@ -191,9 +191,9 @@ class ValidAction(BaseModel):
     target_options: Optional[List[str]] = Field(None, description="List of valid target card IDs")
     max_targets: Optional[int] = Field(None, description="Maximum number of targets to select (e.g., 2 for Sun)")
     min_targets: Optional[int] = Field(None, description="Minimum number of targets to select (e.g., 0 for optional targeting)")
-    cost_cc: Optional[int] = None
+    cost_charge: Optional[int] = None
     alternative_cost_available: Optional[bool] = Field(None, description="Whether an alternative cost is available (e.g., Ballaber)")
-    alternative_cost_options: Optional[List[str]] = Field(None, description="Card IDs that can be slept for alternative cost")
+    alternative_cost_options: Optional[List[str]] = Field(None, description="Card IDs that can be broken for alternative cost")
     description: str
 
 

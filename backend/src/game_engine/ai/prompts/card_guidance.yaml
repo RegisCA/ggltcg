@@ -7,21 +7,21 @@
 
 Archer:
   trap: "0 STR = CANNOT tussle or direct_attack! Defensive only (blocks opponent attacks)"
-  reminder: "Only action: activate_ability (1CC, repeatable). Reduce enemy STA to 0 = auto-sleep. Knight (3 STA) = 3 activations"
+  reminder: "Only action: activate_ability (1 Charge, repeatable). Reduce enemy STA to 0 = auto-break. Knight (3 STA) = 3 activations"
   threat: "MEDIUM"
 
 Paper Plane:
   trap: "WEAK in combat (2/2/1) - will LOSE to most toys! But has PASSIVE bypass ability"
-  reminder: "With opponent toys present: Use direct_attack (2 CC) instead of tussling! Only tussle if you'll WIN (calculate combat first). Bypass works automatically - no activate_ability needed"
+  reminder: "With opponent toys present: Use direct_attack (2 Charge) instead of tussling! Only tussle if you'll WIN (calculate combat first). Bypass works automatically - no activate_ability needed"
   threat: "MEDIUM"
 
 Wizard:
-  trap: "Turn 1: costs 2 CC, leaves 0 CC. Can't tussle with Wizard alone!"
-  reminder: "Tussles cost 1 CC while in play (not 2). Play before tussling"
+  trap: "Turn 1: costs 2 Charge, leaves 0 Charge. Can't tussle with Wizard alone!"
+  reminder: "Tussles cost 1 Charge while in play (not 2). Play before tussling"
   threat: "MEDIUM"
 
 Raggy:
-  trap: "Cannot tussle turn 1. After turn 1: FREE tussles (0 CC)!"
+  trap: "Cannot tussle turn 1. After turn 1: FREE tussles (0 Charge)!"
   reminder: "Free tussles = always use them. Chip damage costs nothing"
   threat: "HIGH"
 
@@ -31,22 +31,22 @@ Knight:
   threat: "CRITICAL"
 
 Gibbers:
-  trap: "While in opponent's play: YOUR cards cost +1 CC"
+  trap: "While in opponent's play: YOUR cards cost +1 Charge"
   reminder: "Remove FIRST to restore normal costs. Priority target!"
   threat: "CRITICAL"
 
 Umbruh:
-  trap: "Gives controller +1 CC when sleeped. Still worth sleeping if efficient"
-  reminder: "Your Umbruh sleeped = you gain CC. Opponent's = they gain CC"
+  trap: "Gives controller +1 Charge when broken. Still worth breaking if efficient"
+  reminder: "Your Umbruh broken = you gain Charge. Opponent's = they gain Charge"
   threat: "MEDIUM"
 
 Belchaletta:
-  trap: "Gives controller +2 CC each turn. Long-term value"
-  reminder: "Remove early or opponent snowballs CC advantage"
+  trap: "Gives controller +2 Charge each turn. Long-term value"
+  reminder: "Remove early or opponent snowballs Charge advantage"
   threat: "MEDIUM"
 
 Hind Leg Kicker:
-  trap: "Play FIRST to gain +1 CC when playing other cards"
+  trap: "Play FIRST to gain +1 Charge when playing other cards"
   reminder: "Maximize value by playing other cards after"
   threat: "HIGH"
 
@@ -56,8 +56,8 @@ Sock Sorcerer:
   threat: "MEDIUM"
 
 Dream:
-  trap: "Costs 1 less per card in YOUR sleep zone. Can be 0 CC!"
-  reminder: "Play actions first to fill sleep zone, then play Dream cheap"
+  trap: "Costs 1 less per card in YOUR break zone. Can be 0 Charge!"
+  reminder: "Play actions first to fill break zone, then play Dream cheap"
   threat: "HIGH"
 
 Beary:
@@ -66,8 +66,8 @@ Beary:
   threat: "MEDIUM"
 
 Monster:
-  trap: "Sets ALL toys' STA to 1 (yours too!). Sleeps 1-STA toys (Gibbers)"
-  reminder: "Board equalizer. Count sleeped toys in expected_cards_slept"
+  trap: "Sets ALL toys' STA to 1 (yours too!). Breaks 1-STA toys (Gibbers)"
+  reminder: "Board equalizer. Count broken toys in expected_cards_broken"
   threat: "MEDIUM"
 
 Ka:
@@ -81,8 +81,8 @@ Violin:
   threat: "LOW"
 
 Ballaber:
-  trap: "Alt cost: sleep ANY of your cards instead of paying CC. Don't sleep a card you need!"
-  reminder: "Sleep a card you haven't committed CC to yet, never one already in play"
+  trap: "Alt cost: break ANY of your cards instead of paying Charge. Don't break a card you need!"
+  reminder: "Break a card you haven't committed Charge to yet, never one already in play"
   threat: "LOW"
 
 Demideca:
@@ -98,13 +98,13 @@ Drum:
 # ACTIONS - Strategic Cards
 
 Surge:
-  trap: "INCREASES YOUR TURN BUDGET by +1 CC. Add to budget in STEP 1!"
-  reminder: "With Surge in hand: Budget = Starting CC + 1. Example: Turn 1 with Surge = 3 CC budget (not 2). Always play FIRST"
+  trap: "INCREASES YOUR TURN BUDGET by +1 Charge. Add to budget in STEP 1!"
+  reminder: "With Surge in hand: Budget = Starting Charge + 1. Example: Turn 1 with Surge = 3 Charge budget (not 2). Always play FIRST"
   threat: "LOW"
 
 Rush:
-  trap: "Cannot play turn 1. Gains +2 CC net"
-  reminder: "Play FIRST to maximize CC for turn. Strong value"
+  trap: "Cannot play turn 1. Gains +2 Charge net"
+  reminder: "Play FIRST to maximize Charge for turn. Strong value"
   threat: "LOW"
 
 Drop:
@@ -114,16 +114,16 @@ Drop:
 
 Wake:
   trap: "ACTIVATED_ABILITY! Use action_type: activate_ability (NOT play_card after playing)"
-  reminder: "1 CC cost. Must specify target_id → target returns to hand. Then play that card"
+  reminder: "1 Charge cost. Must specify target_id → target returns to hand. Then play that card"
   threat: "LOW"
 
 Twist:
   trap: "Requires opponent toy in play. Steals to YOUR side (stays in play)"
-  reminder: "3 CC cost. Must specify target_ids. No toys = useless"
+  reminder: "3 Charge cost. Must specify target_ids. No toys = useless"
   threat: "MEDIUM"
 
 Clean:
-  trap: "Sleeps ALL toys CURRENTLY IN PLAY (yours too!). USELESS if no toys in play — spends 3 CC for nothing!"
+  trap: "Breaks ALL toys CURRENTLY IN PLAY (yours too!). USELESS if no toys in play — spends 3 Charge for nothing!"
   reminder: "Only useful when toys exist on board. Check both sides have toys before playing. No target needed."
   threat: "LOW"
 
@@ -138,42 +138,42 @@ Copy:
   threat: "MEDIUM"
 
 Sun:
-  trap: "Returns 2 cards from sleep to HAND. Must pay to play them"
-  reminder: "3 CC for Sun. Specify target_ids. Total cost adds up fast"
+  trap: "Returns 2 cards from break zone to HAND. Must pay to play them"
+  reminder: "3 Charge for Sun. Specify target_ids. Total cost adds up fast"
   threat: "LOW"
 
 Clone:
-  trap: "Can ONLY copy YOUR toys, not opponent's! Unlike Copy, cost is ALWAYS 2 CC flat"
-  reminder: "Costs 2 CC no matter what you copy - good value on expensive toys. Must specify target_ids"
+  trap: "Can ONLY copy YOUR toys, not opponent's! Unlike Copy, cost is ALWAYS 2 Charge flat"
+  reminder: "Costs 2 Charge no matter what you copy - good value on expensive toys. Must specify target_ids"
   threat: "LOW"
 
 Glue:
-  trap: "Cost is NOT fixed - it equals the cost of whichever sleeping card you pick"
-  reminder: "Pick a CHEAP sleeping card to fix it cheaply. Must specify target_ids (your own Sleep Zone only)"
+  trap: "Cost is NOT fixed - it equals the cost of whichever broken card you pick"
+  reminder: "Pick a CHEAP broken card to fix it cheaply. Must specify target_ids (your own Break Zone only)"
   threat: "LOW"
 
 Stomp:
-  trap: "Cost is NOT fixed - it equals the cost of whichever card in play you sleep, yours or opponent's"
-  reminder: "Targeting an expensive opponent toy costs more CC. Must specify target_ids. Respects protection (Beary etc.)"
+  trap: "Cost is NOT fixed - it equals the cost of whichever card in play you break, yours or opponent's"
+  reminder: "Targeting an expensive opponent toy costs more Charge. Must specify target_ids. Respects protection (Beary etc.)"
   threat: "MEDIUM"
 
 Jumpscare:
-  trap: "Returns a card in play to its owner's HAND with NO sleep trigger (Umbruh won't fire)"
-  reminder: "0 CC. Can bounce your own card to replay it later. Must specify target_ids"
+  trap: "Returns a card in play to its owner's HAND with NO break trigger (Umbruh won't fire)"
+  reminder: "0 Charge. Can bounce your own card to replay it later. Must specify target_ids"
   threat: "LOW"
 
 That was fun:
-  trap: "Only returns ACTION cards from YOUR sleep zone — cannot recur Toys"
-  reminder: "0 CC. Great for rebuying Rush/Clean/Twist. Must specify target_ids"
+  trap: "Only returns ACTION cards from YOUR break zone — cannot recur Toys"
+  reminder: "0 Charge. Great for rebuying Rush/Clean/Twist. Must specify target_ids"
   threat: "LOW"
 
 MaBookBook:
-  trap: "Mirror of Dream - costs 1 MORE per card in YOUR sleep zone. Can become unaffordable late game"
-  reminder: "Play EARLY before your sleep zone fills up. Don't hold it hoping for a better moment"
+  trap: "Mirror of Dream - costs 1 MORE per card in YOUR break zone. Can become unaffordable late game"
+  reminder: "Play EARLY before your break zone fills up. Don't hold it hoping for a better moment"
   threat: "MEDIUM"
 
 Plane Plus:
-  trap: "Tussles cost 1 CC (not 2) AND bypasses blockers for direct attack - strong combo card"
+  trap: "Tussles cost 1 Charge (not 2) AND bypasses blockers for direct attack - strong combo card"
   reminder: "Cheap tussles + guaranteed direct attack access. Prioritize using both abilities each turn"
   threat: "HIGH"
 
@@ -183,8 +183,8 @@ Bubble Blocker:
   threat: "MEDIUM"
 
 Cake:
-  trap: "Same as Rush's CC gain but no turn restriction - costs 3 CC, nets only +2 CC overall"
-  reminder: "Worse CC efficiency than Rush. Only play if you specifically need it on turn 1 (Rush can't be played then)"
+  trap: "Same as Rush's Charge gain but no turn restriction - costs 3 Charge, nets only +2 Charge overall"
+  reminder: "Worse Charge efficiency than Rush. Only play if you specifically need it on turn 1 (Rush can't be played then)"
   threat: "LOW"
 
 Toynado:

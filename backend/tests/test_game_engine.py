@@ -83,9 +83,9 @@ def test_turn_management():
     
     player1 = game_state.players["player1"]
     
-    # First player should get 2 CC on turn 1
-    assert player1.cc == 2, f"Expected 2 CC on turn 1, got {player1.cc}"
-    print("✓ First player gained 2 CC on turn 1")
+    # First player should get 2 Charge on turn 1
+    assert player1.charge == 2, f"Expected 2 Charge on turn 1, got {player1.charge}"
+    print("✓ First player gained 2 Charge on turn 1")
     
     # Should be in main phase
     assert game_state.phase == Phase.MAIN, f"Expected Main phase, got {game_state.phase}"
@@ -104,9 +104,9 @@ def test_turn_management():
     
     player2 = game_state.players["player2"]
     
-    # Player 2 should get 4 CC (not first turn)
-    assert player2.cc == 4, f"Expected 4 CC on turn 2, got {player2.cc}"
-    print("✓ Second player gained 4 CC")
+    # Player 2 should get 4 Charge (not first turn)
+    assert player2.charge == 4, f"Expected 4 Charge on turn 2, got {player2.charge}"
+    print("✓ Second player gained 4 Charge")
     
     return True
 
@@ -121,7 +121,7 @@ def test_play_card():
     
     player1 = game_state.players["player1"]
     
-    # Play Ka (cost 2 CC)
+    # Play Ka (cost 2 Charge)
     ka = next(c for c in player1.hand if c.name == "Ka")
     
     success = engine.play_card(player1, ka)
@@ -133,9 +133,9 @@ def test_play_card():
     assert ka not in player1.hand, "Ka still in hand"
     print("✓ Ka moved to play area")
     
-    # Player should have 0 CC left (started with 2, spent 2)
-    assert player1.cc == 0, f"Expected 0 CC, got {player1.cc}"
-    print("✓ CC cost deducted correctly")
+    # Player should have 0 Charge left (started with 2, spent 2)
+    assert player1.charge == 0, f"Expected 0 Charge, got {player1.charge}"
+    print("✓ Charge cost deducted correctly")
     
     return True
 
@@ -166,7 +166,7 @@ def test_continuous_effects():
     
     # Play Knight
     knight = next(c for c in player1.hand if c.name == "Knight")
-    player1.gain_cc(10)  # Give enough CC
+    player1.gain_charge(10)  # Give enough Charge
     engine.play_card(player1, knight)
     
     # Knight should also get +2 from Ka
@@ -190,9 +190,9 @@ def test_tussle_basic():
     player1 = game_state.players["player1"]
     player2 = game_state.players["player2"]
     
-    # Give players CC and put cards in play
-    player1.gain_cc(10)
-    player2.gain_cc(10)
+    # Give players Charge and put cards in play
+    player1.gain_charge(10)
+    player2.gain_charge(10)
     
     ka = next(c for c in player1.hand if c.name == "Ka")
     ka.zone = Zone.IN_PLAY
@@ -222,10 +222,10 @@ def test_tussle_basic():
     # Check that damage was applied
     # Ka has higher speed (5) than Wizard (1), so Ka strikes first
     # Ka deals 11 damage (9 base + 2 from own effect)
-    # Wizard has 3 stamina, so should be sleeped
-    assert wizard in player2.sleep_zone, "Wizard should be sleeped"
+    # Wizard has 3 stamina, so should be broken
+    assert wizard in player2.break_zone, "Wizard should be broken"
     assert wizard not in player2.in_play, "Wizard should not be in play"
-    print("✓ Wizard was sleeped (took fatal damage)")
+    print("✓ Wizard was broken (took fatal damage)")
     
     return True
 
@@ -239,7 +239,7 @@ def test_cost_modification():
     
     player1 = game_state.players["player1"]
     player2 = game_state.players["player2"]
-    player1.gain_cc(10)
+    player1.gain_charge(10)
     
     # Put Wizard (player2's card) in player1's control (via control change)
     wizard = next(c for c in player2.hand if c.name == "Wizard")
@@ -259,7 +259,7 @@ def test_cost_modification():
     # Tussle cost should be 1 (Wizard's effect)
     cost = engine.calculate_tussle_cost(ka, player1)
     assert cost == 1, f"Expected tussle cost 1 with Wizard, got {cost}"
-    print("✓ Wizard reduces tussle cost to 1 CC")
+    print("✓ Wizard reduces tussle cost to 1 Charge")
     
     return True
 
@@ -274,16 +274,16 @@ def test_victory_condition():
     player1 = game_state.players["player1"]
     player2 = game_state.players["player2"]
     
-    # Move all player2's cards to sleep zone
+    # Move all player2's cards to break zone
     for card in player2.hand[:]:
         player2.hand.remove(card)
-        card.zone = Zone.SLEEP
-        player2.sleep_zone.append(card)
+        card.zone = Zone.BREAK
+        player2.break_zone.append(card)
     
     # Check victory
     winner = game_state.check_victory()
     assert winner == "player1", f"Expected player1 to win, got {winner}"
-    print("✓ Player 1 wins when all opponent cards are sleeped")
+    print("✓ Player 1 wins when all opponent cards are broken")
     
     return True
 

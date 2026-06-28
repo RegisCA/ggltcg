@@ -22,38 +22,38 @@ if TYPE_CHECKING:
 # GENERIC EFFECTS (Data-Driven)
 # ============================================================================
 
-class GainCCWhenSleepedEffect(TriggeredEffect):
+class GainChargeWhenBrokenEffect(TriggeredEffect):
     """
-    Generic triggered effect for gaining CC when the card is sleeped.
-    
-    Triggers when the source card is sleeped from play.
-    Does NOT trigger when sleeped from hand.
-    
+    Generic triggered effect for gaining Charge when the card is broken.
+
+    Triggers when the source card is broken from play.
+    Does NOT trigger when broken from hand.
+
     Examples:
-    - Umbruh: GainCCWhenSleepedEffect(source_card, amount=1)
+    - Umbruh: GainChargeWhenBrokenEffect(source_card, amount=1)
     """
     
     def __init__(self, source_card: "Card", amount: int):
         """
-        Initialize gain CC when sleeped effect.
-        
+        Initialize gain Charge when broken effect.
+
         Args:
             source_card: The card providing this effect
-            amount: How much CC to gain when sleeped
+            amount: How much Charge to gain when broken
         """
-        super().__init__(source_card, TriggerTiming.WHEN_SLEEPED, is_optional=False)
+        super().__init__(source_card, TriggerTiming.WHEN_BROKEN, is_optional=False)
         self.amount = amount
     
     def should_trigger(self, game_state: "GameState", **kwargs: Any) -> bool:
-        """Check if this is the card being sleeped."""
-        sleeped_card = kwargs.get("sleeped_card")
-        return sleeped_card == self.source_card
+        """Check if this is the card being broken."""
+        broken_card = kwargs.get("broken_card")
+        return broken_card == self.source_card
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Grant CC to the card's owner when it's sleeped."""
+        """Grant Charge to the card's owner when it's broken."""
         owner = game_state.get_card_owner(self.source_card)
         if owner:
-            owner.gain_cc(self.amount)
+            owner.gain_charge(self.amount)
     
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
                    game_state: "GameState") -> int:
@@ -61,24 +61,24 @@ class GainCCWhenSleepedEffect(TriggeredEffect):
         return base_value
 
 
-class StartOfTurnGainCCEffect(TriggeredEffect):
+class StartOfTurnGainChargeEffect(TriggeredEffect):
     """
     Belchaletta: "At the start of your turn, gain 2 charge."
     
-    Triggered effect that grants CC at the start of the controller's turn.
+    Triggered effect that grants Charge at the start of the controller's turn.
     Only triggers while the card is in play.
     
     Examples:
-    - Belchaletta: StartOfTurnGainCCEffect(source_card, amount=2)
+    - Belchaletta: StartOfTurnGainChargeEffect(source_card, amount=2)
     """
     
     def __init__(self, source_card: "Card", amount: int):
         """
-        Initialize start of turn CC gain effect.
-        
+        Initialize start of turn Charge gain effect.
+
         Args:
             source_card: The card providing this effect
-            amount: How much CC to gain at start of turn
+            amount: How much Charge to gain at start of turn
         """
         super().__init__(source_card, TriggerTiming.START_OF_TURN, is_optional=False)
         self.amount = amount
@@ -104,10 +104,10 @@ class StartOfTurnGainCCEffect(TriggeredEffect):
         return controller == active_player
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Grant CC to the card's controller at start of turn."""
+        """Grant Charge to the card's controller at start of turn."""
         controller = game_state.get_card_controller(self.source_card)
         if controller:
-            controller.gain_cc(self.amount)
+            controller.gain_charge(self.amount)
     
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
                    game_state: "GameState") -> int:
@@ -115,25 +115,25 @@ class StartOfTurnGainCCEffect(TriggeredEffect):
         return base_value
 
 
-class OnCardPlayedGainCCEffect(TriggeredEffect):
+class OnCardPlayedGainChargeEffect(TriggeredEffect):
     """
     Hind Leg Kicker: "When you play a card (not this one), gain 1 charge."
     
-    Triggered effect that grants CC whenever the controller plays another card.
+    Triggered effect that grants Charge whenever the controller plays another card.
     Does NOT trigger when Hind Leg Kicker itself is played.
     Only triggers while the card is in play.
     
     Examples:
-    - Hind Leg Kicker: OnCardPlayedGainCCEffect(source_card, amount=1)
+    - Hind Leg Kicker: OnCardPlayedGainChargeEffect(source_card, amount=1)
     """
     
     def __init__(self, source_card: "Card", amount: int):
         """
-        Initialize on card played CC gain effect.
-        
+        Initialize on card played Charge gain effect.
+
         Args:
             source_card: The card providing this effect
-            amount: How much CC to gain when another card is played
+            amount: How much Charge to gain when another card is played
         """
         super().__init__(source_card, TriggerTiming.WHEN_OTHER_CARD_PLAYED, is_optional=False)
         self.amount = amount
@@ -168,10 +168,10 @@ class OnCardPlayedGainCCEffect(TriggeredEffect):
         return controller == player
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Grant CC to the card's controller when another card is played."""
+        """Grant Charge to the card's controller when another card is played."""
         controller = game_state.get_card_controller(self.source_card)
         if controller:
-            controller.gain_cc(self.amount)
+            controller.gain_charge(self.amount)
     
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
                    game_state: "GameState") -> int:
@@ -278,20 +278,20 @@ class SetTussleCostEffect(CostModificationEffect):
         return base_cost
 
 
-class ReduceCostBySleepingEffect(CostModificationEffect):
+class ReduceCostByBrokenEffect(CostModificationEffect):
     """
-    Generic effect that reduces a card's cost based on sleeping cards.
-    
+    Generic effect that reduces a card's cost based on broken cards.
+
     Reduces the source card's play cost by 1 for each card in the controller's
-    sleep zone. Cost cannot go below 0.
+    break zone. Cost cannot go below 0.
     
     Examples:
-    - Dream: ReduceCostBySleepingEffect(source_card)
+    - Dream: ReduceCostByBrokenEffect(source_card)
     """
     
     def __init__(self, source_card: "Card"):
         """
-        Initialize sleeping card cost reduction.
+        Initialize broken card cost reduction.
         
         Args:
             source_card: The card whose cost is reduced (e.g., Dream)
@@ -305,7 +305,7 @@ class ReduceCostBySleepingEffect(CostModificationEffect):
     
     def modify_card_cost(self, card: "Card", base_cost: int,
                         game_state: "GameState", player: "Player") -> int:
-        """Reduce source card's cost based on sleeping cards."""
+        """Reduce source card's cost based on broken cards."""
         # Only applies to the source card itself
         if card != self.source_card:
             return base_cost
@@ -317,29 +317,29 @@ class ReduceCostBySleepingEffect(CostModificationEffect):
         if card_owner != player:
             return base_cost
         
-        # Count sleeping cards
-        sleeping_count = len(player.sleep_zone)
+        # Count broken cards
+        broken_count = len(player.break_zone)
         
-        # Reduce cost by 1 per sleeping card
-        modified_cost = base_cost - sleeping_count
+        # Reduce cost by 1 per broken card
+        modified_cost = base_cost - broken_count
         
         return max(0, modified_cost)  # Cost can't go below 0
 
 
-class SelfCostIncreaseBySleepingEffect(CostModificationEffect):
+class SelfCostIncreaseByBrokenEffect(CostModificationEffect):
     """
-    Generic effect that increases a card's cost based on sleeping cards.
+    Generic effect that increases a card's cost based on broken cards.
 
     Increases the source card's play cost by 1 for each card in the controller's
-    sleep zone. Mirror image of ReduceCostBySleepingEffect.
+    break zone. Mirror image of ReduceCostByBrokenEffect.
 
     Examples:
-    - MaBookBook: SelfCostIncreaseBySleepingEffect(source_card)
+    - MaBookBook: SelfCostIncreaseByBrokenEffect(source_card)
     """
 
     def __init__(self, source_card: "Card"):
         """
-        Initialize sleeping card cost increase.
+        Initialize broken card cost increase.
 
         Args:
             source_card: The card whose cost is increased (e.g., MaBookBook)
@@ -353,7 +353,7 @@ class SelfCostIncreaseBySleepingEffect(CostModificationEffect):
 
     def modify_card_cost(self, card: "Card", base_cost: int,
                         game_state: "GameState", player: "Player") -> int:
-        """Increase source card's cost based on sleeping cards."""
+        """Increase source card's cost based on broken cards."""
         # Only applies to the source card itself
         if card != self.source_card:
             return base_cost
@@ -365,11 +365,11 @@ class SelfCostIncreaseBySleepingEffect(CostModificationEffect):
         if card_owner != player:
             return base_cost
 
-        # Count sleeping cards
-        sleeping_count = len(player.sleep_zone)
+        # Count broken cards
+        broken_count = len(player.break_zone)
 
-        # Increase cost by 1 per sleeping card
-        return base_cost + sleeping_count
+        # Increase cost by 1 per broken card
+        return base_cost + broken_count
 
 
 class OpponentCostIncreaseEffect(CostModificationEffect):
@@ -513,7 +513,7 @@ class WizardEffect(CostModificationEffect):
     """
     Wizard: "Your cards' tussles cost 1."
     
-    Sets the tussle cost to 1 CC for all cards controlled by Wizard's controller.
+    Sets the tussle cost to 1 Charge for all cards controlled by Wizard's controller.
     Multiple Wizards don't stack (cost stays at 1).
     """
     
@@ -575,7 +575,7 @@ class RaggyEffect(CostModificationEffect):
     """
     Raggy: "This card's tussles cost 0."
     
-    Sets Raggy's tussle cost to 0 CC.
+    Sets Raggy's tussle cost to 0 Charge.
     Restriction: Cannot tussle on Turn 1.
     """
     
@@ -705,7 +705,7 @@ class KnightWinConditionEffect(ContinuousEffect):
     Knight: "On your turn, this card wins all tussles it enters."
     
     When Knight tussles on its controller's turn, it automatically wins:
-    - The opposing Toy is sleeped immediately
+    - The opposing Toy is broken immediately
     - The opposing Toy does not strike back
     """
     
@@ -723,7 +723,7 @@ class KnightWinConditionEffect(ContinuousEffect):
             opponent_card: The card Knight is tussling against
             
         Returns:
-            True if Knight auto-wins (opponent is sleeped without striking back)
+            True if Knight auto-wins (opponent is broken without striking back)
         """
         knight_controller = game_state.get_card_controller(self.source_card)
         active_player = game_state.get_active_player()
@@ -737,9 +737,9 @@ class KnightWinConditionEffect(ContinuousEffect):
 
 class DreamCostEffect(CostModificationEffect):
     """
-    Dream: "This card costs 1 less for each of your sleeping cards."
+    Dream: "This card costs 1 less for each of your broken cards."
     
-    Reduces Dream's cost by 1 CC for each card in the controller's Sleep Zone.
+    Reduces Dream's cost by 1 Charge for each card in the controller's Break Zone.
     Cost cannot go below 0.
     """
     
@@ -750,7 +750,7 @@ class DreamCostEffect(CostModificationEffect):
     
     def modify_card_cost(self, card: "Card", base_cost: int,
                         game_state: "GameState", player: "Player") -> int:
-        """Reduce Dream's cost based on sleeping cards."""
+        """Reduce Dream's cost based on broken cards."""
         # Only applies to Dream itself
         if card != self.source_card:
             return base_cost
@@ -762,21 +762,21 @@ class DreamCostEffect(CostModificationEffect):
         if dream_controller != player:
             return base_cost
         
-        # Count sleeping cards
-        sleeping_count = len(player.sleep_zone)
+        # Count broken cards
+        broken_count = len(player.break_zone)
         
-        # Reduce cost by 1 per sleeping card
-        modified_cost = base_cost - sleeping_count
+        # Reduce cost by 1 per broken card
+        modified_cost = base_cost - broken_count
         
         return max(0, modified_cost)  # Cost can't go below 0
 
 
 class BallaberCostEffect(CostModificationEffect):
     """
-    Ballaber: "You may sleep 1 of your cards to play this card for free."
+    Ballaber: "You may break 1 of your cards to play this card for free."
     
-    Offers an alternative cost: instead of paying 3 CC, the player can
-    sleep one of their own cards in play to play Ballaber for 0 CC.
+    Offers an alternative cost: instead of paying 3 Charge, the player can
+    break one of their own cards in play to play Ballaber for 0 Charge.
     """
     
     def modify_stat(self, card: "Card", stat_name: str, base_value: int,
@@ -793,7 +793,7 @@ class BallaberCostEffect(CostModificationEffect):
         
         # Check if player is using alternative cost
         # This is indicated by 'use_alternative_cost' in game state context
-        # The actual sleeping of the card happens during payment
+        # The actual breaking of the card happens during payment
         return base_cost  # Default cost, modified by payment method choice
 
 

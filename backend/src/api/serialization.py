@@ -117,10 +117,10 @@ def serialize_player(player: Player) -> Dict[str, Any]:
     return {
         "player_id": player.player_id,
         "name": player.name,
-        "cc": player.cc,
+        "charge": player.charge,
         "hand": [serialize_card(card) for card in player.hand],
         "in_play": [serialize_card(card) for card in player.in_play],
-        "sleep_zone": [serialize_card(card) for card in player.sleep_zone],
+        "break_zone": [serialize_card(card) for card in player.break_zone],
         "direct_attacks_this_turn": player.direct_attacks_this_turn,
     }
 
@@ -138,10 +138,10 @@ def deserialize_player(data: Dict[str, Any]) -> Player:
     return Player(
         player_id=data["player_id"],
         name=data["name"],
-        cc=data["cc"],
+        charge=data["charge"],
         hand=[deserialize_card(card_data) for card_data in data["hand"]],
         in_play=[deserialize_card(card_data) for card_data in data["in_play"]],
-        sleep_zone=[deserialize_card(card_data) for card_data in data["sleep_zone"]],
+        break_zone=[deserialize_card(card_data) for card_data in data["break_zone"]],
         direct_attacks_this_turn=data.get("direct_attacks_this_turn", 0),
     )
 

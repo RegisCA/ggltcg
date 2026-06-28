@@ -27,10 +27,10 @@ When `AI_VERSION=3`, the AI uses a two-phase approach:
 
 1. **Planning Phase**: At turn start, generates a complete `TurnPlan` with:
    - Threat assessment of opponent's board
-   - Resource summary (CC, cards in hand/play)
+   - Resource summary (Charge, cards in hand/play)
    - Selected strategy with reasoning
-   - Full action sequence with CC budgeting
-   - Expected CC efficiency
+   - Full action sequence with Charge budgeting
+   - Expected Charge efficiency
 
 2. **Execution Phase**: Heuristic matching executes planned actions:
    - Each action matched to valid game actions
@@ -54,7 +54,7 @@ AI_PLANNER_MODE=single
 AI_PLANNER_MODE=dual
 ```
 
-`single` mode also prunes any obviously invalid actions (wrong attacker, CC overcommit, sleep zone plays) before execution, so a smaller model's hallucinations are caught before they waste a turn.
+`single` mode also prunes any obviously invalid actions (wrong attacker, Charge overcommit, break zone plays) before execution, so a smaller model's hallucinations are caught before they waste a turn.
 
 ---
 
@@ -244,14 +244,14 @@ The admin interface (`/admin`) provides detailed AI decision logs:
    - v3 turn plans: threat assessment, strategy, action sequence
    - Prompts and responses
    - Execution status (complete, partial, fallback)
-   - CC efficiency metrics
+   - Charge efficiency metrics
 
 2. **Filter by Game**: From Playbacks tab, click "View AI Logs for this Game"
 
 3. **v3 Log Details**:
    - **Threat Assessment**: AI's analysis of opponent's board
    - **Strategy**: Selected approach for the turn
-   - **Action Sequence**: Planned actions with CC budgeting
+   - **Action Sequence**: Planned actions with Charge budgeting
    - **Execution Status**: Whether plan was fully executed
 
 ---

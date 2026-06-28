@@ -28,36 +28,36 @@ from game_engine.ai.validators.turn_plan_validator import TurnPlanValidator
 from game_engine.ai.prompts.schemas import PlannedAction, TurnPlan
 
 
-def _seq_to_plan(seq: dict, starting_cc: int) -> TurnPlan:
+def _seq_to_plan(seq: dict, starting_charge: int) -> TurnPlan:
     """Build a TurnPlan from an enumerated sequence for validator cross-checking.
 
     Mirrors TurnPlanner._sequence_to_temp_plan (the path V4 uses to validate
     LLM sequences) so the cross-check exercises the real validators.
     """
     actions = []
-    cc = starting_cc
+    charge = starting_charge
     for action in seq.get("actions", []):
-        cc_cost = action.get("cc_cost", 0)
+        charge_cost = action.get("charge_cost", 0)
         card_name = action.get("card_name") or ""
-        cc_gain = 0
+        charge_gain = 0
         if action.get("action_type") == "play_card":
-            cc_gain = {"Surge": 1, "Rush": 2}.get(card_name, 0)
-        cc_after = cc - cc_cost + cc_gain
+            charge_gain = {"Surge": 1, "Rush": 2}.get(card_name, 0)
+        charge_after = charge - charge_cost + charge_gain
         actions.append(PlannedAction(
             action_type=action.get("action_type", "end_turn"),
             card_id=action.get("card_id"),
             card_name=card_name,
             target_ids=action.get("target_ids"),
             target_names=action.get("target_names"),
-            cc_cost=cc_cost,
-            cc_after=max(0, cc_after),
+            charge_cost=charge_cost,
+            charge_after=max(0, charge_after),
             reasoning="",
         ))
-        cc = cc_after
+        charge = charge_after
     return TurnPlan(
         threat_assessment="", resources_summary="", sequences_considered=[],
-        selected_strategy="", action_sequence=actions, cc_start=starting_cc,
-        cc_after_plan=max(0, cc), expected_cards_slept=seq.get("cards_slept", 0),
+        selected_strategy="", action_sequence=actions, charge_start=starting_charge,
+        charge_after_plan=max(0, charge), expected_cards_broken=seq.get("cards_broken", 0),
         plan_reasoning="",
     )
 
@@ -65,10 +65,10 @@ def _seq_to_plan(seq: dict, starting_cc: int) -> TurnPlan:
 def _assert_all_sequences_valid(setup, player_id: str, sequences: list):
     """No enumerated sequence may be rejected by the live validator."""
     validator = TurnPlanValidator(setup.engine)
-    starting_cc = setup.game_state.players[player_id].cc
+    starting_charge = setup.game_state.players[player_id].charge
     for i, seq in enumerate(sequences):
-        plan = _seq_to_plan(seq, starting_cc)
-        errors = validator.validate(plan, setup.game_state, player_id, starting_cc)
+        plan = _seq_to_plan(seq, starting_charge)
+        errors = validator.validate(plan, setup.game_state, player_id, starting_charge)
         assert not errors, (
             f"Sequence {i} ({seq['raw_string']}) rejected by validator: "
             f"{[e.message for e in errors]}"
@@ -95,36 +95,36 @@ def _turn1_surge_knight():
         player1_in_play=[],
         player2_hand=["Knight", "Ka", "Archer", "Wizard", "Drop", "Surge"],
         player2_in_play=[],
-        player1_cc=2,
-        player2_cc=0,
+        player1_charge=2,
+        player2_charge=0,
         active_player="player1",
         turn_number=1,
     )
 
 
 def _tussle_then_direct():
-    """P1 Knight in play vs a single opponent toy it can defeat, plus CC to attack."""
+    """P1 Knight in play vs a single opponent toy it can defeat, plus Charge to attack."""
     return create_game_with_cards(
         player1_hand=[],
         player1_in_play=["Knight"],
         player2_hand=["Ka", "Wizard"],
         player2_in_play=["Paper Plane"],
-        player1_cc=5,
-        player2_cc=0,
+        player1_charge=5,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
 
 
 def _archer_scenario():
-    """P1 Archer in play with CC, opponent toys to whittle down."""
+    """P1 Archer in play with Charge, opponent toys to whittle down."""
     return create_game_with_cards(
         player1_hand=["Surge"],
         player1_in_play=["Archer", "Knight"],
         player2_hand=["Ka"],
         player2_in_play=["Paper Plane", "Wizard"],
-        player1_cc=6,
-        player2_cc=0,
+        player1_charge=6,
+        player2_charge=0,
         active_player="player1",
         turn_number=4,
     )
@@ -147,13 +147,13 @@ def test_turn1_includes_surge_knight_direct_attack():
 
 
 def test_turn1_top_ranked_is_aggressive_opener():
-    """The lethal/aggressive line should rank at or near the top (most sleeps, 0 waste)."""
+    """The lethal/aggressive line should rank at or near the top (most breaks, 0 waste)."""
     setup, _ = _turn1_surge_knight()
     sequences = enumerate_sequences(setup.game_state, "player1")
-    # Best sequence should sleep a card and spend its CC efficiently.
+    # Best sequence should break a card and spend its Charge efficiently.
     best = sequences[0]
-    assert best["cards_slept"] >= 1
-    assert best["cc_available"] - best["total_cc_spent"] <= 1  # ≤1 CC wasted
+    assert best["cards_broken"] >= 1
+    assert best["charge_available"] - best["total_charge_spent"] <= 1  # ≤1 Charge wasted
 
 
 def test_tussle_unlocks_direct_attack():
@@ -184,7 +184,7 @@ def test_all_enumerated_sequences_pass_validator(scenario):
 
 
 def test_enumeration_is_bounded_and_fast():
-    setup, _ = _archer_scenario()  # richest scenario (2 toys + abilities + CC)
+    setup, _ = _archer_scenario()  # richest scenario (2 toys + abilities + Charge)
     start = time.perf_counter()
     sequences = enumerate_sequences(setup.game_state, "player1")
     elapsed_ms = (time.perf_counter() - start) * 1000
@@ -209,7 +209,7 @@ def test_pointless_self_drop_ranks_below_pass():
     """A self-Drop with no payoff must rank below the pass line.
 
     With no opponent cards in play, Drop can only target the AI's own toy.
-    Sleeping it gains nothing, so the perverse "spending CC lowers waste" pull
+    Broken it gains nothing, so the perverse "spending Charge lowers waste" pull
     must not float the self-Drop above doing nothing.
     """
     setup, _ = create_game_with_cards(
@@ -217,8 +217,8 @@ def test_pointless_self_drop_ranks_below_pass():
         player1_in_play=["Knight"],
         player2_hand=[],
         player2_in_play=[],
-        player1_cc=2,
-        player2_cc=0,
+        player1_charge=2,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -237,15 +237,15 @@ def test_wake_drop_combo_not_penalized():
     """Drop own card then Wake it back is a real combo and must not be penalized.
 
     The card is recovered to hand, so net own-cards-slept is 0 — the combo line
-    should rank at or above a bare self-Drop that leaves the card asleep.
+    should rank at or above a bare self-Drop that leaves the card broken.
     """
     setup, _ = create_game_with_cards(
         player1_hand=["Drop", "Wake"],
         player1_in_play=["Knight"],
         player2_hand=[],
         player2_in_play=[],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -267,7 +267,7 @@ def test_wake_drop_combo_not_penalized():
 def test_no_actions_returns_end_turn_line():
     """A state with nothing to do still yields a usable pass line."""
     setup, _ = create_game_with_cards(
-        player1_hand=[], player1_in_play=[], player1_cc=0,
+        player1_hand=[], player1_in_play=[], player1_charge=0,
         active_player="player1", turn_number=2,
     )
     sequences = enumerate_sequences(setup.game_state, "player1")

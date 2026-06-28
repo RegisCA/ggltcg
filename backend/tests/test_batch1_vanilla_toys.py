@@ -56,14 +56,14 @@ class TestVanillaToyStats:
 
 
 class TestVanillaToyPlay:
-    """Each card can be played for its 0 CC cost with no side effects."""
+    """Each card can be played for its 0 Charge cost with no side effects."""
 
     def test_play_car_is_free_and_unmodified(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Car"],
             active_player="player1",
             turn_number=1,
-            player1_cc=0,
+            player1_charge=0,
         )
         car = cards["p1_hand_Car"]
 
@@ -71,7 +71,7 @@ class TestVanillaToyPlay:
 
         assert success
         assert car in setup.player1.in_play
-        assert setup.player1.cc == 0
+        assert setup.player1.charge == 0
         assert setup.engine.get_card_stat(car, "speed") == 7
         assert setup.engine.get_card_stat(car, "strength") == 2
         assert setup.engine.get_card_stat(car, "stamina") == 2
@@ -81,7 +81,7 @@ class TestVanillaToyPlay:
             player1_hand=["Dino"],
             active_player="player1",
             turn_number=1,
-            player1_cc=0,
+            player1_charge=0,
         )
         dino = cards["p1_hand_Dino"]
 
@@ -96,7 +96,7 @@ class TestVanillaToyPlay:
             player1_hand=["Block"],
             active_player="player1",
             turn_number=1,
-            player1_cc=0,
+            player1_charge=0,
         )
         block = cards["p1_hand_Block"]
 
@@ -116,7 +116,7 @@ class TestVanillaToyTussle:
             player2_in_play=["Dino"],
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         car = cards["p1_inplay_Car"]
         dino = cards["p2_inplay_Dino"]
@@ -125,8 +125,8 @@ class TestVanillaToyTussle:
         success, _ = setup.engine.initiate_tussle(car, dino, setup.player1)
 
         assert success
-        # Car (speed 7) strikes first, deals 2 strength damage to Dino (1 stamina) -> sleeped
-        assert dino in setup.player2.sleep_zone
+        # Car (speed 7) strikes first, deals 2 strength damage to Dino (1 stamina) -> broken
+        assert dino in setup.player2.break_zone
         assert dino not in setup.player2.in_play
 
     def test_dino_kills_block_despite_high_stamina(self):
@@ -135,7 +135,7 @@ class TestVanillaToyTussle:
             player2_in_play=["Block"],
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         dino = cards["p1_inplay_Dino"]
         block = cards["p2_inplay_Block"]
@@ -144,5 +144,5 @@ class TestVanillaToyTussle:
         success, _ = setup.engine.initiate_tussle(dino, block, setup.player1)
 
         assert success
-        # Dino (strength 7) hits Block (stamina 5) for 7 damage -> sleeped despite high stamina
-        assert block in setup.player2.sleep_zone
+        # Dino (strength 7) hits Block (stamina 5) for 7 damage -> broken despite high stamina
+        assert block in setup.player2.break_zone

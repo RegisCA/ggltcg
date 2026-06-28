@@ -18,7 +18,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { PlayerInfoBar } from './PlayerInfoBar';
 import { InPlayZone } from './InPlayZone';
 import { HandZone } from './HandZone';
-import { SleepZoneDisplay } from './SleepZoneDisplay';
+import { BreakZoneDisplay } from './BreakZoneDisplay';
 import { ActionPanel } from './ActionPanel';
 import { TargetSelectionModal } from './TargetSelectionModal';
 import { GameMessages } from './GameMessages';
@@ -246,10 +246,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
     const allCards: Card[] = [
       ...humanPlayer.in_play,
-      ...humanPlayer.sleep_zone,
+      ...humanPlayer.break_zone,
       ...(humanPlayer.hand || []),
       ...otherPlayer.in_play,
-      ...otherPlayer.sleep_zone,
+      ...otherPlayer.break_zone,
     ];
 
     return allCards.filter(card => action.target_options?.includes(card.id));
@@ -348,8 +348,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   size={cardSize}
                   enableLayoutAnimation={true}
                 />
-                <SleepZoneDisplay
-                  cards={otherPlayer.sleep_zone}
+                <BreakZoneDisplay
+                  cards={otherPlayer.break_zone}
                   playerName={otherPlayer.name}
                   enableLayoutAnimation={true}
                 />
@@ -371,8 +371,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   size={cardSize}
                   enableLayoutAnimation={true}
                 />
-                <SleepZoneDisplay
-                  cards={humanPlayer.sleep_zone}
+                <BreakZoneDisplay
+                  cards={humanPlayer.break_zone}
                   playerName={humanPlayer.name}
                   enableLayoutAnimation={true}
                 />
@@ -405,7 +405,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 validActions={validActionsData?.valid_actions || []}
                 onAction={handleAction}
                 isProcessing={isProcessing}
-                currentCC={humanPlayer.cc}
+                currentCharge={humanPlayer.charge}
               />
             </div>
           </div>
@@ -423,9 +423,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   enableLayoutAnimation={true}
                 />
               </div>
-              <div style={{ width: 'var(--width-sleep-zone-mobile)', flexShrink: 0 }}>
-                <SleepZoneDisplay
-                  cards={otherPlayer.sleep_zone}
+              <div style={{ width: 'var(--width-break-zone-mobile)', flexShrink: 0 }}>
+                <BreakZoneDisplay
+                  cards={otherPlayer.break_zone}
                   playerName={otherPlayer.name}
                   isCompact={true}
                   enableLayoutAnimation={true}
@@ -450,9 +450,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   enableLayoutAnimation={true}
                 />
               </div>
-              <div style={{ width: 'var(--width-sleep-zone-mobile)', flexShrink: 0 }}>
-                <SleepZoneDisplay
-                  cards={humanPlayer.sleep_zone}
+              <div style={{ width: 'var(--width-break-zone-mobile)', flexShrink: 0 }}>
+                <BreakZoneDisplay
+                  cards={humanPlayer.break_zone}
                   playerName={humanPlayer.name}
                   isCompact={true}
                   enableLayoutAnimation={true}
@@ -485,7 +485,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               validActions={validActionsData?.valid_actions || []}
               onAction={handleAction}
               isProcessing={isProcessing}
-              currentCC={humanPlayer.cc}
+              currentCharge={humanPlayer.charge}
               isCompact={true}
             />
           </div>
@@ -493,7 +493,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           /* Tablet: 2-column layout */
           <>
           <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: '1fr var(--width-sidebar-tablet)' }}>
-            {/* Left Column - Game Zones (In Play + Sleep stacked) */}
+            {/* Left Column - Game Zones (In Play + Break stacked) */}
             <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
               {/* Opponent's zones */}
               <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
@@ -507,8 +507,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   />
                 </div>
                 <div style={{ width: '200px' }}>
-                  <SleepZoneDisplay
-                    cards={otherPlayer.sleep_zone}
+                  <BreakZoneDisplay
+                    cards={otherPlayer.break_zone}
                     playerName={otherPlayer.name}
                     isCompact={true}
                     enableLayoutAnimation={true}
@@ -534,8 +534,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   />
                 </div>
                 <div style={{ width: '200px' }}>
-                  <SleepZoneDisplay
-                    cards={humanPlayer.sleep_zone}
+                  <BreakZoneDisplay
+                    cards={humanPlayer.break_zone}
                     playerName={humanPlayer.name}
                     isCompact={true}
                     enableLayoutAnimation={true}
@@ -559,7 +559,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 validActions={validActionsData?.valid_actions || []}
                 onAction={handleAction}
                 isProcessing={isProcessing}
-                currentCC={humanPlayer.cc}
+                currentCharge={humanPlayer.charge}
                 isCompact={true}
               />
             </div>
@@ -590,7 +590,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           availableTargets={getAvailableTargets(pendingAction)}
           onConfirm={handleTargetSelection}
           onCancel={handleCancelTargetSelection}
-          currentCC={humanPlayer.cc}
+          currentCharge={humanPlayer.charge}
           alternativeCostOptions={
             pendingAction.alternative_cost_available
               ? [...humanPlayer.in_play, ...(humanPlayer.hand || [])]

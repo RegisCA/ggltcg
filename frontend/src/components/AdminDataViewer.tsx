@@ -48,15 +48,15 @@ interface AILog {
     strategy: string;
     total_actions: number;
     current_action: number;
-    cc_start: number;
-    cc_after_plan: number;
-    expected_cards_slept: number;
+    charge_start: number;
+    charge_after_plan: number;
+    expected_cards_broken: number;
     // Full action sequence (new)
     action_sequence?: Array<{
       action_type: string;
       card_name: string | null;
       target_names: string[] | null;
-      cc_cost: number;
+      charge_cost: number;
       reasoning: string;
     }>;
     // Planning prompt/response (new)
@@ -107,7 +107,7 @@ interface GamePlaybackDetail extends GamePlayback {
     action_type: string;
     description: string;
   }>;
-  cc_tracking: TurnCC[] | null;
+  charge_tracking: TurnCharge[] | null;
 }
 
 interface Game {
@@ -141,14 +141,14 @@ interface User {
   favorite_decks: string[][];
 }
 
-// CC Tracking interface
-interface TurnCC {
+// Charge Tracking interface
+interface TurnCharge {
   turn: number;
   player_id: string;
-  cc_start: number;
-  cc_gained: number;
-  cc_spent: number;
-  cc_end: number;
+  charge_start: number;
+  charge_gained: number;
+  charge_spent: number;
+  charge_end: number;
 }
 
 // Action log interface
@@ -170,7 +170,7 @@ interface SimulationGameDetail {
   turn_count: number;
   duration_ms: number;
   error_message: string | null;
-  cc_tracking: TurnCC[];
+  charge_tracking: TurnCharge[];
   action_log: ActionLogEntry[];
   player1_model: string;
   player2_model: string;
@@ -224,8 +224,8 @@ interface SimulationResults {
     avg_turns: number | null;
     turn_limit_hits: number;
     turn_limit_hit_pct: number;
-    avg_p1_cc_end_active: number | null;
-    avg_p2_cc_end_active: number | null;
+    avg_p1_charge_end_active: number | null;
+    avg_p2_charge_end_active: number | null;
   };
   games: Array<{
     game_number: number;
@@ -235,12 +235,12 @@ interface SimulationResults {
     winner_deck: string | null;
     turn_count: number;
     duration_ms: number;
-    p1_cc_spent: number;
-    p2_cc_spent: number;
-    p1_cc_gained: number;
-    p2_cc_gained: number;
-    p1_avg_cc_end_active?: number | null;
-    p2_avg_cc_end_active?: number | null;
+    p1_charge_spent: number;
+    p2_charge_spent: number;
+    p1_charge_gained: number;
+    p2_charge_gained: number;
+    p1_avg_charge_end_active?: number | null;
+    p2_avg_charge_end_active?: number | null;
     hit_turn_limit?: boolean;
     error_message: string | null;
   }>;
@@ -496,7 +496,7 @@ const AdminDataViewer: React.FC = () => {
     didnt_specify_target: "AI didn't specify target",
     ai_failed_to_select_action: 'AI failed to select action',
     plan_deviation: 'Plan deviation',
-    cc_went_negative: 'CC went negative',
+    charge_went_negative: 'Charge went negative',
     sequence_rejected: 'rejected:',
     v4_r2_parse_error_flag: '"request2_parse_error": true',
     v4_r2_invalid_index_flag: '"request2_invalid_index": true',
@@ -727,35 +727,35 @@ const AdminDataViewer: React.FC = () => {
     return parts.filter(Boolean).join('\n');
   };
 
-  const computeActiveTurnCcAveragesFromPlayback = (
-    ccTracking: TurnCC[] | null,
+  const computeActiveTurnChargeAveragesFromPlayback = (
+    chargeTracking: TurnCharge[] | null,
     player1Id: string,
     player2Id: string
   ): { p1_avg: number | null; p2_avg: number | null; p1_samples: number; p2_samples: number } => {
-    if (!ccTracking || ccTracking.length === 0) return { p1_avg: null, p2_avg: null, p1_samples: 0, p2_samples: 0 };
-    const p1 = ccTracking.filter(r => r.player_id === player1Id);
-    const p2 = ccTracking.filter(r => r.player_id === player2Id);
-    const avg = (rows: TurnCC[]): number | null => {
+    if (!chargeTracking || chargeTracking.length === 0) return { p1_avg: null, p2_avg: null, p1_samples: 0, p2_samples: 0 };
+    const p1 = chargeTracking.filter(r => r.player_id === player1Id);
+    const p2 = chargeTracking.filter(r => r.player_id === player2Id);
+    const avg = (rows: TurnCharge[]): number | null => {
       if (rows.length === 0) return null;
-      return rows.reduce((s, r) => s + r.cc_end, 0) / rows.length;
+      return rows.reduce((s, r) => s + r.charge_end, 0) / rows.length;
     };
     return { p1_avg: avg(p1), p2_avg: avg(p2), p1_samples: p1.length, p2_samples: p2.length };
   };
 
-  const computeActiveTurnCcAveragesFromSimulation = (
-    ccTracking: TurnCC[]
+  const computeActiveTurnChargeAveragesFromSimulation = (
+    chargeTracking: TurnCharge[]
   ): { p1_avg: number | null; p2_avg: number | null; p1_samples: number; p2_samples: number } => {
-    if (!ccTracking || ccTracking.length === 0) return { p1_avg: null, p2_avg: null, p1_samples: 0, p2_samples: 0 };
-    const isActive = (row: TurnCC): boolean => {
+    if (!chargeTracking || chargeTracking.length === 0) return { p1_avg: null, p2_avg: null, p1_samples: 0, p2_samples: 0 };
+    const isActive = (row: TurnCharge): boolean => {
       const expected = row.turn % 2 === 1 ? 'player1' : 'player2';
       return row.player_id === expected;
     };
-    const activeRows = ccTracking.filter(isActive);
+    const activeRows = chargeTracking.filter(isActive);
     const p1 = activeRows.filter(r => r.player_id === 'player1');
     const p2 = activeRows.filter(r => r.player_id === 'player2');
-    const avg = (rows: TurnCC[]): number | null => {
+    const avg = (rows: TurnCharge[]): number | null => {
       if (rows.length === 0) return null;
-      return rows.reduce((s, r) => s + r.cc_end, 0) / rows.length;
+      return rows.reduce((s, r) => s + r.charge_end, 0) / rows.length;
     };
     return { p1_avg: avg(p1), p2_avg: avg(p2), p1_samples: p1.length, p2_samples: p2.length };
   };
@@ -1123,8 +1123,8 @@ const AdminDataViewer: React.FC = () => {
                         
                         {/* Turn Metrics */}
                         <div className="flex flex-wrap text-sm" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-sm)' }}>
-                          <span><span className="text-gray-500">CC:</span> {turnGroup.turn_plan.cc_start} → {turnGroup.turn_plan.cc_after_plan}</span>
-                          <span><span className="text-gray-500">Target:</span> Sleep {turnGroup.turn_plan.expected_cards_slept} cards</span>
+                          <span><span className="text-gray-500">Charge:</span> {turnGroup.turn_plan.charge_start} → {turnGroup.turn_plan.charge_after_plan}</span>
+                          <span><span className="text-gray-500">Target:</span> Break {turnGroup.turn_plan.expected_cards_broken} cards</span>
                         </div>
 
                         {/* V4 Diagnostics (if available) */}
@@ -1186,7 +1186,7 @@ const AdminDataViewer: React.FC = () => {
                                     {action.target_names && action.target_names.length > 0 && (
                                       <span className="text-gray-400"> → {action.target_names.join(', ')}</span>
                                     )}
-                                    <span className="text-gray-500"> ({action.cc_cost} CC)</span>
+                                    <span className="text-gray-500"> ({action.charge_cost} Charge)</span>
                                     
                                     {/* Matched but not executed */}
                                     {isMatchedButNotExecuted && (
@@ -1477,8 +1477,8 @@ const AdminDataViewer: React.FC = () => {
 
                   {/* Debug Metrics */}
                   {(() => {
-                    const ccAverages = computeActiveTurnCcAveragesFromPlayback(
-                      selectedPlayback.cc_tracking,
+                    const chargeAverages = computeActiveTurnChargeAveragesFromPlayback(
+                      selectedPlayback.charge_tracking,
                       selectedPlayback.player1_id,
                       selectedPlayback.player2_id
                     );
@@ -1510,14 +1510,14 @@ const AdminDataViewer: React.FC = () => {
                         <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Metrics</h3>
                         <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-md)' }}>
                           <div className="text-sm text-gray-300" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-                            <span className="text-gray-500">Avg CC end (active turns): </span>
+                            <span className="text-gray-500">Avg Charge end (active turns): </span>
                             <span className="text-green-400">{selectedPlayback.player1_name}</span>
-                            <span className="text-gray-300"> {ccAverages.p1_avg !== null ? ccAverages.p1_avg.toFixed(2) : '—'} </span>
-                            <span className="text-gray-500">({ccAverages.p1_samples} turns)</span>
+                            <span className="text-gray-300"> {chargeAverages.p1_avg !== null ? chargeAverages.p1_avg.toFixed(2) : '—'} </span>
+                            <span className="text-gray-500">({chargeAverages.p1_samples} turns)</span>
                             <span className="text-gray-600"> · </span>
                             <span className="text-blue-400">{selectedPlayback.player2_name}</span>
-                            <span className="text-gray-300"> {ccAverages.p2_avg !== null ? ccAverages.p2_avg.toFixed(2) : '—'} </span>
-                            <span className="text-gray-500">({ccAverages.p2_samples} turns)</span>
+                            <span className="text-gray-300"> {chargeAverages.p2_avg !== null ? chargeAverages.p2_avg.toFixed(2) : '—'} </span>
+                            <span className="text-gray-500">({chargeAverages.p2_samples} turns)</span>
                           </div>
 
                           <div className="text-sm text-gray-300">
@@ -1582,8 +1582,8 @@ const AdminDataViewer: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* CC Tracking with Actions - Compact timeline view like Simulation */}
-                  {selectedPlayback.cc_tracking && selectedPlayback.cc_tracking.length > 0 && (
+                  {/* Charge Tracking with Actions - Compact timeline view like Simulation */}
+                  {selectedPlayback.charge_tracking && selectedPlayback.charge_tracking.length > 0 && (
                     <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
                       <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Turn-by-Turn Summary</h3>
                       <div className="bg-gray-900 rounded overflow-x-auto">
@@ -1592,27 +1592,27 @@ const AdminDataViewer: React.FC = () => {
                             <tr>
                               <th className="px-3 py-2 text-center border-b border-gray-700 w-16">Turn</th>
                               <th className="px-3 py-2 text-center text-green-400 border-b border-gray-700 w-24">
-                                {selectedPlayback.player1_name.length > 8 ? 'P1' : selectedPlayback.player1_name} CC
+                                {selectedPlayback.player1_name.length > 8 ? 'P1' : selectedPlayback.player1_name} Charge
                               </th>
                               <th className="px-3 py-2 text-center text-blue-400 border-b border-gray-700 w-24">
-                                {selectedPlayback.player2_name.length > 8 ? 'P2' : selectedPlayback.player2_name} CC
+                                {selectedPlayback.player2_name.length > 8 ? 'P2' : selectedPlayback.player2_name} Charge
                               </th>
                               <th className="px-3 py-2 text-left border-b border-gray-700">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             {(() => {
-                              // Group CC tracking by turn, using actual player IDs
+                              // Group Charge tracking by turn, using actual player IDs
                               const p1Id = selectedPlayback.player1_id;
                               const p2Id = selectedPlayback.player2_id;
-                              const turnMap = new Map<number, { p1?: TurnCC, p2?: TurnCC }>();
-                              selectedPlayback.cc_tracking!.forEach(cc => {
-                                if (!turnMap.has(cc.turn)) turnMap.set(cc.turn, {});
-                                const entry = turnMap.get(cc.turn)!;
-                                if (cc.player_id === p1Id) entry.p1 = cc;
-                                else if (cc.player_id === p2Id) entry.p2 = cc;
+                              const turnMap = new Map<number, { p1?: TurnCharge, p2?: TurnCharge }>();
+                              selectedPlayback.charge_tracking!.forEach(charge => {
+                                if (!turnMap.has(charge.turn)) turnMap.set(charge.turn, {});
+                                const entry = turnMap.get(charge.turn)!;
+                                if (charge.player_id === p1Id) entry.p1 = charge;
+                                else if (charge.player_id === p2Id) entry.p2 = charge;
                               });
-                              // Include turns from play_by_play even if not in cc_tracking (e.g., final turn)
+                              // Include turns from play_by_play even if not in charge_tracking (e.g., final turn)
                               const allTurns = new Set<number>(turnMap.keys());
                               selectedPlayback.play_by_play?.forEach(action => allTurns.add(action.turn));
                               const turns = Array.from(allTurns).sort((a, b) => a - b);
@@ -1624,16 +1624,16 @@ const AdminDataViewer: React.FC = () => {
                                 actionsByTurn.get(action.turn)!.push(action);
                               });
                               
-                              // Format CC: simple start-spent→end format
-                              const formatCC = (data: TurnCC | undefined, isActive: boolean): React.ReactNode => {
+                              // Format Charge: simple start-spent→end format
+                              const formatCharge = (data: TurnCharge | undefined, isActive: boolean): React.ReactNode => {
                                 if (!data) return <span className="text-gray-600">—</span>;
                                 return (
                                   <span className={`font-mono ${isActive ? '' : 'opacity-60'}`}>
-                                    {data.cc_start}
-                                    {data.cc_gained > 0 && <span className="text-yellow-400">+{data.cc_gained}</span>}
-                                    {data.cc_spent > 0 && <span className="text-red-400">-{data.cc_spent}</span>}
+                                    {data.charge_start}
+                                    {data.charge_gained > 0 && <span className="text-yellow-400">+{data.charge_gained}</span>}
+                                    {data.charge_spent > 0 && <span className="text-red-400">-{data.charge_spent}</span>}
                                     <span className="text-gray-500">→</span>
-                                    <span className="font-bold">{data.cc_end}</span>
+                                    <span className="font-bold">{data.charge_end}</span>
                                   </span>
                                 );
                               };
@@ -1650,10 +1650,10 @@ const AdminDataViewer: React.FC = () => {
                                   <tr key={turn} className="border-t border-gray-800 hover:bg-gray-850">
                                     <td className="px-3 py-2 text-center font-bold">{turn}</td>
                                     <td className={`px-3 py-2 text-center ${isP1Turn ? 'bg-green-900/20' : ''}`}>
-                                      {formatCC(data.p1, isP1Turn)}
+                                      {formatCharge(data.p1, isP1Turn)}
                                     </td>
                                     <td className={`px-3 py-2 text-center ${!isP1Turn ? 'bg-blue-900/20' : ''}`}>
-                                      {formatCC(data.p2, !isP1Turn)}
+                                      {formatCharge(data.p2, !isP1Turn)}
                                     </td>
                                     <td className="px-3 py-2 text-left text-xs">
                                       {visibleActions.slice(0, 8).map((a, i) => (
@@ -1674,10 +1674,10 @@ const AdminDataViewer: React.FC = () => {
                             {(() => {
                               const p1Id = selectedPlayback.player1_id;
                               const p2Id = selectedPlayback.player2_id;
-                              const p1Gained = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p1Id).reduce((sum, cc) => sum + cc.cc_gained, 0);
-                              const p1Spent = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p1Id).reduce((sum, cc) => sum + cc.cc_spent, 0);
-                              const p2Gained = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p2Id).reduce((sum, cc) => sum + cc.cc_gained, 0);
-                              const p2Spent = selectedPlayback.cc_tracking!.filter(cc => cc.player_id === p2Id).reduce((sum, cc) => sum + cc.cc_spent, 0);
+                              const p1Gained = selectedPlayback.charge_tracking!.filter(charge => charge.player_id === p1Id).reduce((sum, charge) => sum + charge.charge_gained, 0);
+                              const p1Spent = selectedPlayback.charge_tracking!.filter(charge => charge.player_id === p1Id).reduce((sum, charge) => sum + charge.charge_spent, 0);
+                              const p2Gained = selectedPlayback.charge_tracking!.filter(charge => charge.player_id === p2Id).reduce((sum, charge) => sum + charge.charge_gained, 0);
+                              const p2Spent = selectedPlayback.charge_tracking!.filter(charge => charge.player_id === p2Id).reduce((sum, charge) => sum + charge.charge_spent, 0);
                               return (
                                 <tr className="border-t border-gray-700 bg-gray-900/50">
                                   <td className="px-3 py-2 text-center text-xs text-gray-400">Total</td>
@@ -2052,18 +2052,18 @@ const AdminDataViewer: React.FC = () => {
                         <span><span className="text-green-400">Player 1 / Deck 1:</span> {selectedSimulation.config.player1_model}</span>
                         <span><span className="text-blue-400">Player 2 / Deck 2:</span> {selectedSimulation.config.player2_model}</span>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">Note: Player 1 always goes first (receives 2 CC on turn 1 instead of 4)</div>
+                      <div className="text-xs text-gray-500 mt-1">Note: Player 1 always goes first (receives 2 Charge on turn 1 instead of 4)</div>
                     </div>
                     <div style={{ marginTop: '8px' }}>Games: {selectedSimulation.completed_games}/{selectedSimulation.total_games}</div>
                     {selectedSimulation.aggregate && (
                       <div className="bg-gray-900/50 rounded p-2 mt-2">
                         <div className="text-xs text-gray-300">
-                          <span className="text-gray-500">Avg CC end (active turns): </span>
+                          <span className="text-gray-500">Avg Charge end (active turns): </span>
                           <span className="text-green-400">P1</span>
-                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p1_cc_end_active, 2)} </span>
+                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p1_charge_end_active, 2)} </span>
                           <span className="text-gray-600">·</span>
                           <span className="text-blue-400"> P2</span>
-                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p2_cc_end_active, 2)}</span>
+                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p2_charge_end_active, 2)}</span>
                         </div>
                         <div className="text-xs text-gray-300" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                           <span className="text-gray-500">Avg turns: </span>
@@ -2176,9 +2176,9 @@ const AdminDataViewer: React.FC = () => {
                           <th className="px-4 py-2 text-left">#</th>
                           <th className="px-4 py-2 text-left">Matchup</th>
                           <th className="px-4 py-2 text-center">Result</th>
-                          <th className="px-4 py-2 text-center text-green-400" title="Player 1 Total CC Spent">P1 CC</th>
-                          <th className="px-4 py-2 text-center text-blue-400" title="Player 2 Total CC Spent">P2 CC</th>
-                          <th className="px-4 py-2 text-center" title="Per-game avg CC at end of active turns">Avg CC end</th>
+                          <th className="px-4 py-2 text-center text-green-400" title="Player 1 Total Charge Spent">P1 Charge</th>
+                          <th className="px-4 py-2 text-center text-blue-400" title="Player 2 Total Charge Spent">P2 Charge</th>
+                          <th className="px-4 py-2 text-center" title="Per-game avg Charge at end of active turns">Avg Charge end</th>
                           <th className="px-4 py-2 text-center">Turns</th>
                           <th className="px-4 py-2 text-center">Duration</th>
                         </tr>
@@ -2214,14 +2214,14 @@ const AdminDataViewer: React.FC = () => {
                                   </span>
                                 )}
                               </td>
-                              <td className="px-4 py-2 text-center text-green-400">{game.p1_cc_spent}</td>
-                              <td className="px-4 py-2 text-center text-blue-400">{game.p2_cc_spent}</td>
+                              <td className="px-4 py-2 text-center text-green-400">{game.p1_charge_spent}</td>
+                              <td className="px-4 py-2 text-center text-blue-400">{game.p2_charge_spent}</td>
                               <td className="px-4 py-2 text-center text-gray-300">
                                 <span className="text-green-400">P1</span>
-                                <span className="text-gray-300"> {formatMaybeNumber(game.p1_avg_cc_end_active, 2)}</span>
+                                <span className="text-gray-300"> {formatMaybeNumber(game.p1_avg_charge_end_active, 2)}</span>
                                 <span className="text-gray-600"> · </span>
                                 <span className="text-blue-400">P2</span>
-                                <span className="text-gray-300"> {formatMaybeNumber(game.p2_avg_cc_end_active, 2)}</span>
+                                <span className="text-gray-300"> {formatMaybeNumber(game.p2_avg_charge_end_active, 2)}</span>
                               </td>
                               <td className="px-4 py-2 text-center text-orange-400">
                                 {game.turn_count}
@@ -2242,7 +2242,7 @@ const AdminDataViewer: React.FC = () => {
                                   <div className="bg-gray-800 border-l-4 border-blue-500 p-4">
                                     {loadingGameDetail ? (
                                       <div className="text-center text-gray-400 py-4">Loading game details...</div>
-                                    ) : selectedGameDetail.cc_tracking && selectedGameDetail.cc_tracking.length > 0 ? (
+                                    ) : selectedGameDetail.charge_tracking && selectedGameDetail.charge_tracking.length > 0 ? (
                                       <div>
                                         <div className="flex justify-between items-center mb-3">
                                           <h4 className="font-semibold">Game #{selectedGameDetail.game_number} Details</h4>
@@ -2250,7 +2250,7 @@ const AdminDataViewer: React.FC = () => {
 
                                         {/* Debug Metrics */}
                                         {(() => {
-                                          const ccAverages = computeActiveTurnCcAveragesFromSimulation(selectedGameDetail.cc_tracking);
+                                          const chargeAverages = computeActiveTurnChargeAveragesFromSimulation(selectedGameDetail.charge_tracking);
                                           const blobParts: string[] = [];
                                           for (const a of selectedGameDetail.action_log || []) {
                                             if (a.description) blobParts.push(a.description);
@@ -2261,14 +2261,14 @@ const AdminDataViewer: React.FC = () => {
                                           return (
                                             <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
                                               <div className="text-sm text-gray-300">
-                                                <span className="text-gray-500">Avg CC end (active turns): </span>
+                                                <span className="text-gray-500">Avg Charge end (active turns): </span>
                                                 <span className="text-green-400">P1</span>
-                                                <span className="text-gray-300"> {ccAverages.p1_avg !== null ? ccAverages.p1_avg.toFixed(2) : '—'} </span>
-                                                <span className="text-gray-500">({ccAverages.p1_samples} turns)</span>
+                                                <span className="text-gray-300"> {chargeAverages.p1_avg !== null ? chargeAverages.p1_avg.toFixed(2) : '—'} </span>
+                                                <span className="text-gray-500">({chargeAverages.p1_samples} turns)</span>
                                                 <span className="text-gray-600"> · </span>
                                                 <span className="text-blue-400">P2</span>
-                                                <span className="text-gray-300"> {ccAverages.p2_avg !== null ? ccAverages.p2_avg.toFixed(2) : '—'} </span>
-                                                <span className="text-gray-500">({ccAverages.p2_samples} turns)</span>
+                                                <span className="text-gray-300"> {chargeAverages.p2_avg !== null ? chargeAverages.p2_avg.toFixed(2) : '—'} </span>
+                                                <span className="text-gray-500">({chargeAverages.p2_samples} turns)</span>
                                               </div>
                                               <div className="text-sm text-gray-300" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                                                 <span className="text-gray-500">Symptoms (game): </span>
@@ -2279,28 +2279,28 @@ const AdminDataViewer: React.FC = () => {
                                           );
                                         })()}
                                         
-                                        {/* CC Tracking - Compact timeline view */}
+                                        {/* Charge Tracking - Compact timeline view */}
                                         <div className="overflow-x-auto mb-4">
                                           <table className="w-full text-sm border-collapse">
                                             <thead className="bg-gray-900">
                                               <tr>
                                                 <th className="px-3 py-2 text-center border-b border-gray-700 w-16">Turn</th>
-                                                <th className="px-3 py-2 text-center text-green-400 border-b border-gray-700 w-32">P1 CC</th>
-                                                <th className="px-3 py-2 text-center text-blue-400 border-b border-gray-700 w-32">P2 CC</th>
+                                                <th className="px-3 py-2 text-center text-green-400 border-b border-gray-700 w-32">P1 Charge</th>
+                                                <th className="px-3 py-2 text-center text-blue-400 border-b border-gray-700 w-32">P2 Charge</th>
                                                 <th className="px-3 py-2 text-left border-b border-gray-700">Actions</th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               {(() => {
-                                                // Group CC tracking by turn
-                                                const turnMap = new Map<number, { p1?: typeof selectedGameDetail.cc_tracking[0], p2?: typeof selectedGameDetail.cc_tracking[0] }>();
-                                                selectedGameDetail.cc_tracking.forEach(cc => {
-                                                  if (!turnMap.has(cc.turn)) turnMap.set(cc.turn, {});
-                                                  const entry = turnMap.get(cc.turn)!;
-                                                  if (cc.player_id === 'player1') entry.p1 = cc;
-                                                  else entry.p2 = cc;
+                                                // Group Charge tracking by turn
+                                                const turnMap = new Map<number, { p1?: typeof selectedGameDetail.charge_tracking[0], p2?: typeof selectedGameDetail.charge_tracking[0] }>();
+                                                selectedGameDetail.charge_tracking.forEach(charge => {
+                                                  if (!turnMap.has(charge.turn)) turnMap.set(charge.turn, {});
+                                                  const entry = turnMap.get(charge.turn)!;
+                                                  if (charge.player_id === 'player1') entry.p1 = charge;
+                                                  else entry.p2 = charge;
                                                 });
-                                                // Include turns from action_log even if not in cc_tracking (e.g., final turn)
+                                                // Include turns from action_log even if not in charge_tracking (e.g., final turn)
                                                 const allTurns = new Set<number>(turnMap.keys());
                                                 selectedGameDetail.action_log?.forEach(action => allTurns.add(action.turn));
                                                 const turns = Array.from(allTurns).sort((a, b) => a - b);
@@ -2312,16 +2312,16 @@ const AdminDataViewer: React.FC = () => {
                                                   actionsByTurn.get(action.turn)!.push(action);
                                                 });
                                                 
-                                                // Format CC change as compact string with proper spacing
-                                                const formatCC = (data: typeof selectedGameDetail.cc_tracking[0] | undefined, isActive: boolean): React.ReactNode => {
+                                                // Format Charge change as compact string with proper spacing
+                                                const formatCharge = (data: typeof selectedGameDetail.charge_tracking[0] | undefined, isActive: boolean): React.ReactNode => {
                                                   if (!data) return <span className="text-gray-600">—</span>;
                                                   return (
                                                     <span className={`font-mono ${isActive ? '' : 'opacity-60'}`}>
-                                                      <span>{data.cc_start}</span>
-                                                      {data.cc_gained > 0 && <span className="text-yellow-400 ml-1">+{data.cc_gained}</span>}
-                                                      {data.cc_spent > 0 && <span className="text-red-400 ml-1">-{data.cc_spent}</span>}
+                                                      <span>{data.charge_start}</span>
+                                                      {data.charge_gained > 0 && <span className="text-yellow-400 ml-1">+{data.charge_gained}</span>}
+                                                      {data.charge_spent > 0 && <span className="text-red-400 ml-1">-{data.charge_spent}</span>}
                                                       <span className="text-gray-500 mx-1">→</span>
-                                                      <span className="font-bold">{data.cc_end}</span>
+                                                      <span className="font-bold">{data.charge_end}</span>
                                                     </span>
                                                   );
                                                 };
@@ -2337,10 +2337,10 @@ const AdminDataViewer: React.FC = () => {
                                                     <tr key={turn} className="border-t border-gray-800 hover:bg-gray-850">
                                                       <td className="px-3 py-2 text-center font-bold">{turn}</td>
                                                       <td className={`px-3 py-2 text-center ${isP1Turn ? 'bg-green-900/20' : ''}`}>
-                                                        {formatCC(data.p1, isP1Turn)}
+                                                        {formatCharge(data.p1, isP1Turn)}
                                                       </td>
                                                       <td className={`px-3 py-2 text-center ${!isP1Turn ? 'bg-blue-900/20' : ''}`}>
-                                                        {formatCC(data.p2, !isP1Turn)}
+                                                        {formatCharge(data.p2, !isP1Turn)}
                                                       </td>
                                                       <td className="px-3 py-2 text-left text-xs">
                                                         {visibleActions.slice(0, 10).map((a, i) => (
@@ -2361,12 +2361,12 @@ const AdminDataViewer: React.FC = () => {
                                               <tr className="border-t border-gray-700 bg-gray-900/50">
                                                 <td className="px-3 py-2 text-center text-xs text-gray-400">Total</td>
                                                 <td className="px-3 py-2 text-center text-green-400 text-xs">
-                                                  <span className="text-yellow-400">+{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_gained, 0)}</span>
-                                                  <span className="text-red-400 ml-1">-{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player1').reduce((sum, cc) => sum + cc.cc_spent, 0)}</span>
+                                                  <span className="text-yellow-400">+{selectedGameDetail.charge_tracking.filter(charge => charge.player_id === 'player1').reduce((sum, charge) => sum + charge.charge_gained, 0)}</span>
+                                                  <span className="text-red-400 ml-1">-{selectedGameDetail.charge_tracking.filter(charge => charge.player_id === 'player1').reduce((sum, charge) => sum + charge.charge_spent, 0)}</span>
                                                 </td>
                                                 <td className="px-3 py-2 text-center text-blue-400 text-xs">
-                                                  <span className="text-yellow-400">+{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_gained, 0)}</span>
-                                                  <span className="text-red-400 ml-1">-{selectedGameDetail.cc_tracking.filter(cc => cc.player_id === 'player2').reduce((sum, cc) => sum + cc.cc_spent, 0)}</span>
+                                                  <span className="text-yellow-400">+{selectedGameDetail.charge_tracking.filter(charge => charge.player_id === 'player2').reduce((sum, charge) => sum + charge.charge_gained, 0)}</span>
+                                                  <span className="text-red-400 ml-1">-{selectedGameDetail.charge_tracking.filter(charge => charge.player_id === 'player2').reduce((sum, charge) => sum + charge.charge_spent, 0)}</span>
                                                 </td>
                                                 <td></td>
                                               </tr>
@@ -2375,7 +2375,7 @@ const AdminDataViewer: React.FC = () => {
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="text-gray-400">No CC tracking data available.</div>
+                                      <div className="text-gray-400">No Charge tracking data available.</div>
                                     )}
                                   </div>
                                 </td>

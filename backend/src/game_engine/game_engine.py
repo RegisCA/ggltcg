@@ -38,7 +38,7 @@ class GameEngine:
     - Apply card effects using the effect system
     - Manage turn phases and progression
     - Handle tussles and combat resolution
-    - Check state-based actions (sleep defeated cards, check victory)
+    - Check state-based actions (break defeated cards, check victory)
     - Execute special card mechanics (Copy transformation, etc.)
     """
     
@@ -60,8 +60,8 @@ class GameEngine:
         Start a new turn.
         
         Phase 1 - Start of Turn:
-        1. Initialize CC tracking for this turn
-        2. Gain 4 CC (or 2 CC on Turn 1 for starting player)
+        1. Initialize Charge tracking for this turn
+        2. Gain 4 Charge (or 2 Charge on Turn 1 for starting player)
         3. Resolve "at start of turn" effects (e.g., Belchaletta)
         """
         player = self.game_state.get_active_player()
@@ -70,23 +70,23 @@ class GameEngine:
         # Reset turn counters
         player.reset_turn_counters()
         
-        # Initialize CC tracking BEFORE any CC changes
-        self.game_state.start_turn_cc_tracking()
+        # Initialize Charge tracking BEFORE any Charge changes
+        self.game_state.start_turn_charge_tracking()
         
-        # Determine CC gain
-        # Only turn 1 gets 2 CC, all other turns get 4 CC
-        cc_gain = 2 if self.game_state.turn_number == 1 else 4
+        # Determine Charge gain
+        # Only turn 1 gets 2 Charge, all other turns get 4 Charge
+        charge_gain = 2 if self.game_state.turn_number == 1 else 4
         
-        # Gain CC (respects 7 CC cap)
-        cc_before = player.cc
-        player.gain_cc(cc_gain)
-        actual_gain = player.cc - cc_before
+        # Gain Charge (respects 7 Charge cap)
+        charge_before = player.charge
+        player.gain_charge(charge_gain)
+        actual_gain = player.charge - charge_before
         
-        # Record the CC gained from turn start
-        self.game_state.record_cc_gained(actual_gain)
+        # Record the Charge gained from turn start
+        self.game_state.record_charge_gained(actual_gain)
         
         self.game_state.log_event(
-            f"{player.name} gains {cc_gain} CC (now has {player.cc} CC)"
+            f"{player.name} gains {charge_gain} Charge (now has {player.charge} Charge)"
         )
         
         # Trigger start-of-turn effects (e.g., Belchaletta)
@@ -99,7 +99,7 @@ class GameEngine:
         """
         Trigger all START_OF_TURN effects for the active player's cards.
         
-        This includes effects like Belchaletta's "At the start of your turn, gain 2 CC."
+        This includes effects like Belchaletta's "At the start of your turn, gain 2 Charge."
         """
         from .rules.effects.base_effect import TriggeredEffect
         
@@ -114,13 +114,13 @@ class GameEngine:
                 if isinstance(effect, TriggeredEffect):
                     if effect.trigger == TriggerTiming.START_OF_TURN:
                         if effect.should_trigger(self.game_state):
-                            # Track CC before effect for triggered effects that gain CC
-                            cc_before = player.cc
+                            # Track Charge before effect for triggered effects that gain Charge
+                            charge_before = player.charge
                             effect.apply(self.game_state, player=player, game_engine=self)
-                            cc_after = player.cc
-                            # Record any CC gained from the effect
-                            if cc_after > cc_before:
-                                self.game_state.record_cc_gained(cc_after - cc_before)
+                            charge_after = player.charge
+                            # Record any Charge gained from the effect
+                            if charge_after > charge_before:
+                                self.game_state.record_charge_gained(charge_after - charge_before)
                             # Log the trigger
                             self.game_state.log_event(
                                 f"{card.name}'s start-of-turn effect triggered"
@@ -131,7 +131,7 @@ class GameEngine:
         End the current turn.
         
         Phase 3 - End of Turn:
-        1. Finalize CC tracking for this turn
+        1. Finalize Charge tracking for this turn
         2. Resolve "at end of turn" effects
         3. Pass turn to opponent
         4. Increment turn number
@@ -139,8 +139,8 @@ class GameEngine:
         player = self.game_state.get_active_player()
         self.game_state.phase = Phase.END
         
-        # Finalize CC tracking before switching players
-        self.game_state.finalize_turn_cc_tracking()
+        # Finalize Charge tracking before switching players
+        self.game_state.finalize_turn_charge_tracking()
         
         self.game_state.log_event(f"{player.name} ends their turn")
         
@@ -186,12 +186,12 @@ class GameEngine:
         if alternative_cost_card_id:
             from .rules.effects.continuous_effects import BallaberCostEffect
             if card.has_effect_type(BallaberCostEffect):
-                # Alternative cost: verify the card to sleep exists
-                card_to_sleep = self._find_alternative_cost_card(
+                # Alternative cost: verify the card to break exists
+                card_to_break = self._find_alternative_cost_card(
                     player, alternative_cost_card_id
                 )
-                if card_to_sleep:
-                    # Alternative cost is valid, no CC needed
+                if card_to_break:
+                    # Alternative cost is valid, no Charge needed
                     return True, ""
                 else:
                     return False, "Alternative cost card not found"
@@ -201,9 +201,9 @@ class GameEngine:
         target_ids = kwargs.get("target_ids")
         cost = self.calculate_card_cost(card, player, target_id=target_id, target_ids=target_ids)
 
-        # Check if player has enough CC
-        if not player.has_cc(cost):
-            return False, f"Not enough CC (need {cost}, have {player.cc})"
+        # Check if player has enough Charge
+        if not player.has_charge(cost):
+            return False, f"Not enough Charge (need {cost}, have {player.charge})"
         
         # Check card-specific restrictions
         effects = EffectRegistry.get_effects(card)
@@ -255,7 +255,7 @@ class GameEngine:
 
     def _get_variable_cost_effect(self, card: Card) -> Optional[PlayEffect]:
         """
-        Return the card's variable-cost effect (Copy, Glue's unsleep, Stomp's sleep_target)
+        Return the card's variable-cost effect (Copy, Glue's fix, Stomp's break_target)
         if it has one, else None.
 
         Variable cost only applies when the CSV cost is literally -1 (the sentinel) -
@@ -265,9 +265,9 @@ class GameEngine:
         if card.cost != -1:
             return None
 
-        from .rules.effects.action_effects import CopyEffect, UnsleepEffect, SleepTargetEffect
+        from .rules.effects.action_effects import CopyEffect, FixEffect, BreakTargetEffect
         for effect in EffectRegistry.get_effects(card):
-            if isinstance(effect, (CopyEffect, UnsleepEffect, SleepTargetEffect)):
+            if isinstance(effect, (CopyEffect, FixEffect, BreakTargetEffect)):
                 return effect
         return None
 
@@ -288,7 +288,7 @@ class GameEngine:
             target_ids: Optional list of target card IDs (used if target_id is absent)
 
         Returns:
-            Final cost in CC
+            Final cost in Charge
         """
         base_cost = card.cost
 
@@ -368,32 +368,32 @@ class GameEngine:
         if alternative_cost_card_id and not alternative_cost_paid:
             from .rules.effects.continuous_effects import BallaberCostEffect
             if card.has_effect_type(BallaberCostEffect):
-                card_to_sleep = self._find_alternative_cost_card(
+                card_to_break = self._find_alternative_cost_card(
                     player, alternative_cost_card_id
                 )
-                if card_to_sleep:
-                    # Sleep the card to pay alternative cost
-                    was_in_play = card_to_sleep in player.in_play
-                    owner = self.game_state.get_card_owner(card_to_sleep)
-                    self._sleep_card(card_to_sleep, owner, was_in_play=was_in_play)
+                if card_to_break:
+                    # Break the card to pay alternative cost
+                    was_in_play = card_to_break in player.in_play
+                    owner = self.game_state.get_card_owner(card_to_break)
+                    self._break_card(card_to_break, owner, was_in_play=was_in_play)
                     alternative_cost_paid = True
-                    alternative_cost_card_name = card_to_sleep.name
+                    alternative_cost_card_name = card_to_break.name
         
         if alternative_cost_paid and alternative_cost_card_name:
             # Alternative cost already paid by action_executor or above
             self.game_state.log_event(
-                f"{player.name} plays {card.name} by sleeping {alternative_cost_card_name} (alternative cost)"
+                f"{player.name} plays {card.name} by breaking {alternative_cost_card_name} (alternative cost)"
             )
         else:
             # Calculate and pay normal cost
             target_id = kwargs.get("target_id")
             target_ids = kwargs.get("target_ids")
             cost = self.calculate_card_cost(card, player, target_id=target_id, target_ids=target_ids)
-            if not player.spend_cc(cost):
+            if not player.spend_charge(cost):
                 return False
             
             self.game_state.log_event(
-                f"{player.name} plays {card.name} (cost: {cost} CC)"
+                f"{player.name} plays {card.name} (cost: {cost} Charge)"
             )
         
         # Remove from hand
@@ -420,9 +420,9 @@ class GameEngine:
                 card.controller = player.player_id
                 player.in_play.append(card)
             else:
-                # Normal Actions go to sleep zone
-                card.zone = Zone.SLEEP
-                player.sleep_zone.append(card)
+                # Normal Actions go to break zone
+                card.zone = Zone.BREAK
+                player.break_zone.append(card)
         
         # Check state-based actions
         self.check_state_based_actions()
@@ -446,7 +446,7 @@ class GameEngine:
         Trigger WHEN_OTHER_CARD_PLAYED effects for all cards in play.
         
         This is called after a card is successfully played to trigger effects
-        like Hind Leg Kicker's "When you play a card (not this one), gain 1 CC."
+        like Hind Leg Kicker's "When you play a card (not this one), gain 1 Charge."
         
         Args:
             played_card: The card that was just played
@@ -478,7 +478,7 @@ class GameEngine:
                                 )
                                 # Log the trigger
                                 self.game_state.log_event(
-                                    f"{card.name} triggered: gained CC from card being played"
+                                    f"{card.name} triggered: gained Charge from card being played"
                                 )
 
     def _resolve_action_card(self, card: Card, player: Player, **kwargs: Any) -> None:
@@ -701,8 +701,8 @@ class GameEngine:
         
         # Calculate tussle cost
         cost = self.calculate_tussle_cost(attacker, player)
-        if not player.has_cc(cost):
-            return False, f"Not enough CC for tussle (need {cost}, have {player.cc})"
+        if not player.has_charge(cost):
+            return False, f"Not enough Charge for tussle (need {cost}, have {player.charge})"
         
         # If direct attack
         if defender is None:
@@ -735,7 +735,7 @@ class GameEngine:
         """
         Calculate the cost to initiate a tussle.
         
-        Base cost is 2 CC, modified by:
+        Base cost is 2 Charge, modified by:
         - Wizard: Tussles cost 1 (SetTussleCostEffect - applies to all tussles)
         - Raggy: This card's tussles cost 0 (SetSelfTussleCostEffect - only this card)
         
@@ -784,9 +784,9 @@ class GameEngine:
             player: Player initiating tussle
             
         Returns:
-            Tuple of (success, sleeped_from_hand_name)
+            Tuple of (success, broken_from_hand_name)
             - success: True if tussle completed successfully
-            - sleeped_from_hand_name: Name of card sleeped from hand (direct attack only)
+            - broken_from_hand_name: Name of card broken from hand (direct attack only)
         """
         # Validate
         can_tussle, reason = self.can_tussle(attacker, defender, player)
@@ -796,7 +796,7 @@ class GameEngine:
         
         # Calculate and pay cost
         cost = self.calculate_tussle_cost(attacker, player)
-        if not player.spend_cc(cost):
+        if not player.spend_charge(cost):
             return (False, None)
         
         # Check for Beary interrupt
@@ -809,16 +809,16 @@ class GameEngine:
             return (False, None)
         
         # Execute tussle
-        sleeped_from_hand = None
+        broken_from_hand = None
         if defender is None:
-            sleeped_from_hand = self._execute_direct_attack(attacker, player, opponent)
+            broken_from_hand = self._execute_direct_attack(attacker, player, opponent)
         else:
             self._execute_tussle(attacker, defender, player, opponent)
         
         # Check state-based actions
         self.check_state_based_actions()
         
-        return (True, sleeped_from_hand)
+        return (True, broken_from_hand)
     
     def _check_beary_cancel(self, opponent: Player) -> bool:
         """
@@ -841,7 +841,7 @@ class GameEngine:
     def _execute_direct_attack(self, attacker: Card, player: Player, 
                                opponent: Player) -> Optional[str]:
         """
-        Execute a direct attack (sleep random card from opponent's hand).
+        Execute a direct attack (break random card from opponent's hand).
         
         Args:
             attacker: Attacking card
@@ -849,24 +849,24 @@ class GameEngine:
             opponent: Defending player
             
         Returns:
-            Name of the card sleeped from hand, or None if no card was sleeped
+            Name of the card broken from hand, or None if no card was broken
         """
         player.direct_attacks_this_turn += 1
         
-        # Sleep random card from opponent's hand
+        # Break random card from opponent's hand
         if opponent.hand:
             target = random.choice(opponent.hand)
-            # FIX (Issue #107): Sleep to owner's zone, not controller's zone
+            # FIX (Issue #107): Break to owner's zone, not controller's zone
             target_owner = self.game_state.players[target.owner]
-            target_owner.sleep_card(target)
+            target_owner.break_card(target)
             
             self.game_state.log_event(
                 f"{player.name}'s {attacker.name} direct attack! "
-                f"Sleeped {target.name} from {opponent.name}'s hand "
+                f"Broke {target.name} from {opponent.name}'s hand "
                 f"(direct attack {player.direct_attacks_this_turn}/2)"
             )
             
-            # Cards sleeped from hand do NOT trigger "when sleeped" effects
+            # Cards broken from hand do NOT trigger "when broken" effects
             return target.name
         
         return None
@@ -902,11 +902,11 @@ class GameEngine:
                         break
                     
                     self.game_state.log_event(
-                        f"{attacker.name} auto-wins! {defender.name} is sleeped."
+                        f"{attacker.name} auto-wins! {defender.name} is broken."
                     )
-                    # Sleep to owner's zone (not controller's)
+                    # Break to owner's zone (not controller's)
                     defender_owner = self.game_state.players[defender.owner]
-                    self._sleep_card(defender, defender_owner, was_in_play=True)
+                    self._break_card(defender, defender_owner, was_in_play=True)
                     return
         
         # Calculate speeds (with turn bonus for attacker)
@@ -934,10 +934,10 @@ class GameEngine:
             )
             
             if defender.current_stamina <= 0:
-                self.game_state.log_event(f"{defender.name} is sleeped!")
-                # Sleep to owner's zone (not controller's)
+                self.game_state.log_event(f"{defender.name} is broken!")
+                # Break to owner's zone (not controller's)
                 defender_owner = self.game_state.players[defender.owner]
-                self._sleep_card(defender, defender_owner, was_in_play=True)
+                self._break_card(defender, defender_owner, was_in_play=True)
             else:
                 # Defender strikes back
                 attacker.current_stamina -= defender_strength
@@ -947,10 +947,10 @@ class GameEngine:
                 )
                 
                 if attacker.current_stamina <= 0:
-                    self.game_state.log_event(f"{attacker.name} is sleeped!")
-                    # Sleep to owner's zone (not controller's)
+                    self.game_state.log_event(f"{attacker.name} is broken!")
+                    # Break to owner's zone (not controller's)
                     attacker_owner = self.game_state.players[attacker.owner]
-                    self._sleep_card(attacker, attacker_owner, was_in_play=True)
+                    self._break_card(attacker, attacker_owner, was_in_play=True)
         
         elif defender_speed > attacker_speed:
             # Defender strikes first
@@ -961,10 +961,10 @@ class GameEngine:
             )
             
             if attacker.current_stamina <= 0:
-                self.game_state.log_event(f"{attacker.name} is sleeped!")
-                # Sleep to owner's zone (not controller's)
+                self.game_state.log_event(f"{attacker.name} is broken!")
+                # Break to owner's zone (not controller's)
                 attacker_owner = self.game_state.players[attacker.owner]
-                self._sleep_card(attacker, attacker_owner, was_in_play=True)
+                self._break_card(attacker, attacker_owner, was_in_play=True)
             else:
                 # Attacker strikes back
                 defender.current_stamina -= attacker_strength
@@ -974,10 +974,10 @@ class GameEngine:
                 )
                 
                 if defender.current_stamina <= 0:
-                    self.game_state.log_event(f"{defender.name} is sleeped!")
-                    # Sleep to owner's zone (not controller's)
+                    self.game_state.log_event(f"{defender.name} is broken!")
+                    # Break to owner's zone (not controller's)
                     defender_owner = self.game_state.players[defender.owner]
-                    self._sleep_card(defender, defender_owner, was_in_play=True)
+                    self._break_card(defender, defender_owner, was_in_play=True)
         
         else:
             # Tied speed - simultaneous strikes
@@ -990,28 +990,28 @@ class GameEngine:
             )
             
             if attacker.current_stamina <= 0:
-                self.game_state.log_event(f"{attacker.name} is sleeped!")
-                # Sleep to owner's zone (not controller's)
+                self.game_state.log_event(f"{attacker.name} is broken!")
+                # Break to owner's zone (not controller's)
                 attacker_owner = self.game_state.players[attacker.owner]
-                self._sleep_card(attacker, attacker_owner, was_in_play=True)
+                self._break_card(attacker, attacker_owner, was_in_play=True)
             
             if defender.current_stamina <= 0:
-                self.game_state.log_event(f"{defender.name} is sleeped!")
-                # Sleep to owner's zone (not controller's)
+                self.game_state.log_event(f"{defender.name} is broken!")
+                # Break to owner's zone (not controller's)
                 defender_owner = self.game_state.players[defender.owner]
-                self._sleep_card(defender, defender_owner, was_in_play=True)
+                self._break_card(defender, defender_owner, was_in_play=True)
     
-    def _sleep_card(self, card: Card, owner: Player, was_in_play: bool) -> None:
+    def _break_card(self, card: Card, owner: Player, was_in_play: bool) -> None:
         """
-        Sleep a card and trigger "when sleeped" effects.
+        Break a card and trigger "when broken" effects.
         
         For stolen cards (controller != owner), removes from controller's zone
-        and adds to owner's sleep zone.
+        and adds to owner's break zone.
         
         Args:
-            card: Card to sleep
-            owner: Player who OWNS the card (card goes to their sleep zone)
-            was_in_play: Whether card was in play (vs sleeped from hand)
+            card: Card to break
+            owner: Player who OWNS the card (card goes to their break zone)
+            was_in_play: Whether card was in play (vs broken from hand)
         """
         # For stolen cards, we need to remove from controller's zone, not owner's
         controller = self.game_state.players.get(card.controller)
@@ -1020,26 +1020,26 @@ class GameEngine:
             # Card is stolen - remove from controller's in_play
             if card in controller.in_play:
                 controller.in_play.remove(card)
-            # Add to owner's sleep zone
-            card.zone = Zone.SLEEP
+            # Add to owner's break zone
+            card.zone = Zone.BREAK
             card.controller = owner.player_id  # Reset controller back to owner
-            owner.sleep_zone.append(card)
+            owner.break_zone.append(card)
         else:
             # Normal case - card is controlled by owner
-            owner.sleep_card(card)
+            owner.break_card(card)
         
-        # Trigger "when sleeped" effects (only if was in play)
+        # Trigger "when broken" effects (only if was in play)
         if was_in_play:
             effects = EffectRegistry.get_effects(card)
             for effect in effects:
                 if isinstance(effect, TriggeredEffect):
-                    if effect.trigger == TriggerTiming.WHEN_SLEEPED:
+                    if effect.trigger == TriggerTiming.WHEN_BROKEN:
                         if effect.should_trigger(
                             self.game_state, 
-                            sleeped_card=card,
+                            broken_card=card,
                             was_in_play=was_in_play
                         ):
-                            effect.apply(self.game_state, sleeped_card=card, game_engine=self)
+                            effect.apply(self.game_state, broken_card=card, game_engine=self)
     
     # ========================================================================
     # STATE-BASED ACTIONS
@@ -1050,21 +1050,21 @@ class GameEngine:
         Check and apply state-based actions.
         
         State-based actions:
-        - Sleep any Toy with stamina <= 0
+        - Break any Toy with stamina <= 0
         - Check for victory condition
         """
         # Check for cards with 0 or less stamina
         for player in self.game_state.players.values():
-            cards_to_sleep = []
+            cards_to_break = []
             for card in player.in_play:
                 if hasattr(card, 'current_stamina'):
                     if card.current_stamina <= 0:
-                        cards_to_sleep.append(card)
+                        cards_to_break.append(card)
             
-            for card in cards_to_sleep:
-                # Sleep to owner's zone (not controller's)
+            for card in cards_to_break:
+                # Break to owner's zone (not controller's)
                 owner = self.game_state.players[card.owner]
-                self._sleep_card(card, owner, was_in_play=True)
+                self._break_card(card, owner, was_in_play=True)
         
         # Check victory
         self.game_state.check_victory()
@@ -1099,6 +1099,6 @@ class GameEngine:
             Player who owns the card
         """
         for player in self.game_state.players.values():
-            if card in player.hand or card in player.in_play or card in player.sleep_zone:
+            if card in player.hand or card in player.in_play or card in player.break_zone:
                 return player
         return None

@@ -1,11 +1,11 @@
 """
 Test for Copy card transformation reset bug (Issue #224).
 
-Bug: When Copy transforms into "Copy of [Card]" and then gets sleeped or 
+Bug: When Copy transforms into "Copy of [Card]" and then gets broken or 
 returned to hand, it should revert to the original "Copy" card with cost "?".
 
 Expected behavior: Copy card should reset its transformation when leaving 
-IN_PLAY zone or when moving to SLEEP zone.
+IN_PLAY zone or when moving to BREAK zone.
 
 Issue: https://github.com/RegisCA/ggltcg/issues/224
 """
@@ -95,15 +95,15 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         copy_card.primary_color = ka_card.primary_color
         copy_card.accent_color = ka_card.accent_color
     
-    def test_copy_resets_when_sleeped_from_play(self):
+    def test_copy_resets_when_broken_from_play(self):
         """
-        Test that Copy resets transformation when sleeped from IN_PLAY.
+        Test that Copy resets transformation when broken from IN_PLAY.
         
         Scenario:
         1. Player has Ka in play
         2. Player plays Copy, copying Ka
         3. Copy transforms into "Copy of Ka"
-        4. Copy gets sleeped (defeated in tussle, etc.)
+        4. Copy gets broken (defeated in tussle, etc.)
         5. Copy should revert to original "Copy" card
         """
         # Setup: Ka in play, Copy in hand
@@ -124,8 +124,8 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         self.assertTrue(hasattr(copy_card, '_is_transformed'))
         self.assertTrue(copy_card._is_transformed)
         
-        # Sleep the Copy card (IN_PLAY → SLEEP)
-        self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.SLEEP)
+        # Break the Copy card (IN_PLAY → BREAK)
+        self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.BREAK)
         
         # Verify Copy reverted to original state
         self.assertEqual(copy_card.name, "Copy")
@@ -133,7 +133,7 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         self.assertFalse(hasattr(copy_card, '_is_transformed'))
         self.assertFalse(hasattr(copy_card, '_original_name'))
         self.assertFalse(hasattr(copy_card, '_original_cost'))
-        self.assertEqual(copy_card.zone, Zone.SLEEP)
+        self.assertEqual(copy_card.zone, Zone.BREAK)
     
     def test_copy_resets_when_returned_to_hand(self):
         """
@@ -177,10 +177,10 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         
         Scenario:
         1. Copy was previously transformed and returned to hand
-        2. Copy gets discarded from hand (HAND → SLEEP)
+        2. Copy gets discarded from hand (HAND → BREAK)
         3. Copy should remain in original state (already reset when returning to hand)
         
-        This tests the HAND → SLEEP transition explicitly.
+        This tests the HAND → BREAK transition explicitly.
         """
         # Setup: Copy in hand (simulate it was already returned and reset)
         copy_card = self._create_copy_card()
@@ -195,14 +195,14 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         copy_card.name = "Copy of Something"
         copy_card.cost = 3
         
-        # Discard from hand (HAND → SLEEP)
-        self.player1.move_card(copy_card, Zone.HAND, Zone.SLEEP)
+        # Discard from hand (HAND → BREAK)
+        self.player1.move_card(copy_card, Zone.HAND, Zone.BREAK)
         
         # Verify transformation is cleared
         self.assertEqual(copy_card.name, "Copy")
         self.assertEqual(copy_card.cost, -1)
         self.assertFalse(hasattr(copy_card, '_is_transformed'))
-        self.assertEqual(copy_card.zone, Zone.SLEEP)
+        self.assertEqual(copy_card.zone, Zone.BREAK)
     
     def test_copy_reset_clears_all_transformation_attributes(self):
         """
@@ -226,8 +226,8 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         self.assertTrue(hasattr(copy_card, '_original_cost'))
         self.assertTrue(hasattr(copy_card, '_copied_effects'))
         
-        # Sleep the card
-        self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.SLEEP)
+        # Break the card
+        self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.BREAK)
         
         # Verify ALL transformation attributes are removed
         self.assertFalse(hasattr(copy_card, '_is_transformed'))
@@ -252,35 +252,35 @@ class TestCopyCardTransformationReset(unittest.TestCase):
         original_owner = copy_card.owner
         original_controller = copy_card.controller
         
-        # Sleep the card
-        self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.SLEEP)
+        # Break the card
+        self.player1.move_card(copy_card, Zone.IN_PLAY, Zone.BREAK)
         
         # Verify owner/controller unchanged
         self.assertEqual(copy_card.owner, original_owner)
         self.assertEqual(copy_card.controller, original_controller)
     
-    def test_sleep_to_hand_does_not_reset(self):
+    def test_break_to_hand_does_not_reset(self):
         """
-        Test that moving from SLEEP to HAND does NOT reset modifications.
+        Test that moving from BREAK to HAND does NOT reset modifications.
         
-        This is the unsleep/wake mechanic - cards return from sleep to hand
+        This is the fix/wake mechanic - cards return from break to hand
         without resetting.
         """
         copy_card = self._create_copy_card()
-        copy_card.zone = Zone.SLEEP
-        self.player1.sleep_zone.append(copy_card)
+        copy_card.zone = Zone.BREAK
+        self.player1.break_zone.append(copy_card)
         
         # Add some modifications to test they're preserved
         copy_card.modifications = {"strength": 2}
         
-        # Move from SLEEP to HAND (unsleep)
-        self.player1.move_card(copy_card, Zone.SLEEP, Zone.HAND)
+        # Move from BREAK to HAND (fix)
+        self.player1.move_card(copy_card, Zone.BREAK, Zone.HAND)
         
-        # Verify modifications NOT cleared (SLEEP → HAND doesn't reset)
+        # Verify modifications NOT cleared (BREAK → HAND doesn't reset)
         # Actually, based on the current code, it WOULD reset because to_zone is HAND
-        # and from_zone is SLEEP. Let me check the logic...
-        # The condition is: if from_zone == Zone.IN_PLAY or to_zone == Zone.SLEEP
-        # So SLEEP → HAND would NOT trigger reset (correct)
+        # and from_zone is BREAK. Let me check the logic...
+        # The condition is: if from_zone == Zone.IN_PLAY or to_zone == Zone.BREAK
+        # So BREAK → HAND would NOT trigger reset (correct)
         self.assertEqual(copy_card.modifications, {"strength": 2})
         self.assertEqual(copy_card.zone, Zone.HAND)
     

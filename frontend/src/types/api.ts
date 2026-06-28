@@ -28,7 +28,7 @@ export interface PlayCardRequest {
   card_id: string;  // Unique card instance ID
   target_card_id?: string;  // Target card ID for single-target effects
   target_card_ids?: string[];  // Multiple target card IDs (e.g., Sun)
-  alternative_cost_card_id?: string;  // Card ID to sleep for alternative cost (e.g., Ballaber)
+  alternative_cost_card_id?: string;  // Card ID to break for alternative cost (e.g., Ballaber)
 }
 
 export interface TussleRequest {

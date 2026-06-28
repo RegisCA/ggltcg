@@ -11,7 +11,7 @@ interface ActionPanelProps {
   validActions: ValidAction[];
   onAction: (action: ValidAction) => void;
   isProcessing: boolean;
-  currentCC: number;
+  currentCharge: number;
   isCompact?: boolean;  // Smaller buttons for tablet
 }
 
@@ -19,7 +19,7 @@ export function ActionPanel({
   validActions,
   onAction,
   isProcessing,
-  currentCC,
+  currentCharge,
   isCompact = false,
 }: ActionPanelProps) {
   const [shouldBlink, setShouldBlink] = useState(false);
@@ -153,7 +153,7 @@ return (
       >
         Available Actions
         {validActions.length > 0 && (
-          <span> for {currentCC} CC</span>
+          <span> for {currentCharge} Charge</span>
         )}
       </h3>
     </div>
@@ -220,9 +220,9 @@ return (
             {cardActions.map((action, index) => {
               const cleanDescription = action.description.replace(/\s*\(Cost:.*?\)/, '');
               const shortcutKey = getShortcutKey(action);
-              // Button is affordable if: cost is within CC OR alternative cost is available (Ballaber)
-              const isUnaffordable = action.cost_cc !== undefined && 
-                action.cost_cc > currentCC && 
+              // Button is affordable if: cost is within Charge OR alternative cost is available (Ballaber)
+              const isUnaffordable = action.cost_charge !== undefined && 
+                action.cost_charge > currentCharge && 
                 !action.alternative_cost_available;
 
               return (
@@ -260,7 +260,7 @@ return (
                       {cleanDescription}
                     </span>
                     
-                    {action.cost_cc !== undefined && (
+                    {action.cost_charge !== undefined && (
                       <span 
                         className="rounded font-bold whitespace-nowrap"
                         style={{
@@ -271,7 +271,7 @@ return (
                         }}
                       >
                         {isUnaffordable && '🔒 '}
-                        {action.cost_cc} CC
+                        {action.cost_charge} Charge
                       </span>
                     )}
                   </div>

@@ -24,24 +24,24 @@ class TestWakeHallucination:
     Reproduction of Wake hallucination in Game 31e33312.
     
     Scenario:
-    - Turn 2, 4 CC.
+    - Turn 2, 4 Charge.
     - Hand: Surge, Wake, Knight, Umbruh, Paper Plane, Archer.
-    - Sleep Zone: Archer (or some other card).
+    - Break Zone: Archer (or some other card).
     - Opponent Board: Umbruh, Paper Plane.
     
     Issue: AI plays Wake with target_ids: null.
     """
     
     def test_wake_requires_target(self):
-        # Setup game with 4 CC
+        # Setup game with 4 Charge
         setup, _ = create_game_with_cards(
             player1_hand=["Surge", "Wake", "Knight", "Umbruh", "Paper Plane", "Archer"],
             player1_in_play=[],
-            player1_cc=4,
-            player1_sleep=["Archer"],  # Put something in sleep zone
+            player1_charge=4,
+            player1_break=["Archer"],  # Put something in break zone
             player2_hand=[],
             player2_in_play=["Umbruh", "Paper Plane"],
-            player2_cc=1
+            player2_charge=1
         )
         game_state = setup.game_state
         
@@ -57,8 +57,8 @@ class TestWakeHallucination:
             if action.card_name == "Wake":
                 assert action.target_ids is not None, "Wake MUST have a target_id"
                 assert len(action.target_ids) == 1, "Wake MUST target exactly 1 card"
-                # Verify target is in sleep zone
+                # Verify target is in break zone
                 target_id = action.target_ids[0]
-                sleep_zone_ids = [c.id for c in game_state.player1.sleep_zone]
-                assert target_id in sleep_zone_ids, f"Wake target {target_id} must be in sleep zone {sleep_zone_ids}"
+                break_zone_ids = [c.id for c in game_state.player1.break_zone]
+                assert target_id in break_zone_ids, f"Wake target {target_id} must be in break zone {break_zone_ids}"
 

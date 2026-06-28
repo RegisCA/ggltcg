@@ -130,8 +130,8 @@ class TestHeuristicMatcherWithIDs:
             card_name="Knight",  # Name is ambiguous
             card_id=player1_knight_id,  # ID is specific
             target_ids=[beary_id],
-            cc_cost=2,
-            cc_after=3,
+            charge_cost=2,
+            charge_after=3,
             reasoning="Test tussle",
         )
         
@@ -142,16 +142,16 @@ class TestHeuristicMatcherWithIDs:
                 card_id=player1_knight_id,
                 card_name="Knight",
                 target_options=[beary_id],
-                cost_cc=2,
-                description="Knight tussle Beary (Cost: 2 CC)",
+                cost_charge=2,
+                description="Knight tussle Beary (Cost: 2 Charge)",
             ),
             ValidAction(
                 action_type="tussle",
                 card_id=player2_knight_id,  # Different Knight!
                 card_name="Knight",
                 target_options=[beary_id],
-                cost_cc=2,
-                description="Knight tussle Beary (Cost: 2 CC)",  # Same description!
+                cost_charge=2,
+                description="Knight tussle Beary (Cost: 2 Charge)",  # Same description!
             ),
             ValidAction(
                 action_type="end_turn",
@@ -172,8 +172,8 @@ class TestHeuristicMatcherWithIDs:
             action_type="play_card",
             card_name="Knight",
             card_id=knight_id,
-            cc_cost=2,
-            cc_after=3,
+            charge_cost=2,
+            charge_after=3,
             reasoning="Test play",
         )
         
@@ -182,8 +182,8 @@ class TestHeuristicMatcherWithIDs:
                 action_type="play_card",
                 card_id=knight_id,
                 card_name="Knight",
-                cost_cc=2,
-                description="Play Knight (Cost: 2 CC)",
+                cost_charge=2,
+                description="Play Knight (Cost: 2 Charge)",
             ),
             ValidAction(
                 action_type="end_turn",
@@ -203,8 +203,8 @@ class TestHeuristicMatcherWithIDs:
             action_type="direct_attack",
             card_name="Archer",
             card_id=archer_id,
-            cc_cost=2,
-            cc_after=3,
+            charge_cost=2,
+            charge_after=3,
             reasoning="Test direct attack",
         )
         
@@ -213,8 +213,8 @@ class TestHeuristicMatcherWithIDs:
                 action_type="direct_attack",
                 card_id=archer_id,
                 card_name="Archer",
-                cost_cc=2,
-                description="Archer direct attack (Cost: 2 CC)",
+                cost_charge=2,
+                description="Archer direct attack (Cost: 2 Charge)",
             ),
             ValidAction(
                 action_type="end_turn",
@@ -232,8 +232,8 @@ class TestHeuristicMatcherWithIDs:
             action_type="play_card",
             card_name="Knight",
             # No card_id
-            cc_cost=2,
-            cc_after=3,
+            charge_cost=2,
+            charge_after=3,
             reasoning="Test legacy",
         )
         
@@ -242,8 +242,8 @@ class TestHeuristicMatcherWithIDs:
                 action_type="play_card",
                 card_id="some-uuid",
                 card_name="Knight",
-                cost_cc=2,
-                description="Play Knight (Cost: 2 CC)",
+                cost_charge=2,
+                description="Play Knight (Cost: 2 Charge)",
             ),
             ValidAction(
                 action_type="end_turn",
@@ -276,8 +276,8 @@ class TestHeuristicMatcherWithIDs:
             card_name="",
             card_id=target_id,  # <-- bug: this is actually the target
             target_ids=[target_id],  # as expected
-            cc_cost=2,
-            cc_after=2,
+            charge_cost=2,
+            charge_after=2,
             reasoning="Tussle Knight",
         )
 
@@ -287,8 +287,8 @@ class TestHeuristicMatcherWithIDs:
                 card_id=attacker_id,
                 card_name="Umbruh",
                 target_options=[target_id],
-                cost_cc=2,
-                description="Umbruh tussle Knight (Cost: 2 CC)",
+                cost_charge=2,
+                description="Umbruh tussle Knight (Cost: 2 Charge)",
             ),
             ValidAction(
                 action_type="end_turn",
@@ -323,8 +323,8 @@ class TestHeuristicMatcherWithIDs:
             card_name="Beary",
             card_id=beary_id,
             target_ids=[dino_id],
-            cc_cost=2,
-            cc_after=1,
+            charge_cost=2,
+            charge_after=1,
             reasoning="Tussle Beary into Dino",
         )
 
@@ -336,16 +336,16 @@ class TestHeuristicMatcherWithIDs:
                 card_id=jumpscare_id,
                 card_name="Jumpscare",
                 target_options=[beary_id, dino_id],  # any card in play
-                cost_cc=0,
-                description="Play Jumpscare (Cost: 0 CC)",
+                cost_charge=0,
+                description="Play Jumpscare (Cost: 0 Charge)",
             ),
             ValidAction(
                 action_type="tussle",
                 card_id=beary_id,
                 card_name="Beary",
                 target_options=[dino_id],
-                cost_cc=2,
-                description="Beary tussle Dino (Cost: 2 CC)",
+                cost_charge=2,
+                description="Beary tussle Dino (Cost: 2 Charge)",
             ),
             ValidAction(
                 action_type="end_turn",
@@ -373,8 +373,8 @@ class TestHeuristicMatcherWithIDs:
             card_name="Beary",
             card_id=beary_id,
             target_ids=[dino_id],
-            cc_cost=2,
-            cc_after=1,
+            charge_cost=2,
+            charge_after=1,
             reasoning="Tussle Beary into Dino",
         )
 
@@ -384,8 +384,8 @@ class TestHeuristicMatcherWithIDs:
                 card_id="jumpscare-uuid",
                 card_name="Jumpscare",
                 target_options=[beary_id, dino_id],
-                cost_cc=0,
-                description="Play Jumpscare (Cost: 0 CC)",
+                cost_charge=0,
+                description="Play Jumpscare (Cost: 0 Charge)",
             ),
             ValidAction(
                 action_type="end_turn",

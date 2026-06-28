@@ -45,8 +45,8 @@ def test_enum_keeps_validator_flagged_sequences_and_makes_one_call():
         player1_in_play=["Raggy"],
         player2_in_play=["Gibbers"],
         player2_hand=["Ka"],
-        player1_cc=2,
-        player2_cc=0,
+        player1_charge=2,
+        player2_charge=0,
         active_player="player1",
         turn_number=4,
     )
@@ -58,14 +58,14 @@ def test_enum_keeps_validator_flagged_sequences_and_makes_one_call():
     assert any(a.action_type != "end_turn" for a in plan.action_sequence), \
         "plan should take a real action, not just end the turn"
 
-    # Raggy's tussles cost 0. With only 2 CC, canonical-cost grounding (2/attack)
+    # Raggy's tussles cost 0. With only 2 Charge, canonical-cost grounding (2/attack)
     # would drop these as "unaffordable". The enum plan must keep them at their
     # real engine cost (0) — pins that enum trusts engine-derived costs and skips
-    # _reground_cc_chain (Copilot review, turn_planner.py).
+    # _reground_charge_chain (Copilot review, turn_planner.py).
     attacks = [a for a in plan.action_sequence if a.action_type in ("tussle", "direct_attack")]
     assert attacks, "discounted Raggy attacks must survive plan grounding, not be dropped"
-    assert all(a.cc_cost == 0 for a in attacks), \
-        f"Raggy attacks should carry real cost 0, got {[a.cc_cost for a in attacks]}"
+    assert all(a.charge_cost == 0 for a in attacks), \
+        f"Raggy attacks should carry real cost 0, got {[a.charge_cost for a in attacks]}"
 
 
 def test_enum_handles_jumpscare_toy_return_without_fallback():
@@ -75,8 +75,8 @@ def test_enum_handles_jumpscare_toy_return_without_fallback():
         player1_in_play=["Knight"],
         player2_in_play=["Gibbers"],
         player2_hand=["Ka"],
-        player1_cc=5,
-        player2_cc=0,
+        player1_charge=5,
+        player2_charge=0,
         active_player="player1",
         turn_number=4,
     )

@@ -8,7 +8,7 @@ Remember that your context window is limited - especially the output size. So yo
 
 | Source | Content |
 |--------|---------|
-| `docs/rules/QUICK_REFERENCE.md` | Game rules, turn sequence, CC mechanics, zones |
+| `docs/rules/QUICK_REFERENCE.md` | Game rules, turn sequence, Charge mechanics, zones |
 | `backend/data/cards.csv` | Card stats, costs, and effect definitions |
 | `docs/rules/GGLTCG Rules v1_1.md` | Detailed rules for edge cases |
 
@@ -16,7 +16,7 @@ Remember that your context window is limited - especially the output size. So yo
 
 **ID-Based Lookups**: Use `game_state.find_card_by_id(card_id)`, never name-based searches. Multiple cards can share names.
 
-**Method-Based State**: Use `card.apply_damage(3)`, `player.gain_cc(4)`. Direct assignment bypasses game logic.
+**Method-Based State**: Use `card.apply_damage(3)`, `player.gain_charge(4)`. Direct assignment bypasses game logic.
 
 **GameEngine/GameState Split**: GameEngine contains logic, GameState is pure serializable data.
 
@@ -29,7 +29,7 @@ Two planner modes. **Production runs `dual` (V4) on Gemini.** The live path sele
 - **dual (a.k.a. V4) — what prod runs** — Request 1 generates action sequences, Request 2 selects the best, with a server-side `TurnPlanValidator` in between.
   - Sequence Generator: `backend/src/game_engine/ai/prompts/sequence_generator.py`
   - Strategic Selector: `backend/src/game_engine/ai/prompts/strategic_selector.py`
-- **single (bare-checkout default)** — one request plans the whole turn, with server-side plan pruning and CC regrounding.
+- **single (bare-checkout default)** — one request plans the whole turn, with server-side plan pruning and Charge regrounding.
 
 Provider abstraction (`backend/src/game_engine/ai/providers.py`) supports Gemini/Groq/OpenRouter via `AI_PROVIDER` / `AI_MODEL`, but the deployed game always uses Gemini — prompts are Gemini-tuned, so swapping providers degrades play.
 

@@ -1,16 +1,16 @@
 """
-CC Plan Grounding Tests.
+Charge Plan Grounding Tests.
 
 Covers two foundational bugs fixed together:
 
-Bug 1 – cc_start wrong in plan
+Bug 1 – charge_start wrong in plan
   LLMs (especially small-parameter ones like llama-3.1-8b-instant) frequently
-  output cc_start=0 or a wrong value.  The planner now overrides cc_start with
-  the actual player CC after parsing, so admin logs and any downstream logic
+  output charge_start=0 or a wrong value.  The planner now overrides charge_start with
+  the actual player Charge after parsing, so admin logs and any downstream logic
   are grounded in reality.
 
 Bug 2 – plan/execution mismatch when planned action is not in valid_actions
-  When a planned action (e.g., play Clean for 3 CC when player only has 2 CC)
+  When a planned action (e.g., play Clean for 3 Charge when player only has 2 Charge)
   is not present in the valid_actions list, the old code fell back to the LLM
   execution API which would pick a *different* action and log it differently,
   making the plan shown in admin look completely unrelated to what was actually
@@ -18,16 +18,16 @@ Bug 2 – plan/execution mismatch when planned action is not in valid_actions
   step instead of calling the LLM.
 
 Test structure:
-  - Unit tests (no LLM required): test the skip logic and cc_start grounding
+  - Unit tests (no LLM required): test the skip logic and charge_start grounding
     using mocks and direct method calls.
   - Live scenario tests (requires API key): turn-1 and turn-3 game states that
     reproduce the exact failures seen in production.
 
 Run unit tests only:
-    pytest tests/test_cc_plan_grounding.py -v -k "not Scenario"
+    pytest tests/test_charge_plan_grounding.py -v -k "not Scenario"
 
 Run all (needs API key):
-    pytest tests/test_cc_plan_grounding.py -v
+    pytest tests/test_charge_plan_grounding.py -v
 """
 
 import sys
@@ -55,8 +55,8 @@ def _make_planned_action(action_type: str, card_name: str = None, card_id: str =
         target_ids=None,
         target_names=None,
         alternative_cost_id=None,
-        cc_cost=0,
-        cc_after=0,
+        charge_cost=0,
+        charge_after=0,
         reasoning="test",
     )
 
@@ -84,17 +84,17 @@ class TestIsActionAvailable:
 
     def test_play_card_available_when_in_valid_actions(self, player):
         planned = _make_planned_action("play_card", card_name="Clean")
-        valid = [_make_valid_action("Spend 3 CC to play Clean")]
+        valid = [_make_valid_action("Spend 3 Charge to play Clean")]
         assert player._is_action_available(planned, valid) is True
 
     def test_play_card_unavailable_when_not_in_valid_actions(self, player):
         planned = _make_planned_action("play_card", card_name="Clean")
-        valid = [_make_valid_action("Spend 1 CC to play Knight"), _make_valid_action("End turn")]
+        valid = [_make_valid_action("Spend 1 Charge to play Knight"), _make_valid_action("End turn")]
         assert player._is_action_available(planned, valid) is False
 
     def test_direct_attack_available(self, player):
         planned = _make_planned_action("direct_attack", card_name="Knight")
-        valid = [_make_valid_action("Direct attack for 2 CC")]
+        valid = [_make_valid_action("Direct attack for 2 Charge")]
         assert player._is_action_available(planned, valid) is True
 
     def test_direct_attack_unavailable_when_toys_remain(self, player):
@@ -141,9 +141,9 @@ class TestExecutionSkipsImpossibleActions:
 
         # Inject minimal attributes checked by _execute_planned_action
         end_turn_action = _make_planned_action("end_turn")
-        end_turn_action.cc_cost = 0
+        end_turn_action.charge_cost = 0
         clean_action = _make_planned_action("play_card", card_name="Clean")
-        clean_action.cc_cost = 3
+        clean_action.charge_cost = 3
 
         plan = MagicMock(spec=TurnPlan)
         plan.action_sequence = [clean_action, end_turn_action]
@@ -168,7 +168,7 @@ class TestExecutionSkipsImpossibleActions:
 
         game_state = MagicMock()
         ai_player = MagicMock()
-        ai_player.cc = 2
+        ai_player.charge = 2
         game_state.players = {"p1": ai_player}
 
         result = player._execute_planned_action(valid_actions, game_state, "p1", None)
@@ -190,7 +190,7 @@ class TestExecutionSkipsImpossibleActions:
         valid_actions = [_make_valid_action("End turn")]
         game_state = MagicMock()
         ai_player = MagicMock()
-        ai_player.cc = 2
+        ai_player.charge = 2
         game_state.players = {"p1": ai_player}
 
         player._execute_planned_action(valid_actions, game_state, "p1", None)
@@ -199,19 +199,19 @@ class TestExecutionSkipsImpossibleActions:
 
 
 # ---------------------------------------------------------------------------
-# Unit: cc_start is grounded to actual player CC after parsing
+# Unit: charge_start is grounded to actual player Charge after parsing
 # ---------------------------------------------------------------------------
 
-class TestCCStartGrounding:
+class TestChargeStartGrounding:
     """
-    After create_plan() returns, plan.cc_start must equal the player's real CC,
+    After create_plan() returns, plan.charge_start must equal the player's real Charge,
     regardless of what the LLM output.
     """
 
-    def test_cc_start_overridden_after_parse(self):
+    def test_charge_start_overridden_after_parse(self):
         """
-        Mock the LLM to return cc_start=0 in a game where the player has 2 CC.
-        The returned plan must have cc_start=2.
+        Mock the LLM to return charge_start=0 in a game where the player has 2 Charge.
+        The returned plan must have charge_start=2.
         """
         from game_engine.ai.turn_planner import TurnPlanner
 
@@ -219,17 +219,17 @@ class TestCCStartGrounding:
             player1_hand=["Knight"],
             player1_in_play=[],
             player2_in_play=[],
-            player1_cc=2,
+            player1_charge=2,
             active_player="player1",
             turn_number=1,
         )
 
         planner = build_turn_planner()
 
-        # Inject a fake LLM response that has cc_start=0 (the bug)
+        # Inject a fake LLM response that has charge_start=0 (the bug)
         fake_response = """{
             "threat_assessment": "No threats",
-            "resources_summary": "2 CC, Knight in hand",
+            "resources_summary": "2 Charge, Knight in hand",
             "sequences_considered": ["Play Knight"],
             "selected_strategy": "Play Knight",
             "action_sequence": [
@@ -237,21 +237,21 @@ class TestCCStartGrounding:
                     "action_type": "play_card",
                     "card_id": "fake-id",
                     "card_name": "Knight",
-                    "cc_cost": 1,
-                    "cc_after": 1,
+                    "charge_cost": 1,
+                    "charge_after": 1,
                     "reasoning": "Play Knight"
                 },
                 {
                     "action_type": "end_turn",
-                    "cc_cost": 0,
-                    "cc_after": 1,
+                    "charge_cost": 0,
+                    "charge_after": 1,
                     "reasoning": "End turn"
                 }
             ],
-            "cc_start": 0,
-            "cc_after_plan": 1,
-            "expected_cards_slept": 0,
-            "cc_efficiency": "N/A",
+            "charge_start": 0,
+            "charge_after_plan": 1,
+            "expected_cards_broken": 0,
+            "charge_efficiency": "N/A",
             "plan_reasoning": "Play Knight and end turn."
         }"""
 
@@ -259,15 +259,15 @@ class TestCCStartGrounding:
             plan = planner.create_plan(setup.game_state, "player1", setup.engine)
 
         assert plan is not None
-        # The fix: cc_start must be corrected to actual player CC (2), not LLM's 0
-        assert plan.cc_start == 2, (
-            f"plan.cc_start should be 2 (actual player CC) but got {plan.cc_start}. "
-            "LLM output cc_start=0 should have been overridden."
+        # The fix: charge_start must be corrected to actual player Charge (2), not LLM's 0
+        assert plan.charge_start == 2, (
+            f"plan.charge_start should be 2 (actual player Charge) but got {plan.charge_start}. "
+            "LLM output charge_start=0 should have been overridden."
         )
 
-    def test_negative_cc_after_clamped_to_zero(self):
+    def test_negative_charge_after_clamped_to_zero(self):
         """
-        LLM outputs cc_after=-1 for an action (e.g. wrong cost math).
+        LLM outputs charge_after=-1 for an action (e.g. wrong cost math).
         This must not crash with a Pydantic validation error — it should
         clamp to 0 and return a usable plan.
         """
@@ -277,17 +277,17 @@ class TestCCStartGrounding:
             player1_hand=["Knight"],
             player1_in_play=[],
             player2_in_play=[],
-            player1_cc=2,
+            player1_charge=2,
             active_player="player1",
             turn_number=1,
         )
 
         planner = build_turn_planner()
 
-        # LLM outputs cc_after=-1 (wrong math) — this was causing a crash
+        # LLM outputs charge_after=-1 (wrong math) — this was causing a crash
         fake_response = """{
             "threat_assessment": "No threats",
-            "resources_summary": "2 CC",
+            "resources_summary": "2 Charge",
             "sequences_considered": ["Play Knight"],
             "selected_strategy": "Play Knight",
             "action_sequence": [
@@ -295,21 +295,21 @@ class TestCCStartGrounding:
                     "action_type": "play_card",
                     "card_id": "fake-id",
                     "card_name": "Knight",
-                    "cc_cost": 3,
-                    "cc_after": -1,
+                    "charge_cost": 3,
+                    "charge_after": -1,
                     "reasoning": "Play Knight (wrong math)"
                 },
                 {
                     "action_type": "end_turn",
-                    "cc_cost": 0,
-                    "cc_after": -1,
+                    "charge_cost": 0,
+                    "charge_after": -1,
                     "reasoning": "End turn"
                 }
             ],
-            "cc_start": 2,
-            "cc_after_plan": -1,
-            "expected_cards_slept": 0,
-            "cc_efficiency": "N/A",
+            "charge_start": 2,
+            "charge_after_plan": -1,
+            "expected_cards_broken": 0,
+            "charge_efficiency": "N/A",
             "plan_reasoning": "Test."
         }"""
 
@@ -317,10 +317,10 @@ class TestCCStartGrounding:
         with patch.object(planner, "_call_planning_api", return_value=fake_response):
             plan = planner.create_plan(setup.game_state, "player1", setup.engine)
 
-        assert plan is not None, "Plan should be returned despite LLM's wrong cc_after=-1"
+        assert plan is not None, "Plan should be returned despite LLM's wrong charge_after=-1"
         for action in plan.action_sequence:
-            assert action.cc_after >= 0, (
-                f"cc_after must be >= 0 after clamping, got {action.cc_after} for {action.action_type}"
+            assert action.charge_after >= 0, (
+                f"charge_after must be >= 0 after clamping, got {action.charge_after} for {action.action_type}"
             )
 
 
@@ -334,30 +334,30 @@ _SKIP_LLM = pytest.mark.skipif(
 )
 
 
-def _validate_no_negative_cc(plan) -> list[str]:
-    """Return list of error messages for any action that would go below 0 CC."""
-    CC_GAINS = {"Surge": 1, "Rush": 2, "HLK": 1}
-    running_cc = plan.cc_start
+def _validate_no_negative_charge(plan) -> list[str]:
+    """Return list of error messages for any action that would go below 0 Charge."""
+    CHARGE_GAINS = {"Surge": 1, "Rush": 2, "HLK": 1}
+    running_charge = plan.charge_start
     errors = []
     for i, action in enumerate(plan.action_sequence, 1):
         if action.action_type == "end_turn":
             continue
-        gain = CC_GAINS.get(action.card_name or "", 0)
-        after = running_cc - action.cc_cost + gain
+        gain = CHARGE_GAINS.get(action.card_name or "", 0)
+        after = running_charge - action.charge_cost + gain
         if after < 0:
             errors.append(
                 f"Action {i} ({action.action_type} {action.card_name or ''}): "
-                f"{running_cc} - {action.cc_cost} + {gain} = {after} (negative!)"
+                f"{running_charge} - {action.charge_cost} + {gain} = {after} (negative!)"
             )
-        running_cc = max(0, after)
+        running_charge = max(0, after)
     return errors
 
 
 @_SKIP_LLM
-class TestTurn1Clean3CCUnaffordable:
+class TestTurn1Clean3ChargeUnaffordable:
     """
-    Turn 1: player has 2 CC and Clean (costs 3) is in hand.
-    The plan must NOT try to play Clean — it would go negative CC.
+    Turn 1: player has 2 Charge and Clean (costs 3) is in hand.
+    The plan must NOT try to play Clean — it would go negative Charge.
     """
 
     @pytest.fixture
@@ -369,7 +369,7 @@ class TestTurn1Clean3CCUnaffordable:
             player1_hand=["Clean", "Knight"],
             player1_in_play=[],
             player2_in_play=[],
-            player1_cc=2,
+            player1_charge=2,
             active_player="player1",
             turn_number=1,
         )
@@ -377,33 +377,33 @@ class TestTurn1Clean3CCUnaffordable:
         plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
         assert plan is not None
 
-        print(f"\nCC start: {plan.cc_start}")
+        print(f"\nCharge start: {plan.charge_start}")
         for i, a in enumerate(plan.action_sequence, 1):
-            print(f"  {i}. {a.action_type} {a.card_name or ''} ({a.cc_cost} CC → {a.cc_after})")
+            print(f"  {i}. {a.action_type} {a.card_name or ''} ({a.charge_cost} Charge → {a.charge_after})")
 
-        # cc_start must be the actual player CC
-        assert plan.cc_start == 2, f"cc_start should be 2, got {plan.cc_start}"
+        # charge_start must be the actual player Charge
+        assert plan.charge_start == 2, f"charge_start should be 2, got {plan.charge_start}"
 
         # Plan must not go negative
-        errors = _validate_no_negative_cc(plan)
-        assert len(errors) == 0, f"Plan has impossible CC math:\n" + "\n".join(errors)
+        errors = _validate_no_negative_charge(plan)
+        assert len(errors) == 0, f"Plan has impossible Charge math:\n" + "\n".join(errors)
 
-        # Clean must not appear in the plan (unaffordable: costs 3, only 2 CC)
+        # Clean must not appear in the plan (unaffordable: costs 3, only 2 Charge)
         clean_plays = [
             a for a in plan.action_sequence
             if a.action_type == "play_card" and a.card_name == "Clean"
         ]
         assert len(clean_plays) == 0, (
-            "Plan included play_card Clean despite only having 2 CC (Clean costs 3). "
+            "Plan included play_card Clean despite only having 2 Charge (Clean costs 3). "
             "This would fail at execution and cause plan/log mismatch."
         )
 
 
 @_SKIP_LLM
-class TestTurn3Clean5CCAffordable:
+class TestTurn3Clean5ChargeAffordable:
     """
-    Turn 3 (P1): player has 5 CC (4 CC gain + 1 CC carryover) and Clean in hand.
-    Clean costs 3 CC → should be affordable and appear in the plan if it's the
+    Turn 3 (P1): player has 5 Charge (4 Charge gain + 1 Charge carryover) and Clean in hand.
+    Clean costs 3 Charge → should be affordable and appear in the plan if it's the
     best move when opponent has toys.
     """
 
@@ -411,14 +411,14 @@ class TestTurn3Clean5CCAffordable:
     def turn_planner(self):
         return build_turn_planner()
 
-    def test_cc_start_reflects_actual_cc(self, turn_planner):
-        """cc_start must equal 5 regardless of what the LLM reports."""
+    def test_charge_start_reflects_actual_charge(self, turn_planner):
+        """charge_start must equal 5 regardless of what the LLM reports."""
         setup, _ = create_game_with_cards(
             player1_hand=["Clean", "Raggy"],
             player1_in_play=[],
             player2_in_play=["Knight", "Umbruh"],
-            player1_cc=5,
-            player2_cc=4,
+            player1_charge=5,
+            player2_charge=4,
             active_player="player1",
             turn_number=3,
         )
@@ -426,20 +426,20 @@ class TestTurn3Clean5CCAffordable:
         plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
         assert plan is not None
 
-        print(f"\nCC start: {plan.cc_start}")
+        print(f"\nCharge start: {plan.charge_start}")
         for i, a in enumerate(plan.action_sequence, 1):
-            print(f"  {i}. {a.action_type} {a.card_name or ''} ({a.cc_cost} CC → {a.cc_after})")
+            print(f"  {i}. {a.action_type} {a.card_name or ''} ({a.charge_cost} Charge → {a.charge_after})")
 
-        assert plan.cc_start == 5, f"cc_start should be 5 (actual player CC), got {plan.cc_start}"
+        assert plan.charge_start == 5, f"charge_start should be 5 (actual player Charge), got {plan.charge_start}"
 
-    def test_plan_cc_never_goes_negative(self, turn_planner):
-        """Even with multiple actions, CC must never go below zero at any step."""
+    def test_plan_charge_never_goes_negative(self, turn_planner):
+        """Even with multiple actions, Charge must never go below zero at any step."""
         setup, _ = create_game_with_cards(
             player1_hand=["Clean", "Raggy"],
             player1_in_play=[],
             player2_in_play=["Knight", "Umbruh"],
-            player1_cc=5,
-            player2_cc=4,
+            player1_charge=5,
+            player2_charge=4,
             active_player="player1",
             turn_number=3,
         )
@@ -447,9 +447,9 @@ class TestTurn3Clean5CCAffordable:
         plan = turn_planner.create_plan(setup.game_state, "player1", setup.engine)
         assert plan is not None
 
-        errors = _validate_no_negative_cc(plan)
+        errors = _validate_no_negative_charge(plan)
         assert len(errors) == 0, (
-            f"Plan has CC math errors after cc_start grounding:\n" + "\n".join(errors)
+            f"Plan has Charge math errors after charge_start grounding:\n" + "\n".join(errors)
         )
 
 # ---------------------------------------------------------------------------
@@ -474,8 +474,8 @@ class TestParsePlanRobustness:
             '{"threat_assessment":"","resources_summary":"",'
             '"sequences_considered":[],"selected_strategy":"",'
             f'"action_sequence":{action_sequence_json},'
-            '"cc_start":2,"cc_after_plan":0,"expected_cards_slept":0,'
-            '"cc_efficiency":"N/A","plan_reasoning":""}'
+            '"charge_start":2,"charge_after_plan":0,"expected_cards_broken":0,'
+            '"charge_efficiency":"N/A","plan_reasoning":""}'
         )
 
     def test_invalid_action_type_does_not_crash(self, planner):
@@ -486,10 +486,10 @@ class TestParsePlanRobustness:
         """
         fake = self._fake_response(
             '[{"action_type":"play","card_name":"Knight",'
-            '"cc_cost":1,"cc_after":1,"reasoning":"play knight"}]'
+            '"charge_cost":1,"charge_after":1,"reasoning":"play knight"}]'
         )
         setup, _ = create_game_with_cards(
-            player1_hand=["Knight"], player1_cc=2,
+            player1_hand=["Knight"], player1_charge=2,
             active_player="player1", turn_number=1,
         )
         with patch.object(planner, "_call_planning_api", return_value=fake):
@@ -508,11 +508,11 @@ class TestParsePlanRobustness:
         """LLM outputs 'attack' which is also not a valid Literal."""
         fake = self._fake_response(
             '[{"action_type":"attack","card_name":"Knight",'
-            '"cc_cost":2,"cc_after":0,"reasoning":"attack"},'
-            '{"action_type":"end_turn","cc_cost":0,"cc_after":0,"reasoning":"done"}]'
+            '"charge_cost":2,"charge_after":0,"reasoning":"attack"},'
+            '{"action_type":"end_turn","charge_cost":0,"charge_after":0,"reasoning":"done"}]'
         )
         setup, _ = create_game_with_cards(
-            player1_hand=["Knight"], player1_cc=2,
+            player1_hand=["Knight"], player1_charge=2,
             active_player="player1", turn_number=1,
         )
         with patch.object(planner, "_call_planning_api", return_value=fake):
@@ -524,40 +524,40 @@ class TestParsePlanRobustness:
                 "play_card", "tussle", "activate_ability", "direct_attack", "end_turn"
             }
 
-    def test_null_cc_cost_does_not_crash(self, planner):
+    def test_null_charge_cost_does_not_crash(self, planner):
         """
-        LLM outputs "cc_cost": null  — JSON null becomes Python None.
+        LLM outputs "charge_cost": null  — JSON null becomes Python None.
         Previously max(0, None) raised TypeError → plan returned None
         → 'AI failed to select action, ended turn'.
         """
         fake = self._fake_response(
             '[{"action_type":"play_card","card_name":"Knight",'
-            '"cc_cost":null,"cc_after":null,"reasoning":"play"},'
-            '{"action_type":"end_turn","cc_cost":0,"cc_after":0,"reasoning":"done"}]'
+            '"charge_cost":null,"charge_after":null,"reasoning":"play"},'
+            '{"action_type":"end_turn","charge_cost":0,"charge_after":0,"reasoning":"done"}]'
         )
         setup, _ = create_game_with_cards(
-            player1_hand=["Knight"], player1_cc=2,
+            player1_hand=["Knight"], player1_charge=2,
             active_player="player1", turn_number=1,
         )
         with patch.object(planner, "_call_planning_api", return_value=fake):
             plan = planner.create_plan(setup.game_state, "player1", setup.engine)
 
         assert plan is not None, (
-            "create_plan must not return None when LLM outputs 'cc_cost': null"
+            "create_plan must not return None when LLM outputs 'charge_cost': null"
         )
         for action in plan.action_sequence:
-            assert action.cc_cost >= 0
-            assert action.cc_after >= 0
+            assert action.charge_cost >= 0
+            assert action.charge_after >= 0
 
     def test_null_reasoning_does_not_crash(self, planner):
         """LLM outputs "reasoning": null — must not fail Pydantic's required str field."""
         fake = self._fake_response(
             '[{"action_type":"play_card","card_name":"Knight",'
-            '"cc_cost":1,"cc_after":1,"reasoning":null},'
-            '{"action_type":"end_turn","cc_cost":0,"cc_after":1,"reasoning":null}]'
+            '"charge_cost":1,"charge_after":1,"reasoning":null},'
+            '{"action_type":"end_turn","charge_cost":0,"charge_after":1,"reasoning":null}]'
         )
         setup, _ = create_game_with_cards(
-            player1_hand=["Knight"], player1_cc=2,
+            player1_hand=["Knight"], player1_charge=2,
             active_player="player1", turn_number=1,
         )
         with patch.object(planner, "_call_planning_api", return_value=fake):
@@ -589,7 +589,7 @@ class TestSkipAllActionsNeverReturnsNone:
         actions = []
         for at in action_types:
             a = _make_planned_action(at, card_name="Anything" if at != "end_turn" else None)
-            a.cc_cost = 0
+            a.charge_cost = 0
             actions.append(a)
 
         plan = MagicMock(spec=TurnPlan)
@@ -613,7 +613,7 @@ class TestSkipAllActionsNeverReturnsNone:
         # Only end_turn is valid
         valid = [_make_valid_action("End turn")]
         game_state = MagicMock()
-        game_state.players = {"p1": MagicMock(cc=0)}
+        game_state.players = {"p1": MagicMock(charge=0)}
 
         result = player._execute_planned_action(valid, game_state, "p1", None)
 
@@ -629,7 +629,7 @@ class TestSkipAllActionsNeverReturnsNone:
         player = self._build_player_with_plan(["tussle", "tussle", "end_turn"])
         valid = [_make_valid_action("End turn")]
         game_state = MagicMock()
-        game_state.players = {"p1": MagicMock(cc=0)}
+        game_state.players = {"p1": MagicMock(charge=0)}
 
         result = player._execute_planned_action(valid, game_state, "p1", None)
 
@@ -653,7 +653,7 @@ class TestActionCardAsAttackerValidation:
     When other toys ARE in play the new invalid_attacker check catches the case.
 
     Run without API key:
-        pytest tests/test_cc_plan_grounding.py -v -k "TestActionCardAsAttacker"
+        pytest tests/test_charge_plan_grounding.py -v -k "TestActionCardAsAttacker"
     """
 
     def test_direct_attack_with_action_card_no_toys_in_play(self):
@@ -680,9 +680,9 @@ class TestActionCardAsAttackerValidation:
                 _make_planned_action("direct_attack", card_name="Rush", card_id=rush_card.id),
                 _make_planned_action("end_turn"),
             ],
-            cc_start=2,
-            cc_after_plan=0,
-            expected_cards_slept=0,
+            charge_start=2,
+            charge_after_plan=0,
+            expected_cards_broken=0,
             selected_strategy="test",
             sequences_considered=[],
             threat_assessment="",
@@ -727,9 +727,9 @@ class TestActionCardAsAttackerValidation:
                 _make_planned_action("direct_attack", card_name="Rush", card_id=rush_card.id),
                 _make_planned_action("end_turn"),
             ],
-            cc_start=4,
-            cc_after_plan=2,
-            expected_cards_slept=0,
+            charge_start=4,
+            charge_after_plan=2,
+            expected_cards_broken=0,
             selected_strategy="test",
             sequences_considered=[],
             threat_assessment="",
@@ -776,15 +776,15 @@ class TestActionCardAsAttackerValidation:
                     target_ids=[opp_knight.id],
                     target_names=["Knight"],
                     alternative_cost_id=None,
-                    cc_cost=0,
-                    cc_after=0,
+                    charge_cost=0,
+                    charge_after=0,
                     reasoning="test",
                 ),
                 _make_planned_action("end_turn"),
             ],
-            cc_start=4,
-            cc_after_plan=2,
-            expected_cards_slept=0,
+            charge_start=4,
+            charge_after_plan=2,
+            expected_cards_broken=0,
             selected_strategy="test",
             sequences_considered=[],
             threat_assessment="",
@@ -825,39 +825,39 @@ class TestActionCardAsAttackerValidation:
         # Build the exact bad plan the small LLM would have produced
         fake_response = f"""{{
             "threat_assessment": "No threats",
-            "resources_summary": "4 CC available",
-            "sequences_considered": ["Play Rush for CC, direct attack"],
+            "resources_summary": "4 Charge available",
+            "sequences_considered": ["Play Rush for Charge, direct attack"],
             "selected_strategy": "Direct attack with Rush",
             "action_sequence": [
                 {{
                     "action_type": "play_card",
                     "card_id": "{rush_card.id}",
                     "card_name": "Rush",
-                    "cc_cost": 1,
-                    "cc_after": 3,
-                    "reasoning": "Play Rush for extra CC"
+                    "charge_cost": 1,
+                    "charge_after": 3,
+                    "reasoning": "Play Rush for extra Charge"
                 }},
                 {{
                     "action_type": "direct_attack",
                     "card_id": "{rush_card.id}",
                     "card_name": "Rush",
-                    "cc_cost": 0,
-                    "cc_after": 3,
+                    "charge_cost": 0,
+                    "charge_after": 3,
                     "reasoning": "Direct attack with Rush"
                 }},
                 {{
                     "action_type": "end_turn",
-                    "cc_cost": 0,
-                    "cc_after": 3,
+                    "charge_cost": 0,
+                    "charge_after": 3,
                     "reasoning": "End turn"
                 }}
             ],
-            "cc_start": 4,
-            "cc_after_plan": 3,
-            "expected_cards_slept": 0,
+            "charge_start": 4,
+            "charge_after_plan": 3,
+            "expected_cards_broken": 0,
             "risk_assessment": "low",
-            "cc_efficiency": "N/A",
-            "plan_reasoning": "Play Rush for CC boost then direct attack."
+            "charge_efficiency": "N/A",
+            "plan_reasoning": "Play Rush for Charge boost then direct attack."
         }}"""
 
         planner = build_turn_planner(planner_mode="single")

@@ -117,15 +117,15 @@ class EndTurnAction(GameAction):
 @dataclass
 class ActivateAbilityAction(GameAction):
     """
-    Action to activate a card's ability (e.g., Archer's sleep ability).
-    
+    Action to activate a card's ability (e.g., Archer's break ability).
+
     Attributes:
         player_id: ID of player activating the ability
         card_id: Unique ID of the card with the ability
         target_ids: List of target card IDs (if ability requires targets)
-        
+
     Example:
-        # Archer ability to sleep a target Toy
+        # Archer ability to break a target Toy
         action = ActivateAbilityAction(
             player_id="alice",
             card_id="archer-123",

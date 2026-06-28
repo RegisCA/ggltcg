@@ -22,8 +22,8 @@ def test_migrated_cards_show_real_effect_text_in_hand():
         player1_in_play=[],
         player2_hand=[],
         player2_in_play=[],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=1,
     )
@@ -31,11 +31,11 @@ def test_migrated_cards_show_real_effect_text_in_hand():
 
     # Effect text now comes straight from each Card's own effect_text (cards.csv),
     # not a duplicated copy in a now-deleted library dict.
-    assert "sleep 1 of your cards to play this card for free" in state_text  # Ballaber
+    assert "break 1 of your cards to play this card for free" in state_text  # Ballaber
     assert "+ 1 of all stats" in state_text  # Demideca
     assert "2 more speed" in state_text  # Drum
     assert "into their owner" in state_text  # Jumpscare / Toynado phrasing
-    assert "Unsleep an action card" in state_text  # That was fun
+    assert "Fix an action card" in state_text  # That was fun
 
 
 def test_opponent_threat_lookup_uses_card_guidance_yaml():
@@ -44,8 +44,8 @@ def test_opponent_threat_lookup_uses_card_guidance_yaml():
         player1_in_play=[],
         player2_hand=[],
         player2_in_play=["Knight"],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=1,
     )
@@ -63,8 +63,8 @@ def test_vanilla_toy_with_no_guidance_entry_shows_unknown_threat():
         player1_in_play=[],
         player2_hand=[],
         player2_in_play=["Block"],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=1,
     )

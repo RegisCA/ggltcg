@@ -155,8 +155,8 @@ polymorphism to handle different effect types.
 ```csv
 name,type,cost,effects,...
 Ka,Toy,1,stat_boost:strength:2,...
-Rush,Action,0,gain_cc:2:not_first_turn,...
-Wake,Action,1,unsleep:1,...
+Rush,Action,0,gain_charge:2:not_first_turn,...
+Wake,Action,1,fix:1,...
 
 ```
 
@@ -167,14 +167,14 @@ Wake,Action,1,unsleep:1,...
 - Examples:
 - `stat_boost:strength:2` — Ka gains +2 strength
 - `stat_boost:all:1` — Demideca gains +1 to all stats
-- `gain_cc:2:not_first_turn` — Rush gains 2 CC (not on first turn)
-- `unsleep:2` — Sun unsleeps 2 cards
-- `sleep_all` - Clean sleeps all cards in play
+- `gain_charge:2:not_first_turn` — Rush gains 2 Charge (not on first turn)
+- `fix:2` — Sun fixes 2 cards
+- `break_all` - Clean breaks all cards in play
 
 **Implementation:**
 
 - Data-driven effects implemented for 10+ cards
-- Generic effects: StatBoostEffect, GainCCEffect, UnsleepEffect, SleepAllEffect
+- Generic effects: StatBoostEffect, GainChargeEffect, FixEffect, BreakAllEffect
 - Complex cards use custom effects: Knight, Beary, Copy, Twist, Archer
 - 30 cards total in production
 
@@ -191,12 +191,12 @@ BaseEffect (abstract)
 │       └── WizardCostEffect
 ├── TriggeredEffect
 │   ├── SnugglesWhenPlayedEffect
-│   ├── SnugglesWhenSleepedEffect
+│   ├── SnugglesWhenBrokenEffect
 │   └── UmbruhEffect
 ├── PlayEffect
-│   ├── GainCCEffect (generic, data-driven)
-│   ├── UnsleepEffect (generic, data-driven)
-│   ├── SleepAllEffect (generic, data-driven)
+│   ├── GainChargeEffect (generic, data-driven)
+│   ├── FixEffect (generic, data-driven)
+│   ├── BreakAllEffect (generic, data-driven)
 │   ├── WakeEffect (card-specific)
 │   ├── SunEffect (card-specific)
 │   ├── RushEffect (card-specific)
@@ -381,14 +381,14 @@ implementation details.
 
 ```text
 START PHASE
-├── Gain CC (2 on turn 1, 4 after)
+├── Gain Charge (2 on turn 1, 4 after)
 ├── Check state-based actions
 └── Transition to MAIN
 
 MAIN PHASE
 ├── Player can:
-│   ├── Play cards (pay CC)
-│   ├── Initiate tussles (pay CC)
+│   ├── Play cards (pay Charge)
+│   ├── Initiate tussles (pay Charge)
 │   └── End turn
 └── Check state-based actions after each action
 
@@ -406,8 +406,8 @@ END PHASE
 
 Checked after every game action:
 
-1. **Sleep cards with 0 stamina** - Cards reduced to 0 stamina go to sleep zone
-1. **Trigger "when sleeped" effects** - Snuggles, Umbruh
+1. **Break cards with 0 stamina** - Cards reduced to 0 stamina go to break zone
+1. **Trigger "when broken" effects** - Snuggles, Umbruh
 1. **Check victory conditions** - Opponent has no cards in hand and no cards in
 
 play
@@ -422,9 +422,9 @@ play
 
 ```python
 class Zone(Enum):
-    HAND = "hand"
-    IN_PLAY = "in_play"
-    SLEEP = "sleep"
+    HAND = "Hand"
+    IN_PLAY = "InPlay"
+    BREAK = "Break"
 
 ```
 
@@ -487,28 +487,28 @@ player.in_play.append(card)
 ```python
 # game_engine.py -> play_card()
 engine._resolve_action_card(card, player, **kwargs)
-card.zone = Zone.SLEEP
-player.sleep_zone.append(card)
+card.zone = Zone.BREAK
+player.break_zone.append(card)
 
 ```
 
-#### Sleeping a Card
+#### Breaking a Card
 
 ```python
-# game_state.py -> sleep_card()
+# game_state.py -> break_card()
 if was_in_play:
     player.in_play.remove(card)
-card.zone = Zone.SLEEP
-player.sleep_zone.append(card)
-# Trigger "when sleeped" effects
+card.zone = Zone.BREAK
+player.break_zone.append(card)
+# Trigger "when broken" effects
 
 ```
 
-#### Unsleeping a Card (Wake effect)
+#### Fixing a Card (Wake effect)
 
 ```python
-# game_state.py -> unsleep_card()
-player.sleep_zone.remove(card)
+# game_state.py -> fix_card()
+player.break_zone.remove(card)
 card.zone = Zone.HAND
 player.hand.append(card)
 
@@ -647,11 +647,11 @@ Backend Processing:
 2. Find Twist card in player.hand
 3. Calculate cost (check for cost modifications)
 4. Find target card (zone-specific search)
-5. Validate can_play_card (enough CC, right phase, etc.)
+5. Validate can_play_card (enough Charge, right phase, etc.)
 6. Execute play_card:
    - Remove from hand
    - Resolve effect (TwistEffect.apply)
-   - Move to sleep zone
+   - Move to break zone
 7. Check state-based actions
 8. Update play-by-play log
 
@@ -679,11 +679,11 @@ return GameStateResponse(
         p_id: PlayerState(
             player_id=p.player_id,
             name=p.name,
-            cc=p.cc,
+            charge=p.charge,
             hand_count=len(p.hand),
             hand=cards if reveal_hand else None,
             in_play=[_card_to_state(c) for c in p.in_play],
-            sleep_zone=[_card_to_state(c) for c in p.sleep_zone]
+            break_zone=[_card_to_state(c) for c in p.break_zone]
         )
         for p_id, p in game_state.players.items()
     },
@@ -728,11 +728,11 @@ App
     ├── PlayerZone (opponent)
     │   ├── PlayerInfoBar
     │   ├── InPlayZone
-    │   └── SleepZoneDisplay
+    │   └── BreakZoneDisplay
     ├── PlayerZone (current player)
     │   ├── PlayerInfoBar
     │   ├── InPlayZone
-    │   ├── SleepZoneDisplay
+    │   ├── BreakZoneDisplay
     │   └── HandZone
     ├── ActionPanel
     ├── TargetSelectionModal
@@ -832,9 +832,9 @@ const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
 
 ```text
 ┌─────────────────────────────────────┬──────────────┐
-│  Opponent InPlay  │  Opponent Sleep │              │
+│  Opponent InPlay  │  Opponent Break │              │
 │─────────────────────────────────────│   Messages   │
-│  My InPlay        │  My Sleep       │   + Actions  │
+│  My InPlay        │  My Break       │   + Actions  │
 │─────────────────────────────────────│   (350px)    │
 │            My Hand (full-width)     │              │
 └─────────────────────────────────────┴──────────────┘
@@ -994,15 +994,15 @@ CREATE TABLE games (
 
 ## Glossary
 
-**CC (Command Counters):** Currency for playing cards and initiating tussles
-**Sleep Zone:** Where cards go when defeated or slept **In Play:** Active toys
+**Charge:** Currency for playing cards and initiating tussles
+**Break Zone:** Where cards go when defeated or broken **In Play:** Active toys
 
 that can tussle **Controller:** Player who currently controls a card (can change
 via Twist) **Owner:** Player whose deck the card came from (never changes)
 
 **Effect:** Card behavior (continuous, triggered, activated, or play) **State-
 
-Based Action:** Automatic game rule check (sleep 0-stamina cards, check
+Based Action:** Automatic game rule check (break 0-stamina cards, check
 
 victory)
 

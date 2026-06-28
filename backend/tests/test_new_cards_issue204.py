@@ -10,65 +10,20 @@ Phase 3: Sock Sorcerer (team protection)
 Phase 4: VeryVeryAppleJuice (turn-scoped effects)
 Phase 5: Belchaletta, Hind Leg Kicker (triggered effects)
 
-IMPORTANT: This test file uses the beta CSV (cards_beta_20251206.csv) which
-contains the new cards. The fixture ensures the correct CSV is loaded.
+These cards have since shipped to the main CSV (backend/data/cards.csv),
+so the tests run against it directly with no fixture needed.
 """
 
-import pytest
 import sys
-import os
 from pathlib import Path
 
 # Add backend/src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from conftest import clear_card_template_cache
 from game_engine.rules.effects.effect_registry import EffectFactory, EffectRegistry
-from game_engine.rules.effects.action_effects import GainCCEffect, SleepTargetEffect, ReturnTargetToHandEffect
+from game_engine.rules.effects.action_effects import GainChargeEffect, BreakTargetEffect, ReturnTargetToHandEffect
 from game_engine.rules.effects.continuous_effects import StatBoostEffect
 from game_engine.models.card import Zone
-
-
-# Path to the beta CSV with new cards
-BETA_CSV_PATH = Path(__file__).parent.parent / "data" / "cards_beta_20251206.csv"
-
-
-@pytest.fixture(autouse=True)
-def use_beta_csv():
-    """
-    Fixture that sets up the beta CSV for all tests in this module.
-    
-    This fixture:
-    1. Saves the original CARDS_CSV_PATH (if any)
-    2. Sets CARDS_CSV_PATH to the beta CSV
-    3. Clears the card template cache
-    4. Yields to run the test
-    5. Restores the original CARDS_CSV_PATH
-    6. Clears the cache again for other tests
-    """
-    # Save original value
-    original_path = os.environ.get("CARDS_CSV_PATH")
-    
-    # Set beta CSV path
-    os.environ["CARDS_CSV_PATH"] = str(BETA_CSV_PATH)
-    
-    # Clear cache to force reload with beta CSV
-    clear_card_template_cache()
-    
-    yield
-    
-    # Restore original value
-    if original_path is not None:
-        os.environ["CARDS_CSV_PATH"] = original_path
-    else:
-        os.environ.pop("CARDS_CSV_PATH", None)
-    
-    # Clear cache again for other tests
-    clear_card_template_cache()
-
-
-# Import create_game_with_cards and related helpers AFTER setting up the path machinery
-# These will use the fixture-controlled CSV path
 from conftest import create_game_with_cards, create_card, GameSetup
 
 
@@ -79,47 +34,47 @@ from conftest import create_game_with_cards, create_card, GameSetup
 
 class TestSurge:
     """
-    Surge: "Gain 1 CC."
+    Surge: "Gain 1 Charge."
     
-    Simple CC gain effect, similar to Rush but without turn restriction.
-    Uses existing GainCCEffect class.
+    Simple Charge gain effect, similar to Rush but without turn restriction.
+    Uses existing GainChargeEffect class.
     """
     
     def test_surge_effect_parses_correctly(self):
-        """Surge's effect definition should parse to GainCCEffect."""
+        """Surge's effect definition should parse to GainChargeEffect."""
         card = create_card("Surge", owner="p1")
         
         effects = EffectFactory.parse_effects(card.effect_definitions, card)
         
         assert len(effects) == 1
-        assert isinstance(effects[0], GainCCEffect)
+        assert isinstance(effects[0], GainChargeEffect)
         assert effects[0].amount == 1
         assert effects[0].not_first_turn is False  # Can be played turn 1
     
-    def test_surge_grants_1_cc(self):
-        """Playing Surge should grant 1 CC to the player."""
+    def test_surge_grants_1_charge(self):
+        """Playing Surge should grant 1 Charge to the player."""
         setup, cards = create_game_with_cards(
             player1_hand=["Surge"],
             active_player="player1",
-            player1_cc=3,
+            player1_charge=3,
         )
         
         surge = cards["p1_hand_Surge"]
-        initial_cc = setup.player1.cc
+        initial_charge = setup.player1.charge
         
-        # Play Surge (costs 0 CC)
+        # Play Surge (costs 0 Charge)
         setup.engine.play_card(setup.player1, surge)
         
-        # Should have gained 1 CC (0 cost + 1 gain = net +1)
-        assert setup.player1.cc == initial_cc + 1, \
-            f"Expected {initial_cc + 1} CC, got {setup.player1.cc}"
+        # Should have gained 1 Charge (0 cost + 1 gain = net +1)
+        assert setup.player1.charge == initial_charge + 1, \
+            f"Expected {initial_charge + 1} Charge, got {setup.player1.charge}"
     
     def test_surge_can_be_played_on_turn_1(self):
         """Unlike Rush, Surge can be played on turn 1."""
         setup, cards = create_game_with_cards(
             player1_hand=["Surge"],
             active_player="player1",
-            player1_cc=2,  # Turn 1 starting CC
+            player1_charge=2,  # Turn 1 starting Charge
         )
         
         # Ensure it's turn 1
@@ -130,21 +85,21 @@ class TestSurge:
         can_play, reason = setup.engine.can_play_card(surge, setup.player1)
         assert can_play, f"Surge should be playable on turn 1, but: {reason}"
     
-    def test_surge_goes_to_sleep_zone_after_play(self):
-        """Action cards go to sleep zone after being played."""
+    def test_surge_goes_to_break_zone_after_play(self):
+        """Action cards go to break zone after being played."""
         setup, cards = create_game_with_cards(
             player1_hand=["Surge"],
             active_player="player1",
-            player1_cc=3,
+            player1_charge=3,
         )
         
         surge = cards["p1_hand_Surge"]
         
         setup.engine.play_card(setup.player1, surge)
         
-        assert surge in setup.player1.sleep_zone
+        assert surge in setup.player1.break_zone
         assert surge not in setup.player1.hand
-        assert surge.zone == Zone.SLEEP
+        assert surge.zone == Zone.BREAK
 
 
 class TestDrum:
@@ -336,20 +291,20 @@ class TestDrumAndViolinCombined:
 
 class TestDrop:
     """
-    Drop: Action card - "Sleep an in play card."
+    Drop: Action card - "Break an in play card."
     
-    Targeted effect that sleeps one card in play.
+    Targeted effect that breaks one card in play.
     Can target any card in play (own or opponent's).
     """
     
     def test_drop_effect_parses_correctly(self):
-        """Drop's effect definition should parse to SleepTargetEffect."""
+        """Drop's effect definition should parse to BreakTargetEffect."""
         card = create_card("Drop", owner="p1")
         
         effects = EffectFactory.parse_effects(card.effect_definitions, card)
         
         assert len(effects) == 1
-        assert isinstance(effects[0], SleepTargetEffect)
+        assert isinstance(effects[0], BreakTargetEffect)
         assert effects[0].count == 1
     
     def test_drop_requires_target(self):
@@ -360,13 +315,13 @@ class TestDrop:
         assert len(effects) == 1
         assert effects[0].requires_targets() is True
     
-    def test_drop_sleeps_opponent_card(self):
-        """Drop should sleep an opponent's card when played."""
+    def test_drop_breaks_opponent_card(self):
+        """Drop should break an opponent's card when played."""
         setup, cards = create_game_with_cards(
             player1_hand=["Drop"],
             player2_in_play=["Knight"],
             active_player="player1",
-            player1_cc=2,  # Drop costs 2
+            player1_charge=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]
@@ -375,20 +330,20 @@ class TestDrop:
         # Play Drop targeting opponent's Knight
         setup.engine.play_card(setup.player1, drop, target_ids=[knight.id])
         
-        # Knight should be sleeped
-        assert knight in setup.player2.sleep_zone, "Knight should be in opponent's sleep zone"
+        # Knight should be broken
+        assert knight in setup.player2.break_zone, "Knight should be in opponent's break zone"
         assert knight not in setup.player2.in_play, "Knight should not be in play"
         
-        # Drop should be in player1's sleep zone (action card)
-        assert drop in setup.player1.sleep_zone, "Drop should be in player1's sleep zone"
+        # Drop should be in player1's break zone (action card)
+        assert drop in setup.player1.break_zone, "Drop should be in player1's break zone"
     
-    def test_drop_sleeps_own_card(self):
+    def test_drop_breaks_own_card(self):
         """Drop can target player's own cards (useful with Wake combo)."""
         setup, cards = create_game_with_cards(
             player1_hand=["Drop"],
             player1_in_play=["Ka"],
             active_player="player1",
-            player1_cc=2,  # Drop costs 2
+            player1_charge=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]
@@ -397,8 +352,8 @@ class TestDrop:
         # Play Drop targeting own Ka
         setup.engine.play_card(setup.player1, drop, target_ids=[ka.id])
         
-        # Ka should be sleeped
-        assert ka in setup.player1.sleep_zone, "Ka should be in own sleep zone"
+        # Ka should be broken
+        assert ka in setup.player1.break_zone, "Ka should be in own break zone"
         assert ka not in setup.player1.in_play, "Ka should not be in play"
     
     def test_drop_valid_targets_are_cards_in_play(self):
@@ -406,10 +361,10 @@ class TestDrop:
         setup, cards = create_game_with_cards(
             player1_hand=["Drop"],
             player1_in_play=["Ka"],
-            player1_sleep=["Demideca"],  # Not a valid target
+            player1_break=["Demideca"],  # Not a valid target
             player2_in_play=["Knight", "Beary"],
             active_player="player1",
-            player1_cc=2,  # Drop costs 2
+            player1_charge=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]
@@ -428,9 +383,9 @@ class TestDrop:
         # Beary has opponent_immunity - should NOT be a valid target when Drop is played by opponent
         assert beary.id not in valid_ids, "Beary should be protected from opponent's Drop"
         
-        # Sleep zone cards should NOT be valid targets
-        demideca = cards["p1_sleep_Demideca"]
-        assert demideca.id not in valid_ids, "Sleep zone cards should not be valid targets"
+        # Break zone cards should NOT be valid targets
+        demideca = cards["p1_break_Demideca"]
+        assert demideca.id not in valid_ids, "Break zone cards should not be valid targets"
     
     def test_drop_cannot_target_protected_beary(self):
         """Drop cannot target Beary when played by opponent due to opponent_immunity."""
@@ -438,7 +393,7 @@ class TestDrop:
             player1_hand=["Drop"],
             player2_in_play=["Beary"],
             active_player="player1",
-            player1_cc=2,  # Drop costs 2
+            player1_charge=2,  # Drop costs 2
         )
         
         drop = cards["p1_hand_Drop"]
@@ -483,7 +438,7 @@ class TestJumpscare:
             player1_hand=["Jumpscare"],
             player2_in_play=["Knight"],
             active_player="player1",
-            player1_cc=1,  # Jumpscare costs 1
+            player1_charge=1,  # Jumpscare costs 1
         )
         
         jumpscare = cards["p1_hand_Jumpscare"]
@@ -496,8 +451,8 @@ class TestJumpscare:
         assert knight in setup.player2.hand, "Knight should be in opponent's hand"
         assert knight not in setup.player2.in_play, "Knight should not be in play"
         
-        # Jumpscare should be in player1's sleep zone (action card)
-        assert jumpscare in setup.player1.sleep_zone, "Jumpscare should be in player1's sleep zone"
+        # Jumpscare should be in player1's break zone (action card)
+        assert jumpscare in setup.player1.break_zone, "Jumpscare should be in player1's break zone"
     
     def test_jumpscare_returns_own_card_to_hand(self):
         """Jumpscare can target player's own cards (to re-play for effects)."""
@@ -505,7 +460,7 @@ class TestJumpscare:
             player1_hand=["Jumpscare"],
             player1_in_play=["Ka"],
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         jumpscare = cards["p1_hand_Jumpscare"]
@@ -523,10 +478,10 @@ class TestJumpscare:
         setup, cards = create_game_with_cards(
             player1_hand=["Jumpscare"],
             player1_in_play=["Ka"],
-            player1_sleep=["Demideca"],  # Not a valid target
+            player1_break=["Demideca"],  # Not a valid target
             player2_in_play=["Knight"],
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         jumpscare = cards["p1_hand_Jumpscare"]
@@ -541,9 +496,9 @@ class TestJumpscare:
         assert ka.id in valid_ids, "Own cards in play should be valid targets"
         assert knight.id in valid_ids, "Opponent cards in play should be valid targets"
         
-        # Sleep zone cards should NOT be valid targets
-        demideca = cards["p1_sleep_Demideca"]
-        assert demideca.id not in valid_ids, "Sleep zone cards should not be valid targets"
+        # Break zone cards should NOT be valid targets
+        demideca = cards["p1_break_Demideca"]
+        assert demideca.id not in valid_ids, "Break zone cards should not be valid targets"
 
 
 # ============================================================================
@@ -576,7 +531,7 @@ class TestSockSorcerer:
             player1_hand=["Drop"],
             player2_in_play=["Sock Sorcerer"],
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         drop = cards["p1_hand_Drop"]
@@ -595,7 +550,7 @@ class TestSockSorcerer:
             player1_hand=["Drop"],
             player2_in_play=["Sock Sorcerer", "Knight"],
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         drop = cards["p1_hand_Drop"]
@@ -618,7 +573,7 @@ class TestSockSorcerer:
             player1_in_play=["Ka"],
             player2_in_play=["Sock Sorcerer", "Knight", "Demideca"],
             active_player="player1",
-            player1_cc=3,  # Clean costs 3
+            player1_charge=3,  # Clean costs 3
         )
         
         clean = cards["p1_hand_Clean"]
@@ -638,9 +593,9 @@ class TestSockSorcerer:
         assert demideca in setup.player2.in_play, \
             "Demideca should be protected by Sock Sorcerer from Clean"
         
-        # Player1's Ka should be sleeped (not protected)
-        assert ka in setup.player1.sleep_zone, \
-            "Ka should be sleeped (not protected by opponent's Sock Sorcerer)"
+        # Player1's Ka should be broken (not protected)
+        assert ka in setup.player1.break_zone, \
+            "Ka should be broken (not protected by opponent's Sock Sorcerer)"
     
     def test_sock_sorcerer_does_not_protect_opponent(self):
         """Sock Sorcerer should NOT protect opponent's cards."""
@@ -649,7 +604,7 @@ class TestSockSorcerer:
             player1_in_play=["Sock Sorcerer"],  # P1 has Sock Sorcerer
             player2_in_play=["Knight"],  # P2's Knight is NOT protected
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         drop = cards["p1_hand_Drop"]
@@ -668,7 +623,7 @@ class TestSockSorcerer:
             player2_hand=["Drop"],
             player2_in_play=["Sock Sorcerer", "Knight"],
             active_player="player2",
-            player2_cc=1,
+            player2_charge=1,
         )
         
         drop = cards["p2_hand_Drop"]
@@ -686,13 +641,13 @@ class TestSockSorcerer:
             "Own Knight should be targetable by own effects (not protected from self)"
     
     def test_sock_sorcerer_not_in_play_does_not_protect(self):
-        """Sock Sorcerer in sleep zone does not provide protection."""
+        """Sock Sorcerer in break zone does not provide protection."""
         setup, cards = create_game_with_cards(
             player1_hand=["Drop"],
             player2_in_play=["Knight"],
-            player2_sleep=["Sock Sorcerer"],  # Asleep, not protecting
+            player2_break=["Sock Sorcerer"],  # Broken, not protecting
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         drop = cards["p1_hand_Drop"]
@@ -701,9 +656,9 @@ class TestSockSorcerer:
         effects = EffectFactory.parse_effects(drop.effect_definitions, drop)
         valid_targets = effects[0].get_valid_targets(setup.game_state, setup.player1)
         
-        # Knight should be a valid target (Sock Sorcerer is asleep)
+        # Knight should be a valid target (Sock Sorcerer is broken)
         assert knight in valid_targets, \
-            "Knight should be targetable when Sock Sorcerer is asleep"
+            "Knight should be targetable when Sock Sorcerer is broken"
 
 
 # ============================================================================
@@ -738,7 +693,7 @@ class TestVeryVeryAppleJuice:
             player1_hand=["VeryVeryAppleJuice"],
             player1_in_play=["Knight"],
             active_player="player1",
-            player1_cc=0,  # VVAJ costs 0
+            player1_charge=0,  # VVAJ costs 0
         )
         
         vvaj = cards["p1_hand_VeryVeryAppleJuice"]
@@ -766,7 +721,7 @@ class TestVeryVeryAppleJuice:
             player1_hand=["VeryVeryAppleJuice"],
             player1_in_play=["Knight"],
             active_player="player1",
-            player1_cc=0,
+            player1_charge=0,
         )
         
         vvaj = cards["p1_hand_VeryVeryAppleJuice"]
@@ -795,7 +750,7 @@ class TestVeryVeryAppleJuice:
             player1_hand=["VeryVeryAppleJuice"],
             player1_in_play=["Knight", "Ka", "Demideca"],
             active_player="player1",
-            player1_cc=0,
+            player1_charge=0,
         )
         
         vvaj = cards["p1_hand_VeryVeryAppleJuice"]
@@ -822,7 +777,7 @@ class TestVeryVeryAppleJuice:
             player1_hand=["VeryVeryAppleJuice"],
             player2_in_play=["Knight"],
             active_player="player1",
-            player1_cc=0,
+            player1_charge=0,
         )
         
         vvaj = cards["p1_hand_VeryVeryAppleJuice"]
@@ -844,7 +799,7 @@ class TestVeryVeryAppleJuice:
             player1_hand=["VeryVeryAppleJuice"],
             player1_in_play=["Ka", "Knight"],
             active_player="player1",
-            player1_cc=0,
+            player1_charge=0,
         )
         
         vvaj = cards["p1_hand_VeryVeryAppleJuice"]
@@ -870,12 +825,12 @@ class TestVeryVeryAppleJuice:
 
 
 class TestBelchaletta:
-    """Tests for Belchaletta - Toy that grants 2 CC at start of turn."""
+    """Tests for Belchaletta - Toy that grants 2 Charge at start of turn."""
     
     def test_effect_parses_correctly(self):
-        """Belchaletta should have start_of_turn_gain_cc effect parsed."""
+        """Belchaletta should have start_of_turn_gain_charge effect parsed."""
         from game_engine.rules.effects.effect_registry import EffectRegistry
-        from game_engine.rules.effects.continuous_effects import StartOfTurnGainCCEffect
+        from game_engine.rules.effects.continuous_effects import StartOfTurnGainChargeEffect
         
         # Get Belchaletta from card data
         setup, cards = create_game_with_cards(
@@ -886,101 +841,101 @@ class TestBelchaletta:
         belchaletta = cards["p1_inplay_Belchaletta"]
         effects = EffectRegistry.get_effects(belchaletta)
         
-        # Should have exactly one StartOfTurnGainCCEffect
-        start_turn_effects = [e for e in effects if isinstance(e, StartOfTurnGainCCEffect)]
-        assert len(start_turn_effects) == 1, "Belchaletta should have one start_of_turn_gain_cc effect"
-        assert start_turn_effects[0].amount == 2, "Should gain 2 CC"
+        # Should have exactly one StartOfTurnGainChargeEffect
+        start_turn_effects = [e for e in effects if isinstance(e, StartOfTurnGainChargeEffect)]
+        assert len(start_turn_effects) == 1, "Belchaletta should have one start_of_turn_gain_charge effect"
+        assert start_turn_effects[0].amount == 2, "Should gain 2 Charge"
     
-    def test_gains_cc_at_start_of_turn(self):
-        """Belchaletta should grant 2 CC when its controller's turn starts.
+    def test_gains_charge_at_start_of_turn(self):
+        """Belchaletta should grant 2 Charge when its controller's turn starts.
         
-        Note: CC is capped at 7. Turn start normally grants +4 CC.
-        We start player1 at 1 CC so they have room for both turn gain (+4) and Belchaletta (+2).
+        Note: Charge is capped at 7. Turn start normally grants +4 Charge.
+        We start player1 at 1 Charge so they have room for both turn gain (+4) and Belchaletta (+2).
         After turn cycle: 1 + 4 (turn) + 2 (Belchaletta) = 7 (capped)
         
-        To isolate Belchaletta's contribution, we check CC before and after the effect would trigger.
+        To isolate Belchaletta's contribution, we check Charge before and after the effect would trigger.
         """
         setup, cards = create_game_with_cards(
             player1_in_play=["Belchaletta"],
             active_player="player1",
-            player1_cc=1,  # Start low to have room for gains
+            player1_charge=1,  # Start low to have room for gains
         )
         
         # End turn (goes to player2)
         setup.engine.end_turn()
-        cc_after_p1_end = setup.player1.cc
-        assert cc_after_p1_end == 1, "P1 CC shouldn't change when ending their turn"
+        charge_after_p1_end = setup.player1.charge
+        assert charge_after_p1_end == 1, "P1 Charge shouldn't change when ending their turn"
         
         # End player2's turn to come back to player1
         # Player1 will gain: +4 (turn gain) + 2 (Belchaletta) = 7 total (from 1)
         setup.engine.end_turn()
         
         # 1 + 4 + 2 = 7, which is exactly the cap
-        assert setup.player1.cc == 7, "Should have 7 CC (1 + 4 turn gain + 2 Belchaletta)"
+        assert setup.player1.charge == 7, "Should have 7 Charge (1 + 4 turn gain + 2 Belchaletta)"
     
-    def test_belchaletta_adds_cc_beyond_turn_gain(self):
-        """Verify Belchaletta actually adds CC beyond the normal turn gain.
+    def test_belchaletta_adds_charge_beyond_turn_gain(self):
+        """Verify Belchaletta actually adds Charge beyond the normal turn gain.
         
         Compare a game with Belchaletta vs theoretical without.
-        Start at 0 CC: turn gain would give 4, Belchaletta adds 2 more = 6.
+        Start at 0 Charge: turn gain would give 4, Belchaletta adds 2 more = 6.
         """
         setup, cards = create_game_with_cards(
             player1_in_play=["Belchaletta"],
             active_player="player1",
-            player1_cc=0,  # Start at 0
+            player1_charge=0,  # Start at 0
         )
         
         # Go through a full turn cycle
         setup.engine.end_turn()  # Player2's turn
         setup.engine.end_turn()  # Back to Player1's turn
         
-        # Without Belchaletta: 0 + 4 = 4 CC
-        # With Belchaletta: 0 + 4 + 2 = 6 CC
-        assert setup.player1.cc == 6, "Belchaletta should add 2 CC beyond turn gain (0+4+2=6)"
+        # Without Belchaletta: 0 + 4 = 4 Charge
+        # With Belchaletta: 0 + 4 + 2 = 6 Charge
+        assert setup.player1.charge == 6, "Belchaletta should add 2 Charge beyond turn gain (0+4+2=6)"
     
     def test_does_not_trigger_on_opponent_turn(self):
         """Belchaletta should NOT trigger at start of opponent's turn.
         
-        Player2's CC should only increase from turn gain, not from P1's Belchaletta.
+        Player2's Charge should only increase from turn gain, not from P1's Belchaletta.
         """
         setup, cards = create_game_with_cards(
             player1_in_play=["Belchaletta"],
             active_player="player1",
-            player1_cc=3,
-            player2_cc=0,  # Start at 0 to clearly see the gain
+            player1_charge=3,
+            player2_charge=0,  # Start at 0 to clearly see the gain
         )
         
         # End player1's turn, now player2's turn starts
-        # Player2 gains turn CC (+4) but NOT Belchaletta bonus
+        # Player2 gains turn Charge (+4) but NOT Belchaletta bonus
         setup.engine.end_turn()
         
-        # Player2 should have exactly 4 CC (turn gain only, no Belchaletta)
-        assert setup.player2.cc == 4, "Opponent gains only turn CC, not Belchaletta bonus"
+        # Player2 should have exactly 4 Charge (turn gain only, no Belchaletta)
+        assert setup.player2.charge == 4, "Opponent gains only turn Charge, not Belchaletta bonus"
     
     def test_multiple_belchalettas_trigger_separately(self):
-        """Multiple Belchalettas should each trigger for 2 CC (up to cap)."""
+        """Multiple Belchalettas should each trigger for 2 Charge (up to cap)."""
         setup, cards = create_game_with_cards(
             player1_in_play=["Belchaletta", "Belchaletta"],
             active_player="player1",
-            player1_cc=0,  # Start at 0
+            player1_charge=0,  # Start at 0
         )
         
         # End turn twice to come back to player1's turn
         setup.engine.end_turn()  # Player2's turn
         setup.engine.end_turn()  # Player1's turn
         
-        # Without Belchalettas: 0 + 4 = 4 CC
+        # Without Belchalettas: 0 + 4 = 4 Charge
         # With 2 Belchalettas: 0 + 4 + 2 + 2 = 8, but capped at 7
-        assert setup.player1.cc == 7, "Two Belchalettas should max out CC at 7 cap"
+        assert setup.player1.charge == 7, "Two Belchalettas should max out Charge at 7 cap"
 
 
 class TestHindLegKicker:
-    """Tests for Hind Leg Kicker - Toy that grants 1 CC when another card is played."""
+    """Tests for Hind Leg Kicker - Toy that grants 1 Charge when another card is played."""
     
     def test_effect_parses_correctly(self):
-        """Hind Leg Kicker should have on_card_played_gain_cc effect parsed."""
+        """Hind Leg Kicker should have on_card_played_gain_charge effect parsed."""
         from game_engine.rules.effects.effect_registry import EffectRegistry
-        from game_engine.rules.effects.continuous_effects import OnCardPlayedGainCCEffect
+        from game_engine.rules.effects.continuous_effects import OnCardPlayedGainChargeEffect
         
         setup, cards = create_game_with_cards(
             player1_in_play=["Hind Leg Kicker"],
@@ -990,51 +945,51 @@ class TestHindLegKicker:
         hlk = cards["p1_inplay_Hind Leg Kicker"]
         effects = EffectRegistry.get_effects(hlk)
         
-        # Should have exactly one OnCardPlayedGainCCEffect
-        on_play_effects = [e for e in effects if isinstance(e, OnCardPlayedGainCCEffect)]
-        assert len(on_play_effects) == 1, "Hind Leg Kicker should have one on_card_played_gain_cc effect"
-        assert on_play_effects[0].amount == 1, "Should gain 1 CC"
+        # Should have exactly one OnCardPlayedGainChargeEffect
+        on_play_effects = [e for e in effects if isinstance(e, OnCardPlayedGainChargeEffect)]
+        assert len(on_play_effects) == 1, "Hind Leg Kicker should have one on_card_played_gain_charge effect"
+        assert on_play_effects[0].amount == 1, "Should gain 1 Charge"
     
-    def test_gains_cc_when_controller_plays_another_card(self):
-        """Hind Leg Kicker should grant 1 CC when controller plays another card.
+    def test_gains_charge_when_controller_plays_another_card(self):
+        """Hind Leg Kicker should grant 1 Charge when controller plays another card.
         
-        Ka costs 2 CC. With HLK in play, playing Ka should cost 2 but gain 1 back.
-        Net change: -2 + 1 = -1 CC
+        Ka costs 2 Charge. With HLK in play, playing Ka should cost 2 but gain 1 back.
+        Net change: -2 + 1 = -1 Charge
         """
         setup, cards = create_game_with_cards(
             player1_hand=["Ka"],
             player1_in_play=["Hind Leg Kicker"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         ka = cards["p1_hand_Ka"]
         ka_cost = ka.cost  # Should be 2
-        initial_cc = setup.player1.cc
+        initial_charge = setup.player1.charge
         
         setup.engine.play_card(setup.player1, ka)
         
         # Net: -cost + 1 (HLK trigger)
-        expected_cc = initial_cc - ka_cost + 1
-        assert setup.player1.cc == expected_cc, f"Expected {expected_cc} CC (5 - {ka_cost} + 1), got {setup.player1.cc}"
+        expected_charge = initial_charge - ka_cost + 1
+        assert setup.player1.charge == expected_charge, f"Expected {expected_charge} Charge (5 - {ka_cost} + 1), got {setup.player1.charge}"
     
     def test_does_not_trigger_for_itself(self):
         """Hind Leg Kicker should NOT trigger when it is played."""
         setup, cards = create_game_with_cards(
             player1_hand=["Hind Leg Kicker"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         hlk = cards["p1_hand_Hind Leg Kicker"]
-        initial_cc = setup.player1.cc
+        initial_charge = setup.player1.charge
         hlk_cost = hlk.cost
         
         setup.engine.play_card(setup.player1, hlk)
         
-        # Should only subtract the cost, not gain CC from itself
-        expected_cc = initial_cc - hlk_cost
-        assert setup.player1.cc == expected_cc, "HLK should not trigger for itself"
+        # Should only subtract the cost, not gain Charge from itself
+        expected_charge = initial_charge - hlk_cost
+        assert setup.player1.charge == expected_charge, "HLK should not trigger for itself"
     
     def test_does_not_trigger_for_opponent_plays(self):
         """Hind Leg Kicker should NOT trigger when opponent plays a card."""
@@ -1042,40 +997,40 @@ class TestHindLegKicker:
             player1_in_play=["Hind Leg Kicker"],
             player2_hand=["Ka"],
             active_player="player2",
-            player1_cc=5,
-            player2_cc=5,
+            player1_charge=5,
+            player2_charge=5,
         )
         
         ka = cards["p2_hand_Ka"]
-        initial_p1_cc = setup.player1.cc
+        initial_p1_charge = setup.player1.charge
         
         setup.engine.play_card(setup.player2, ka)
         
-        # Player1 should NOT gain CC from opponent's play
-        assert setup.player1.cc == initial_p1_cc, "HLK should not trigger for opponent's plays"
+        # Player1 should NOT gain Charge from opponent's play
+        assert setup.player1.charge == initial_p1_charge, "HLK should not trigger for opponent's plays"
     
     def test_multiple_hind_leg_kickers_trigger_separately(self):
-        """Multiple Hind Leg Kickers should each trigger for 1 CC.
+        """Multiple Hind Leg Kickers should each trigger for 1 Charge.
         
         Ka costs 2. With 2 HLKs, playing Ka costs 2 but gains 2 back (1 each).
-        Net change: -2 + 2 = 0 CC
+        Net change: -2 + 2 = 0 Charge
         """
         setup, cards = create_game_with_cards(
             player1_hand=["Ka"],
             player1_in_play=["Hind Leg Kicker", "Hind Leg Kicker"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         ka = cards["p1_hand_Ka"]
         ka_cost = ka.cost  # Should be 2
-        initial_cc = setup.player1.cc
+        initial_charge = setup.player1.charge
         
         setup.engine.play_card(setup.player1, ka)
         
         # Net: -cost + 1 (HLK1) + 1 (HLK2) = -2 + 2 = 0
-        expected_cc = initial_cc - ka_cost + 2
-        assert setup.player1.cc == expected_cc, f"Two HLKs should offset Ka cost (5 - {ka_cost} + 2 = {expected_cc})"
+        expected_charge = initial_charge - ka_cost + 2
+        assert setup.player1.charge == expected_charge, f"Two HLKs should offset Ka cost (5 - {ka_cost} + 2 = {expected_charge})"
 
 
 # =============================================================================
@@ -1084,7 +1039,7 @@ class TestHindLegKicker:
 
 
 class TestMonster:
-    """Tests for Monster card: 'When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are sleeped instead.'"""
+    """Tests for Monster card: 'When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are broken instead.'"""
     
     def test_monster_sets_all_cards_stamina_to_1(self):
         """Monster should set ALL cards' (both players) stamina to 1 when played."""
@@ -1093,7 +1048,7 @@ class TestMonster:
             player1_in_play=["Wizard"],  # Own card: 3 stamina
             player2_in_play=["Knight", "Beary"],  # Opponent: Knight 3 stam, Beary 3 stam (immune)
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
@@ -1117,7 +1072,7 @@ class TestMonster:
             player1_hand=["Monster"],
             player1_in_play=["Knight", "Wizard"],  # Own cards with >1 stamina
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
@@ -1133,13 +1088,13 @@ class TestMonster:
         assert own_knight.current_stamina == 1, "Own Knight should have stamina set to 1"
         assert own_wizard.current_stamina == 1, "Own Wizard should have stamina set to 1"
     
-    def test_monster_sleeps_cards_with_natural_1_stamina(self):
-        """Monster should sleep cards that naturally have 1 stamina (base stamina)."""
+    def test_monster_breaks_cards_with_natural_1_stamina(self):
+        """Monster should break cards that naturally have 1 stamina (base stamina)."""
         setup, cards = create_game_with_cards(
             player1_hand=["Monster"],
             player2_in_play=["Paper Plane"],  # Paper Plane has base stamina of 1
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
@@ -1150,16 +1105,16 @@ class TestMonster:
         
         setup.engine.play_card(setup.player1, monster)
         
-        # Paper Plane should be sleeped (has natural 1 stamina)
-        assert paper_plane.zone == Zone.SLEEP, "Paper Plane should be sleeped (natural 1 stamina)"
+        # Paper Plane should be broken (has natural 1 stamina)
+        assert paper_plane.zone == Zone.BREAK, "Paper Plane should be broken (natural 1 stamina)"
     
-    def test_monster_sleeps_own_cards_with_natural_1_stamina(self):
-        """Monster should also sleep own cards with natural 1 stamina."""
+    def test_monster_breaks_own_cards_with_natural_1_stamina(self):
+        """Monster should also break own cards with natural 1 stamina."""
         setup, cards = create_game_with_cards(
             player1_hand=["Monster"],
             player1_in_play=["Ka"],  # Ka has base stamina of 1
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
@@ -1170,8 +1125,8 @@ class TestMonster:
         
         setup.engine.play_card(setup.player1, monster)
         
-        # Ka should be sleeped (has natural 1 stamina)
-        assert ka.zone == Zone.SLEEP, "Ka should be sleeped (natural 1 stamina)"
+        # Ka should be broken (has natural 1 stamina)
+        assert ka.zone == Zone.BREAK, "Ka should be broken (natural 1 stamina)"
     
     def test_monster_no_effect_if_no_cards_in_play(self):
         """Monster should still be playable even if no other cards in play."""
@@ -1179,18 +1134,18 @@ class TestMonster:
             player1_hand=["Monster"],
             # No other cards in play
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
-        initial_cc = setup.player1.cc
+        initial_charge = setup.player1.charge
         
         # Should play without error
         setup.engine.play_card(setup.player1, monster)
         
         # Monster cost is 2
-        assert setup.player1.cc == initial_cc - 2, "CC should be reduced by Monster cost"
-        # Monster is a Toy, so it stays in play (not sleep zone)
+        assert setup.player1.charge == initial_charge - 2, "Charge should be reduced by Monster cost"
+        # Monster is a Toy, so it stays in play (not break zone)
         assert monster.zone == Zone.IN_PLAY, "Monster (Toy) should stay in play after being played"
     
     def test_monster_respects_sock_sorcerer_immunity(self):
@@ -1199,7 +1154,7 @@ class TestMonster:
             player1_hand=["Monster"],
             player2_in_play=["Sock Sorcerer", "Knight"],  # Sock Sorcerer protects team from opponent effects
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
@@ -1215,14 +1170,14 @@ class TestMonster:
         assert sock_sorcerer.current_stamina == sock_initial, "Sock Sorcerer should be protected by its own effect"
         assert knight.current_stamina == knight_initial, "Knight should be protected by Sock Sorcerer"
     
-    def test_monster_sleeps_multiple_cards_with_natural_1_stamina(self):
-        """Monster should sleep multiple cards if they all have natural 1 stamina."""
+    def test_monster_breaks_multiple_cards_with_natural_1_stamina(self):
+        """Monster should break multiple cards if they all have natural 1 stamina."""
         setup, cards = create_game_with_cards(
             player1_hand=["Monster"],
             player1_in_play=["Ka"],  # Own card with 1 stamina
             player2_in_play=["Paper Plane", "Hind Leg Kicker", "Gibbers"],  # All have 1 base stamina
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
@@ -1239,19 +1194,19 @@ class TestMonster:
         
         setup.engine.play_card(setup.player1, monster)
         
-        # All four should be sleeped (including own Ka)
-        assert ka.zone == Zone.SLEEP, "Ka should be sleeped (natural 1 stamina)"
-        assert paper_plane.zone == Zone.SLEEP, "Paper Plane should be sleeped"
-        assert hlk.zone == Zone.SLEEP, "Hind Leg Kicker should be sleeped"
-        assert gibbers.zone == Zone.SLEEP, "Gibbers should be sleeped"
+        # All four should be broken (including own Ka)
+        assert ka.zone == Zone.BREAK, "Ka should be broken (natural 1 stamina)"
+        assert paper_plane.zone == Zone.BREAK, "Paper Plane should be broken"
+        assert hlk.zone == Zone.BREAK, "Hind Leg Kicker should be broken"
+        assert gibbers.zone == Zone.BREAK, "Gibbers should be broken"
     
-    def test_monster_does_not_sleep_damaged_cards_with_higher_base_stamina(self):
-        """Monster should NOT sleep a card with >1 base stamina even if current stamina is 1."""
+    def test_monster_does_not_break_damaged_cards_with_higher_base_stamina(self):
+        """Monster should NOT break a card with >1 base stamina even if current stamina is 1."""
         setup, cards = create_game_with_cards(
             player1_hand=["Monster"],
             player2_in_play=["Knight"],  # Knight has 3 base stamina
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         monster = cards["p1_hand_Monster"]
@@ -1265,9 +1220,9 @@ class TestMonster:
         
         setup.engine.play_card(setup.player1, monster)
         
-        # Knight should NOT be sleeped - base stamina is 3, not 1
+        # Knight should NOT be broken - base stamina is 3, not 1
         # It should stay at 1 stamina (already there)
-        assert knight.zone == Zone.IN_PLAY, "Knight should NOT be sleeped (base stamina is 3)"
+        assert knight.zone == Zone.IN_PLAY, "Knight should NOT be broken (base stamina is 3)"
         assert knight.current_stamina == 1, "Knight stamina should remain at 1"
 
 

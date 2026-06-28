@@ -9,7 +9,7 @@ Major changes from v2:
 Target: <10,000 chars (down from 15,426)
 
 Architecture:
-- Python validators handle: CC math, suicide attacks, opponent toy tracking
+- Python validators handle: Charge math, suicide attacks, opponent toy tracking
 - Prompt focuses on: strategy, sequencing, combo identification
 - Dynamic card loading: only include cards in current game
 """
@@ -23,27 +23,27 @@ from .card_loader import format_card_guidance_compact, generate_threat_prioritie
 
 CORE_RULES = """# GAME MECHANICS
 
-Zones: HAND (play from) | IN PLAY (attack/activate) | SLEEP (locked until recovered)
-Turn economy: +4 CC/turn (max 7) | Turn 1 P1 starts at 2 CC
-Win: sleep all 6 opponent cards
+Zones: HAND (play from) | IN PLAY (attack/activate) | BREAK (locked until recovered)
+Turn economy: +4 Charge/turn (max 7) | Turn 1 P1 starts at 2 Charge
+Win: break all 6 opponent cards
 
 Action costs:
 - play_card: printed card cost
-- tussle: 2 CC, requires STR > 0
-- direct_attack: 2 CC, requires STR > 0 and 0 opponent toys unless a card effect bypasses it
-- activate_ability: usually 1 CC unless card text says otherwise
-- pass/end_turn: 0 CC
+- tussle: 2 Charge, requires STR > 0
+- direct_attack: 2 Charge, requires STR > 0 and 0 opponent toys unless a card effect bypasses it
+- activate_ability: usually 1 Charge unless card text says otherwise
+- pass/end_turn: 0 Charge
 
 Combat:
 - attacker gets +1 SPD
-- faster toy strikes first; 0 STA sleeps immediately and cannot strike back
+- faster toy strikes first; 0 STA breaks immediately and cannot strike back
 - tied SPD means simultaneous strikes
 - equal-stat mirrors favor the attacker because of the +1 SPD bonus
 - Knight auto-wins tussles on your turn
 
 Key rules:
 - play only from HAND
-- Wake returns a slept card to HAND; you still pay to replay it
+- Wake returns a broken card to HAND; you still pay to replay it
 - cards that change zones reset damage and temporary modifiers
 - 0 STR toys cannot tussle or direct_attack, but they still block direct attacks
 - activated abilities can be used multiple times per turn if you can pay"""
@@ -58,31 +58,31 @@ Key rules:
 # Sequence Planning Rules (Multi-Step Logic)
 # =============================================================================
 
-SEQUENCE_PLANNING = """# SEQUENCE PLANNING (Validator handles CC/combat math)
+SEQUENCE_PLANNING = """# SEQUENCE PLANNING (Validator handles Charge/combat math)
 
 Framework:
 1. Count opponent toys in play. Direct attack is legal only at 0 toys unless a card effect says otherwise.
-2. Compute total budget: starting CC plus cards that add CC when played.
-3. Spend setup cards first: Surge/Rush/HLK before other actions, Wake before replaying a slept card, buffs before combat.
-4. Prefer lines that sleep cards now instead of only developing board.
+2. Compute total budget: starting Charge plus cards that add Charge when played.
+3. Spend setup cards first: Surge/Rush/HLK before other actions, Wake before replaying a broken card, buffs before combat.
+4. Prefer lines that break cards now instead of only developing board.
 
 Priority order:
 1. Lethal if possible.
 2. Remove high-value threats.
 3. Use efficient abilities or favorable tussles.
 4. Direct attack once blockers are gone.
-5. Add board only when no better sleep line exists.
+5. Add board only when no better break line exists.
 
 Checks before finalizing:
 - Use correct costs: tussle=2, direct_attack=2, activate usually 1.
-- Never let cc_after go negative.
-- Recount opponent toys after each sleep effect.
-- Do not play from sleep without Wake first.
-- Do not target cards that already slept.
+- Never let charge_after go negative.
+- Recount opponent toys after each break effect.
+- Do not play from break zone without Wake first.
+- Do not target cards that already broke.
 
-CC economy: Unspent CC carries over (max 7, excess lost). You gain 4 CC per turn (2 on turn 1).
+Charge economy: Unspent Charge carries over (max 7, excess lost). You gain 4 Charge per turn (2 on turn 1).
 If you can remove a threat or deal direct damage now, do it — live opponent toys grow more dangerous each turn.
-Only bank CC if you have a concrete plan that requires more CC next turn than you'd otherwise have."""
+Only bank Charge if you have a concrete plan that requires more Charge next turn than you'd otherwise have."""
 
 def _generate_context_notes(game_state, player_id: str) -> str:
     """
@@ -99,8 +99,8 @@ def _generate_context_notes(game_state, player_id: str) -> str:
     notes = []
 
     if game_state.turn_number == 1:
-        notes.append("P1 turn 1: 2 CC only. Direct attack is legal (opponent has 0 toys), but requires a toy IN PLAY.")
-        notes.append("Surge turns 2 CC into 3: play Surge → play 1-cost toy → direct_attack with that toy.")
+        notes.append("P1 turn 1: 2 Charge only. Direct attack is legal (opponent has 0 toys), but requires a toy IN PLAY.")
+        notes.append("Surge turns 2 Charge into 3: play Surge → play 1-cost toy → direct_attack with that toy.")
         if "Rush" in hand_names:
             notes.append("⛔ RUSH IS BANNED ON TURN 1. Rush cannot be played on the first turn of the game. Omit it from every sequence.")
     elif game_state.turn_number == 2:
@@ -108,11 +108,11 @@ def _generate_context_notes(game_state, player_id: str) -> str:
 
     # Board-dependent card warnings (apply any turn)
     if "Clean" in hand_names and total_in_play == 0:
-        notes.append("⛔ CLEAN IS USELESS NOW: No toys in play on either side. Clean would sleep nothing and waste 3 CC. Do NOT include Clean.")
+        notes.append("⛔ CLEAN IS USELESS NOW: No toys in play on either side. Clean would break nothing and waste 3 Charge. Do NOT include Clean.")
     if "Twist" in hand_names and opp_in_play_count == 0:
         notes.append("⛔ TWIST HAS NO TARGET: Opponent has no toys in play. Twist requires an opponent toy to steal. Do NOT include Twist.")
     if "Drop" in hand_names and opp_in_play_count == 0:
-        notes.append("⛔ DROP HAS NO TARGET: Opponent has no toys in play. Drop requires an opponent toy to sleep. Do NOT include Drop.")
+        notes.append("⛔ DROP HAS NO TARGET: Opponent has no toys in play. Drop requires an opponent toy to break. Do NOT include Drop.")
 
     if not notes:
         return ""
@@ -131,15 +131,15 @@ Return valid JSON only.
 Required fields:
 - plan_reasoning: brief summary of opponent board and chosen line
 - action_sequence: ordered actions, one action per object
-- expected_cards_slept
-- residual_cc_justification when ending with CC >= 2
+- expected_cards_broken
+- residual_charge_justification when ending with Charge >= 2
 
 Action rules:
 - Use [ID: uuid] values for card_id and target_ids
-- cc_start: set this to the exact "Your CC:" value shown in the game state above
-- cc_after per action: cc_before_action - cc_cost + cc_gained (Surge +1, Rush +2, HLK +1); must stay >= 0; cc_before_action for the first step equals cc_start, and for each subsequent step it equals the previous step's cc_after
-- direct_attack costs exactly 2 CC (NOT 1); has no target_ids; card_id MUST be a toy from **Your Toys In Play** with STR > 0 — action cards like Rush/Surge/HLK do NOT go into play as toys and CANNOT perform a direct attack; you need a toy already in play OR play a toy card first
-- tussle costs exactly 2 CC; card_id MUST come from **Your Toys In Play** (toys in your hand cannot tussle — play them first); target_ids[0] MUST come from **Opponent's Toys In Play** (never use your own card's ID as a tussle target, even if both players have a card with the same name — they have different IDs)
+- charge_start: set this to the exact "Your Charge:" value shown in the game state above
+- charge_after per action: charge_before_action - charge_cost + charge_gained (Surge +1, Rush +2, HLK +1); must stay >= 0; charge_before_action for the first step equals charge_start, and for each subsequent step it equals the previous step's charge_after
+- direct_attack costs exactly 2 Charge (NOT 1); has no target_ids; card_id MUST be a toy from **Your Toys In Play** with STR > 0 — action cards like Rush/Surge/HLK do NOT go into play as toys and CANNOT perform a direct attack; you need a toy already in play OR play a toy card first
+- tussle costs exactly 2 Charge; card_id MUST come from **Your Toys In Play** (toys in your hand cannot tussle — play them first); target_ids[0] MUST come from **Opponent's Toys In Play** (never use your own card's ID as a tussle target, even if both players have a card with the same name — they have different IDs)
 - play_card: card_id comes from Your Hand; do NOT reuse that card's ID as a tussle target in the same plan
 - do not emit a sequence you know is invalid"""
 
@@ -204,7 +204,7 @@ def get_planning_prompt_v3(
 {turn_1_section}
 {OUTPUT_FORMAT}
 
-Respond with valid JSON only. Validators will check CC math, combat outcomes, and toy counts."""
+Respond with valid JSON only. Validators will check Charge math, combat outcomes, and toy counts."""
 
     return prompt
 
@@ -231,9 +231,9 @@ def format_card_for_planning(card, game_engine=None, player=None) -> str:
             cur_sta = card.get_effective_stamina()
         
         restriction = " [0 STR-NO ATTACK]" if str_val == 0 else ""
-        return f"[ID: {card.id}] {card.name} ({effective_cost}CC, {spd}/{str_val}/{cur_sta} SPD/STR/STA){restriction}"
+        return f"[ID: {card.id}] {card.name} ({effective_cost}Charge, {spd}/{str_val}/{cur_sta} SPD/STR/STA){restriction}"
     else:
-        return f"[ID: {card.id}] {card.name} (ACTION, {effective_cost}CC)"
+        return f"[ID: {card.id}] {card.name} (ACTION, {effective_cost}Charge)"
 
 
 def format_hand_for_planning_v3(hand: list, game_engine=None, player=None) -> str:
@@ -250,8 +250,8 @@ def format_in_play_for_planning_v3(in_play: list, game_engine=None, player=None)
     return "\n".join(f"- {format_card_for_planning(card, game_engine, player)}" for card in in_play)
 
 
-def format_sleep_zone_for_planning_v3(sleep_zone: list, game_engine=None, player=None) -> str:
-    """Format sleep zone cards (compact, with IDs)."""
-    if not sleep_zone:
+def format_break_zone_for_planning_v3(break_zone: list, game_engine=None, player=None) -> str:
+    """Format break zone cards (compact, with IDs)."""
+    if not break_zone:
         return "EMPTY"
-    return "\n".join(f"- {format_card_for_planning(card, game_engine, player)}" for card in sleep_zone)
+    return "\n".join(f"- {format_card_for_planning(card, game_engine, player)}" for card in break_zone)

@@ -24,7 +24,7 @@ class TestAIMultiTargetSelection:
     
     The scenario from Issue #188:
     - AI has Sun + Wake in hand
-    - 4 cards in sleep zone: Surge, Rush, Ka, Knight
+    - 4 cards in break zone: Surge, Rush, Ka, Knight
     - Opponent has Knight in play
     - AI should select 2 targets for Sun (Ka + Knight preferred)
     """
@@ -65,11 +65,11 @@ class TestAIMultiTargetSelection:
             action_type="play_card",
             card_id="sun-123",
             card_name="Sun",
-            cost_cc=3,
+            cost_charge=3,
             target_options=["ka-456", "knight-789", "surge-111", "rush-222"],
             max_targets=2,
             min_targets=0,
-            description="Play Sun (Cost: 3 CC, select up to 2 targets)"
+            description="Play Sun (Cost: 3 Charge, select up to 2 targets)"
         )
         
         # Format the actions
@@ -261,14 +261,14 @@ class TestIssue188Scenario:
     
     Game State:
     - Turn 5, AI player "Gemiknight"
-    - CC: 4/7
+    - Charge: 4/7
     - Hand: Sun (cost 3), Wake (cost 1)
     - In Play: NONE
-    - Sleep Zone: Surge, Rush, Ka, Knight (4 cards)
+    - Break Zone: Surge, Rush, Ka, Knight (4 cards)
     
     Opponent:
     - Knight in play
-    - Sleep Zone: 4 cards
+    - Break Zone: 4 cards
     
     Expected: AI should play Sun targeting Ka AND Knight (2 targets)
     Better: Wake → Ka, then Sun → Knight + Wake (3 cards recovered)
@@ -282,7 +282,7 @@ class TestIssue188Scenario:
             action_type="play_card",
             card_id="sun-123",
             card_name="Sun",
-            cost_cc=3,
+            cost_charge=3,
             target_options=[
                 "surge-111",
                 "rush-222", 
@@ -291,14 +291,14 @@ class TestIssue188Scenario:
             ],
             max_targets=2,
             min_targets=0,
-            description="Play Sun (Cost: 3 CC, select up to 2 targets)"
+            description="Play Sun (Cost: 3 Charge, select up to 2 targets)"
         )
         
         wake_action = ValidAction(
             action_type="play_card",
             card_id="wake-555",
             card_name="Wake",
-            cost_cc=1,
+            cost_charge=1,
             target_options=[
                 "surge-111",
                 "rush-222",
@@ -307,7 +307,7 @@ class TestIssue188Scenario:
             ],
             max_targets=1,
             min_targets=1,
-            description="Play Wake (Cost: 1 CC, select target)"
+            description="Play Wake (Cost: 1 Charge, select target)"
         )
         
         end_turn = ValidAction(
@@ -350,10 +350,10 @@ class TestIssue188Scenario:
         Document the optimal play sequence from Issue #188 comment.
         
         Optimal sequence:
-        1. Play Wake (1 CC) → Unsleep Ka → Ka returns to hand
-        2. Play Sun (3 CC) → Unsleep Knight + Wake → Both return to hand
+        1. Play Wake (1 Charge) → Fix Ka → Ka returns to hand
+        2. Play Sun (3 Charge) → Fix Knight + Wake → Both return to hand
         
-        Result: 3 cards recovered (Ka, Knight, Wake) for 4 CC
+        Result: 3 cards recovered (Ka, Knight, Wake) for 4 Charge
         
         This test documents the expected behavior, not the AI's actual decision.
         The AI might choose Sun directly (2 cards) which is also valid but suboptimal.
@@ -368,7 +368,7 @@ class TestIssue188Scenario:
         ]
         
         total_cards_recovered = 3  # Ka + Knight + Wake
-        total_cc_spent = 4  # Wake(1) + Sun(3)
+        total_charge_spent = 4  # Wake(1) + Sun(3)
         
         # Alternative valid play (what AI was doing before, but only 1 target)
         # Now AI should be able to do this correctly with 2 targets:
@@ -377,7 +377,7 @@ class TestIssue188Scenario:
         ]
         
         cards_recovered_good = 2
-        cc_spent_good = 3
+        charge_spent_good = 3
         
         # Assert the math is correct
         assert total_cards_recovered == 3

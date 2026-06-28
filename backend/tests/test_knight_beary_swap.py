@@ -17,7 +17,7 @@ from game_engine.models.player import Player
 from game_engine.game_engine import GameEngine
 from game_engine.rules.effects.effect_registry import EffectRegistry
 from game_engine.rules.effects.continuous_effects import OpponentImmunityEffect, KnightWinConditionEffect
-from game_engine.rules.effects.action_effects import SleepAllEffect, ToynadoEffect, TwistEffect, CopyEffect
+from game_engine.rules.effects.action_effects import BreakAllEffect, ToynadoEffect, TwistEffect, CopyEffect
 
 
 class TestBearyOpponentImmunity:
@@ -42,7 +42,7 @@ class TestBearyOpponentImmunity:
             "Beary should have OpponentImmunityEffect"
     
     def test_beary_immune_to_opponent_clean(self):
-        """Beary should NOT be sleeped when opponent plays Clean."""
+        """Beary should NOT be broken when opponent plays Clean."""
         # Setup game state
         player1 = Player(player_id="player1", name="Player 1")
         player2 = Player(player_id="player2", name="Player 2")
@@ -74,19 +74,19 @@ class TestBearyOpponentImmunity:
             name="Clean",
             card_type=CardType.ACTION,
             cost=0,
-            effect_text="Sleep all cards in play.",
-            effect_definitions="sleep_all",
+            effect_text="Break all cards in play.",
+            effect_definitions="break_all",
             owner="player2",
             controller="player2"
         )
         
         # Simulate Clean effect from opponent
-        clean_effect = SleepAllEffect(clean)
+        clean_effect = BreakAllEffect(clean)
         clean_effect.apply(game_state, player=player2)
         
-        # Beary should still be in play (not sleeped)
+        # Beary should still be in play (not broken)
         assert beary in player1.in_play, "Beary should still be in play"
-        assert beary not in player1.sleep_zone, "Beary should not be in sleep zone"
+        assert beary not in player1.break_zone, "Beary should not be in break zone"
 
 
 class TestKnightAutoWin:
@@ -298,8 +298,8 @@ class TestBearyNoTussleCancelEffect:
 class TestKnightBearyIntegration:
     """Integration tests for Knight and Beary interactions."""
     
-    def test_clean_sleeps_knight_but_not_beary(self):
-        """When opponent plays Clean, Knight gets sleeped but Beary doesn't."""
+    def test_clean_breaks_knight_but_not_beary(self):
+        """When opponent plays Clean, Knight gets broken but Beary doesn't."""
         # Setup
         player1 = Player(player_id="player1", name="Player 1")
         player2 = Player(player_id="player2", name="Player 2")
@@ -344,24 +344,24 @@ class TestKnightBearyIntegration:
             name="Clean",
             card_type=CardType.ACTION,
             cost=0,
-            effect_text="Sleep all cards in play.",
-            effect_definitions="sleep_all",
+            effect_text="Break all cards in play.",
+            effect_definitions="break_all",
             owner="player2",
             controller="player2"
         )
-        clean_effect = SleepAllEffect(clean)
+        clean_effect = BreakAllEffect(clean)
         clean_effect.apply(game_state, player=player2)
         
-        # Knight should be sleeped (no immunity)
-        assert knight in player1.sleep_zone, "Knight should be sleeped by opponent's Clean"
+        # Knight should be broken (no immunity)
+        assert knight in player1.break_zone, "Knight should be broken by opponent's Clean"
         assert knight not in player1.in_play, "Knight should not be in play"
         
-        # Beary should NOT be sleeped (has immunity)
+        # Beary should NOT be broken (has immunity)
         assert beary in player1.in_play, "Beary should still be in play"
-        assert beary not in player1.sleep_zone, "Beary should not be sleeped by opponent's Clean"
+        assert beary not in player1.break_zone, "Beary should not be broken by opponent's Clean"
     
-    def test_own_clean_sleeps_both_knight_and_beary(self):
-        """When player plays their own Clean, both Knight and Beary get sleeped."""
+    def test_own_clean_breaks_both_knight_and_beary(self):
+        """When player plays their own Clean, both Knight and Beary get broken."""
         # Setup
         player1 = Player(player_id="player1", name="Player 1")
         player2 = Player(player_id="player2", name="Player 2")
@@ -406,17 +406,17 @@ class TestKnightBearyIntegration:
             name="Clean",
             card_type=CardType.ACTION,
             cost=0,
-            effect_text="Sleep all cards in play.",
-            effect_definitions="sleep_all",
+            effect_text="Break all cards in play.",
+            effect_definitions="break_all",
             owner="player1",
             controller="player1"
         )
-        clean_effect = SleepAllEffect(clean)
+        clean_effect = BreakAllEffect(clean)
         clean_effect.apply(game_state, player=player1)
         
-        # Both should be sleeped (Beary only immune to OPPONENT effects)
-        assert knight in player1.sleep_zone, "Knight should be sleeped by own Clean"
-        assert beary in player1.sleep_zone, "Beary should be sleeped by own Clean (not immune to own effects)"
+        # Both should be broken (Beary only immune to OPPONENT effects)
+        assert knight in player1.break_zone, "Knight should be broken by own Clean"
+        assert beary in player1.break_zone, "Beary should be broken by own Clean (not immune to own effects)"
 
 
 class TestBearyImmunityToAllActionEffects:

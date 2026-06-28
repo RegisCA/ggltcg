@@ -3,7 +3,7 @@
  */
 
 export type CardType = 'Toy' | 'Action';  // Match backend CardType enum values
-export type Zone = 'Hand' | 'InPlay' | 'Sleep';  // Match backend Zone enum values
+export type Zone = 'Hand' | 'InPlay' | 'Break';  // Match backend Zone enum values
 export type Phase = 'Start' | 'Main' | 'End';  // Match backend Phase enum values
 
 export interface Card {
@@ -23,7 +23,7 @@ export interface Card {
   base_speed: number | null;  // Original speed from card definition
   base_strength: number | null;  // Original strength from card definition
   base_stamina: number | null;  // Original stamina from card definition
-  is_sleeped: boolean;
+  is_broken: boolean;
   primary_color: string;
   accent_color: string;
 }
@@ -31,11 +31,11 @@ export interface Card {
 export interface Player {
   player_id: string;
   name: string;
-  cc: number;
+  charge: number;
   hand_count: number;
   hand: Card[] | null;
   in_play: Card[];
-  sleep_zone: Card[];
+  break_zone: Card[];
   direct_attacks_this_turn: number;
 }
 
@@ -67,7 +67,7 @@ export interface ValidAction {
   target_options?: string[];  // List of valid target card IDs
   max_targets?: number;  // Maximum number of targets to select (e.g., 2 for Sun)
   min_targets?: number;  // Minimum number of targets required (0 for optional)
-  cost_cc?: number;
+  cost_charge?: number;
   alternative_cost_available?: boolean;  // Whether alternative cost is available (e.g., Ballaber)
   alternative_cost_options?: string[];  // Card IDs that can be used for alternative cost
   description: string;

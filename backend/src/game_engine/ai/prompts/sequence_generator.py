@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 SEQUENCE_GENERATOR_SCHEMA = {
     "type": "object",
     "properties": {
-        "available_cc": {
+        "available_charge": {
             "type": "integer",
         },
         "can_direct_attack": {
@@ -34,7 +34,7 @@ SEQUENCE_GENERATOR_SCHEMA = {
             "maxItems": 5,
         }
     },
-    "required": ["available_cc", "can_direct_attack", "sequences"]
+    "required": ["available_charge", "can_direct_attack", "sequences"]
 }
 
 
@@ -64,7 +64,7 @@ def generate_sequence_prompt(
     hand = player.hand
     in_play = player.in_play
     opp_in_play = opponent.in_play
-    opp_sleep = opponent.sleep_zone
+    opp_broken = opponent.break_zone
 
     def _format_effects(card) -> str:
         effects = getattr(card, "effect_definitions", None)
@@ -108,9 +108,9 @@ def generate_sequence_prompt(
     toys_text = "\n".join(_format_card_line(card, zone="in_play") for card in in_play) if in_play else "(none)"
     opp_toys_text = "\n".join(_format_card_line(card, zone="in_play") for card in opp_in_play) if opp_in_play else "(none)"
 
-    # Sleep zone info for Wake targeting (include actionable info, keep compact)
-    sleep_zone_text = "\n".join(_format_card_line(card, zone="sleep") for card in player.sleep_zone) if player.sleep_zone else "(empty)"
-    
+    # Break zone info for Wake targeting (include actionable info, keep compact)
+    break_zone_text = "\n".join(_format_card_line(card, zone="break") for card in player.break_zone) if player.break_zone else "(empty)"
+
     # Direct attack availability
     can_direct = len(opp_in_play) == 0
     direct_msg = (
@@ -122,25 +122,25 @@ def generate_sequence_prompt(
     if can_direct:
         opening_hint = (
             "\n- Opening rule: opponent has 0 toys, so direct_attack is legal now. "
-            "If you can play an attacker and still pay 2 CC, include that attack line and prefer it over setup-only lines."
+            "If you can play an attacker and still pay 2 Charge, include that attack line and prefer it over setup-only lines."
         )
-    
-    # Calculate max CC (including potential Surge/Rush)
-    cc_available = player.cc
-    potential_cc = cc_available
+
+    # Calculate max Charge (including potential Surge/Rush)
+    charge_available = player.charge
+    potential_charge = charge_available
     modifiers = []
     for card in hand:
         if card.name == "Surge":
-            potential_cc += 1
+            potential_charge += 1
             modifiers.append("Surge +1")
         elif card.name == "Rush" and game_state.turn_number != 1:
             # Rush cannot be played on game turn 1
-            potential_cc += 2
+            potential_charge += 2
             modifiers.append("Rush +2")
 
-    cc_header = f"## CC: {cc_available}"
-    if potential_cc > cc_available:
-        cc_header += f" (Max potential: {potential_cc} via {', '.join(modifiers)})"
+    charge_header = f"## Charge: {charge_available}"
+    if potential_charge > charge_available:
+        charge_header += f" (Max potential: {potential_charge} via {', '.join(modifiers)})"
 
     # Build restriction warnings for board-dependent or turn-restricted cards
     restriction_hints = []
@@ -162,37 +162,37 @@ def generate_sequence_prompt(
         restriction_hints.append(
             "\n- ⛔ DROP HAS NO TARGET: Opponent has no toys in play. Drop cannot be played. Do NOT include Drop."
         )
-    if player.sleep_zone:
-        sleep_ids_list = ", ".join(
-            f"[ID: {c.id}] {c.name}" for c in player.sleep_zone
+    if player.break_zone:
+        break_ids_list = ", ".join(
+            f"[ID: {c.id}] {c.name}" for c in player.break_zone
         )
         restriction_hints.append(
-            f"\n- ⛔ SLEEP ZONE ≠ HAND: {sleep_ids_list} — these cards are SLEPT and cannot be played with `play`."
-            f" To use a slept card: (1) play Wake from YOUR HAND (1 CC, target that card ID) → it returns to your hand,"
-            f" (2) then play it normally. If Wake is NOT in YOUR HAND right now, slept cards are UNAVAILABLE this turn."
+            f"\n- ⛔ BREAK ZONE ≠ HAND: {break_ids_list} — these cards are BROKEN and cannot be played with `play`."
+            f" To use a broken card: (1) play Wake from YOUR HAND (1 Charge, target that card ID) → it returns to your hand,"
+            f" (2) then play it normally. If Wake is NOT in YOUR HAND right now, broken cards are UNAVAILABLE this turn."
         )
     restriction_text = "".join(restriction_hints)
 
-    prompt = f"""Generate only LEGAL GGLTCG action sequences that maximize slept opponent cards and spend CC efficiently.
+    prompt = f"""Generate only LEGAL GGLTCG action sequences that maximize broken opponent cards and spend Charge efficiently.
 
-{cc_header}
+{charge_header}
 
 ## ACTIONS & COSTS
 
 | Action | Cost | Notes |
 |--------|------|-------|
-| **Play a card** | Card's printed cost | Pay CC, card enters In Play (Toy) or resolves (Action) |
-| **Tussle** | 2 CC (default) | Your Toy vs opponent's Toy. Can be modified by card effects. |
-| **Direct Attack** | 2 CC (default) | Only when opponent has no Toys In Play. Max 2 per turn. Random card from opponent's Hand → Sleep Zone. |
-| **Activate** | 1 CC | Trigger an activated ability (e.g., Archer) |
+| **Play a card** | Card's printed cost | Pay Charge, card enters In Play (Toy) or resolves (Action) |
+| **Tussle** | 2 Charge (default) | Your Toy vs opponent's Toy. Can be modified by card effects. |
+| **Direct Attack** | 2 Charge (default) | Only when opponent has no Toys In Play. Max 2 per turn. Random card from opponent's Hand → Break Zone. |
+| **Activate** | 1 Charge | Trigger an activated ability (e.g., Archer) |
 
 ## QUICK RULES
-- Goal: sleep opponent cards; prefer lines that spend most of your CC.
+- Goal: break opponent cards; prefer lines that spend most of your Charge.
 - Toys can tussle the turn they are played.
-- Tussle: attacker gets +1 SPD, faster toy strikes first, 0 STA sleeps immediately.
-- Cards that grant +CC when played must be played before spending that CC.
+- Tussle: attacker gets +1 SPD, faster toy strikes first, 0 STA breaks immediately.
+- Cards that grant +Charge when played must be played before spending that Charge.
 - Wake returns a card to hand; you still must pay its play cost afterward.
-- When the last opponent toy sleeps, direct_attack becomes legal.
+- When the last opponent toy breaks, direct_attack becomes legal.
 - Zone changes reset damage and temporary stat changes.
 - Rush cannot be played on game turn 1 (first turn of the entire game). Available from turn 2 onward.
 - Clean/Twist/Drop require targets to exist (Clean: any in-play; Twist/Drop: opponent in-play).
@@ -204,18 +204,18 @@ def generate_sequence_prompt(
 ## YOUR TOYS IN PLAY (In Play)
 {toys_text}
 
-## YOUR SLEEP ZONE (Sleep Zone)
-{sleep_zone_text}
+## YOUR BREAK ZONE (Break Zone)
+{break_zone_text}
 
 ## OPPONENT HAND (Hand): {len(opponent.hand)} cards (hidden)
 
 ## OPPONENT TOYS IN PLAY (In Play)
 {opp_toys_text}
 
-## OPPONENT SLEEP ZONE (Sleep Zone): {len(opp_sleep)}/6 cards
+## OPPONENT BREAK ZONE (Break Zone): {len(opp_broken)}/6 cards
 
 ## CRITICAL CONSTRAINTS
-**The 'play' action requires the card to be in YOUR HAND.** Use card IDs from the YOUR HAND section above. Cards already In Play or in Sleep Zone stay in their zones (use tussle/activate for In Play toys).
+**The 'play' action requires the card to be in YOUR HAND.** Use card IDs from the YOUR HAND section above. Cards already In Play or in Break Zone stay in their zones (use tussle/activate for In Play toys).
 **Cards listed in YOUR TOYS IN PLAY are already on board. Do not replay them with `play`; attack or activate with them instead.**
 **For direct_attack or tussle, the attacker card_id MUST come from YOUR TOYS IN PLAY — a card still in YOUR HAND cannot attack until it has been played with `play` first.**
 
@@ -223,26 +223,26 @@ def generate_sequence_prompt(
 
 **STR > 0 required for tussle/direct_attack** (STR=0 toys cannot attack)
 
-- Tussle/direct_attack cost 2 CC. Activate costs 1 CC unless card text changes it.
-- Do not spend more CC than available after bonuses.
-- Do not target cards that are already slept.
+- Tussle/direct_attack cost 2 Charge. Activate costs 1 Charge unless card text changes it.
+- Do not spend more Charge than available after bonuses.
+- Do not target cards that are already broken.
 - Count blockers dynamically; direct_attack is legal only at 0 opponent toys unless a card effect explicitly bypasses that.
 - Copy card IDs exactly from the listings. Never invent placeholder IDs like `k1`, `u1`, or `s1` unless they appear in the listings.
 
 ## FORMAT
-"[actions] -> end_turn | CC: X/Y spent | Sleeps: Z"
-"Sleeps: Z" = opponent cards YOU put into opponent Sleep Zone this turn (tussle, direct_attack, effects)
+"[actions] -> end_turn | Charge: X/Y spent | Breaks: Z"
+"Breaks: Z" = opponent cards YOU put into opponent Break Zone this turn (tussle, direct_attack, effects)
 Use card IDs from listings. Format: play NAME [ID], tussle ID->ID, direct_attack ID, activate ID->ID
-Use `->` between every action. Never use commas. Always include the `CC:` and `Sleeps:` trailer.
-Example: play Surge [s1] -> play Knight [k1] -> direct_attack k1 -> end_turn | CC: 3/3 spent | Sleeps: 1
+Use `->` between every action. Never use commas. Always include the `Charge:` and `Breaks:` trailer.
+Example: play Surge [s1] -> play Knight [k1] -> direct_attack k1 -> end_turn | Charge: 3/3 spent | Breaks: 1
 
 ## TASK
 Generate 3-5 LEGAL sequences.
 - Include aggressive, balanced, and setup lines when legal.
-- Play CC-gain cards first when they improve the line.
+- Play Charge-gain cards first when they improve the line.
 - If a tussle clears the board, continue with direct_attack when legal.
 - direct_attack must name the attacker ID; tussle/activate must include both IDs.
-- Verify CC math; every sequence must stay within available CC."""
+- Verify Charge math; every sequence must stay within available Charge."""
 
     return prompt
 
@@ -282,20 +282,20 @@ def parse_sequences_response(response_text: str, game_state=None) -> list[dict]:
                 logger.warning(f"Sequence {i} is not a string: {type(seq_str)}")
                 continue
                 
-            # Parse the string format: "actions | CC: X/Y spent | Sleeps: Z"
+            # Parse the string format: "actions | Charge: X/Y spent | Breaks: Z"
             parts = seq_str.split("|")
             actions_part = parts[0].strip() if len(parts) > 0 else ""
-            cc_part = parts[1].strip() if len(parts) > 1 else ""
-            sleeps_part = parts[2].strip() if len(parts) > 2 else ""
-            
-            # Extract CC spent
-            cc_match = re.search(r'(\d+)/(\d+)', cc_part)
-            cc_spent = int(cc_match.group(1)) if cc_match else 0
-            cc_available = int(cc_match.group(2)) if cc_match else 0
-            
-            # Extract sleeps
-            sleeps_match = re.search(r'(\d+)', sleeps_part)
-            cards_slept = int(sleeps_match.group(1)) if sleeps_match else 0
+            charge_part = parts[1].strip() if len(parts) > 1 else ""
+            breaks_part = parts[2].strip() if len(parts) > 2 else ""
+
+            # Extract Charge spent
+            charge_match = re.search(r'(\d+)/(\d+)', charge_part)
+            charge_spent = int(charge_match.group(1)) if charge_match else 0
+            charge_available = int(charge_match.group(2)) if charge_match else 0
+
+            # Extract breaks
+            breaks_match = re.search(r'(\d+)', breaks_part)
+            cards_broken = int(breaks_match.group(1)) if breaks_match else 0
             
             # Parse actions - need to handle both " -> " (correct) and "->" (no spaces)
             # while preserving "->" in tussle/activate targets like "tussle Knight->Enemy"
@@ -347,7 +347,7 @@ def parse_sequences_response(response_text: str, game_state=None) -> list[dict]:
             play_count = sum(1 for a in actions if a.get("action_type") == "play_card")
             has_resource = any(a.get("card_name") in ["Surge", "Rush"] for a in actions)
             
-            if cards_slept >= 6:
+            if cards_broken >= 6:
                 label = "[Lethal]"
             elif attack_count >= 2:
                 label = "[Aggressive]"
@@ -355,17 +355,17 @@ def parse_sequences_response(response_text: str, game_state=None) -> list[dict]:
                 label = "[Resource]"
             elif play_count >= 2 and attack_count == 0:
                 label = "[Board Setup]"
-            elif cc_spent <= 2:
+            elif charge_spent <= 2:
                 label = "[Conservative]"
             else:
                 label = "[Balanced]"
-            
+
             sequences.append({
                 "raw_string": seq_str,
                 "actions": actions,
-                "total_cc_spent": cc_spent,
-                "cc_available": cc_available,
-                "cards_slept": cards_slept,
+                "total_charge_spent": charge_spent,
+                "charge_available": charge_available,
+                "cards_broken": cards_broken,
                 "tactical_label": label,
             })
         
@@ -393,7 +393,7 @@ def _parse_action_string(action_str: str) -> dict | None:
     action_str = action_str.strip()
     
     if action_str == "end_turn":
-        return {"action_type": "end_turn", "card_name": None, "card_id": None, "target_name": None, "target_id": None, "cc_cost": 0}
+        return {"action_type": "end_turn", "card_name": None, "card_id": None, "target_name": None, "target_id": None, "charge_cost": 0}
     
     # UUID pattern: 36 chars with hyphens (e.g., bd9629b1-0671-4024-8252-515e9f49f948)
     uuid_pattern = r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
@@ -441,7 +441,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": card_id,
             "target_name": target_name,
             "target_id": target_id,
-            "cc_cost": 0,  # Card cost tracked in sequence's total_cc_spent
+            "charge_cost": 0,  # Card cost tracked in sequence's total_cc_spent
         }
     
     # For tussle/activate/direct_attack, we need ID patterns that don't include arrow
@@ -469,7 +469,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": None,
             "target_name": tussle_name_match.group(2),
             "target_id": None,
-            "cc_cost": 2,
+            "charge_cost": 2,
         }
     
     # Try UUID format (with hyphens)
@@ -484,7 +484,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": tussle_uuid_match.group(1),
             "target_name": None,
             "target_id": tussle_uuid_match.group(2),
-            "cc_cost": 2,
+            "charge_cost": 2,
         }
     
     # Try short ID format (lowercase alphanumeric only)
@@ -499,7 +499,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": tussle_id_match.group(1),
             "target_name": None,
             "target_id": tussle_id_match.group(2),
-            "cc_cost": 2,
+            "charge_cost": 2,
         }
     
     # -------------------------------------------------------------------------
@@ -516,7 +516,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": None,
             "target_name": None,
             "target_id": None,
-            "cc_cost": 2,
+            "charge_cost": 2,
         }
     
     # Try ID-based (lowercase alphanumeric or UUID)
@@ -528,7 +528,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": da_uuid_match.group(1),
             "target_name": None,
             "target_id": None,
-            "cc_cost": 2,
+            "charge_cost": 2,
         }
     
     da_id_match = re.match(rf'direct_attack\s+({short_id_pat})', action_str)
@@ -539,7 +539,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": da_id_match.group(1),
             "target_name": None,
             "target_id": None,
-            "cc_cost": 2,
+            "charge_cost": 2,
         }
     
     # -------------------------------------------------------------------------
@@ -559,7 +559,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": None,
             "target_name": activate_name_match.group(2),
             "target_id": None,
-            "cc_cost": 1,
+            "charge_cost": 1,
         }
     
     # Try UUID format
@@ -574,7 +574,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": activate_uuid_match.group(1),
             "target_name": None,
             "target_id": activate_uuid_match.group(2),
-            "cc_cost": 1,
+            "charge_cost": 1,
         }
     
     # Try short ID format (lowercase only)
@@ -589,7 +589,7 @@ def _parse_action_string(action_str: str) -> dict | None:
             "card_id": activate_id_match.group(1),
             "target_name": None,
             "target_id": activate_id_match.group(2),
-            "cc_cost": 1,
+            "charge_cost": 1,
         }
     
     return None
@@ -600,29 +600,29 @@ def add_tactical_labels(sequences: list[dict]) -> list[dict]:
     Add tactical labels to validated sequences.
     
     Labels help Request 2 understand what each sequence accomplishes:
-    - [Lethal]: Can win this turn (6+ cards slept)
+    - [Lethal]: Can win this turn (6+ cards broken)
     - [Aggressive]: Multiple attacks
     - [Resource]: Plays Surge/Rush without attacking
     - [Board Setup]: Plays multiple toys without attacking
-    - [Conservative]: Minimal CC spent
+    - [Conservative]: Minimal Charge spent
     - [Balanced]: Everything else
     """
     for seq in sequences:
         # Skip if already labeled
         if "tactical_label" in seq:
             continue
-            
+
         actions = seq.get("actions", [])
-        cards_slept = seq.get("cards_slept", 0)
-        cc_spent = seq.get("total_cc_spent", 0)
-        
+        cards_broken = seq.get("cards_broken", 0)
+        charge_spent = seq.get("total_charge_spent", 0)
+
         # Count action types
         attack_count = sum(1 for a in actions if a.get("action_type") in ["tussle", "direct_attack"])
         play_count = sum(1 for a in actions if a.get("action_type") == "play_card")
         has_resource = any(a.get("card_name") in ["Surge", "Rush"] for a in actions)
-        
+
         # Determine label
-        if cards_slept >= 6:
+        if cards_broken >= 6:
             seq["tactical_label"] = "[Lethal]"
         elif attack_count >= 2:
             seq["tactical_label"] = "[Aggressive Removal]"
@@ -630,29 +630,29 @@ def add_tactical_labels(sequences: list[dict]) -> list[dict]:
             seq["tactical_label"] = "[Resource Building]"
         elif play_count >= 2 and attack_count == 0:
             seq["tactical_label"] = "[Board Setup]"
-        elif cc_spent <= 2:
+        elif charge_spent <= 2:
             seq["tactical_label"] = "[Conservative]"
         else:
             seq["tactical_label"] = "[Balanced]"
-    
+
     return sequences
 
 
 def format_sequence_for_display(seq: dict, index: int) -> str:
     """
     Format a sequence for display in Request 2 prompt.
-    
+
     Args:
         seq: Sequence dictionary
         index: 0-based sequence index
-        
+
     Returns:
         Formatted string showing sequence summary
     """
     label = seq.get("tactical_label", "[Unknown]")
     raw = seq.get("raw_string", "")
-    cc_spent = seq.get("total_cc_spent", 0)
-    cc_avail = seq.get("cc_available", 0)
-    cards_slept = seq.get("cards_slept", 0)
-    
-    return f'{index}. {label} slept={cards_slept} cc={cc_spent}/{cc_avail} :: {raw}'
+    charge_spent = seq.get("total_charge_spent", 0)
+    charge_avail = seq.get("charge_available", 0)
+    cards_broken = seq.get("cards_broken", 0)
+
+    return f'{index}. {label} broken={cards_broken} charge={charge_spent}/{charge_avail} :: {raw}'

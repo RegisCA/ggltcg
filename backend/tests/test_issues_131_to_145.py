@@ -7,10 +7,10 @@ Issues covered:
 - #131: Knight vs Beary tussle - Beary is immune to Knight's effect
 - #140: Knight vs Umbruh - Knight should auto-win
 - #141: Sun as last card triggers premature defeat
-- #142: Clean doesn't sleep stolen cards
+- #142: Clean doesn't break stolen cards
 - #143: Ballaber vs stolen Umbruh - negative stamina zombie
 - #144: Ka vs stolen Demideca - negative stamina zombie
-- #145: Ballaber alternative cost doesn't sleep stolen cards
+- #145: Ballaber alternative cost doesn't break stolen cards
 - #146: TussleResolver duplication (resolved - now uses GameEngine methods)
 
 Root causes identified and fixed:
@@ -37,7 +37,7 @@ from conftest import (
 
 class TestIssue131KnightVsBeary:
     """
-    Issue #131: Knight attacks Beary - both should be sleeped.
+    Issue #131: Knight attacks Beary - both should be broken.
     
     Knight's auto-win effect doesn't work against Beary (opponent_immunity).
     This means it becomes a normal tussle:
@@ -50,20 +50,20 @@ class TestIssue131KnightVsBeary:
     - Defender Beary speed: 5 (no turn bonus for defender)
     
     So it's simultaneous: both deal damage at the same time.
-    Knight deals 4 damage to Beary (stamina 3) -> Beary sleeped
-    Beary deals 3 damage to Knight (stamina 3) -> Knight sleeped
+    Knight deals 4 damage to Beary (stamina 3) -> Beary broken
+    Beary deals 3 damage to Knight (stamina 3) -> Knight broken
     
-    Expected: BOTH cards should be sleeped.
-    Bug observed: Only Beary was sleeped, Knight was untouched.
+    Expected: BOTH cards should be broken.
+    Bug observed: Only Beary was broken, Knight was untouched.
     """
     
-    def test_knight_attacks_beary_both_should_sleep(self):
+    def test_knight_attacks_beary_both_should_break(self):
         """
-        When Knight attacks Beary, both should be sleeped (simultaneous).
+        When Knight attacks Beary, both should be broken (simultaneous).
         
         Knight's auto-win is negated by Beary's opponent_immunity.
         With equal effective speeds, both strike simultaneously.
-        Both deal lethal damage, so both should sleep.
+        Both deal lethal damage, so both should break.
         """
         setup, cards = create_game_with_cards(
             player1_in_play=["Knight"],
@@ -86,26 +86,26 @@ class TestIssue131KnightVsBeary:
         # Signature: initiate_tussle(attacker, defender, player)
         setup.engine.initiate_tussle(knight, beary, setup.player1)
         
-        # Both should be sleeped
+        # Both should be broken
         # Knight: 4+1=5 speed vs Beary: 5 speed -> SIMULTANEOUS
         # Knight deals 4 damage to Beary (stamina 3) -> defeated
         # Beary deals 3 damage to Knight (stamina 3) -> defeated
         assert knight not in setup.player1.in_play, "Knight should not be in play"
         assert beary not in setup.player2.in_play, "Beary should not be in play"
         
-        # Both should be in their owner's sleep zones
-        assert knight in setup.player1.sleep_zone, "Knight should be in P1's sleep zone"
-        assert beary in setup.player2.sleep_zone, "Beary should be in P2's sleep zone"
+        # Both should be in their owner's break zones
+        assert knight in setup.player1.break_zone, "Knight should be in P1's break zone"
+        assert beary in setup.player2.break_zone, "Beary should be in P2's break zone"
     
-    def test_beary_attacks_knight_only_knight_sleeps(self):
+    def test_beary_attacks_knight_only_knight_breaks(self):
         """
-        When Beary attacks Knight, only Knight should sleep.
+        When Beary attacks Knight, only Knight should break.
         
         Beary: 5+1 (turn bonus) = 6 speed, 3 strength
         Knight: 4 speed (no turn bonus), 4 strength
         
         Beary strikes first (6 > 4).
-        Beary deals 3 damage to Knight (stamina 3) -> Knight defeated, sleeped.
+        Beary deals 3 damage to Knight (stamina 3) -> Knight defeated, broken.
         Knight doesn't strike back because it's already defeated.
         """
         setup, cards = create_game_with_cards(
@@ -121,10 +121,10 @@ class TestIssue131KnightVsBeary:
         # Signature: initiate_tussle(attacker, defender, player)
         setup.engine.initiate_tussle(beary, knight, setup.player1)
         
-        # Only Knight should be sleeped (Beary strikes first and one-shots)
+        # Only Knight should be broken (Beary strikes first and one-shots)
         assert beary in setup.player1.in_play, "Beary should still be in play"
         assert knight not in setup.player2.in_play, "Knight should not be in play"
-        assert knight in setup.player2.sleep_zone, "Knight should be in sleep zone"
+        assert knight in setup.player2.break_zone, "Knight should be in break zone"
         
         # Beary should have full stamina (no counter-attack)
         assert beary.current_stamina == beary.stamina, "Beary should have full stamina"
@@ -160,9 +160,9 @@ class TestIssue140KnightVsUmbruh:
         # Signature: initiate_tussle(attacker, defender, player)
         setup.engine.initiate_tussle(knight, umbruh, setup.player1)
         
-        # Umbruh should be sleeped (Knight auto-wins)
+        # Umbruh should be broken (Knight auto-wins)
         assert umbruh not in setup.player2.in_play, "Umbruh should not be in play"
-        assert umbruh in setup.player2.sleep_zone, "Umbruh should be in sleep zone"
+        assert umbruh in setup.player2.break_zone, "Umbruh should be in break zone"
         
         # Knight should be untouched (auto-win, no combat)
         assert knight in setup.player1.in_play, "Knight should still be in play"
@@ -175,9 +175,9 @@ class TestIssue141SunLastCardDefeat:
     Issue #141: Playing Sun as last card triggers premature defeat.
     
     When Sun is played as the last card in hand:
-    1. Sun moves from hand to sleep zone
+    1. Sun moves from hand to break zone
     2. At this point, hand is empty and no cards in play
-    3. Defeat condition is checked BEFORE Sun's effect unsleeps cards
+    3. Defeat condition is checked BEFORE Sun's effect fixes cards
     4. Game incorrectly ends
     
     Expected: Sun's effect should resolve first, THEN check defeat.
@@ -185,39 +185,39 @@ class TestIssue141SunLastCardDefeat:
     
     def test_sun_as_last_card_should_not_trigger_defeat(self):
         """
-        Playing Sun as last card should unsleep cards, not trigger defeat.
+        Playing Sun as last card should fix cards, not trigger defeat.
         
         Scenario:
-        - Player has 2 cards in sleep zone
+        - Player has 2 cards in break zone
         - Player has Sun as only card in hand
-        - Player plays Sun to unsleep both cards
+        - Player plays Sun to fix both cards
         - Player should now have 2 cards in play, not be defeated
         """
         setup, cards = create_game_with_cards(
             player1_hand=["Sun"],
-            player1_sleep=["Ka", "Demideca"],
+            player1_break=["Ka", "Demideca"],
             player2_hand=["Knight"],  # Opponent has cards (not defeated)
             active_player="player1",
         )
         
         sun = cards["p1_hand_Sun"]
-        ka = cards["p1_sleep_Ka"]
-        demideca = cards["p1_sleep_Demideca"]
+        ka = cards["p1_break_Ka"]
+        demideca = cards["p1_break_Demideca"]
         
         # Verify initial state
         assert len(setup.player1.hand) == 1, "Player 1 should have 1 card in hand"
-        assert len(setup.player1.sleep_zone) == 2, "Player 1 should have 2 sleeping cards"
+        assert len(setup.player1.break_zone) == 2, "Player 1 should have 2 broken cards"
         assert setup.game_state.winner_id is None, "No winner yet"
         
-        # Play Sun targeting both sleeping cards
+        # Play Sun targeting both broken cards
         target_ids = [ka.id, demideca.id]
         setup.engine.play_card(setup.player1, sun, target_ids=target_ids)
         
-        # Sun should be in sleep zone now
-        assert sun in setup.player1.sleep_zone, "Sun should be in sleep zone after playing"
+        # Sun should be in break zone now
+        assert sun in setup.player1.break_zone, "Sun should be in break zone after playing"
         
-        # Ka and Demideca should be unsleeping (returned to hand, per rules)
-        # "Unsleep" means to return a card from your Sleep Zone to your hand
+        # Ka and Demideca should be fixing (returned to hand, per rules)
+        # "Fix" means to return a card from your Break Zone to your hand
         assert ka in setup.player1.hand, "Ka should be in hand after Sun effect"
         assert demideca in setup.player1.hand, "Demideca should be in hand after Sun effect"
         
@@ -225,29 +225,29 @@ class TestIssue141SunLastCardDefeat:
         assert setup.game_state.winner_id != "player2", \
             "Player 1 should not be defeated after playing Sun"
         
-        # Player should have cards in hand (not sleep zone)
+        # Player should have cards in hand (not break zone)
         assert len(setup.player1.hand) == 2, "Player 1 should have 2 cards in hand"
 
 
 class TestIssue142CleanStolenCards:
     """
-    Issue #142: Clean doesn't sleep stolen cards.
+    Issue #142: Clean doesn't break stolen cards.
     
-    When Clean is played, it should sleep ALL cards in play.
-    Stolen cards (via Twist) should also be sleeped.
+    When Clean is played, it should break ALL cards in play.
+    Stolen cards (via Twist) should also be broken.
     
     The bug is that is_protected_from_effect checks the controller's
     ownership, not the effect source's ownership.
     """
     
-    def test_clean_sleeps_stolen_cards(self):
+    def test_clean_breaks_stolen_cards(self):
         """
-        Clean should sleep cards stolen via Twist.
+        Clean should break cards stolen via Twist.
         
         Scenario:
         - Player 2 stole Umbruh from Player 1 using Twist
         - Player 1 plays Clean
-        - All cards should be sleeped, including the stolen Umbruh
+        - All cards should be broken, including the stolen Umbruh
         """
         setup, cards = create_game_with_cards(
             player1_hand=["Clean"],
@@ -270,15 +270,15 @@ class TestIssue142CleanStolenCards:
         # Play Clean
         setup.engine.play_card(setup.player1, clean)
         
-        # All cards should be sleeped
+        # All cards should be broken
         assert wizard not in setup.player2.in_play, "Wizard should not be in play"
-        assert wizard in setup.player2.sleep_zone, "Wizard should be in P2's sleep zone"
+        assert wizard in setup.player2.break_zone, "Wizard should be in P2's break zone"
         
-        # Stolen Umbruh should also be sleeped (to owner's zone)
+        # Stolen Umbruh should also be broken (to owner's zone)
         assert umbruh not in setup.player2.in_play, \
             "Stolen Umbruh should not be in play after Clean"
-        assert umbruh in setup.player1.sleep_zone, \
-            "Stolen Umbruh should be in owner's (P1) sleep zone"
+        assert umbruh in setup.player1.break_zone, \
+            "Stolen Umbruh should be in owner's (P1) break zone"
 
 
 class TestIssue143BallaberVsStolenUmbruh:
@@ -288,21 +288,21 @@ class TestIssue143BallaberVsStolenUmbruh:
     When tussling a stolen card:
     1. The card takes damage repeatedly
     2. Stamina goes negative (-2, -8, etc.)
-    3. Card doesn't get sleeped properly
-    4. CC costs don't seem to be spent
+    3. Card doesn't get broken properly
+    4. Charge costs don't seem to be spent
     
     This indicates the tussle is executing multiple times or
-    the sleep logic isn't triggering.
+    the break logic isn't triggering.
     """
     
-    def test_tussle_stolen_card_sleeps_properly(self):
+    def test_tussle_stolen_card_breaks_properly(self):
         """
-        Tussle against stolen card should sleep it normally.
+        Tussle against stolen card should break it normally.
         
         Scenario:
         - P2 stole Umbruh from P1 via Twist
         - P1 plays Ballaber and tussles Umbruh
-        - Umbruh should be sleeped to P1's zone (owner), not go negative
+        - Umbruh should be broken to P1's zone (owner), not go negative
         """
         setup, cards = create_game_with_cards(
             player1_in_play=["Ballaber"],
@@ -328,9 +328,9 @@ class TestIssue143BallaberVsStolenUmbruh:
         # Signature: initiate_tussle(attacker, defender, player)
         setup.engine.initiate_tussle(ballaber, umbruh, setup.player1)
         
-        # Umbruh should be sleeped to owner's zone, stamina should not be negative
+        # Umbruh should be broken to owner's zone, stamina should not be negative
         assert umbruh not in setup.player2.in_play, "Umbruh should not be in P2's play zone"
-        assert umbruh in setup.player1.sleep_zone, "Umbruh should be in owner's (P1) sleep zone"
+        assert umbruh in setup.player1.break_zone, "Umbruh should be in owner's (P1) break zone"
         
         # Current stamina can be 0 or negative (took 6 damage with 4 stamina)
         # But it should only be -2, not -8 or worse (indicating multiple damage applications)
@@ -351,7 +351,7 @@ class TestIssue144KaVsStolenDemideca:
     - Demideca ends up with -10 stamina
     - But Demideca stays in play ("zombie" state)
     
-    This is similar to #143 - stolen cards aren't being sleeped properly.
+    This is similar to #143 - stolen cards aren't being broken properly.
     """
     
     def test_tussle_ka_vs_stolen_demideca(self):
@@ -368,7 +368,7 @@ class TestIssue144KaVsStolenDemideca:
         - Stolen Demideca: 3 speed, 2 strength (no buffs, it's controlled by P2)
         
         Ka strikes first (6 > 3), deals 11 damage to Demideca (3 stamina).
-        Demideca is defeated and should be sleeped.
+        Demideca is defeated and should be broken.
         """
         setup, cards = create_game_with_cards(
             player1_in_play=["Ka"],
@@ -385,11 +385,11 @@ class TestIssue144KaVsStolenDemideca:
         # Signature: initiate_tussle(attacker, defender, player)
         setup.engine.initiate_tussle(ka, demideca, setup.player1)
         
-        # Demideca should be sleeped to owner's zone
+        # Demideca should be broken to owner's zone
         assert demideca not in setup.player2.in_play, \
             "Stolen Demideca should not be in P2's play zone after tussle"
-        assert demideca in setup.player1.sleep_zone, \
-            "Stolen Demideca should be in owner's (P1) sleep zone"
+        assert demideca in setup.player1.break_zone, \
+            "Stolen Demideca should be in owner's (P1) break zone"
         
         # Stamina should not be extremely negative (indicates repeated damage bug)
         assert demideca.current_stamina >= -15, \
@@ -401,21 +401,21 @@ class TestIssue144KaVsStolenDemideca:
 
 class TestIssue145BallaberAlternativeCost:
     """
-    Issue #145: Ballaber's alternative cost doesn't sleep stolen cards.
+    Issue #145: Ballaber's alternative cost doesn't break stolen cards.
     
-    Ballaber can be played for free by sleeping one of your cards.
-    When the sleeped card was stolen (via Twist), it should still be sleeped.
+    Ballaber can be played for free by broken one of your cards.
+    When the broken card was stolen (via Twist), it should still be broken.
     """
     
-    def test_ballaber_alternative_cost_sleeps_stolen_card(self):
+    def test_ballaber_alternative_cost_breaks_stolen_card(self):
         """
-        Using Ballaber's alternative cost on a stolen card should sleep it.
+        Using Ballaber's alternative cost on a stolen card should break it.
         
         Scenario:
         - P2 previously stole Demideca from P1
         - P1 has Ballaber in hand and another card in play
-        - P1 plays Ballaber using alt cost, sleeping the "stolen back" card
-        - The card should actually be sleeped
+        - P1 plays Ballaber using alt cost, broken the "stolen back" card
+        - The card should actually be broken
         """
         # Note: This test assumes we can use alt cost on a card we control
         # even if it was originally ours and stolen by opponent
@@ -423,13 +423,13 @@ class TestIssue145BallaberAlternativeCost:
             player1_hand=["Ballaber"],
             player1_in_play=["Ka"],  # Card to use for alternative cost
             active_player="player1",
-            player1_cc=0,  # Force alternative cost to be needed
+            player1_charge=0,  # Force alternative cost to be needed
         )
         
         ballaber = cards["p1_hand_Ballaber"]
         ka = cards["p1_inplay_Ka"]
         
-        # Play Ballaber using alternative cost (sleep Ka)
+        # Play Ballaber using alternative cost (break Ka)
         setup.engine.play_card(
             setup.player1, 
             ballaber, 
@@ -439,9 +439,9 @@ class TestIssue145BallaberAlternativeCost:
         # Ballaber should be in play
         assert ballaber in setup.player1.in_play, "Ballaber should be in play"
         
-        # Ka should be sleeped (used as alternative cost)
+        # Ka should be broken (used as alternative cost)
         assert ka not in setup.player1.in_play, "Ka should not be in play (used as alt cost)"
-        assert ka in setup.player1.sleep_zone, "Ka should be in sleep zone"
+        assert ka in setup.player1.break_zone, "Ka should be in break zone"
     
     def test_ballaber_alternative_cost_with_stolen_card_in_play(self):
         """
@@ -450,12 +450,12 @@ class TestIssue145BallaberAlternativeCost:
         Scenario:
         - P1 stole P2's Demideca via Twist
         - P1 plays Ballaber using alt cost on stolen Demideca  
-        - Demideca should be sleeped to P2's zone (original owner)
+        - Demideca should be broken to P2's zone (original owner)
         """
         setup, cards = create_game_with_cards(
             player1_hand=["Ballaber"],
             active_player="player1",
-            player1_cc=0,  # Force alternative cost
+            player1_charge=0,  # Force alternative cost
         )
         
         ballaber = cards["p1_hand_Ballaber"]
@@ -479,13 +479,13 @@ class TestIssue145BallaberAlternativeCost:
         # Ballaber should be in play
         assert ballaber in setup.player1.in_play, "Ballaber should be in play"
         
-        # Stolen Demideca should be sleeped to OWNER's zone (P2), not controller's
+        # Stolen Demideca should be broken to OWNER's zone (P2), not controller's
         assert stolen_demideca not in setup.player1.in_play, \
             "Stolen Demideca should not be in P1's play zone"
-        assert stolen_demideca not in setup.player1.sleep_zone, \
-            "Stolen Demideca should NOT be in P1's sleep zone (not owner)"
-        assert stolen_demideca in setup.player2.sleep_zone, \
-            "Stolen Demideca should be in P2's sleep zone (owner)"
+        assert stolen_demideca not in setup.player1.break_zone, \
+            "Stolen Demideca should NOT be in P1's break zone (not owner)"
+        assert stolen_demideca in setup.player2.break_zone, \
+            "Stolen Demideca should be in P2's break zone (owner)"
 
 
 class TestTussleStaminaIntegrity:
@@ -494,7 +494,7 @@ class TestTussleStaminaIntegrity:
     
     These tests verify that:
     1. Damage is only applied once
-    2. Cards are sleeped when stamina <= 0
+    2. Cards are broken when stamina <= 0
     3. Counter-attacks only happen if the defender survives
     """
     
@@ -519,9 +519,9 @@ class TestTussleStaminaIntegrity:
         # Umbruh: 4 speed, 4 strength, 4 stamina
 
         # Signature: initiate_tussle(attacker, defender, player)
-        # Umbruh should be sleeped
+        # Umbruh should be broken
         setup.engine.initiate_tussle(ka, umbruh, setup.player1)
-        assert umbruh in setup.player2.sleep_zone, "Umbruh should be sleeped"
+        assert umbruh in setup.player2.break_zone, "Umbruh should be broken"
         
         # Ka should have full stamina (no counter-attack)
         assert ka.current_stamina == ka.stamina, \
@@ -549,18 +549,18 @@ class TestTussleStaminaIntegrity:
         # Defender: 5 speed, 3 strength
         # Attacker strikes first (speed 6 > 5)
         # Defender takes 3 damage (3 stamina - 3 damage = 0)
-        # Defender is sleeped (stamina <= 0)
+        # Defender is broken (stamina <= 0)
 
         initial_attacker_stamina = attacker.current_stamina  # 3
         
         # Signature: initiate_tussle(attacker, defender, player)
         setup.engine.initiate_tussle(attacker, defender, setup.player1)
         
-        # Defender should be sleeped (one-shotted)
-        assert defender in setup.player2.sleep_zone, "Defender should be sleeped"
+        # Defender should be broken (one-shotted)
+        assert defender in setup.player2.break_zone, "Defender should be broken"
         
         # Attacker should be untouched (struck first, one-shotted defender)
-        # No counter-attack because defender was sleeped immediately
+        # No counter-attack because defender was broken immediately
         assert attacker in setup.player1.in_play, "Attacker should still be in play"
         assert attacker.current_stamina == initial_attacker_stamina, \
             f"Attacker should have full stamina {initial_attacker_stamina}, got {attacker.current_stamina}"

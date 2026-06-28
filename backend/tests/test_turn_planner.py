@@ -4,7 +4,7 @@ Tests for AI v3 Turn Planner.
 This module tests the turn planning phase of AI v3, verifying that:
 1. Plans are generated with valid structure
 2. Card IDs are correctly referenced
-3. CC budgeting is accurate
+3. Charge budgeting is accurate
 4. Threat prioritization follows the strategy guide
 
 Run with: pytest tests/test_turn_planner.py -v
@@ -49,8 +49,8 @@ class TestTurnPlannerBasic:
             player1_in_play=[],
             player2_hand=["Knight", "Ka", "Archer"],
             player2_in_play=[],
-            player1_cc=2,  # Turn 1 CC
-            player2_cc=2,
+            player1_charge=2,  # Turn 1 Charge
+            player2_charge=2,
             active_player="player1",
             turn_number=1,
         )
@@ -64,10 +64,10 @@ class TestTurnPlannerBasic:
         
         # Assertions
         assert plan is not None, "Plan should be generated"
-        # cc_start is LLM-generated metadata; prompt now instructs the model to use "Your CC"
+        # charge_start is LLM-generated metadata; prompt now instructs the model to use "Your Charge"
         # value from game state, so we accept any non-negative value here (execution uses
-        # actual game state CC, not plan.cc_start).
-        assert plan.cc_start >= 0, "CC start should be non-negative"
+        # actual game state Charge, not plan.charge_start).
+        assert plan.charge_start >= 0, "Charge start should be non-negative"
         assert len(plan.action_sequence) > 0, "Plan should have at least one action"
         assert plan.action_sequence[-1].action_type == "end_turn", "Plan should end with end_turn"
         
@@ -76,11 +76,11 @@ class TestTurnPlannerBasic:
         print("PLAN OUTPUT (empty board):")
         print(f"Threat Assessment: {plan.threat_assessment}")
         print(f"Selected Strategy: {plan.selected_strategy}")
-        print(f"CC: {plan.cc_start} → {plan.cc_after_plan}")
-        print(f"Expected cards slept: {plan.expected_cards_slept}")
+        print(f"Charge: {plan.charge_start} → {plan.charge_after_plan}")
+        print(f"Expected cards slept: {plan.expected_cards_broken}")
         print("Actions:")
         for i, action in enumerate(plan.action_sequence, 1):
-            print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'} ({action.cc_cost} CC)")
+            print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'} ({action.charge_cost} Charge)")
         print("=" * 60)
 
     def test_planner_creates_plan_with_threats(self, turn_planner):
@@ -91,8 +91,8 @@ class TestTurnPlannerBasic:
             player1_in_play=[],
             player2_hand=["Ka", "Wizard"],
             player2_in_play=["Knight", "Paper Plane"],
-            player1_cc=4,
-            player2_cc=4,
+            player1_charge=4,
+            player2_charge=4,
             active_player="player1",
             turn_number=2,
         )
@@ -114,12 +114,12 @@ class TestTurnPlannerBasic:
         print("PLAN OUTPUT (opponent has threats):")
         print(f"Threat Assessment: {plan.threat_assessment}")
         print(f"Selected Strategy: {plan.selected_strategy}")
-        print(f"CC: {plan.cc_start} → {plan.cc_after_plan}")
-        print(f"Expected cards slept: {plan.expected_cards_slept}")
+        print(f"Charge: {plan.charge_start} → {plan.charge_after_plan}")
+        print(f"Expected cards slept: {plan.expected_cards_broken}")
         print("Actions:")
         for i, action in enumerate(plan.action_sequence, 1):
             target_info = f" → {action.target_names}" if action.target_names else ""
-            print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}{target_info} ({action.cc_cost} CC)")
+            print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}{target_info} ({action.charge_cost} Charge)")
         print("=" * 60)
     
     def test_planner_validates_card_ids(self, turn_planner):
@@ -128,7 +128,7 @@ class TestTurnPlannerBasic:
             player1_hand=["Knight", "Ka"],
             player1_in_play=["Archer"],
             player2_in_play=["Wizard"],
-            player1_cc=4,
+            player1_charge=4,
         )
         
         # Generate plan
@@ -159,14 +159,14 @@ class TestTurnPlannerScenarios:
         """
         Test the Archer removal path from strategy guide example.
         
-        Scenario: 4 CC, opponent has Knight (3 STA) and Paper Plane (1 STA)
+        Scenario: 4 Charge, opponent has Knight (3 STA) and Paper Plane (1 STA)
         Expected: Archer path should be identified as efficient
         """
         setup, cards = create_game_with_cards(
             player1_hand=["Archer", "Surge", "Umbruh", "Knight"],
             player1_in_play=[],
             player2_in_play=["Knight", "Paper Plane"],
-            player1_cc=4,
+            player1_charge=4,
             active_player="player1",
         )
         
@@ -179,13 +179,13 @@ class TestTurnPlannerScenarios:
         assert plan is not None
         
         # The plan should consider Archer path
-        # Expected: ~4 CC to sleep 2 cards = 2.0 CC per card
+        # Expected: ~4 Charge to break 2 cards = 2.0 Charge per card
         print("\n" + "=" * 60)
         print("ARCHER PATH SCENARIO:")
         print(f"Strategy: {plan.selected_strategy}")
         print(f"Sequences considered: {plan.sequences_considered}")
         for i, action in enumerate(plan.action_sequence, 1):
-            print(f"  {i}. {action.action_type}: {action.card_name} ({action.cc_cost} CC → {action.cc_after} CC)")
+            print(f"  {i}. {action.action_type}: {action.card_name} ({action.charge_cost} Charge → {action.charge_after} Charge)")
         print("=" * 60)
     
     def test_critical_threat_sock_sorcerer(self, turn_planner):
@@ -198,7 +198,7 @@ class TestTurnPlannerScenarios:
             player1_hand=["Knight", "Drop", "Clean"],
             player1_in_play=["Ka"],
             player2_in_play=["Sock Sorcerer", "Wizard"],
-            player1_cc=4,
+            player1_charge=4,
         )
         
         plan = turn_planner.create_plan(
@@ -224,7 +224,7 @@ class TestTurnPlannerScenarios:
             player1_hand=["Knight", "Drop", "Archer"],
             player1_in_play=[],
             player2_in_play=["Wizard", "Ka"],
-            player1_cc=4,
+            player1_charge=4,
         )
         
         plan = turn_planner.create_plan(
@@ -248,7 +248,7 @@ class TestTurnPlannerScenarios:
             player1_in_play=["Knight", "Ka"],
             player2_hand=["Knight", "Ka", "Wizard"],  # All in hand
             player2_in_play=[],  # No toys in play!
-            player1_cc=4,
+            player1_charge=4,
         )
         
         plan = turn_planner.create_plan(
@@ -269,19 +269,19 @@ class TestTurnPlannerScenarios:
         print(f"Strategy: {plan.selected_strategy}")
         print(f"Direct attacks in plan: {direct_attack_count}")
         for i, action in enumerate(plan.action_sequence, 1):
-            print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'} ({action.cc_cost} CC)")
+            print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'} ({action.charge_cost} Charge)")
         print("=" * 60)
         
         # Should have at least one direct attack planned
-        # (with 4 CC and opponent having no toys, should attack twice)
+        # (with 4 Charge and opponent having no toys, should attack twice)
     
-    def test_no_cc_should_end_turn(self, turn_planner):
-        """Test that AI ends turn when CC is 0."""
+    def test_no_charge_should_end_turn(self, turn_planner):
+        """Test that AI ends turn when Charge is 0."""
         setup, cards = create_game_with_cards(
             player1_hand=["Knight", "Ka", "Surge"],
             player1_in_play=["Archer"],
             player2_in_play=["Knight"],
-            player1_cc=0,  # No CC!
+            player1_charge=0,  # No Charge!
         )
         
         plan = turn_planner.create_plan(
@@ -291,29 +291,29 @@ class TestTurnPlannerScenarios:
         )
         
         assert plan is not None
-        assert plan.cc_start == 0
+        assert plan.charge_start == 0
         
-        # With 0 CC, the only reasonable action is to end turn
-        # (Surge is 0 CC but doesn't help if we can't attack after)
+        # With 0 Charge, the only reasonable action is to end turn
+        # (Surge is 0 Charge but doesn't help if we can't attack after)
         print("\n" + "=" * 60)
-        print("ZERO CC SCENARIO:")
-        print(f"CC Start: {plan.cc_start}")
+        print("ZERO Charge SCENARIO:")
+        print(f"Charge Start: {plan.charge_start}")
         print(f"Strategy: {plan.selected_strategy}")
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
         print("=" * 60)
 
 
-class TestTurnPlannerCCBudgeting:
-    """Test CC budgeting accuracy in plans."""
+class TestTurnPlannerChargeBudgeting:
+    """Test Charge budgeting accuracy in plans."""
     
-    def test_cc_tracking_through_sequence(self, turn_planner):
-        """Test that CC is tracked correctly through the action sequence."""
+    def test_charge_tracking_through_sequence(self, turn_planner):
+        """Test that Charge is tracked correctly through the action sequence."""
         setup, cards = create_game_with_cards(
             player1_hand=["Knight", "Surge", "Umbruh"],
             player1_in_play=[],
             player2_in_play=["Ka"],
-            player1_cc=4,
+            player1_charge=4,
         )
         
         plan = turn_planner.create_plan(
@@ -324,32 +324,32 @@ class TestTurnPlannerCCBudgeting:
         
         assert plan is not None
         
-        # Verify CC tracking
+        # Verify Charge tracking
         print("\n" + "=" * 60)
-        print("CC TRACKING TEST:")
-        print(f"Starting CC: {plan.cc_start}")
+        print("Charge TRACKING TEST:")
+        print(f"Starting Charge: {plan.charge_start}")
         
-        running_cc = plan.cc_start
+        running_charge = plan.charge_start
         for i, action in enumerate(plan.action_sequence, 1):
-            expected_after = running_cc - action.cc_cost
-            # Note: Some actions generate CC (Surge, Rush) - the cc_after should reflect this
+            expected_after = running_charge - action.charge_cost
+            # Note: Some actions generate Charge (Surge, Rush) - the charge_after should reflect this
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost} CC, After: {action.cc_after} CC (expected: {expected_after}+)")
+            print(f"      Cost: {action.charge_cost} Charge, After: {action.charge_after} Charge (expected: {expected_after}+)")
             
             if action.action_type != "end_turn":
-                # Update running CC (simplified - doesn't account for CC generation)
-                running_cc = action.cc_after
+                # Update running Charge (simplified - doesn't account for Charge generation)
+                running_charge = action.charge_after
         
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
-    def test_surge_cc_generation(self, turn_planner):
-        """Test that Surge correctly adds +1 CC in the plan."""
+    def test_surge_charge_generation(self, turn_planner):
+        """Test that Surge correctly adds +1 Charge in the plan."""
         setup, cards = create_game_with_cards(
             player1_hand=["Surge", "Knight"],
             player1_in_play=[],
             player2_in_play=[],  # Empty board = direct attack opportunity
-            player1_cc=3,
+            player1_charge=3,
         )
         
         plan = turn_planner.create_plan(
@@ -361,33 +361,33 @@ class TestTurnPlannerCCBudgeting:
         assert plan is not None
         
         print("\n" + "=" * 60)
-        print("SURGE CC GENERATION TEST:")
-        print(f"Starting CC: {plan.cc_start}")
+        print("SURGE Charge GENERATION TEST:")
+        print(f"Starting Charge: {plan.charge_start}")
         
         _surge_found = False
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
+            print(f"      Cost: {action.charge_cost}, Charge After: {action.charge_after}")
             
             if action.card_name == "Surge":
                 _surge_found = True  # noqa: F841 - flag for debugging output
-                # Surge costs 0 but gives +1, so cc_after should be cc_before + 1
-                # We check that cc_after > cc_cost (meaning CC was gained)
-                print(f"      >>> SURGE: Expected cc_after >= {action.cc_cost} (got {action.cc_after})")
-                # With 3 CC, play Surge (0 cost, +1 gain) -> should have 4 CC
-                assert action.cc_cost == 0, f"Surge should cost 0 CC, got {action.cc_cost}"
+                # Surge costs 0 but gives +1, so charge_after should be charge_before + 1
+                # We check that charge_after > charge_cost (meaning Charge was gained)
+                print(f"      >>> SURGE: Expected charge_after >= {action.charge_cost} (got {action.charge_after})")
+                # With 3 Charge, play Surge (0 cost, +1 gain) -> should have 4 Charge
+                assert action.charge_cost == 0, f"Surge should cost 0 Charge, got {action.charge_cost}"
         
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
     def test_raggy_free_tussle(self, turn_planner):
-        """Test that Raggy's tussles are correctly marked as 0 CC."""
+        """Test that Raggy's tussles are correctly marked as 0 Charge."""
         # Turn 3+ (Raggy can't tussle turn 1)
         setup, cards = create_game_with_cards(
             player1_hand=["Knight"],
             player1_in_play=["Raggy"],  # Raggy already in play
             player2_in_play=["Ka"],  # Opponent has a target
-            player1_cc=4,
+            player1_charge=4,
         )
         # Simulate turn 3
         setup.game_state.turn_number = 3
@@ -402,30 +402,30 @@ class TestTurnPlannerCCBudgeting:
         
         print("\n" + "=" * 60)
         print("RAGGY FREE TUSSLE TEST:")
-        print(f"Starting CC: {plan.cc_start}")
+        print(f"Starting Charge: {plan.charge_start}")
         print(f"Turn number: {setup.game_state.turn_number}")
         
         _raggy_tussle_found = False
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
+            print(f"      Cost: {action.charge_cost}, Charge After: {action.charge_after}")
             
             # Check if Raggy is tussling
             if action.action_type == "tussle" and action.card_name == "Raggy":
                 _raggy_tussle_found = True  # noqa: F841 - flag for debugging output
-                print(f"      >>> RAGGY TUSSLE: Expected 0 CC (got {action.cc_cost})")
-                assert action.cc_cost == 0, f"Raggy tussle should cost 0 CC, got {action.cc_cost}"
+                print(f"      >>> RAGGY TUSSLE: Expected 0 Charge (got {action.charge_cost})")
+                assert action.charge_cost == 0, f"Raggy tussle should cost 0 Charge, got {action.charge_cost}"
         
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
     def test_wizard_reduced_tussle_cost(self, turn_planner):
-        """Test that having Wizard in play reduces tussle cost to 1 CC."""
+        """Test that having Wizard in play reduces tussle cost to 1 Charge."""
         setup, cards = create_game_with_cards(
             player1_hand=["Knight"],
             player1_in_play=["Wizard"],  # Wizard in play = reduced tussle cost
             player2_in_play=["Ka"],  # Opponent has a target
-            player1_cc=4,
+            player1_charge=4,
         )
         
         plan = turn_planner.create_plan(
@@ -438,20 +438,20 @@ class TestTurnPlannerCCBudgeting:
         
         print("\n" + "=" * 60)
         print("WIZARD REDUCED TUSSLE TEST:")
-        print(f"Starting CC: {plan.cc_start}")
-        print("Wizard in play = tussles should cost 1 CC instead of 2 CC")
+        print(f"Starting Charge: {plan.charge_start}")
+        print("Wizard in play = tussles should cost 1 Charge instead of 2 Charge")
         
         _tussle_found = False
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
+            print(f"      Cost: {action.charge_cost}, Charge After: {action.charge_after}")
             
             if action.action_type == "tussle":
                 _tussle_found = True  # noqa: F841 - flag for debugging output
-                print(f"      >>> TUSSLE WITH WIZARD: Expected 1 CC (got {action.cc_cost})")
+                print(f"      >>> TUSSLE WITH WIZARD: Expected 1 Charge (got {action.charge_cost})")
                 # Note: This is aspirational - model should recognize Wizard effect
         
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
 
@@ -459,12 +459,12 @@ class TestActionOrderOptimization:
     """Test that the AI optimizes action ordering for combos."""
 
     def test_hind_leg_kicker_play_first(self, turn_planner):
-        """Test that HLK is played first to maximize CC generation."""
+        """Test that HLK is played first to maximize Charge generation."""
         setup, cards = create_game_with_cards(
             player1_hand=["Hind Leg Kicker", "Surge", "Knight"],
             player1_in_play=[],
             player2_in_play=[],  # Empty board
-            player1_cc=4,
+            player1_charge=4,
         )
         
         plan = turn_planner.create_plan(
@@ -477,13 +477,13 @@ class TestActionOrderOptimization:
         
         print("\n" + "=" * 60)
         print("HIND LEG KICKER COMBO TEST:")
-        print(f"Starting CC: {plan.cc_start}")
-        print("Optimal: Play HLK first, then other cards trigger +1 CC each")
+        print(f"Starting Charge: {plan.charge_start}")
+        print("Optimal: Play HLK first, then other cards trigger +1 Charge each")
         
         hlk_index = -1
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
+            print(f"      Cost: {action.charge_cost}, Charge After: {action.charge_after}")
             
             if action.card_name == "Hind Leg Kicker":
                 hlk_index = i
@@ -493,7 +493,7 @@ class TestActionOrderOptimization:
         if hlk_index > 0:
             print(f"      HLK position: {hlk_index} (should be 1 for optimal)")
         
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
     def test_surge_enables_extra_direct_attacks(self, turn_planner):
@@ -502,7 +502,7 @@ class TestActionOrderOptimization:
             player1_hand=["Surge", "Knight"],
             player1_in_play=[],
             player2_in_play=[],  # Empty board = direct attack opportunity
-            player1_cc=3,  # 3 CC: can only do 1 attack without Surge, 2 with Surge
+            player1_charge=3,  # 3 Charge: can only do 1 attack without Surge, 2 with Surge
         )
         
         plan = turn_planner.create_plan(
@@ -515,27 +515,27 @@ class TestActionOrderOptimization:
         
         print("\n" + "=" * 60)
         print("SURGE ENABLES EXTRA ATTACKS TEST:")
-        print(f"Starting CC: {plan.cc_start}")
-        print("Optimal: Surge first (3+1=4 CC) → 2 direct attacks (4 CC)")
+        print(f"Starting Charge: {plan.charge_start}")
+        print("Optimal: Surge first (3+1=4 Charge) → 2 direct attacks (4 Charge)")
         
         surge_index = -1
         direct_attack_count = 0
         
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
+            print(f"      Cost: {action.charge_cost}, Charge After: {action.charge_after}")
             
             if action.card_name == "Surge":
                 surge_index = i
-                # Verify Surge gives +1 CC
-                print(f"      >>> SURGE at position {i}: cc_after should be cc_before + 1")
+                # Verify Surge gives +1 Charge
+                print(f"      >>> SURGE at position {i}: charge_after should be charge_before + 1")
             
             if action.action_type == "direct_attack":
                 direct_attack_count += 1
         
         print(f"\nDirect attacks made: {direct_attack_count}")
         print(f"Surge played at position: {surge_index}")
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         
         # Optimal play: Surge (pos 1) → 2 direct attacks
         if direct_attack_count == 2 and surge_index == 1:
@@ -556,7 +556,7 @@ class TestActionOrderOptimization:
             player1_hand=["VeryVeryAppleJuice"],
             player1_in_play=["Drum"],  # Drum has 3 STR
             player2_in_play=["Knight"],  # Knight has 3 STA - wait, let's use something with 4 STA
-            player1_cc=4,
+            player1_charge=4,
         )
         
         # Note: Knight has 3 STA, Drum has 3 STR - can already win
@@ -572,7 +572,7 @@ class TestActionOrderOptimization:
         
         print("\n" + "=" * 60)
         print("VVAJ BEFORE TUSSLE TEST:")
-        print(f"Starting CC: {plan.cc_start}")
+        print(f"Starting Charge: {plan.charge_start}")
         print("Scenario: VVAJ should be played BEFORE tussle if stats boost is needed")
         
         vvaj_index = -1
@@ -580,7 +580,7 @@ class TestActionOrderOptimization:
         
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
+            print(f"      Cost: {action.charge_cost}, Charge After: {action.charge_after}")
             
             if action.card_name == "VeryVeryAppleJuice":
                 vvaj_index = i
@@ -593,7 +593,7 @@ class TestActionOrderOptimization:
             else:
                 print(f">>> ERROR: Tussle ({tussle_index}) before VVAJ ({vvaj_index})")
         
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
     def test_dream_cost_reduction_combo(self, turn_planner):
@@ -602,10 +602,10 @@ class TestActionOrderOptimization:
             player1_hand=["Clean", "Surge", "Dream"],
             player1_in_play=["Knight"],  # We have a toy
             player2_in_play=["Ka", "Umbruh"],  # Opponent has toys
-            player1_cc=5,
+            player1_charge=5,
         )
-        # Start with empty sleep zone
-        setup.game_state.players["player1"].sleep_zone = []
+        # Start with empty break zone
+        setup.game_state.players["player1"].break_zone = []
         
         plan = turn_planner.create_plan(
             setup.game_state,
@@ -617,26 +617,26 @@ class TestActionOrderOptimization:
         
         print("\n" + "=" * 60)
         print("DREAM COST REDUCTION COMBO TEST:")
-        print(f"Starting CC: {plan.cc_start}")
-        print("Optimal: Clean (2 CC, goes to sleep) → Surge (0 CC, +1, goes to sleep)")
-        print("         → Dream now costs 4-2=2 CC, and we have 4 CC left")
+        print(f"Starting Charge: {plan.charge_start}")
+        print("Optimal: Clean (2 Charge, goes to break) → Surge (0 Charge, +1, goes to break)")
+        print("         → Dream now costs 4-2=2 Charge, and we have 4 Charge left")
         
         dream_index = -1
         action_cards_before_dream = 0
         
         for i, action in enumerate(plan.action_sequence, 1):
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.cc_cost}, CC After: {action.cc_after}")
+            print(f"      Cost: {action.charge_cost}, Charge After: {action.charge_after}")
             
             if action.card_name == "Dream":
                 dream_index = i
-                print(f"      >>> DREAM cost: {action.cc_cost} CC (base 4, reduced by sleeping cards)")
+                print(f"      >>> DREAM cost: {action.charge_cost} Charge (base 4, reduced by broken cards)")
             elif action.action_type == "play_card" and action.card_name in ["Clean", "Surge", "Rush", "Drop"]:
                 if dream_index == -1:  # Before Dream
                     action_cards_before_dream += 1
         
         print(f"\nAction cards played before Dream: {action_cards_before_dream}")
-        print(f"Final CC: {plan.cc_after_plan}")
+        print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
 

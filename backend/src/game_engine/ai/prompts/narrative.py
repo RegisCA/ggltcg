@@ -29,9 +29,9 @@ Transform this factual play-by-play of a toy card game into an enchanting narrat
 - **Archer**: Precise and quick, strikes from afar
 
 ## Action Card Magic:
-- **Clean**: A swirl of sparkles that puts toys gently to sleep
+- **Clean**: A swirl of sparkles that gently breaks toys
 - **Twist**: A magical swap that moves toys to new positions
-- **Sun**: Bright rays of sunshine that wake sleeping toys
+- **Sun**: Bright rays of sunshine that fix broken toys
 
 Transform the following play-by-play into a magical bedtime story. Write 2-4 paragraphs that capture the essence of the battle:
 

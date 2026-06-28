@@ -75,7 +75,7 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="Permanent stamina boost to your Toys. Makes them harder to sleep via tussles.",
+        strategic_note="Permanent stamina boost to your Toys. Makes them harder to break via tussles.",
     ),
     "stat_boost:all": EffectMetadata(
         effect_type="stat_boost:all:N",
@@ -96,51 +96,51 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         strategic_note="Temporary boost this turn only. Play before tussles for maximum value.",
     ),
     
-    # === CC Effects ===
-    "gain_cc": EffectMetadata(
-        effect_type="gain_cc:N",
+    # === Charge Effects ===
+    "gain_charge": EffectMetadata(
+        effect_type="gain_charge:N",
         classification="passive",
         action_type=None,  # Automatic when played
         requires_targets=False,
         target_description=None,
-        strategic_note="CC refund on play. Effectively reduces the card's cost.",
+        strategic_note="Charge refund on play. Effectively reduces the card's cost.",
     ),
-    "gain_cc:not_first_turn": EffectMetadata(
-        effect_type="gain_cc:N:not_first_turn",
+    "gain_charge:not_first_turn": EffectMetadata(
+        effect_type="gain_charge:N:not_first_turn",
         classification="passive",
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="CC refund, but cannot play on turn 1. Plan accordingly.",
+        strategic_note="Charge refund, but cannot play on turn 1. Plan accordingly.",
     ),
-    "start_of_turn_gain_cc": EffectMetadata(
-        effect_type="start_of_turn_gain_cc:N",
+    "start_of_turn_gain_charge": EffectMetadata(
+        effect_type="start_of_turn_gain_charge:N",
         classification="triggered",
         action_type=None,  # Automatic at start of turn
         requires_targets=False,
         target_description=None,
-        strategic_note="CC engine. Generates CC each turn while in play. High priority to protect.",
+        strategic_note="Charge engine. Generates Charge each turn while in play. High priority to protect.",
     ),
-    "on_card_played_gain_cc": EffectMetadata(
-        effect_type="on_card_played_gain_cc:N",
+    "on_card_played_gain_charge": EffectMetadata(
+        effect_type="on_card_played_gain_charge:N",
         classification="triggered",
         action_type=None,  # Automatic when you play cards
         requires_targets=False,
         target_description=None,
-        strategic_note="CC engine that rewards playing multiple cards. Combos well with low-cost cards.",
+        strategic_note="Charge engine that rewards playing multiple cards. Combos well with low-cost cards.",
     ),
-    "gain_cc_when_sleeped": EffectMetadata(
-        effect_type="gain_cc_when_sleeped:N",
+    "gain_charge_when_broken": EffectMetadata(
+        effect_type="gain_charge_when_broken:N",
         classification="triggered",
-        action_type=None,  # Automatic when sleeped
+        action_type=None,  # Automatic when broken
         requires_targets=False,
         target_description=None,
-        strategic_note="CC refund when removed. Can sacrifice strategically.",
+        strategic_note="Charge refund when removed. Can sacrifice strategically.",
     ),
     
     # === Targeting Effects ===
-    "sleep_target": EffectMetadata(
-        effect_type="sleep_target:N",
+    "break_target": EffectMetadata(
+        effect_type="break_target:N",
         classification="activated",
         action_type="activate_ability",
         requires_targets=True,
@@ -153,7 +153,7 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         action_type="activate_ability",
         requires_targets=True,
         target_description="Target any card in play, remove N stamina",
-        strategic_note="Chip damage ability. Repeatable. Reduce stamina to 0 to auto-sleep target.",
+        strategic_note="Chip damage ability. Repeatable. Reduce stamina to 0 to auto-break target.",
     ),
     "return_target_to_hand": EffectMetadata(
         effect_type="return_target_to_hand:N",
@@ -161,31 +161,31 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         action_type="activate_ability",
         requires_targets=True,
         target_description="Target N cards in play (any player)",
-        strategic_note="Tempo disruption. Removes threats without sleeping. Can target your own cards.",
+        strategic_note="Tempo disruption. Removes threats without breaking. Can target your own cards.",
     ),
-    "unsleep": EffectMetadata(
-        effect_type="unsleep:N",
+    "fix": EffectMetadata(
+        effect_type="fix:N",
         classification="activated",
         action_type="activate_ability",
         requires_targets=True,
-        target_description="Target N cards in YOUR sleep zone",
-        strategic_note="Card advantage. Recover slept cards. Check for type restrictions (toys/actions).",
+        target_description="Target N cards in YOUR break zone",
+        strategic_note="Card advantage. Recover broken cards. Check for type restrictions (toys/actions).",
     ),
-    "unsleep:actions": EffectMetadata(
-        effect_type="unsleep:actions:N",
+    "fix:actions": EffectMetadata(
+        effect_type="fix:actions:N",
         classification="activated",
         action_type="activate_ability",
         requires_targets=True,
-        target_description="Target N Action cards in your sleep zone",
-        strategic_note="Recover Action cards from sleep. Enables action recursion.",
+        target_description="Target N Action cards in your break zone",
+        strategic_note="Recover Action cards from the break zone. Enables action recursion.",
     ),
-    "unsleep:toys": EffectMetadata(
-        effect_type="unsleep:toys:N",
+    "fix:toys": EffectMetadata(
+        effect_type="fix:toys:N",
         classification="activated",
         action_type="activate_ability",
         requires_targets=True,
-        target_description="Target N Toy cards in your sleep zone",
-        strategic_note="Recover Toy cards from sleep. Rebuild board presence.",
+        target_description="Target N Toy cards in your break zone",
+        strategic_note="Recover Toy cards from the break zone. Rebuild board presence.",
     ),
     
     # === Protection Effects ===
@@ -221,7 +221,7 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="Changes tussle cost for all your Toys. Factor into CC budgeting.",
+        strategic_note="Changes tussle cost for all your Toys. Factor into Charge budgeting.",
     ),
     "set_self_tussle_cost": EffectMetadata(
         effect_type="set_self_tussle_cost:N:not_turn_1",
@@ -229,7 +229,7 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="Changes this card's tussle cost (not turn 1). Budget CC accordingly.",
+        strategic_note="Changes this card's tussle cost (not turn 1). Budget Charge accordingly.",
     ),
     "cannot_tussle": EffectMetadata(
         effect_type="cannot_tussle",
@@ -241,13 +241,13 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
     ),
     
     # === Special Effects ===
-    "sleep_all": EffectMetadata(
-        effect_type="sleep_all",
+    "break_all": EffectMetadata(
+        effect_type="break_all",
         classification="passive",
         action_type=None,  # Automatic when played
         requires_targets=False,
         target_description=None,
-        strategic_note="Board wipe. Sleeps ALL Toys in play (yours and opponent's). Game-changing effect.",
+        strategic_note="Board wipe. Breaks ALL Toys in play (yours and opponent's). Game-changing effect.",
     ),
     "return_all_to_hand": EffectMetadata(
         effect_type="return_all_to_hand",
@@ -275,29 +275,29 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
     ),
     
     # === Cost Modifiers ===
-    "reduce_cost_by_sleeping": EffectMetadata(
-        effect_type="reduce_cost_by_sleeping",
+    "reduce_cost_by_broken": EffectMetadata(
+        effect_type="reduce_cost_by_broken",
         classification="continuous",
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="Cost reduced by 1 per card in sleep zone. Gets cheaper as game progresses.",
+        strategic_note="Cost reduced by 1 per card in break zone. Gets cheaper as game progresses.",
     ),
-    "self_cost_increase_by_sleeping": EffectMetadata(
-        effect_type="self_cost_increase_by_sleeping",
+    "self_cost_increase_by_broken": EffectMetadata(
+        effect_type="self_cost_increase_by_broken",
         classification="continuous",
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="Cost increased by 1 per card in your sleep zone. Play early before your sleep zone fills up.",
+        strategic_note="Cost increased by 1 per card in your break zone. Play early before your break zone fills up.",
     ),
-    "alternative_cost_sleep_card": EffectMetadata(
-        effect_type="alternative_cost_sleep_card",
+    "alternative_cost_break_card": EffectMetadata(
+        effect_type="alternative_cost_break_card",
         classification="passive",
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="Can pay by sleeping one of your cards instead of CC. Useful when CC-starved.",
+        strategic_note="Can pay by breaking one of your cards instead of Charge. Useful when Charge-starved.",
     ),
     "opponent_cost_increase": EffectMetadata(
         effect_type="opponent_cost_increase:N",
@@ -305,7 +305,7 @@ EFFECT_METADATA_REGISTRY: Dict[str, EffectMetadata] = {
         action_type=None,
         requires_targets=False,
         target_description=None,
-        strategic_note="Increases opponent's card costs. Disrupts their tempo and CC economy.",
+        strategic_note="Increases opponent's card costs. Disrupts their tempo and Charge economy.",
     ),
 }
 

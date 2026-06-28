@@ -98,7 +98,7 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
             game_state.add_play_by_play(
                 player_name=winner_name,
                 action_type="victory",
-                description=f"{winner_name} wins! All opponent's cards are sleeped."
+                description=f"{winner_name} wins! All opponent's cards are broken."
             )
             # Save updated game state to database
             service.update_game(game_id, engine)
@@ -174,12 +174,12 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         # Calculate cost before tussle
         cost = engine.calculate_tussle_cost(attacker, player)
         
-        success, sleeped_from_hand = engine.initiate_tussle(attacker, defender, player)
+        success, broken_from_hand = engine.initiate_tussle(attacker, defender, player)
         
         if not success:
             return ActionResponse(
                 success=False,
-                message="Failed to initiate tussle (insufficient CC, invalid target, or card restrictions)"
+                message="Failed to initiate tussle (insufficient Charge, invalid target, or card restrictions)"
             )
         
         # Check state-based actions
@@ -188,11 +188,11 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         # Log to play-by-play with cost BEFORE victory check (so action appears first)
         if defender:
             target_desc = defender.name
-        elif sleeped_from_hand:
-            target_desc = f"{sleeped_from_hand} (from hand)"
+        elif broken_from_hand:
+            target_desc = f"{broken_from_hand} (from hand)"
         else:
             target_desc = "opponent directly"
-        description = f"Spent {cost} CC for {attacker.name} to tussle {target_desc}"
+        description = f"Spent {cost} Charge for {attacker.name} to tussle {target_desc}"
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="tussle",
@@ -210,7 +210,7 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
             game_state.add_play_by_play(
                 player_name=winner_name,
                 action_type="victory",
-                description=f"{winner_name} wins! All opponent's cards are sleeped."
+                description=f"{winner_name} wins! All opponent's cards are broken."
             )
             return ActionResponse(
                 success=True,
@@ -339,13 +339,13 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
     
     # Calculate cost (for Archer, it's the amount)
     amount = request.amount or 1
-    cost = activated_effect.cost_cc * amount
+    cost = activated_effect.cost_charge * amount
     
     # Check if player can afford it
-    if player.cc < cost:
+    if player.charge < cost:
         raise HTTPException(
             status_code=400,
-            detail=f"Not enough CC (need {cost}, have {player.cc})"
+            detail=f"Not enough Charge (need {cost}, have {player.charge})"
         )
     
     # Get target if specified
@@ -399,7 +399,7 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
             game_state.add_play_by_play(
                 player_name=winner_name,
                 action_type="victory",
-                description=f"{winner_name} wins! All opponent's cards are sleeped."
+                description=f"{winner_name} wins! All opponent's cards are broken."
             )
             return ActionResponse(
                 success=True,
@@ -627,7 +627,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             "action": action_details["action_type"],
             "card": action_details.get("card_id") or action_details.get("attacker_id"),
             "target": action_details.get("defender_id"),
-            "cost_cc": selected_action.cost_cc,
+            "cost_charge": selected_action.cost_charge,
             "description": selected_action.description,
             "reasoning": reasoning,
             "ai_endpoint": ai_endpoint_name,
@@ -711,7 +711,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     game_state.add_play_by_play(
                         player_name=winner_name,
                         action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are sleeped."
+                        description=f"{winner_name} wins! All opponent's cards are broken."
                     )
                     # Save updated game state to database
                     service.update_game(game_id, engine)
@@ -782,7 +782,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     game_state.add_play_by_play(
                         player_name=winner_name,
                         action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are sleeped."
+                        description=f"{winner_name} wins! All opponent's cards are broken."
                     )
                     # Save updated game state to database
                     service.update_game(game_id, engine)
@@ -860,13 +860,13 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 )
             
             # Calculate cost
-            cost = activated_effect.cost_cc * amount
+            cost = activated_effect.cost_charge * amount
             
             # Check if player can afford it
-            if player.cc < cost:
+            if player.charge < cost:
                 raise HTTPException(
                     status_code=500,
-                    detail=f"AI tried to activate ability without enough CC (need {cost}, have {player.cc})"
+                    detail=f"AI tried to activate ability without enough Charge (need {cost}, have {player.charge})"
                 )
             
             # Get target if specified
@@ -928,7 +928,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     game_state.add_play_by_play(
                         player_name=winner_name,
                         action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are sleeped."
+                        description=f"{winner_name} wins! All opponent's cards are broken."
                     )
                     # Save updated game state to database
                     service.update_game(game_id, engine)

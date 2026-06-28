@@ -97,8 +97,8 @@ class TestSequenceGenerator:
         
         assert len(prompt) < 6000, f"Prompt too long: {len(prompt)} chars (target: <6000)"
     
-    def test_prompt_includes_cc(self):
-        """Prompt should include current CC."""
+    def test_prompt_includes_charge(self):
+        """Prompt should include current Charge."""
         from game_engine.ai.prompts.sequence_generator import generate_sequence_prompt
         
         setup, _ = create_game_with_cards(
@@ -110,8 +110,8 @@ class TestSequenceGenerator:
         
         prompt = generate_sequence_prompt(setup.game_state, "player1")
         
-        # V4 shows CC value in header
-        assert "## CC:" in prompt, "Prompt should include CC"
+        # V4 shows Charge value in header
+        assert "## Charge:" in prompt, "Prompt should include Charge"
     
     def test_tactical_labels_assigned(self):
         """Tactical labels should be assigned based on sequence content."""
@@ -120,20 +120,20 @@ class TestSequenceGenerator:
         sequences = [
             {
                 "actions": [
-                    {"action_type": "tussle", "cc_cost": 2},
-                    {"action_type": "tussle", "cc_cost": 2},
-                    {"action_type": "end_turn", "cc_cost": 0}
+                    {"action_type": "tussle", "charge_cost": 2},
+                    {"action_type": "tussle", "charge_cost": 2},
+                    {"action_type": "end_turn", "charge_cost": 0}
                 ],
-                "total_cc_spent": 4,
-                "cards_slept": 2
+                "total_charge_spent": 4,
+                "cards_broken": 2
             },
             {
                 "actions": [
-                    {"action_type": "play_card", "card_name": "Surge", "cc_cost": 0},
-                    {"action_type": "end_turn", "cc_cost": 0}
+                    {"action_type": "play_card", "card_name": "Surge", "charge_cost": 0},
+                    {"action_type": "end_turn", "charge_cost": 0}
                 ],
-                "total_cc_spent": 0,
-                "cards_slept": 0
+                "total_charge_spent": 0,
+                "cards_broken": 0
             }
         ]
         
@@ -159,18 +159,18 @@ class TestStrategicSelector:
         
         test_sequences = [
             {
-                "actions": [{"action_type": "end_turn", "cc_cost": 0}],
-                "total_cc_spent": 0,
-                "cards_slept": 0,
+                "actions": [{"action_type": "end_turn", "charge_cost": 0}],
+                "total_charge_spent": 0,
+                "cards_broken": 0,
                 "tactical_label": "[Conservative]"
             },
             {
                 "actions": [
-                    {"action_type": "tussle", "card_name": "Ka", "target_names": ["Archer"], "cc_cost": 2},
-                    {"action_type": "end_turn", "cc_cost": 0}
+                    {"action_type": "tussle", "card_name": "Ka", "target_names": ["Archer"], "charge_cost": 2},
+                    {"action_type": "end_turn", "charge_cost": 0}
                 ],
-                "total_cc_spent": 2,
-                "cards_slept": 1,
+                "total_charge_spent": 2,
+                "cards_broken": 1,
                 "tactical_label": "[Aggressive Removal]"
             }
         ]
@@ -191,7 +191,7 @@ class TestStrategicSelector:
         )
         
         prompt = generate_strategic_prompt(setup.game_state, "player1", [
-            {"actions": [], "total_cc_spent": 0, "cards_slept": 0, "tactical_label": "[Test]"}
+            {"actions": [], "total_charge_spent": 0, "cards_broken": 0, "tactical_label": "[Test]"}
         ])
         
         assert "<examples>" in prompt, "Prompt should include examples section"
@@ -210,12 +210,12 @@ class TestStrategicSelector:
         
         sequence = {
             "actions": [
-                {"action_type": "play_card", "card_name": "Surge", "cc_cost": 0},
-                {"action_type": "play_card", "card_name": "Knight", "card_id": "abc", "cc_cost": 1},
-                {"action_type": "end_turn", "cc_cost": 0}
+                {"action_type": "play_card", "card_name": "Surge", "charge_cost": 0},
+                {"action_type": "play_card", "card_name": "Knight", "card_id": "abc", "charge_cost": 1},
+                {"action_type": "end_turn", "charge_cost": 0}
             ],
-            "total_cc_spent": 1,
-            "cards_slept": 0,
+            "total_charge_spent": 1,
+            "cards_broken": 0,
             "tactical_label": "[Board Setup]"
         }
         
@@ -225,8 +225,8 @@ class TestStrategicSelector:
         
         assert "action_sequence" in plan_data
         assert len(plan_data["action_sequence"]) == 3
-        # cc_start comes from player.cc in game_state
-        assert plan_data["cc_start"] == setup.game_state.players["player1"].cc
+        # charge_start comes from player.charge in game_state
+        assert plan_data["charge_start"] == setup.game_state.players["player1"].charge
         assert plan_data["plan_reasoning"] == "Test reasoning"
 
 
@@ -253,7 +253,7 @@ class TestPromptSizes:
         
         # Test Request 2 with multiple sequences
         test_sequences = [
-            {"actions": [{"action_type": "end_turn", "cc_cost": 0}], "total_cc_spent": 0, "cards_slept": 0, "tactical_label": f"[Seq{i}]"}
+            {"actions": [{"action_type": "end_turn", "charge_cost": 0}], "total_charge_spent": 0, "cards_broken": 0, "tactical_label": f"[Seq{i}]"}
             for i in range(5)
         ]
         

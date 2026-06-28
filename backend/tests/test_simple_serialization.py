@@ -65,19 +65,19 @@ print(f"  _copied_effects count: {len(copy_card._copied_effects) if hasattr(copy
 player1 = Player(
     player_id="player1",
     name="Player 1",
-    cc=6,
+    charge=6,
     hand=[],
     in_play=[ka, copy_card],
-    sleep_zone=[],
+    break_zone=[],
 )
 
 player2 = Player(
     player_id="player2",
     name="Player 2",
-    cc=6,
+    charge=6,
     hand=[],
     in_play=[],
-    sleep_zone=[],
+    break_zone=[],
 )
 
 # Create game state

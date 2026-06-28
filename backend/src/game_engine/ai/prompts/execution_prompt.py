@@ -69,20 +69,20 @@ def get_execution_prompt(
     action_index: int,
     total_actions: int,
     valid_actions_text: str,
-    current_cc: int,
+    current_charge: int,
     num_valid_actions: int = None,
 ) -> str:
     """
     Build the execution prompt for a single planned action.
-    
+
     Args:
         planned_action: The action to execute from the TurnPlan
         action_index: Which action this is (0-based) in the plan
         total_actions: Total number of actions in the plan
         valid_actions_text: Formatted valid actions from format_valid_actions_for_ai
-        current_cc: Current CC available
+        current_charge: Current Charge available
         num_valid_actions: Number of valid actions available (for validation hint)
-        
+
     Returns:
         Execution prompt string
     """
@@ -103,12 +103,12 @@ def get_execution_prompt(
 Action Type: {planned_action.action_type}
 Card: {planned_action.card_name or "N/A"}
 Card ID: {planned_action.card_id or "N/A"}{target_info}
-Expected CC Cost: {planned_action.cc_cost}
-Expected CC After: {planned_action.cc_after}
+Expected Charge Cost: {planned_action.charge_cost}
+Expected Charge After: {planned_action.charge_after}
 Plan Reasoning: {planned_action.reasoning}
 
 ## CURRENT STATE
-CC Available: {current_cc}{validation_hint}
+Charge Available: {current_charge}{validation_hint}
 
 {valid_actions_text}
 
@@ -129,19 +129,19 @@ def get_replan_prompt(
     failed_action: PlannedAction,
     failure_reason: str,
     valid_actions_text: str,
-    current_cc: int,
+    current_charge: int,
 ) -> str:
     """
     Build a prompt to select an alternative action when planned action fails.
-    
+
     Args:
         original_plan: The original TurnPlan
         completed_actions: Actions already executed successfully
         failed_action: The action that couldn't be executed
         failure_reason: Why the action failed
         valid_actions_text: Current valid actions
-        current_cc: Current CC available
-        
+        current_charge: Current Charge available
+
     Returns:
         Replan prompt string
     """
@@ -165,7 +165,7 @@ The planned action could not be executed:
 {completed_summary}
 
 ## Current State
-CC Available: {current_cc}
+Charge Available: {current_charge}
 
 {valid_actions_text}
 
