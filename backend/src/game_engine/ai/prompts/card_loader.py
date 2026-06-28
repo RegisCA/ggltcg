@@ -84,14 +84,17 @@ def generate_threat_priorities(game_state: "GameState", player_id: str) -> str:
     """
     Generate threat priority guidance based on opponent's cards actually in play.
 
-    Only surfaces CRITICAL and HIGH threats, and only for cards present in the
-    current game — avoids listing cards that aren't on the board.
+    Surfaces CRITICAL, HIGH, and MEDIUM threats (only for cards present in the
+    current game — avoids listing cards that aren't on the board). LOW threats
+    are omitted since card_guidance's per-card trap/reminder text already
+    covers them without needing a priority callout.
     """
     guidance_data = load_card_guidance()
     opponent = game_state.get_opponent(player_id)
 
     critical: list[str] = []
     high: list[str] = []
+    medium: list[str] = []
 
     for card in opponent.in_play:
         card_info = guidance_data.get(card.name)
@@ -102,8 +105,10 @@ def generate_threat_priorities(game_state: "GameState", player_id: str) -> str:
             critical.append(card.name)
         elif threat == "HIGH":
             high.append(card.name)
+        elif threat == "MEDIUM":
+            medium.append(card.name)
 
-    if not critical and not high:
+    if not critical and not high and not medium:
         return ""
 
     lines = ["# THREAT PRIORITIES (opponent in play)"]
@@ -111,6 +116,8 @@ def generate_threat_priorities(game_state: "GameState", player_id: str) -> str:
         lines.append(f"CRITICAL: {', '.join(critical)}")
     if high:
         lines.append(f"HIGH: {', '.join(high)}")
+    if medium:
+        lines.append(f"MEDIUM: {', '.join(medium)}")
     return "\n".join(lines)
 
 
@@ -157,11 +164,10 @@ def get_relevant_card_guidance(game_state: "GameState", player_id: str) -> str:
     return "\n".join(lines)
 
 
-def format_card_guidance_compact(game_state: "GameState", player_id: str) -> str:
+def format_card_guidance(game_state: "GameState", player_id: str) -> str:
     """
-    Format card guidance in ultra-compact format for minimal token usage.
-
-    This is the version to include in the planning prompt.
+    Format card guidance (trap/reminder/threat) for cards relevant to the
+    current game, sent in full to the strategic-selection prompt.
 
     Args:
         game_state: Current game state

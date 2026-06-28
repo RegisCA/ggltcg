@@ -2,14 +2,14 @@
 CLI for running GGLTCG simulations.
 
 Provides convenient commands for common simulation scenarios:
-- baseline: V4 vs V4 with standard decks
-- compare: Cross-version comparison (V4 vs V3)
+- baseline: standard decks, AI mirror match
+- compare: cross-model comparison (e.g. flash-lite vs flash)
 - test-deck: Test a custom deck against others
 - quick: Fast test with reduced iterations
 
 Usage:
     python -m simulation.cli baseline --iterations 10
-    python -m simulation.cli compare --v1 4 --v2 3
+    python -m simulation.cli compare --model1 gemini-flash-lite-latest --model2 gemini-2.5-flash-lite
 """
 
 import logging
@@ -55,75 +55,69 @@ def cli(verbose):
 @click.option('--decks', '-d', default='baseline', help='Deck preset: baseline, top2, all')
 def baseline(iterations, parallel, model, decks):
     """
-    Run baseline V4 vs V4 test with standard decks.
-    
-    This measures current V4 AI performance against itself
+    Run a baseline AI mirror match with standard decks.
+
+    This measures current AI performance against itself
     to establish a performance baseline.
-    
+
     Example:
         python -m simulation.cli baseline --iterations 20
     """
-    click.echo(f"🎮 Running baseline simulation (V4 vs V4)")
+    click.echo(f"🎮 Running baseline simulation")
     click.echo(f"   Model: {model}")
     click.echo(f"   Decks: {decks}")
     click.echo(f"   Iterations: {iterations} per matchup")
     click.echo()
-    
+
     # Get deck names
     deck_names = _get_deck_names(decks)
-    
+
     # Create configuration
     config = SimulationConfig(
         deck_names=deck_names,
         player1_model=model,
         player2_model=model,
-        player1_ai_version=4,
-        player2_ai_version=4,
         iterations_per_matchup=iterations,
     )
-    
+
     # Run simulation
     _run_simulation_with_progress(config, parallel)
 
 
 @cli.command()
-@click.option('--v1', default=4, type=int, help='Player 1 AI version (default: 4)')
-@click.option('--v2', default=3, type=int, help='Player 2 AI version (default: 3)')
-@click.option('--model1', default='gemini-2.5-flash-lite', help='Player 1 model')
+@click.option('--model1', default='gemini-flash-lite-latest', help='Player 1 model')
 @click.option('--model2', default='gemini-2.5-flash-lite', help='Player 2 model')
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
 @click.option('--decks', '-d', default='baseline', help='Deck preset: baseline, top2, all')
-def compare(v1, v2, model1, model2, iterations, parallel, decks):
+def compare(model1, model2, iterations, parallel, decks):
     """
-    Run cross-version AI comparison.
-    
-    Compares two AI versions or models to measure relative performance.
-    Useful for evaluating improvements or testing new models.
-    
+    Run a cross-model comparison.
+
+    Compares two Gemini models head-to-head to measure relative performance.
+    Useful for evaluating a candidate model swap.
+
     Example:
-        python -m simulation.cli compare --v1 4 --v2 3 --iterations 20
+        python -m simulation.cli compare --model1 gemini-flash-lite-latest --model2 gemini-2.5-flash-lite --iterations 20
     """
     click.echo(f"⚔️  Running comparison simulation")
-    click.echo(f"   Player 1: V{v1} ({model1})")
-    click.echo(f"   Player 2: V{v2} ({model2})")
+    click.echo(f"   Player 1: {model1}")
+    click.echo(f"   Player 2: {model2}")
     click.echo(f"   Decks: {decks}")
     click.echo(f"   Iterations: {iterations} per matchup")
     click.echo()
-    
+
     # Get deck names
     deck_names = _get_deck_names(decks)
-    
+
     # Create configuration
     config = SimulationConfig(
         deck_names=deck_names,
         player1_model=model1,
         player2_model=model2,
-        player1_ai_version=v1,
-        player2_ai_version=v2,
         iterations_per_matchup=iterations,
     )
-    
+
     # Run simulation
     _run_simulation_with_progress(config, parallel)
 
@@ -134,13 +128,12 @@ def compare(v1, v2, model1, model2, iterations, parallel, decks):
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
 @click.option('--model', '-m', default='gemini-2.5-flash-lite', help='AI model to use')
-@click.option('--ai-version', '-v', default=4, type=int, help='AI version (default: 4)')
-def test_deck(deck_names, against, iterations, parallel, model, ai_version):
+def test_deck(deck_names, against, iterations, parallel, model):
     """
     Test specific decks against a set of opponents.
-    
+
     Useful for testing new deck configurations or strategies.
-    
+
     Example:
         python -m simulation.cli test-deck Custom_Aggro --against baseline
         python -m simulation.cli test-deck Deck1 Deck2 --against top2
@@ -150,23 +143,21 @@ def test_deck(deck_names, against, iterations, parallel, model, ai_version):
     click.echo(f"   Against: {against}")
     click.echo(f"   Iterations: {iterations} per matchup")
     click.echo()
-    
+
     # Get opponent decks
     opponent_decks = _get_deck_names(against)
-    
+
     # Combine test decks and opponents
     all_decks = list(deck_names) + opponent_decks
-    
+
     # Create configuration
     config = SimulationConfig(
         deck_names=all_decks,
         player1_model=model,
         player2_model=model,
-        player1_ai_version=ai_version,
-        player2_ai_version=ai_version,
         iterations_per_matchup=iterations,
     )
-    
+
     # Run simulation
     _run_simulation_with_progress(config, parallel)
 
@@ -176,13 +167,12 @@ def test_deck(deck_names, against, iterations, parallel, model, ai_version):
 @click.argument('deck2')
 @click.option('--iterations', '-i', default=5, help='Number of games (default: 5)')
 @click.option('--model', '-m', default='gemini-2.5-flash-lite', help='AI model to use')
-@click.option('--ai-version', '-v', default=4, type=int, help='AI version (default: 4)')
-def quick(deck1, deck2, iterations, model, ai_version):
+def quick(deck1, deck2, iterations, model):
     """
     Quick test between two specific decks.
-    
+
     Runs a small number of games for fast iteration and debugging.
-    
+
     Example:
         python -m simulation.cli quick Aggro_Rush Control_Ka --iterations 3
     """
@@ -190,17 +180,15 @@ def quick(deck1, deck2, iterations, model, ai_version):
     click.echo(f"   {deck1} vs {deck2}")
     click.echo(f"   Iterations: {iterations}")
     click.echo()
-    
+
     # Create configuration
     config = SimulationConfig(
         deck_names=[deck1, deck2],
         player1_model=model,
         player2_model=model,
-        player1_ai_version=ai_version,
-        player2_ai_version=ai_version,
         iterations_per_matchup=iterations,
     )
-    
+
     # Run simulation
     _run_simulation_with_progress(config, parallel_games=5)  # Fewer parallel workers for quick tests
 

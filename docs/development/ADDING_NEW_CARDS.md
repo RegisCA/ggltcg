@@ -235,22 +235,22 @@ Import and add to the registry if using class-based effects.
 > **deleted in November 2025** and split into the `ai/prompts/` package.
 > Do not look for `prompts.py` — the AI touchpoints are the files below.
 
-The AI-layer touchpoints for a new card are:
+The AI player has a single architecture: a deterministic enumerator computes
+every engine-legal action sequence for the turn (no LLM call, no card-specific
+code needed there — it just calls the same `ActionValidator`/`ActionExecutor`
+the live game trusts), then one Gemini call picks the best sequence. See
+[AI_CURRENT_STATE.md](ai/AI_CURRENT_STATE.md) for the full architecture.
+
+The AI-layer touchpoint for a new card is:
 
 - **`backend/src/game_engine/ai/prompts/card_guidance.yaml`** — strategic
-  guidance (traps, reminders, threat level). See 3a.
-- **`backend/src/game_engine/ai/prompts/effect_metadata.py`** — effect
-  metadata, required only if you introduced a new effect type. See 3b.
-- **`backend/src/game_engine/ai/prompts/examples/card_examples.py`** and
-  **`examples/loader.py`** — optional few-shot examples. These are consumed
-  by the **dual** planner mode only (`AI_PLANNER_MODE=dual`); the default
-  **single** mode does not use them. See 3c.
+  guidance (traps, reminders, threat level), sent in full to the
+  strategic-selection prompt for any card present in the game. See 3a.
 
 > **⚠️ Hardcoded card names**: several AI files still hardcode card names
 > until card metadata is centralized. A card with a **Charge-gain on play** or a
 > **target-requirement** effect may need a manual entry in one or more of:
 >
-> - `backend/src/game_engine/ai/prompts/sequence_generator.py` (restriction hints)
 > - `backend/src/game_engine/ai/turn_planner.py` (`_CHARGE_GAIN_ON_PLAY`)
 > - `backend/src/game_engine/ai/validators/turn_plan_validator.py`
 > - `backend/src/game_engine/ai/quality_metrics.py`
@@ -258,7 +258,7 @@ The AI-layer touchpoints for a new card are:
 > Grep these files for an existing card with a similar effect before assuming
 > CSV alone is enough.
 
-### 3a. Card-Specific Guidance (Optional but Recommended)
+### Card-Specific Guidance (Optional but Recommended)
 
 **File**: `backend/src/game_engine/ai/prompts/card_guidance.yaml`
 
@@ -290,43 +290,6 @@ Wake:
   reminder: "1. play_card Wake → in play. 2. activate_ability Wake (1 Charge) → target returns to hand. Then play that card"
   threat: "LOW"
 ```
-
-### 3b. Effect Metadata (Required for New Effect Types)
-
-**File**: `backend/src/game_engine/ai/prompts/effect_metadata.py`
-
-If your card introduces a new effect type, add metadata to the `EFFECT_METADATA_REGISTRY`:
-
-```python
-"my_new_effect": EffectMetadata(
-    effect_type="my_new_effect:N",
-    classification="continuous",  # or "triggered", "activated", "passive", "temporary"
-    action_type=None,  # or "activate_ability" for activated effects
-    requires_targets=False,  # True if effect needs target selection
-    target_description=None,  # Description of valid targets if requires_targets=True
-    strategic_note="How to use this effect strategically",
-),
-```
-
-**Classifications**:
-
-- `continuous` - Always active while in play (stat boosts, opponent_immunity)
-- `triggered` - Automatic on game events (start_of_turn_gain_charge, gain_charge_when_broken)
-- `activated` - Requires `action_type: activate_ability` (break_target, fix)
-- `passive` - Triggers on play automatically (gain_charge, break_all)
-- `temporary` - Lasts this turn only (turn_stat_boost)
-
-**Important**: The effect metadata is dynamically loaded based on cards in play, so the AI only sees guidance for effects actually present in the game.
-
-### 3c. Few-Shot Examples (Optional, dual mode only)
-
-**Files**: `backend/src/game_engine/ai/prompts/examples/card_examples.py`
-and `backend/src/game_engine/ai/prompts/examples/loader.py`
-
-If the card has a non-obvious play pattern that the AI keeps getting wrong,
-add a worked example. These examples are only injected when the AI runs in
-the **dual** planner mode (`AI_PLANNER_MODE=dual`); the default **single**
-mode ignores them, so do not rely on examples alone to fix single-mode play.
 
 ### Strategic Use Categories
 

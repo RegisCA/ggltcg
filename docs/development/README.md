@@ -12,10 +12,7 @@ Quick navigation for development documentation.
 
 ### AI System
 
-- [ai/AI_V4_DESIGN.md](ai/AI_V4_DESIGN.md) - V4 dual-request architecture
-- [ai/AI_V4_BASELINE.md](ai/AI_V4_BASELINE.md) - Baseline performance metrics
-- [ai/AI_V4_IMPROVEMENTS_TRACKING.md](ai/AI_V4_IMPROVEMENTS_TRACKING.md) - Active improvement tracking
-- [../plans/AI_V4_REMEDIATION_PLAN.md](../plans/AI_V4_REMEDIATION_PLAN.md) - **Active plan** (Phase 1 ready)
+- [ai/AI_CURRENT_STATE.md](ai/AI_CURRENT_STATE.md) - Current architecture (enum + Gemini strategic selection)
 
 ### Features
 
@@ -37,8 +34,4 @@ Located in `sessions/`:
 
 ## Plans
 
-Active plans are in `docs/plans/`:
-
-- [AI_V4_REMEDIATION_PLAN.md](../plans/AI_V4_REMEDIATION_PLAN.md) - AI V4 development roadmap
-- [INSTRUCTION_FILES_MIGRATION_PLAN.md](../plans/INSTRUCTION_FILES_MIGRATION_PLAN.md) - Context management improvement
-- [DOCS_RESTRUCTURING_PLAN.md](../plans/DOCS_RESTRUCTURING_PLAN.md) - This session's recovery (archive when done)
+Active plans are in `docs/plans/`.

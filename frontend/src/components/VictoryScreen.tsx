@@ -200,7 +200,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
               {Object.entries(groupedActions).map(([key, { actions, aiLog }]) => {
                 const firstAction = actions[0];
                 const isAI = firstAction.reasoning !== undefined || aiLog !== undefined;
-                const plannerMode = plannerModeLabel(aiLog?.turn_plan?.planner_mode, aiLog?.ai_version);
+                const plannerMode = plannerModeLabel(aiLog?.turn_plan?.planner, aiLog?.ai_version);
                 const hasPlan = !!aiLog?.turn_plan;
                 const isFallback = aiLog?.plan_execution_status === 'fallback';
                 

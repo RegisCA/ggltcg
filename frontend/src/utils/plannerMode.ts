@@ -1,10 +1,11 @@
 /**
- * Human-readable planner mode label. Prefers the authoritative planner_mode
- * ('single' | 'dual' | 'enum'); falls back to the legacy ai_version integer for
- * older logs that predate planner_mode (4 → dual, ≥3 → single, 2 → per-action).
+ * Human-readable planner label. The AI player has a single architecture
+ * (enum-based turn planning) — this only exists to label historical log rows
+ * from before that collapse, whose turn_plan JSON carries the legacy
+ * `planner` value or, older still, an `ai_version` integer.
  */
-export function plannerModeLabel(plannerMode?: string | null, aiVersion?: number | null): string {
-  if (plannerMode) return plannerMode;
+export function plannerModeLabel(planner?: string | null, aiVersion?: number | null): string {
+  if (planner) return planner;
   if (aiVersion === 4) return 'dual';
   if (aiVersion !== null && aiVersion !== undefined && aiVersion >= 3) return 'single';
   return 'per-action';

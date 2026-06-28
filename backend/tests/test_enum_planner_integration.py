@@ -1,12 +1,11 @@
 """
-Phase 4.2 fix (WP-4): enum planner treats TurnPlanValidator as ADVISORY.
+The turn planner treats TurnPlanValidator as ADVISORY for enumerated sequences.
 
 Enumerated sequences are engine-legal by construction. TurnPlanValidator is a
 weaker heuristic with incomplete hardcoded card knowledge, so it false-rejects
 some engine-legal lines (e.g. Raggy's 0-cost tussles, Jumpscare returning a toy
-to hand). Before the fix, those false positives emptied the candidate list and
-forced a V2 fallback ("No valid sequences"). These tests pin that enum now keeps
-the sequences and plans normally — with exactly ONE LLM call (selection only).
+to hand). These tests pin that the planner keeps such sequences and plans
+normally — with exactly ONE LLM call (the strategic-selection request).
 
 Uses a stubbed selector, so it costs no API credits.
 """
@@ -35,7 +34,7 @@ def _enum_planner(stub):
     # Passing provider_client explicitly skips build_provider() — no API key needed.
     return TurnPlanner(
         client=None, model_name="m", fallback_model="f",
-        planner_mode="enum", provider_client=stub, provider="gemini",
+        provider_client=stub,
     )
 
 
@@ -53,8 +52,8 @@ def test_enum_keeps_validator_flagged_sequences_and_makes_one_call():
     stub = _StubSelector()
     plan = _enum_planner(stub).create_plan(setup.game_state, "player1", setup.engine)
 
-    assert plan is not None, "enum must not fall back to V2 on validator false-positives"
-    assert stub.calls == 1, "enum should make exactly ONE LLM call (selection only)"
+    assert plan is not None, "planner must not give up on validator false-positives"
+    assert stub.calls == 1, "planner should make exactly ONE LLM call (selection only)"
     assert any(a.action_type != "end_turn" for a in plan.action_sequence), \
         "plan should take a real action, not just end the turn"
 

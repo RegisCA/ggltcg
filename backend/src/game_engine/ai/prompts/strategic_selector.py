@@ -14,9 +14,8 @@ import json
 import logging
 from typing import Any, Optional, TYPE_CHECKING
 
-from .examples.loader import get_relevant_examples, get_game_phase, format_examples_for_prompt
-from .sequence_generator import format_sequence_for_display
-from .card_loader import format_card_guidance_compact, format_board_legend
+from .sequence_format import format_sequence_for_display
+from .card_loader import format_card_guidance, format_board_legend, generate_threat_priorities
 
 if TYPE_CHECKING:
     from game_engine.models.game_state import GameState
@@ -87,8 +86,8 @@ def generate_strategic_prompt(
     - A board-state legend (short label, name, cost, stats, effect for every
       card in hand/in-play on both sides) so the model can resolve the
       sequences' Y1/O2-style target labels to actual cards
-    - Card-specific guidance (traps/reminders/threats) for cards in this game
-    - 3 contextual examples from the example library
+    - Threat priorities (CRITICAL/HIGH/MEDIUM) for opponent cards in play
+    - Card-specific guidance (traps/reminders/threats) for cards in this game, sent in full
     - Validated sequences with tactical labels
 
     Args:
@@ -104,12 +103,9 @@ def generate_strategic_prompt(
     player = game_state.players[player_id]
     opponent = game_state.get_opponent(player_id)
 
-    # Get game phase
-    phase = get_game_phase(game_state.turn_number)
-
-    # Get contextual examples (exactly 3)
-    examples = get_relevant_examples(game_state, player_id)
-    examples_text = format_examples_for_prompt(examples)
+    # Game phase, used only for the <context> line below.
+    turn = game_state.turn_number
+    phase = "early_game" if turn <= 3 else "mid_game" if turn <= 6 else "end_game"
 
     # Format sequences
     sequences_text = "\n\n".join(
@@ -118,7 +114,8 @@ def generate_strategic_prompt(
     )
 
     legend_text = format_board_legend(game_state, player_id, game_engine)
-    guidance_text = format_card_guidance_compact(game_state, player_id)
+    guidance_text = format_card_guidance(game_state, player_id)
+    threat_priorities = generate_threat_priorities(game_state, player_id)
 
     # Count opponent cards
     opp_remaining = len(opponent.hand) + len(opponent.in_play)
@@ -143,13 +140,13 @@ phase={phase} turn={game_state.turn_number} your_charge={player.charge} your_toy
 {legend_text}
 </board_legend>
 
+<threat_priorities>
+{threat_priorities}
+</threat_priorities>
+
 <card_guidance>
 {guidance_text}
 </card_guidance>
-
-<examples>
-{examples_text}
-</examples>
 
 <valid_sequences>
 {sequences_text}

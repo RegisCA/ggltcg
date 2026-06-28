@@ -132,7 +132,7 @@ class TestLLMPlayerDecisionInfo:
             with patch('google.genai.Client'):
                 from game_engine.ai.llm_player import LLMPlayer
                 
-                player = LLMPlayer(provider="gemini")
+                player = LLMPlayer()
                 info = player.get_last_decision_info()
                 
                 assert info["prompt"] is None
@@ -274,9 +274,7 @@ class TestV3AILogging:
             prompt="Test prompt",
             response='{"action_number": 1, "reasoning": "Test"}',
             action_number=1,
-            reasoning="[v3 Plan] Test strategy",
-            # V3 fields
-            ai_version=3,
+            reasoning="[plan] Test strategy",
             turn_plan=v3_plan,
             plan_execution_status="complete",
             fallback_reason=None,
@@ -307,9 +305,7 @@ class TestV3AILogging:
             prompt="Test prompt",
             response='{"action_number": 1, "reasoning": "Fallback action"}',
             action_number=1,
-            reasoning="[v3 Fallback] Plan failed: Invalid target",
-            # V3 fields
-            ai_version=3,
+            reasoning="[fallback] Plan failed: Invalid target",
             turn_plan=v3_plan,
             plan_execution_status="fallback",
             fallback_reason="Invalid target",

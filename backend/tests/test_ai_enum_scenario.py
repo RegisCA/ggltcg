@@ -1,10 +1,10 @@
 """
-Phase 4.2 (WP-4): standard scenario in `enum` planner mode (LIVE).
+Standard scenario regression test for the enum-based turn planner (LIVE).
 
-Mirrors test_ai_standard_scenario.py but drives the deterministic-enumerator
-planner mode. Gate: the canonical openers plan correctly in enum mode with
-Charge waste ≤ the dual baseline (≤1). Request 1 is engine-side (no LLM); only
-Request 2 (strategic selection) calls the LLM, so this is ~1 call/turn.
+Gate: the canonical Turn 1 / Turn 2 openers plan correctly with Charge waste
+≤1. Request 1 (candidate sequences) is computed engine-side, deterministically
+- no LLM call; only the strategic-selection request calls Gemini, so this is
+~1 LLM call/turn.
 
 Skipped without a real provider key (like the other live AI tests).
 """
@@ -31,7 +31,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def enum_planner():
-    return build_turn_planner(planner_mode="enum")
+    return build_turn_planner()
 
 
 @pytest.fixture(autouse=True)
@@ -57,7 +57,7 @@ def test_turn1_surge_knight_enum(enum_planner):
 
     metrics = TurnMetrics.from_plan(plan, setup.game_state, "player1")
     print(f"\n[enum] Turn1 charge_wasted={metrics.charge_wasted} broken={metrics.cards_broken}")
-    assert metrics.charge_wasted <= 1, f"enum wasted {metrics.charge_wasted} Charge (dual baseline ≤1)"
+    assert metrics.charge_wasted <= 1, f"enum wasted {metrics.charge_wasted} Charge (target ≤1)"
     assert metrics.cards_broken >= 1
 
 

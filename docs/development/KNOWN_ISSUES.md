@@ -11,8 +11,8 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 ### 1. AI card-metadata centralization pending
 
 - **Where**: card names are hardcoded across ~10 files under
-  `backend/src/game_engine/ai/` (e.g. `turn_planner.py` `_CC_GAIN_ON_PLAY`,
-  `prompts/sequence_generator.py` restriction hints,
+  `backend/src/game_engine/ai/` (e.g. `turn_planner.py` `_CHARGE_GAIN_ON_PLAY`,
+  `prompts/strategic_selector.py` restriction hints,
   `validators/turn_plan_validator.py`, `quality_metrics.py`).
 - **Impact**: Adding or renaming a card with a CC-gain or target-requirement
   effect requires editing several AI files by hand (see
@@ -42,8 +42,11 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   (`get_planner_mode()` falls back to `AI_VERSION`). Pinned by
   `tests/test_planner_mode_selection.py`, including the `AI_VERSION=4 → dual`
   back-compat case so deployed prod behavior does not shift.
-- **Note**: `AI_MODEL` is still ignored when `AI_PROVIDER=gemini` (use `GEMINI_MODEL`)
-  — that is by design, documented in `AI_CURRENT_STATE.md`, not a bug.
+- **Superseded**: June 28, 2026 — the entire planner-mode/provider concept this
+  issue was about (`single`/`dual`/`enum`, `AI_VERSION`, `AI_PLANNER_MODE`,
+  `AI_PROVIDER`) was removed in the AI player pruning pass. There is now a
+  single architecture (enum + Gemini), so this footgun can no longer recur.
+  `tests/test_planner_mode_selection.py` was deleted along with it.
 
 ### `HLK` CC-gain mapping bug + phantom card cluster (planner/validator)
 

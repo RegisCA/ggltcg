@@ -8,7 +8,7 @@ Welcome to the GGLTCG documentation.
 |------|----------|
 | **Start coding** | [AGENTS.md](../AGENTS.md) (root context) |
 | **Game rules** | [rules/QUICK_REFERENCE.md](rules/QUICK_REFERENCE.md) |
-| **AI V4 work** | [plans/AI_V4_REMEDIATION_PLAN.md](plans/AI_V4_REMEDIATION_PLAN.md) |
+| **AI architecture** | [development/ai/AI_CURRENT_STATE.md](development/ai/AI_CURRENT_STATE.md) |
 | **Architecture** | [development/ARCHITECTURE.md](development/ARCHITECTURE.md) |
 
 ## Documentation Structure
@@ -16,7 +16,6 @@ Welcome to the GGLTCG documentation.
 ```
 docs/
 ├── plans/                 # Active plans (actionable)
-│   └── AI_V4_REMEDIATION_PLAN.md
 ├── development/           # Technical documentation
 │   ├── ai/               # AI system docs
 │   ├── sessions/         # Session notes & postmortems
@@ -34,9 +33,8 @@ docs/
 
 ### For AI Development
 
-- **[AI Current State](development/ai/AI_CURRENT_STATE.md)** - Current AI subsystem reference (planner modes, providers, env vars)
-- **[AI V4 Remediation Plan](plans/AI_V4_REMEDIATION_PLAN.md)** - Historical V4 work plan
-- **[AI V4 Design](development/ai/AI_V4_DESIGN.md)** - Historical dual-request architecture design
+- **[AI Current State](development/ai/AI_CURRENT_STATE.md)** - Current AI subsystem reference (enum + Gemini architecture, env vars)
+- **[AI V4 Design (archived)](development/ai/archive/AI_V4_DESIGN.md)** - Historical dual-request architecture design, superseded by enum
 - **[Session Postmortem](development/sessions/SESSION_POSTMORTEM_2026_01_05.md)** - January 5 disaster analysis
 
 ### For General Development

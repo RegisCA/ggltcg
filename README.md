@@ -9,7 +9,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06B6D4.svg?logo=tailwindcss&logoColor=white)
-![AI Providers](https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20OpenRouter-4285F4.svg?logo=google&logoColor=white)
+![AI Provider](https://img.shields.io/badge/AI-Gemini-4285F4.svg?logo=google&logoColor=white)
 ![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-EB5424.svg)
 
 A tactical two-player card game with no randomness in draws—only skill
@@ -60,17 +60,13 @@ for lobby, gameplay, and stats.
 - **Quick Play vs AI**: Start a game against the AI with a single click.
 - **Google OAuth Authentication**: Secure sign-in with Google, user
   profiles, and display names.
-- **LLM-Powered AI Opponent**: Whole-turn planning—the LLM generates a
-  complete turn plan with threat assessment and action sequence at turn
-  start, then heuristic matching executes actions on the server. Production
-  runs the **dual-request "V4"** flow (sequence generation → server-side
-  validator → strategic selection) on **Google Gemini**; a lighter
-  single-request mode also exists. The game always uses a Gemini endpoint —
-  a provider abstraction for Groq/OpenRouter exists but the prompts are
-  Gemini-tuned. Uses **native structured output** for reliable play. See
+- **LLM-Powered AI Opponent**: Whole-turn planning—a deterministic enumerator
+  computes every engine-legal action sequence for the turn, then a single
+  **Google Gemini** call picks the best one (strategic selection), and
+  heuristic matching executes the chosen actions on the server. Uses
+  **native structured output** for reliable play. See
   [AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md) for the
-  authoritative config (including the `AI_VERSION` vs `AI_PLANNER_MODE`
-  gotcha).
+  full architecture.
 - **Charge Efficiency Tracking**: Monitors Charge usage per turn
   to analyze AI performance and strategy effectiveness.
 - **Persistent Stats**: PostgreSQL-backed tracking of game results and
@@ -182,7 +178,7 @@ cd backend/src
 python -m simulation.cli baseline --iterations 10
 ```
 
-This runs a baseline V4 vs V4 test across standard decks. For detailed documentation, see [Simulation System Guide](docs/development/SIMULATION_SYSTEM.md) and the [CLI README](backend/src/simulation/README.md).
+This runs a baseline AI-vs-AI test across standard decks. For detailed documentation, see [Simulation System Guide](docs/development/SIMULATION_SYSTEM.md) and the [CLI README](backend/src/simulation/README.md).
 
 ## Play Now
 

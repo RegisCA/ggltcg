@@ -94,7 +94,6 @@ async def health_check():
     from .game_service import get_game_service
     from .database import SessionLocal
     from .db_models import GameModel
-    from game_engine.ai.turn_planner import get_planner_mode
 
     service = get_game_service()
     
@@ -139,8 +138,9 @@ async def health_check():
             "git_branch": os.getenv("RENDER_GIT_BRANCH"),
         },
         "ai": {
-            "planner_mode_env": os.getenv("AI_PLANNER_MODE"),
-            "planner_mode_effective": get_planner_mode(),
+            "planner": "enum",
+            "model": os.getenv("GEMINI_MODEL") or "gemini-flash-lite-latest",
+            "fallback_model": os.getenv("GEMINI_FALLBACK_MODEL") or "gemini-2.5-flash-lite",
         },
     }
 

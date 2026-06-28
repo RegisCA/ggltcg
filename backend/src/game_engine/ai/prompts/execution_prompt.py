@@ -12,7 +12,7 @@ The execution prompt is simpler than planning - it just needs to:
 """
 
 from typing import List, Optional
-from .schemas import PlannedAction, TurnPlan
+from .schemas import PlannedAction
 
 
 # =============================================================================
@@ -119,63 +119,6 @@ Charge Available: {current_charge}{validation_hint}
 4. Return the action_number (1-based) from the valid actions list
 
 Select the matching action now."""
-
-    return prompt
-
-
-def get_replan_prompt(
-    original_plan: TurnPlan,
-    completed_actions: List[PlannedAction],
-    failed_action: PlannedAction,
-    failure_reason: str,
-    valid_actions_text: str,
-    current_charge: int,
-) -> str:
-    """
-    Build a prompt to select an alternative action when planned action fails.
-
-    Args:
-        original_plan: The original TurnPlan
-        completed_actions: Actions already executed successfully
-        failed_action: The action that couldn't be executed
-        failure_reason: Why the action failed
-        valid_actions_text: Current valid actions
-        current_charge: Current Charge available
-
-    Returns:
-        Replan prompt string
-    """
-    completed_summary = "\n".join([
-        f"  ✓ {a.action_type}: {a.card_name or 'N/A'}"
-        for a in completed_actions
-    ]) if completed_actions else "  (none yet)"
-    
-    prompt = f"""{EXECUTION_SYSTEM_PROMPT}
-
-## PLAN DEVIATION - SELECT ALTERNATIVE
-
-The planned action could not be executed:
-- Planned: {failed_action.action_type} {failed_action.card_name or ''}
-- Reason: {failure_reason}
-
-## Original Plan Strategy
-{original_plan.selected_strategy}
-
-## Actions Completed
-{completed_summary}
-
-## Current State
-Charge Available: {current_charge}
-
-{valid_actions_text}
-
-## Instructions
-Select the best alternative action:
-1. If the plan goal can still be achieved, choose an action toward that goal
-2. If not, choose the most efficient offensive action available
-3. If nothing productive can be done, choose "End turn"
-
-Select an alternative action now."""
 
     return prompt
 
@@ -300,36 +243,6 @@ def find_matching_action_index(
                     return i
     
     # No match found - will need LLM
-    return None
-
-
-def extract_target_from_action(
-    valid_action,
-    planned_targets: Optional[List[str]] = None,
-) -> Optional[List[str]]:
-    """
-    Extract target IDs from a valid action or use planned targets.
-    
-    For simple actions (single target), try to extract from the action.
-    For complex actions (multiple targets like Sun), use planned_targets.
-    
-    Args:
-        valid_action: The ValidAction being executed
-        planned_targets: Target IDs from the plan
-        
-    Returns:
-        List of target IDs or None
-    """
-    # If planned targets were specified, use them
-    if planned_targets:
-        return planned_targets
-    
-    # Try to extract from action's target_options if only one option
-    if hasattr(valid_action, 'target_options') and valid_action.target_options:
-        if len(valid_action.target_options) == 1:
-            # Single target option - use it
-            return [valid_action.target_options[0].card_id]
-    
     return None
 
 

@@ -3,8 +3,6 @@ Pydantic schemas for AI player structured output.
 
 This module defines the JSON schema that Gemini uses for structured output,
 ensuring the AI always returns valid, parseable responses.
-
-Version 3.0: Added TurnPlan schema for turn-level planning architecture.
 """
 
 from typing import List, Optional, Literal
@@ -17,37 +15,7 @@ PROMPTS_VERSION = "3.1"
 
 
 # =============================================================================
-# v2.x Schema (kept for fallback and execution phase)
-# =============================================================================
-
-class AIDecision(BaseModel):
-    """
-    Schema for AI player decisions (v2.x single-action selection).
-    Uses Pydantic for Gemini's native structured output mode.
-    Used in v3 for execution phase (matching plan steps to valid actions).
-    """
-    action_number: int = Field(
-        ...,
-        description="Action number from the valid actions list (1-indexed)",
-        ge=1  # Must be >= 1
-    )
-    reasoning: str = Field(
-        ...,
-        description="1-2 sentence explanation of why this is the best move",
-        max_length=200
-    )
-    target_ids: Optional[List[str]] = Field(
-        default=None,
-        description="Array of target card UUIDs. Use for targeting cards (Twist, Wake, Copy, Sun, tussles). Extract ONLY the UUID from [ID: xxx], never card names."
-    )
-    alternative_cost_id: Optional[str] = Field(
-        default=None,
-        description="UUID of card to break for alternative cost (Ballaber). Extract ONLY the UUID from [ID: xxx]."
-    )
-
-
-# =============================================================================
-# v3.0 Turn Planning Schema
+# Turn Planning Schema
 # =============================================================================
 
 class PlannedAction(BaseModel):
@@ -283,51 +251,3 @@ TURN_PLAN_JSON_SCHEMA = {
         "residual_charge_justification"
     ]
 }
-
-
-# =============================================================================
-# v2.x JSON Schema (kept for fallback and execution phase)
-# =============================================================================
-
-# Generate JSON Schema from Pydantic model
-# This ensures the schema stays in sync with the model definition
-_generated_schema = AIDecision.model_json_schema()
-
-# Customize the schema for Gemini's structured output requirements
-AI_DECISION_JSON_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "action_number": {
-            "type": "integer",
-            "description": _generated_schema["properties"]["action_number"]["description"],
-            "minimum": 1
-        },
-        "reasoning": {
-            "type": "string",
-            "description": _generated_schema["properties"]["reasoning"]["description"]
-        },
-        "target_ids": {
-            "type": ["array", "null"],
-            "items": {"type": "string"},
-            "description": _generated_schema["properties"]["target_ids"]["description"]
-        },
-        "alternative_cost_id": {
-            "type": ["string", "null"],
-            "description": _generated_schema["properties"]["alternative_cost_id"]["description"]
-        }
-    },
-    "required": ["action_number", "reasoning"],
-    "propertyOrdering": ["action_number", "reasoning", "target_ids", "alternative_cost_id"]
-}
-
-
-# =============================================================================
-# Future Improvements TODO
-# =============================================================================
-# TODO: Add Charge efficiency tracking to game logging for all games (not just simulations)
-# This will allow measuring Charge spent per card broken across all game types.
-# Currently, this data exists in simulation results but could be added to:
-# - Game completion events
-# - AI decision logs
-# - Stats service aggregations
-# See: AI_V3_SESSION_PROMPT.md for target metrics (≤ 2.5 Charge per card broken)
