@@ -397,3 +397,68 @@ def test_archer_cannot_target_beary_issue_189():
     assert ka.id in ability_action.target_options, (
         f"Ka should be in Archer's ability target_options in ActionValidator"
     )
+
+
+def test_activate_ability_route_spends_charge():
+    """
+    Regression test for the POST /games/{id}/activate-ability route itself.
+
+    All the tests above exercise ArcherActivatedAbility / ActionValidator
+    directly and never go through the HTTP route, which is why a stale
+    `player.spend_cc(...)` call (renamed to `spend_charge` in the
+    sleep/CC -> break/Charge terminology refactor, PR #341) sat undetected in
+    routes_actions.py and 500'd on every real activate-ability call.
+    """
+    from fastapi.testclient import TestClient
+    from api.app import app
+    from api.game_service import get_game_service
+
+    csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
+    loader = CardLoader(str(csv_path))
+    all_cards = loader.load_cards()
+
+    archer = next(c for c in all_cards if c.name == "Archer")
+    ka = next(c for c in all_cards if c.name == "Ka")
+
+    archer.owner = "player1"
+    archer.controller = "player1"
+    archer.zone = Zone.IN_PLAY
+    ka.owner = "player2"
+    ka.controller = "player2"
+    ka.zone = Zone.IN_PLAY
+
+    player1 = Player(player_id="player1", name="Player 1", charge=5, hand=[], in_play=[archer], break_zone=[])
+    player2 = Player(player_id="player2", name="Player 2", charge=5, hand=[], in_play=[ka], break_zone=[])
+
+    import uuid
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=1,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    game_engine = GameEngine(game_state)
+
+    # Inject the prepared engine directly into the service's in-memory cache
+    # so the route operates on this exact board state without needing to
+    # play cards from hand first.
+    get_game_service()._cache[game_state.game_id] = game_engine
+
+    client = TestClient(app)
+    response = client.post(
+        f"/games/{game_state.game_id}/activate-ability",
+        json={
+            "player_id": "player1",
+            "card_id": archer.id,
+            "target_id": ka.id,
+            "amount": 1,
+        },
+    )
+
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}: {response.text}"
+    )
+    assert player1.charge == 4, f"Archer's ability should cost 1 Charge, player1.charge={player1.charge}"

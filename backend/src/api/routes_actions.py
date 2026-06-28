@@ -366,8 +366,8 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
     
     try:
         # Pay the cost
-        player.spend_cc(cost)
-        
+        player.spend_charge(cost)
+
         # Apply the ability
         activated_effect.apply(
             game_state,
@@ -375,7 +375,7 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
             amount=amount,
             game_engine=engine
         )
-        
+
         # Log to play-by-play
         description = f"Activated {source_card.name}'s ability"
         if target_card:
@@ -881,8 +881,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             try:
                 # Pay the cost
-                player.spend_cc(cost)
-                
+                player.spend_charge(cost)
+
                 # Apply the ability
                 activated_effect.apply(
                     game_state,
