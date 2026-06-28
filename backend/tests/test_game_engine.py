@@ -108,7 +108,6 @@ def test_turn_management():
     assert player2.charge == 4, f"Expected 4 Charge on turn 2, got {player2.charge}"
     print("✓ Second player gained 4 Charge")
     
-    return True
 
 
 def test_play_card():
@@ -137,7 +136,6 @@ def test_play_card():
     assert player1.charge == 0, f"Expected 0 Charge, got {player1.charge}"
     print("✓ Charge cost deducted correctly")
     
-    return True
 
 
 def test_continuous_effects():
@@ -176,7 +174,6 @@ def test_continuous_effects():
         f"Expected {knight_base + 2}, got {knight_modified}"
     print(f"✓ Knight has +2 Strength from Ka ({knight_modified})")
     
-    return True
 
 
 def test_tussle_basic():
@@ -227,7 +224,6 @@ def test_tussle_basic():
     assert wizard not in player2.in_play, "Wizard should not be in play"
     print("✓ Wizard was broken (took fatal damage)")
     
-    return True
 
 
 def test_cost_modification():
@@ -261,7 +257,6 @@ def test_cost_modification():
     assert cost == 1, f"Expected tussle cost 1 with Wizard, got {cost}"
     print("✓ Wizard reduces tussle cost to 1 Charge")
     
-    return True
 
 
 def test_victory_condition():
@@ -285,7 +280,6 @@ def test_victory_condition():
     assert winner == "player1", f"Expected player1 to win, got {winner}"
     print("✓ Player 1 wins when all opponent cards are broken")
     
-    return True
 
 
 def main():

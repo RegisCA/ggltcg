@@ -29,30 +29,22 @@ def test_wizard_effect_parsing():
     wizard = next(c for c in all_cards if c.name == "Wizard")
     print(f"  Wizard effect_definitions: '{wizard.effect_definitions}'")
     
-    if wizard.effect_definitions != "set_tussle_cost:1":
-        print(f"✗ Wizard should have effect_definitions='set_tussle_cost:1'")
-        return False
-    
+    assert wizard.effect_definitions == "set_tussle_cost:1", (
+        "Wizard should have effect_definitions='set_tussle_cost:1'"
+    )
+
     # Get the effect
     effects = EffectRegistry.get_effects(wizard)
     print(f"  Wizard has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1:
-        print(f"✗ Wizard should have 1 effect")
-        return False
-    
-    if effects[0].__class__.__name__ != "SetTussleCostEffect":
-        print(f"✗ Wizard effect should be SetTussleCostEffect")
-        return False
-    
+
+    assert len(effects) == 1, "Wizard should have 1 effect"
+    assert effects[0].__class__.__name__ == "SetTussleCostEffect", "Wizard effect should be SetTussleCostEffect"
+
     # Check parameters
     effect = effects[0]
-    if effect.cost != 1:
-        print(f"✗ Wizard should set tussle cost to 1, got {effect.cost}")
-        return False
-    
+    assert effect.cost == 1, f"Wizard should set tussle cost to 1, got {effect.cost}"
+
     print(f"✓ Wizard effect parsed correctly")
-    return True
 
 
 def test_dream_effect_parsing():
@@ -66,19 +58,18 @@ def test_dream_effect_parsing():
     dream = next(c for c in all_cards if c.name == "Dream")
     print(f"  Dream effect_definitions: '{dream.effect_definitions}'")
     
-    if dream.effect_definitions != "reduce_cost_by_broken":
-        print(f"✗ Dream should have effect_definitions='reduce_cost_by_broken'")
-        return False
-    
+    assert dream.effect_definitions == "reduce_cost_by_broken", (
+        "Dream should have effect_definitions='reduce_cost_by_broken'"
+    )
+
     effects = EffectRegistry.get_effects(dream)
     print(f"  Dream has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1 or effects[0].__class__.__name__ != "ReduceCostByBrokenEffect":
-        print(f"✗ Dream should have 1 ReduceCostByBrokenEffect")
-        return False
-    
+
+    assert len(effects) == 1 and effects[0].__class__.__name__ == "ReduceCostByBrokenEffect", (
+        "Dream should have 1 ReduceCostByBrokenEffect"
+    )
+
     print(f"✓ Dream effect parsed correctly")
-    return True
 
 
 def test_wizard_sets_tussle_cost():
@@ -134,20 +125,15 @@ def test_wizard_sets_tussle_cost():
     
     print(f"  Base tussle cost: {base_cost}, with Wizard: {modified_cost}")
     
-    if modified_cost != 1:
-        print(f"✗ Wizard should set tussle cost to 1, got {modified_cost}")
-        return False
-    
+    assert modified_cost == 1, f"Wizard should set tussle cost to 1, got {modified_cost}"
+
     # Test that it doesn't affect opponent
     opponent_cost = effect.modify_tussle_cost(base_cost, game_state, player2)
     print(f"  Opponent's tussle cost: {opponent_cost}")
-    
-    if opponent_cost != base_cost:
-        print(f"✗ Wizard should not affect opponent's tussle cost")
-        return False
-    
+
+    assert opponent_cost == base_cost, "Wizard should not affect opponent's tussle cost"
+
     print(f"✓ Wizard sets tussle cost correctly")
-    return True
 
 
 def test_dream_cost_reduction_no_broken():
@@ -195,12 +181,9 @@ def test_dream_cost_reduction_no_broken():
     print(f"  Broken cards: {len(player1.break_zone)}")
     print(f"  Base cost: {base_cost}, modified cost: {modified_cost}")
     
-    if modified_cost != 4:
-        print(f"✗ Dream with 0 broken cards should cost 4, got {modified_cost}")
-        return False
-    
+    assert modified_cost == 4, f"Dream with 0 broken cards should cost 4, got {modified_cost}"
+
     print(f"✓ Dream costs 4 with no broken cards")
-    return True
 
 
 def test_dream_cost_reduction_with_broken():
@@ -257,12 +240,9 @@ def test_dream_cost_reduction_with_broken():
     print(f"  Base cost: {base_cost}, modified cost: {modified_cost}")
     
     expected_cost = 4 - 3  # 4 base - 3 broken = 1
-    if modified_cost != expected_cost:
-        print(f"✗ Dream with 3 broken cards should cost {expected_cost}, got {modified_cost}")
-        return False
-    
+    assert modified_cost == expected_cost, f"Dream with 3 broken cards should cost {expected_cost}, got {modified_cost}"
+
     print(f"✓ Dream costs {expected_cost} with 3 broken cards")
-    return True
 
 
 def test_dream_cost_cannot_go_negative():
@@ -323,12 +303,9 @@ def test_dream_cost_cannot_go_negative():
     print(f"  Broken cards: {len(player1.break_zone)}")
     print(f"  Base cost: {base_cost}, modified cost: {modified_cost}")
     
-    if modified_cost != 0:
-        print(f"✗ Dream cost should not go below 0, got {modified_cost}")
-        return False
-    
+    assert modified_cost == 0, f"Dream cost should not go below 0, got {modified_cost}"
+
     print(f"✓ Dream cost correctly capped at 0")
-    return True
 
 
 def main():

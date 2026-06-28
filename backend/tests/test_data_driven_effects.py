@@ -34,9 +34,11 @@ def test_ka_effect():
     # Set up ownership
     ka.owner = "p1"
     ka.controller = "p1"
+    ka.zone = Zone.IN_PLAY
     wizard.owner = "p1"
     wizard.controller = "p1"
-    
+    wizard.zone = Zone.IN_PLAY
+
     # Create game state
     player1 = Player(
         player_id="p1",
@@ -44,13 +46,13 @@ def test_ka_effect():
         hand=[],
         in_play=[ka, wizard],
     )
-    
+
     player2 = Player(
         player_id="p2",
         name="Player 2",
         hand=[],
     )
-    
+
     game_state = GameState(
         game_id="test",
         players={"p1": player1, "p2": player2},
@@ -59,14 +61,12 @@ def test_ka_effect():
         turn_number=1,
         phase=Phase.MAIN,
     )
-    
+
     # Get Ka's effect
     ka_effects = EffectRegistry.get_effects(ka)
     print(f"  Ka has {len(ka_effects)} effect(s): {[e.__class__.__name__ for e in ka_effects]}")
     
-    if len(ka_effects) != 1:
-        print(f"✗ Ka should have 1 effect, but has {len(ka_effects)}")
-        return False
+    assert len(ka_effects) == 1, f"Ka should have 1 effect, but has {len(ka_effects)}"
     
     # Check Ka gets +2 strength from its own effect
     ka_base_strength = ka.strength
@@ -78,9 +78,7 @@ def test_ka_effect():
     print(f"  Ka base strength: {ka_base_strength}")
     print(f"  Ka with its own effect: {ka_modified_strength}")
     
-    if ka_modified_strength != ka_base_strength + 2:
-        print(f"✗ Ka should have +2 strength from its own effect")
-        return False
+    assert ka_modified_strength == ka_base_strength + 2, "Ka should have +2 strength from its own effect"
     
     print(f"✓ Ka has +2 strength from its own effect")
     
@@ -94,9 +92,7 @@ def test_ka_effect():
     print(f"  Wizard base strength: {wizard_base_strength}")
     print(f"  Wizard with Ka effect: {wizard_modified_strength}")
     
-    if wizard_modified_strength != wizard_base_strength + 2:
-        print(f"✗ Wizard should have +2 strength from Ka")
-        return False
+    assert wizard_modified_strength == wizard_base_strength + 2, "Wizard should have +2 strength from Ka"
     
     print(f"✓ Wizard has +2 strength from Ka")
     
@@ -106,12 +102,9 @@ def test_ka_effect():
     for effect in ka_effects:
         wizard_modified_speed = effect.modify_stat(wizard, "speed", wizard_modified_speed, game_state)
     
-    if wizard_modified_speed != wizard_speed:
-        print(f"✗ Ka should not affect speed")
-        return False
-    
+    assert wizard_modified_speed == wizard_speed, "Ka should not affect speed"
+
     print(f"✓ Ka only affects strength (not speed or stamina)")
-    return True
 
 
 def test_demideca_effect():
@@ -130,9 +123,11 @@ def test_demideca_effect():
     # Set up ownership
     demideca.owner = "p1"
     demideca.controller = "p1"
+    demideca.zone = Zone.IN_PLAY
     wizard.owner = "p1"
     wizard.controller = "p1"
-    
+    wizard.zone = Zone.IN_PLAY
+
     # Create game state
     player1 = Player(
         player_id="p1",
@@ -160,9 +155,7 @@ def test_demideca_effect():
     demideca_effects = EffectRegistry.get_effects(demideca)
     print(f"  Demideca has {len(demideca_effects)} effect(s): {[e.__class__.__name__ for e in demideca_effects]}")
     
-    if len(demideca_effects) != 1:
-        print(f"✗ Demideca should have 1 effect, but has {len(demideca_effects)}")
-        return False
+    assert len(demideca_effects) == 1, f"Demideca should have 1 effect, but has {len(demideca_effects)}"
     
     # Check all stats get +1
     for stat in ["speed", "strength", "stamina"]:
@@ -174,12 +167,9 @@ def test_demideca_effect():
         
         print(f"  Wizard {stat}: base={wizard_base_value}, with Demideca={wizard_modified_value}")
         
-        if wizard_modified_value != wizard_base_value + 1:
-            print(f"✗ Wizard {stat} should have +1 from Demideca")
-            return False
-    
+        assert wizard_modified_value == wizard_base_value + 1, f"Wizard {stat} should have +1 from Demideca"
+
     print(f"✓ Wizard has +1 to all stats from Demideca")
-    return True
 
 
 def test_effect_data_parsing():
@@ -195,9 +185,9 @@ def test_effect_data_parsing():
     ka = next(c for c in all_cards if c.name == "Ka")
     print(f"  Ka effect_definitions: '{ka.effect_definitions}'")
     
-    if ka.effect_definitions != "stat_boost:strength:2":
-        print(f"✗ Ka should have effect_definitions='stat_boost:strength:2', but has '{ka.effect_definitions}'")
-        return False
+    assert ka.effect_definitions == "stat_boost:strength:2", (
+        f"Ka should have effect_definitions='stat_boost:strength:2', but has '{ka.effect_definitions}'"
+    )
     
     print(f"✓ Ka has correct effect_definitions")
     
@@ -205,22 +195,21 @@ def test_effect_data_parsing():
     demideca = next(c for c in all_cards if c.name == "Demideca")
     print(f"  Demideca effect_definitions: '{demideca.effect_definitions}'")
     
-    if demideca.effect_definitions != "stat_boost:all:1":
-        print(f"✗ Demideca should have effect_definitions='stat_boost:all:1', but has '{demideca.effect_definitions}'")
-        return False
+    assert demideca.effect_definitions == "stat_boost:all:1", (
+        f"Demideca should have effect_definitions='stat_boost:all:1', but has '{demideca.effect_definitions}'"
+    )
     
     print(f"✓ Demideca has correct effect_definitions")
     
-    # Check that cards without effects have empty effect_definitions
+    # Wizard is data-driven (set_tussle_cost), not a legacy-registry card
     wizard = next(c for c in all_cards if c.name == "Wizard")
     print(f"  Wizard effect_definitions: '{wizard.effect_definitions}'")
-    
-    if wizard.effect_definitions != "":
-        print(f"✗ Wizard should have empty effect_definitions, but has '{wizard.effect_definitions}'")
-        return False
-    
-    print(f"✓ Wizard has empty effect_definitions (uses legacy registry)")
-    return True
+
+    assert wizard.effect_definitions == "set_tussle_cost:1", (
+        f"Wizard should have effect_definitions='set_tussle_cost:1', but has '{wizard.effect_definitions}'"
+    )
+
+    print(f"✓ Wizard has correct effect_definitions")
 
 
 def main():

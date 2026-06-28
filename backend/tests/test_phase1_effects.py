@@ -29,34 +29,23 @@ def test_rush_effect_parsing():
     rush = next(c for c in all_cards if c.name == "Rush")
     print(f"  Rush effect_definitions: '{rush.effect_definitions}'")
     
-    if rush.effect_definitions != "gain_charge:2:not_first_turn":
-        print(f"✗ Rush should have effect_definitions='gain_charge:2:not_first_turn'")
-        return False
-    
+    assert rush.effect_definitions == "gain_charge:2:not_first_turn", (
+        "Rush should have effect_definitions='gain_charge:2:not_first_turn'"
+    )
+
     # Get the effect
     effects = EffectRegistry.get_effects(rush)
     print(f"  Rush has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1:
-        print(f"✗ Rush should have 1 effect")
-        return False
-    
-    if effects[0].__class__.__name__ != "GainChargeEffect":
-        print(f"✗ Rush effect should be GainChargeEffect")
-        return False
-    
+
+    assert len(effects) == 1, "Rush should have 1 effect"
+    assert effects[0].__class__.__name__ == "GainChargeEffect", "Rush effect should be GainChargeEffect"
+
     # Check parameters
     effect = effects[0]
-    if effect.amount != 2:
-        print(f"✗ Rush should gain 2 Charge, got {effect.amount}")
-        return False
-    
-    if not effect.not_first_turn:
-        print(f"✗ Rush should have not_first_turn restriction")
-        return False
-    
+    assert effect.amount == 2, f"Rush should gain 2 Charge, got {effect.amount}"
+    assert effect.not_first_turn, "Rush should have not_first_turn restriction"
+
     print(f"✓ Rush effect parsed correctly")
-    return True
 
 
 def test_wake_effect_parsing():
@@ -70,23 +59,15 @@ def test_wake_effect_parsing():
     wake = next(c for c in all_cards if c.name == "Wake")
     print(f"  Wake effect_definitions: '{wake.effect_definitions}'")
     
-    if wake.effect_definitions != "fix:1":
-        print(f"✗ Wake should have effect_definitions='fix:1'")
-        return False
-    
+    assert wake.effect_definitions == "fix:1", "Wake should have effect_definitions='fix:1'"
+
     effects = EffectRegistry.get_effects(wake)
     print(f"  Wake has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1 or effects[0].__class__.__name__ != "FixEffect":
-        print(f"✗ Wake should have 1 FixEffect")
-        return False
-    
-    if effects[0].count != 1:
-        print(f"✗ Wake should fix 1 card")
-        return False
-    
+
+    assert len(effects) == 1 and effects[0].__class__.__name__ == "FixEffect", "Wake should have 1 FixEffect"
+    assert effects[0].count == 1, "Wake should fix 1 card"
+
     print(f"✓ Wake effect parsed correctly")
-    return True
 
 
 def test_sun_effect_parsing():
@@ -100,23 +81,15 @@ def test_sun_effect_parsing():
     sun = next(c for c in all_cards if c.name == "Sun")
     print(f"  Sun effect_definitions: '{sun.effect_definitions}'")
     
-    if sun.effect_definitions != "fix:2":
-        print(f"✗ Sun should have effect_definitions='fix:2'")
-        return False
-    
+    assert sun.effect_definitions == "fix:2", "Sun should have effect_definitions='fix:2'"
+
     effects = EffectRegistry.get_effects(sun)
     print(f"  Sun has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1 or effects[0].__class__.__name__ != "FixEffect":
-        print(f"✗ Sun should have 1 FixEffect")
-        return False
-    
-    if effects[0].count != 2:
-        print(f"✗ Sun should fix 2 cards")
-        return False
-    
+
+    assert len(effects) == 1 and effects[0].__class__.__name__ == "FixEffect", "Sun should have 1 FixEffect"
+    assert effects[0].count == 2, "Sun should fix 2 cards"
+
     print(f"✓ Sun effect parsed correctly")
-    return True
 
 
 def test_clean_effect_parsing():
@@ -130,19 +103,14 @@ def test_clean_effect_parsing():
     clean = next(c for c in all_cards if c.name == "Clean")
     print(f"  Clean effect_definitions: '{clean.effect_definitions}'")
     
-    if clean.effect_definitions != "break_all":
-        print(f"✗ Clean should have effect_definitions='break_all'")
-        return False
-    
+    assert clean.effect_definitions == "break_all", "Clean should have effect_definitions='break_all'"
+
     effects = EffectRegistry.get_effects(clean)
     print(f"  Clean has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1 or effects[0].__class__.__name__ != "BreakAllEffect":
-        print(f"✗ Clean should have 1 BreakAllEffect")
-        return False
-    
+
+    assert len(effects) == 1 and effects[0].__class__.__name__ == "BreakAllEffect", "Clean should have 1 BreakAllEffect"
+
     print(f"✓ Clean effect parsed correctly")
-    return True
 
 
 def test_rush_charge_gain():
@@ -188,12 +156,9 @@ def test_rush_charge_gain():
     
     print(f"  Charge before: {initial_charge}, after: {player1.charge}")
     
-    if player1.charge != initial_charge + 2:
-        print(f"✗ Rush should gain 2 Charge")
-        return False
-    
+    assert player1.charge == initial_charge + 2, "Rush should gain 2 Charge"
+
     print(f"✓ Rush gains 2 Charge correctly")
-    return True
 
 
 def test_rush_first_turn_restriction():
@@ -236,30 +201,23 @@ def test_rush_first_turn_restriction():
     can_play_turn1 = effect.can_apply(game_state, player=player1)
     print(f"  Can play on Turn 1 (first player): {can_play_turn1}")
     
-    if can_play_turn1:
-        print(f"✗ Rush should not be playable on Turn 1 for first player")
-        return False
-    
+    assert not can_play_turn1, "Rush should not be playable on Turn 1 for first player"
+
     # Test Turn 2 for first player (should be allowed)
     game_state.turn_number = 2
     can_play_turn2 = effect.can_apply(game_state, player=player1)
     print(f"  Can play on Turn 2 (first player): {can_play_turn2}")
-    
-    if not can_play_turn2:
-        print(f"✗ Rush should be playable on Turn 2 for first player")
-        return False
-    
+
+    assert can_play_turn2, "Rush should be playable on Turn 2 for first player"
+
     # Test Turn 2 for second player (should be blocked - their first turn)
     game_state.active_player_id = "p2"
     can_play_turn2_p2 = effect.can_apply(game_state, player=player2)
     print(f"  Can play on Turn 2 (second player): {can_play_turn2_p2}")
-    
-    if can_play_turn2_p2:
-        print(f"✗ Rush should not be playable on Turn 2 for second player (their first turn)")
-        return False
-    
+
+    assert not can_play_turn2_p2, "Rush should not be playable on Turn 2 for second player (their first turn)"
+
     print(f"✓ Rush first turn restriction works correctly")
-    return True
 
 
 def test_clean_breaks_all_cards():
@@ -317,16 +275,10 @@ def test_clean_breaks_all_cards():
     print(f"  After Clean: P1 has {len(player1.in_play)} in play, P2 has {len(player2.in_play)} in play")
     print(f"  After Clean: P1 has {len(player1.break_zone)} broken, P2 has {len(player2.break_zone)} broken")
     
-    if len(player1.in_play) != 0 or len(player2.in_play) != 0:
-        print(f"✗ Clean should break all cards in play")
-        return False
-    
-    if len(player1.break_zone) != 2 or len(player2.break_zone) != 1:
-        print(f"✗ Clean should move all cards to break zones")
-        return False
-    
+    assert len(player1.in_play) == 0 and len(player2.in_play) == 0, "Clean should break all cards in play"
+    assert len(player1.break_zone) == 2 and len(player2.break_zone) == 1, "Clean should move all cards to break zones"
+
     print(f"✓ Clean breaks all cards correctly")
-    return True
 
 
 def main():
