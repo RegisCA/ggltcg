@@ -19,11 +19,11 @@ cd backend/src
 # List available decks
 python -m simulation.cli list-decks
 
-# Run a quick baseline test (V4 vs V4, 10 games per matchup)
+# Run a quick baseline test (AI mirror match, 10 games per matchup)
 python -m simulation.cli baseline --iterations 10
 
-# Compare V4 vs V3
-python -m simulation.cli compare --v1 4 --v2 3 --iterations 20
+# Compare two models head-to-head
+python -m simulation.cli compare --model1 gemini-flash-lite-latest --model2 gemini-2.5-flash-lite --iterations 20
 
 # Test a specific matchup
 python -m simulation.cli quick Aggro_Rush Control_Ka --iterations 5
@@ -32,7 +32,7 @@ python -m simulation.cli quick Aggro_Rush Control_Ka --iterations 5
 ## CLI Commands
 
 ### `baseline`
-Run V4 vs V4 with standard decks to establish performance baseline.
+Run an AI mirror match with standard decks to establish a performance baseline.
 
 ```bash
 python -m simulation.cli baseline [OPTIONS]
@@ -50,15 +50,13 @@ python -m simulation.cli baseline --iterations 20 --decks top2
 ```
 
 ### `compare`
-Compare two AI versions or models head-to-head.
+Compare two Gemini models head-to-head.
 
 ```bash
 python -m simulation.cli compare [OPTIONS]
 
 Options:
-  --v1 INTEGER              Player 1 AI version (default: 4)
-  --v2 INTEGER              Player 2 AI version (default: 3)
-  --model1 TEXT             Player 1 model (default: gemini-2.5-flash-lite)
+  --model1 TEXT             Player 1 model (default: gemini-flash-lite-latest)
   --model2 TEXT             Player 2 model (default: gemini-2.5-flash-lite)
   -i, --iterations INTEGER  Games per matchup (default: 10)
   -p, --parallel INTEGER    Parallel workers (default: 10)
@@ -67,8 +65,7 @@ Options:
 
 **Example:**
 ```bash
-# Compare V4 with gemini-2.5-flash-lite vs V3 with gemini-2.0-flash
-python -m simulation.cli compare --v1 4 --v2 3 --model1 gemini-2.5-flash-lite --model2 gemini-2.0-flash
+python -m simulation.cli compare --model1 gemini-flash-lite-latest --model2 gemini-2.0-flash
 ```
 
 ### `test-deck`
@@ -85,7 +82,6 @@ Options:
   -i, --iterations INTEGER Games per matchup (default: 10)
   -p, --parallel INTEGER   Parallel workers (default: 10)
   -m, --model TEXT         AI model (default: gemini-2.5-flash-lite)
-  -v, --ai-version INTEGER AI version (default: 4)
 ```
 
 **Example:**
@@ -106,7 +102,6 @@ Arguments:
 Options:
   -i, --iterations INTEGER Number of games (default: 5)
   -m, --model TEXT         AI model (default: gemini-2.5-flash-lite)
-  -v, --ai-version INTEGER AI version (default: 4)
 ```
 
 **Example:**
@@ -284,8 +279,6 @@ Content-Type: application/json
   "deck_names": ["Aggro_Rush", "Control_Ka"],
   "player1_model": "gemini-2.5-flash-lite",
   "player2_model": "gemini-2.5-flash-lite",
-  "player1_ai_version": 4,
-  "player2_ai_version": 4,
   "iterations_per_matchup": 10,
   "max_turns": 20
 }
@@ -489,7 +482,7 @@ python -m simulation.cli list-runs --limit 5
 
 - [SIMULATION_SYSTEM.md](../../../docs/development/SIMULATION_SYSTEM.md) - Simulation system guide
 - [SIMULATION_IMPROVEMENTS.md](../../../docs/development/archive/SIMULATION_IMPROVEMENTS.md) - Enhancement history (archived)
-- [AI_V4_DESIGN.md](../../../docs/development/ai/AI_V4_DESIGN.md) - AI dual-request design (historical)
+- [AI_CURRENT_STATE.md](../../../docs/development/ai/AI_CURRENT_STATE.md) - Current AI architecture (enum + Gemini)
 - [ARCHITECTURE.md](../../../docs/development/ARCHITECTURE.md) - Overall game architecture
 
 ## Version History

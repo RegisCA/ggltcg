@@ -10,52 +10,21 @@ from unittest.mock import MagicMock, patch
 import json
 
 from game_engine.ai.llm_player import LLMPlayer
-from game_engine.ai.prompts import (
-    format_valid_actions_for_ai,
-    AI_DECISION_JSON_SCHEMA,
-    PROMPTS_VERSION,
-)
+from game_engine.ai.prompts import format_valid_actions_for_ai
 from api.schemas import ValidAction
 
 
 class TestAIMultiTargetSelection:
     """
     Test cases for AI multi-target selection (Issue #188).
-    
+
     The scenario from Issue #188:
     - AI has Sun + Wake in hand
     - 4 cards in break zone: Surge, Rush, Ka, Knight
     - Opponent has Knight in play
     - AI should select 2 targets for Sun (Ka + Knight preferred)
     """
-    
-    def test_prompts_version_is_current(self):
-        """Verify we're testing the current prompts version (2.x or 3.x)."""
-        # v3.0 added turn planning architecture, v2.x was per-action decision
-        assert PROMPTS_VERSION.startswith(("2.", "3.")), f"Expected prompts v2.x or v3.x, got {PROMPTS_VERSION}"
-    
-    def test_ai_decision_schema_has_target_ids_array(self):
-        """Verify the JSON schema uses target_ids (array) not target_id (string)."""
-        assert "target_ids" in AI_DECISION_JSON_SCHEMA["properties"]
-        target_ids_schema = AI_DECISION_JSON_SCHEMA["properties"]["target_ids"]
-        
-        # Schema uses type: ["array", "null"] for optional array
-        # or anyOf format depending on how it was generated
-        if "anyOf" in target_ids_schema:
-            # Pydantic-generated schema with anyOf
-            array_schema = next((s for s in target_ids_schema["anyOf"] if s.get("type") == "array"), None)
-            assert array_schema is not None, "target_ids should include array type"
-            assert array_schema["items"]["type"] == "string"
-        else:
-            # Manual JSON schema with type array
-            schema_type = target_ids_schema.get("type")
-            # Handle both "array" and ["array", "null"] formats
-            if isinstance(schema_type, list):
-                assert "array" in schema_type, "target_ids type should include 'array'"
-            else:
-                assert schema_type == "array", "target_ids should be array type"
-            assert target_ids_schema["items"]["type"] == "string"
-    
+
     def test_format_valid_actions_shows_multi_target_hint(self):
         """
         Verify that when max_targets > 1, the prompt shows multi-target selection hint.
@@ -84,7 +53,6 @@ class TestAIMultiTargetSelection:
         Verify that LLMPlayer correctly parses target_ids as an array.
         """
         player = LLMPlayer.__new__(LLMPlayer)
-        player.provider = "gemini"
         player._last_target_ids = None
         player._last_alternative_cost_id = None
         player._last_prompt = None
@@ -138,7 +106,6 @@ class TestAIMultiTargetSelection:
         Verify that get_action_details returns target_ids (array) for play_card.
         """
         player = LLMPlayer.__new__(LLMPlayer)
-        player.provider = "gemini"
         player._last_target_ids = ["ka-456", "knight-789"]
         player._last_alternative_cost_id = None
         
@@ -163,7 +130,6 @@ class TestAIMultiTargetSelection:
         (Tussles are still single-target)
         """
         player = LLMPlayer.__new__(LLMPlayer)
-        player.provider = "gemini"
         player._last_target_ids = ["knight-789"]
         player._last_alternative_cost_id = None
         
@@ -192,7 +158,6 @@ class TestHallucinatedTargetGuard:
 
     def test_play_card_drops_hallucinated_target_and_falls_back(self):
         player = LLMPlayer.__new__(LLMPlayer)
-        player.provider = "gemini"
         # "knight-789" is the opponent's card the LLM saw in the board state,
         # but Copy's menu only ever offers the player's own cards.
         player._last_target_ids = ["knight-789"]
@@ -210,7 +175,6 @@ class TestHallucinatedTargetGuard:
 
     def test_play_card_keeps_valid_subset_and_drops_invalid_id(self):
         player = LLMPlayer.__new__(LLMPlayer)
-        player.provider = "gemini"
         player._last_target_ids = ["ka-456", "opponent-999"]
         player._last_alternative_cost_id = None
 
@@ -226,7 +190,6 @@ class TestHallucinatedTargetGuard:
 
     def test_tussle_drops_hallucinated_defender_and_falls_back(self):
         player = LLMPlayer.__new__(LLMPlayer)
-        player.provider = "gemini"
         player._last_target_ids = ["not-a-real-defender"]
         player._last_alternative_cost_id = None
 
@@ -241,7 +204,6 @@ class TestHallucinatedTargetGuard:
 
     def test_activate_ability_drops_hallucinated_target_and_falls_back(self):
         player = LLMPlayer.__new__(LLMPlayer)
-        player.provider = "gemini"
         player._last_target_ids = ["opponent-999"]
         player._last_alternative_cost_id = None
 

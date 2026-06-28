@@ -1,21 +1,20 @@
 """
-Strategic selector (Request 2) prompt content - issue #338.
+Strategic selector prompt content - issue #338.
 
 Pins that generate_strategic_prompt actually includes the board legend and
 card-specific guidance (previously wired up in card_loader.py but never
-called from here), and that the Request-2-specific system instruction is
-distinct from the V2 SYSTEM_PROMPT (whose output-format section doesn't
-apply to index-selection).
+called from here), and that the strategic-selection system instruction stays
+free of card-specific knowledge (which belongs in card_guidance.yaml) and of
+the index-selection schema's irrelevant V2-era output-format rules.
 """
 
 from conftest import create_game_with_cards
 from game_engine.ai.enumerator import enumerate_sequences
-from game_engine.ai.prompts.sequence_generator import add_tactical_labels
+from game_engine.ai.prompts.sequence_format import add_tactical_labels
 from game_engine.ai.prompts.strategic_selector import (
     generate_strategic_prompt,
     get_strategic_selector_system_instruction,
 )
-from game_engine.ai.prompts.system_prompt import SYSTEM_PROMPT
 
 
 def _build_sequences(setup, player_id: str):
@@ -99,12 +98,12 @@ def test_prompt_works_without_game_engine():
     assert "<board_legend>" in prompt
 
 
-def test_strategic_system_instruction_is_not_v2_system_prompt():
+def test_strategic_system_instruction_has_no_index_selection_leakage():
     instruction = get_strategic_selector_system_instruction()
 
-    assert instruction != SYSTEM_PROMPT
-    # V2's output-format section (action_number / [ID: xxx] extraction) doesn't
-    # apply to Request 2's index-selection schema and must not leak in.
+    # The action_number / [ID: xxx] extraction rules belong to the old
+    # per-action selection prompt and don't apply to this index-selection
+    # schema; they must not leak in.
     assert "action_number" not in instruction
     assert "[ID: xxx]" not in instruction
 

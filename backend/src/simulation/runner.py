@@ -6,7 +6,6 @@ models and deck compositions, tracking Charge usage per turn for analysis.
 """
 
 import logging
-import os
 import time
 from copy import deepcopy
 from typing import Optional
@@ -17,7 +16,7 @@ from game_engine.models.game_state import GameState, Phase
 from game_engine.models.player import Player
 from game_engine.models.card import Card, Zone
 from game_engine.data.card_loader import load_cards_dict
-from game_engine.ai.llm_player import LLMPlayer, LLMPlayerV3
+from game_engine.ai.llm_player import LLMPlayer
 from game_engine.ai.turn_planner import TurnPlanner
 from game_engine.validation.action_validator import ActionValidator
 from api.schemas import ValidAction
@@ -32,57 +31,46 @@ from .config import (
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")
-
-
 class SimulationRunner:
     """
     Runs individual AI vs AI games for simulation.
-    
+
     This class handles:
     - Game state initialization with specified decks
-    - AI player instantiation with configurable models and AI versions
+    - AI player instantiation with configurable models
     - Turn execution with Charge tracking
     - Game completion detection and result generation
     """
-    
+
     def __init__(
         self,
         player1_model: str = "gemini-2.5-flash-lite",
         player2_model: str = "gemini-2.5-flash-lite",
-        player1_ai_version: int = 4,
-        player2_ai_version: int = 4,
         max_turns: int = 20,
         log_level: str = "WARNING",
     ):
         """
         Initialize the simulation runner.
-        
+
         Args:
             player1_model: Gemini model for player 1
             player2_model: Gemini model for player 2
-            player1_ai_version: AI planning version for player 1 (2, 3, or 4)
-            player2_ai_version: AI planning version for player 2 (2, 3, or 4)
             max_turns: Maximum turns before declaring draw
             log_level: Logging level for simulation-related loggers (default: WARNING)
         """
         self.player1_model = player1_model
         self.player2_model = player2_model
-        self.player1_ai_version = player1_ai_version
-        self.player2_ai_version = player2_ai_version
         self.max_turns = max_turns
-        
+
         # Configure logging for simulation
         self._configure_simulation_logging(log_level)
-        
+
         # Load all card templates
         self.card_templates = load_cards_dict()
-        
+
         # AI players will be created per-game
         self._player1_ai: Optional[LLMPlayer] = None
         self._player2_ai: Optional[LLMPlayer] = None
-        self.player1_provider = DEFAULT_AI_PROVIDER
-        self.player2_provider = DEFAULT_AI_PROVIDER
     
     def run_game(
         self,
@@ -106,33 +94,21 @@ class SimulationRunner:
         action_log: list[dict] = []
         error_message: Optional[str] = None
         game_initialized = False  # Track successful game initialization
-        
-        # Reset V4 metrics if either player uses V4
-        if self.player1_ai_version == 4 or self.player2_ai_version == 4:
-            TurnPlanner.reset_v4_metrics()
-        
+
+        TurnPlanner.reset_metrics()
+
         try:
             # Create game state
             game_state = self._create_game_state(deck1, deck2)
             engine = GameEngine(game_state)
-            
-            # Create AI players with specified models and AI versions
-            # Use LLMPlayerV3 for AI versions 3 and 4 (turn planning)
-            from game_engine.ai.turn_planner import ai_version_to_planner_mode
-            Player1Class = LLMPlayerV3 if self.player1_ai_version >= 3 else LLMPlayer
-            Player2Class = LLMPlayerV3 if self.player2_ai_version >= 3 else LLMPlayer
-            p1_kwargs = dict(provider=self.player1_provider, model=self.player1_model)
-            p2_kwargs = dict(provider=self.player2_provider, model=self.player2_model)
-            if self.player1_ai_version >= 3:
-                p1_kwargs["planner_mode"] = ai_version_to_planner_mode(self.player1_ai_version)
-            if self.player2_ai_version >= 3:
-                p2_kwargs["planner_mode"] = ai_version_to_planner_mode(self.player2_ai_version)
-            self._player1_ai = Player1Class(**p1_kwargs)
-            self._player2_ai = Player2Class(**p2_kwargs)
-            
+
+            # Create AI players with specified models (enum-based turn planning)
+            self._player1_ai = LLMPlayer(model=self.player1_model)
+            self._player2_ai = LLMPlayer(model=self.player2_model)
+
             logger.info(
-                f"Starting game {game_number}: {deck1.name} (v{self.player1_ai_version}/{self.player1_model}) vs "
-                f"{deck2.name} (v{self.player2_ai_version}/{self.player2_model})"
+                f"Starting game {game_number}: {deck1.name} ({self.player1_model}) vs "
+                f"{deck2.name} ({self.player2_model})"
             )
             
             # Start first turn
@@ -313,19 +289,14 @@ class SimulationRunner:
             f"({duration_ms}ms)"
         )
         
-        # Capture V4 metrics if using V4
-        v2_fallback_count = 0
-        illegal_action_count = 0
-        if self.player1_ai_version == 4 or self.player2_ai_version == 4:
-            v4_metrics = TurnPlanner.get_v4_metrics()
-            v2_fallback_count = v4_metrics.get("v2_fallback", 0)
-            illegal_action_count = v4_metrics.get("validation_rejections", 0)
-            logger.debug(
-                f"V4 Metrics: v4_success={v4_metrics.get('v4_success', 0)}, "
-                f"v2_fallback={v2_fallback_count}, "
-                f"fallback_rate={v4_metrics.get('v2_fallback_rate', 'N/A')}"
-            )
-        
+        planner_metrics = TurnPlanner.get_metrics()
+        no_sequences_count = planner_metrics.get("no_sequences", 0)
+        logger.debug(
+            f"Planner metrics: success={planner_metrics.get('success', 0)}, "
+            f"no_sequences={no_sequences_count}, "
+            f"no_sequences_rate={planner_metrics.get('no_sequences_rate', 'N/A')}"
+        )
+
         return GameResult(
             game_number=game_number,
             deck1_name=deck1.name,
@@ -339,8 +310,7 @@ class SimulationRunner:
             charge_tracking=charge_tracking,
             action_log=action_log,
             error_message=error_message,
-            v2_fallback_count=v2_fallback_count,
-            illegal_action_count=illegal_action_count,
+            no_sequences_count=no_sequences_count,
         )
     
     def _create_game_state(

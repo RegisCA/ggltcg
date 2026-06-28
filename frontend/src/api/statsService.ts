@@ -91,10 +91,10 @@ export async function getCardStats(
 export interface AILogData {
   turn_number: number;
   player_id: string;
-  ai_version: number | null;
+  ai_version: number | null; // legacy column, unused for current (enum) logs
   turn_plan: {
     strategy: string;
-    planner_mode?: string | null;
+    planner?: string | null;
   } | null;
   plan_execution_status: 'complete' | 'fallback' | null;
   fallback_reason: string | null;

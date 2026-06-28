@@ -40,18 +40,19 @@ interface AILog {
   action_number: number | null;
   reasoning: string | null;
   created_at: string;
-  // Planner fields. ai_version is the legacy integer (kept for back-compat);
-  // planner_mode is the authoritative label ('single' | 'dual' | 'enum').
+  // ai_version is a legacy column, no longer written (kept inert so old rows
+  // don't lose their historical label); turn_plan.planner is the current key
+  // ("enum" for every live log).
   ai_version: number | null;
   turn_plan: {
-    planner_mode?: string | null;
+    planner?: string | null;
     strategy: string;
     total_actions: number;
     current_action: number;
     charge_start: number;
     charge_after_plan: number;
     expected_cards_broken: number;
-    // Full action sequence (new)
+    // Full action sequence
     action_sequence?: Array<{
       action_type: string;
       card_name: string | null;
@@ -59,17 +60,17 @@ interface AILog {
       charge_cost: number;
       reasoning: string;
     }>;
-    // Planning prompt/response (new)
+    // Planning prompt/response (alias of selection_prompt/response below —
+    // enum has no separate "planning" LLM call, just the one selection call)
     planning_prompt?: string;
     planning_response?: string;
-    // V4 dual-request visibility
-    v4_request1_prompt?: string | null;
-    v4_request1_response?: string | null;
-    v4_request2_prompt?: string | null;
-    v4_request2_response?: string | null;
-    v4_metrics?: unknown;
-    v4_turn_debug?: unknown;
-    // Execution tracking (new)
+    // Strategic-selection request (the planner's one LLM call)
+    selection_prompt?: string | null;
+    selection_response?: string | null;
+    selection_system_instruction?: string | null;
+    // Per-turn enumerator/selection diagnostics
+    enum_debug?: unknown;
+    // Execution tracking
     execution_log?: Array<{
       action_index: number;
       planned_action: string;
@@ -381,7 +382,8 @@ const AdminDataViewer: React.FC = () => {
     enabled: activeTab === 'simulation',
   });
 
-  // Group AI logs by turn for v3+ display
+  // Group AI logs by turn — every live log has a turn_plan (the AI player
+  // is always a planner now), so grouping no longer depends on ai_version.
   interface TurnGroup {
     key: string;
     game_id: string;
@@ -389,8 +391,8 @@ const AdminDataViewer: React.FC = () => {
     player_id: string;
     model_name: string;
     prompts_version: string;
-    ai_version: number;
-    planner_mode: string | null;
+    ai_version: number | null;
+    planner: string | null;
     turn_plan: NonNullable<AILog['turn_plan']>;
     created_at: string;
     logs: AILog[];
@@ -403,8 +405,8 @@ const AdminDataViewer: React.FC = () => {
     const legacyLogs: AILog[] = [];
 
     for (const log of logs) {
-      // Group v3+ logs that have turn plans
-      if (log.ai_version !== null && log.ai_version >= 3 && log.turn_plan) {
+      // Group any log carrying a turn plan; logs without one predate planning.
+      if (log.turn_plan) {
         const key = `${log.game_id}-${log.turn_number}-${log.player_id}`;
         if (!planGroups.has(key)) {
           planGroups.set(key, {
@@ -415,7 +417,7 @@ const AdminDataViewer: React.FC = () => {
             model_name: log.model_name,
             prompts_version: log.prompts_version,
             ai_version: log.ai_version,
-            planner_mode: log.turn_plan?.planner_mode ?? null,
+            planner: log.turn_plan?.planner ?? null,
             turn_plan: log.turn_plan,
             created_at: log.created_at,
             logs: [],
@@ -553,7 +555,7 @@ const AdminDataViewer: React.FC = () => {
     lines.push(`Turn: ${turnGroup.turn_number}`);
     lines.push(`Player: ${turnGroup.player_id}`);
     lines.push(`Model: ${turnGroup.model_name}`);
-    lines.push(`Planner: ${plannerModeLabel(turnGroup.planner_mode, turnGroup.ai_version)}`);
+    lines.push(`Planner: ${plannerModeLabel(turnGroup.planner, turnGroup.ai_version)}`);
     if (turnGroup.fallback_reason) lines.push(`Fallback: ${turnGroup.fallback_reason}`);
     lines.push('');
 
@@ -563,19 +565,19 @@ const AdminDataViewer: React.FC = () => {
       lines.push('');
     }
 
-    if (tp?.v4_turn_debug) {
+    if (tp?.enum_debug) {
       lines.push('=== Planner Diagnostics ===');
-      lines.push(safeJsonString(tp.v4_turn_debug));
+      lines.push(safeJsonString(tp.enum_debug));
       lines.push('');
     }
 
     const planningPrompt = tp?.planning_prompt;
     const planningResponse = tp?.planning_response;
-    const r1p = tp?.v4_request1_prompt;
-    const r1r = tp?.v4_request1_response;
+    const selectionPrompt = tp?.selection_prompt;
+    const selectionResponse = tp?.selection_response;
 
-    const isR1PromptSameAsPlanning = normalizeText(planningPrompt) !== '' && normalizeText(planningPrompt) === normalizeText(r1p);
-    const isR1ResponseSameAsPlanning = normalizeText(planningResponse) !== '' && normalizeText(planningResponse) === normalizeText(r1r);
+    const isSelectionPromptSameAsPlanning = normalizeText(planningPrompt) !== '' && normalizeText(planningPrompt) === normalizeText(selectionPrompt);
+    const isSelectionResponseSameAsPlanning = normalizeText(planningResponse) !== '' && normalizeText(planningResponse) === normalizeText(selectionResponse);
 
     if (planningPrompt) {
       pushPromptBlock('Planning Prompt', String(planningPrompt));
@@ -584,22 +586,11 @@ const AdminDataViewer: React.FC = () => {
       pushPromptBlock('Planning Response', String(planningResponse));
     }
 
-    if (r1p && !isR1PromptSameAsPlanning) {
-      pushPromptBlock('Request 1 Prompt (sequence generation)', String(r1p));
+    if (selectionPrompt && !isSelectionPromptSameAsPlanning) {
+      pushPromptBlock('Strategic Selection Prompt', String(selectionPrompt));
     }
-    if (r1r && !isR1ResponseSameAsPlanning) {
-      pushPromptBlock('Request 1 Response (sequence generation)', String(r1r));
-    }
-    if (tp?.v4_request2_prompt) {
-      pushPromptBlock('Request 2 Prompt (strategic selection)', String(tp.v4_request2_prompt));
-    }
-    if (tp?.v4_request2_response) {
-      pushPromptBlock('Request 2 Response (strategic selection)', String(tp.v4_request2_response));
-    }
-    if (tp?.v4_metrics) {
-      lines.push('=== Planner Metrics Snapshot ===');
-      lines.push(safeJsonString(tp.v4_metrics));
-      lines.push('');
+    if (selectionResponse && !isSelectionResponseSameAsPlanning) {
+      pushPromptBlock('Strategic Selection Response', String(selectionResponse));
     }
 
     if (Array.isArray(tp?.action_sequence) && tp.action_sequence.length > 0) {
@@ -682,15 +673,13 @@ const AdminDataViewer: React.FC = () => {
 
     const tp = turnGroup.turn_plan;
     if (tp) {
-      const isR1PromptSameAsPlanning = normalizeText(tp.planning_prompt) !== '' && normalizeText(tp.planning_prompt) === normalizeText(tp.v4_request1_prompt);
-      const isR1ResponseSameAsPlanning = normalizeText(tp.planning_response) !== '' && normalizeText(tp.planning_response) === normalizeText(tp.v4_request1_response);
+      const isSelectionPromptSameAsPlanning = normalizeText(tp.planning_prompt) !== '' && normalizeText(tp.planning_prompt) === normalizeText(tp.selection_prompt);
+      const isSelectionResponseSameAsPlanning = normalizeText(tp.planning_response) !== '' && normalizeText(tp.planning_response) === normalizeText(tp.selection_response);
 
       if (tp.planning_prompt) parts.push(tp.planning_prompt);
       if (tp.planning_response) parts.push(tp.planning_response);
-      if (tp.v4_request1_prompt && !isR1PromptSameAsPlanning) parts.push(tp.v4_request1_prompt);
-      if (tp.v4_request1_response && !isR1ResponseSameAsPlanning) parts.push(tp.v4_request1_response);
-      if (tp.v4_request2_prompt) parts.push(tp.v4_request2_prompt);
-      if (tp.v4_request2_response) parts.push(tp.v4_request2_response);
+      if (tp.selection_prompt && !isSelectionPromptSameAsPlanning) parts.push(tp.selection_prompt);
+      if (tp.selection_response && !isSelectionResponseSameAsPlanning) parts.push(tp.selection_response);
       if (tp.execution_log) {
         for (const e of tp.execution_log) {
           if (e.reason) parts.push(e.reason);
@@ -702,7 +691,7 @@ const AdminDataViewer: React.FC = () => {
           if (a.reasoning) parts.push(a.reasoning);
         }
       }
-      if (tp.v4_turn_debug) parts.push(safeJsonString(tp.v4_turn_debug));
+      if (tp.enum_debug) parts.push(safeJsonString(tp.enum_debug));
     }
 
     for (const log of turnGroup.logs) {
@@ -1045,7 +1034,7 @@ const AdminDataViewer: React.FC = () => {
               )}
             </div>
             {aiLogsData?.logs && groupLogsByTurn(aiLogsData.logs).map((item) => {
-              // Turn Group (v3+)
+              // Turn Group (has a turn_plan)
               if ('logs' in item) {
                 const turnGroup = item;
                 const isExpanded = expandedTurns.has(turnGroup.key);
@@ -1053,22 +1042,22 @@ const AdminDataViewer: React.FC = () => {
                 const totalActions = turnGroup.turn_plan?.total_actions || completedActions;
                 const planCompleted = completedActions === totalActions && !turnGroup.has_fallback;
                 const turnSymptomCounts = countSymptoms(buildTurnTextForSymptoms(turnGroup));
-                const v4Debug = turnGroup.turn_plan?.v4_turn_debug as Record<string, unknown> | undefined;
-                const hasV4Artifacts =
-                  !!turnGroup.turn_plan?.v4_request1_prompt || !!turnGroup.turn_plan?.v4_request1_response || !!turnGroup.turn_plan?.v4_request2_prompt || !!turnGroup.turn_plan?.v4_request2_response;
+                const enumDebug = turnGroup.turn_plan?.enum_debug as Record<string, unknown> | undefined;
+                const hasSelectionArtifacts =
+                  !!turnGroup.turn_plan?.selection_prompt || !!turnGroup.turn_plan?.selection_response;
 
                 const planningPromptText = turnGroup.turn_plan?.planning_prompt as string | undefined;
                 const planningResponseText = turnGroup.turn_plan?.planning_response as string | undefined;
-                
+
                 return (
                   <div key={turnGroup.key} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
                     {/* Compact Turn Header */}
-                    <div 
+                    <div
                       className="flex justify-between items-center cursor-pointer"
                       onClick={() => toggleTurnExpanded(turnGroup.key)}
                     >
                       <div className="flex items-center flex-wrap" style={{ gap: 'var(--spacing-component-sm)' }}>
-                        <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }} title="Planner mode">{plannerModeLabel(turnGroup.planner_mode, turnGroup.ai_version)}</span>
+                        <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }} title="Planner">{plannerModeLabel(turnGroup.planner, turnGroup.ai_version)}</span>
                         <span className="font-semibold">Turn {turnGroup.turn_number}</span>
                         <span className="text-gray-400 text-sm">Game: {turnGroup.game_id.substring(0, 8)}...</span>
                         <span className="text-gray-500 text-sm">{turnGroup.model_name}</span>
@@ -1127,22 +1116,35 @@ const AdminDataViewer: React.FC = () => {
                           <span><span className="text-gray-500">Target:</span> Break {turnGroup.turn_plan.expected_cards_broken} cards</span>
                         </div>
 
-                        {/* V4 Diagnostics (if available) */}
-                        {hasV4Artifacts && (
+                        {/* Enumerator/selection diagnostics (if available) */}
+                        {!!enumDebug && (
                           <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
                             <span className="text-gray-500">Planner diagnostics: </span>
                             <span className="text-gray-300">
-                              R1 attempts: {(v4Debug?.request1_attempts as number | undefined) ?? 'N/A'}
-                              {' · '}sequences: {(v4Debug?.sequences_generated as number | undefined) ?? 'N/A'} gen
-                              {' / '}{(v4Debug?.sequences_after_validation as number | undefined) ?? 'N/A'} valid
-                              {' · '}rejected: {(v4Debug?.sequences_rejected as number | undefined) ?? 'N/A'}
-                              {' · '}R2 parse_error: {String((v4Debug?.request2_parse_error as boolean | undefined) ?? false)}
-                              {' · '}R2 invalid_index: {String((v4Debug?.request2_invalid_index as boolean | undefined) ?? false)}
+                              sequences generated: {(enumDebug?.sequences_generated as number | undefined) ?? 'N/A'}
+                              {' · '}selection index: {(enumDebug?.selection_index_used as number | undefined) ?? 'N/A'}
+                              {' · '}parse_error: {String((enumDebug?.selection_parse_error as boolean | undefined) ?? false)}
+                              {' · '}invalid_index: {String((enumDebug?.selection_invalid_index as boolean | undefined) ?? false)}
+                              {' · '}fallback_used: {String((enumDebug?.selection_fallback_used as boolean | undefined) ?? false)}
                             </span>
-                            {Array.isArray(v4Debug?.sequence_rejection_messages) && (v4Debug.sequence_rejection_messages as unknown[]).length > 0 && (
+                            {/* The validator is advisory-only in enum mode and never
+                                filters sequences, so "valid" would always equal
+                                "generated" — not shown as a separate count. Its only
+                                signal is the disagreement list below. */}
+                            {Array.isArray(enumDebug?.sequence_disagreements) && (enumDebug.sequence_disagreements as unknown[]).length > 0 && (
                               <div className="text-gray-400 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                                Rejections: {(v4Debug.sequence_rejection_messages as string[]).slice(0, 3).join(' · ')}
-                                {(v4Debug.sequence_rejection_messages as string[]).length > 3 ? ` (+${(v4Debug.sequence_rejection_messages as string[]).length - 3} more)` : ''}
+                                Validator disagreements (advisory): {(enumDebug.sequence_disagreements as string[]).slice(0, 3).join(' · ')}
+                                {(enumDebug.sequence_disagreements as string[]).length > 3 ? ` (+${(enumDebug.sequence_disagreements as string[]).length - 3} more)` : ''}
+                              </div>
+                            )}
+                            {!!enumDebug?.enumeration_exception && (
+                              <div className="text-red-300 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                ❌ Enumeration failed (0 sequences, fell back to plain end_turn): {String(enumDebug.enumeration_exception)}
+                              </div>
+                            )}
+                            {!!enumDebug?.selection_exception && (
+                              <div className="text-red-300 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                ❌ Strategic selection failed: {String(enumDebug.selection_exception)}
                               </div>
                             )}
                           </div>
@@ -1209,7 +1211,11 @@ const AdminDataViewer: React.FC = () => {
                                       </span>
                                     )}
                                     
-                                    {action.reasoning && !notAttempted && (
+                                    {/* Enum sequences carry one reasoning for the whole
+                                        plan (shown in "Strategy:" above), not per action —
+                                        action.reasoning is always the literal sentinel
+                                        below, so skip rendering it. */}
+                                    {action.reasoning && action.reasoning !== 'No reasoning provided' && !notAttempted && (
                                       <span className="text-gray-500 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
                                         {action.reasoning}
                                       </span>
@@ -1264,62 +1270,28 @@ const AdminDataViewer: React.FC = () => {
                           </div>
                         )}
 
-                        {/* V4 Request 1 Prompt/Response (collapsible) */}
-                        {turnGroup.turn_plan.v4_request1_prompt && normalizeText(turnGroup.turn_plan.v4_request1_prompt) !== normalizeText(turnGroup.turn_plan.planning_prompt) && (
+                        {/* Strategic selection prompt/response (collapsible) — only
+                            shown when distinct from the planning prompt/response
+                            above (it always is the same call for enum, since there's
+                            no separate sequence-generation LLM request). */}
+                        {hasSelectionArtifacts && turnGroup.turn_plan.selection_prompt && normalizeText(turnGroup.turn_plan.selection_prompt) !== normalizeText(turnGroup.turn_plan.planning_prompt) && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View Request 1 prompt (sequence generation) ({turnGroup.turn_plan.v4_request1_prompt.length} chars)
+                              View strategic selection prompt ({turnGroup.turn_plan.selection_prompt.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.v4_request1_prompt}
+                              {turnGroup.turn_plan.selection_prompt}
                             </pre>
                           </details>
                         )}
-                        {turnGroup.turn_plan.v4_request1_response && normalizeText(turnGroup.turn_plan.v4_request1_response) !== normalizeText(turnGroup.turn_plan.planning_response) && (
+                        {hasSelectionArtifacts && turnGroup.turn_plan.selection_response && normalizeText(turnGroup.turn_plan.selection_response) !== normalizeText(turnGroup.turn_plan.planning_response) && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
                             <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View Request 1 response (sequence generation) ({turnGroup.turn_plan.v4_request1_response.length} chars)
+                              View strategic selection response ({turnGroup.turn_plan.selection_response.length} chars)
                             </summary>
                             <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.v4_request1_response}
+                              {turnGroup.turn_plan.selection_response}
                             </pre>
-                          </details>
-                        )}
-
-                        {/* V4 Request 2 Prompt/Response (collapsible) */}
-                        {turnGroup.turn_plan.v4_request2_prompt && (
-                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View Request 2 prompt (strategic selection) ({turnGroup.turn_plan.v4_request2_prompt.length} chars)
-                            </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.v4_request2_prompt}
-                            </pre>
-                          </details>
-                        )}
-                        {turnGroup.turn_plan.v4_request2_response && (
-                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View Request 2 response (strategic selection) ({turnGroup.turn_plan.v4_request2_response.length} chars)
-                            </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {turnGroup.turn_plan.v4_request2_response}
-                            </pre>
-                          </details>
-                        )}
-
-                        {/* V4 Metrics snapshot (collapsible) */}
-                        {turnGroup.turn_plan.v4_metrics != null && (
-                          <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
-                              View planner metrics snapshot
-                            </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
-                              {safeJsonString(turnGroup.turn_plan.v4_metrics)}
-                            </pre>
-                            <div className="text-xs text-gray-600" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                              Note: these counters may be process-wide, not per-game.
-                            </div>
                           </details>
                         )}
                       </div>

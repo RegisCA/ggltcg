@@ -241,16 +241,20 @@ class GameStatsModel(Base):
 class AIDecisionLogModel(Base):
     """
     Database model for AI decision logs.
-    
+
     Stores Gemini prompts and responses for debugging AI behavior.
     Retention: 6 hours (cleaned up by scheduled task).
-    
-    v3 additions (Issue #260):
-    - ai_version: Which AI version (2 or 3)
-    - turn_plan: Full TurnPlan JSON for v3 (stored with each action log entry)
+
+    Turn planning fields:
+    - turn_plan: Full TurnPlan JSON (stored with each action log entry); the
+      JSON's own `planner` key identifies the planning architecture ("enum").
     - plan_execution_status: "complete" or "fallback"
     - fallback_reason: Why fallback occurred (if any)
     - planned_action_index: Which action in the plan this log represents
+
+    ai_version is a legacy column (no longer written — superseded by
+    turn_plan's `planner` key) kept inert rather than dropped, to avoid a
+    destructive migration on production data.
     """
     __tablename__ = "ai_decision_logs"
     
@@ -274,9 +278,9 @@ class AIDecisionLogModel(Base):
     action_number = Column(Integer, nullable=True)
     reasoning = Column(Text, nullable=True)
     
-    # v3 Turn Planning fields (Issue #260)
-    ai_version = Column(Integer, nullable=True, default=2)  # 2 or 3
-    turn_plan = Column(JSONType, nullable=True)  # Full TurnPlan JSON for v3
+    # Turn planning fields
+    ai_version = Column(Integer, nullable=True)  # legacy, no longer written — see class docstring
+    turn_plan = Column(JSONType, nullable=True)  # Full TurnPlan JSON
     plan_execution_status = Column(String(20), nullable=True)  # "complete" or "fallback"
     fallback_reason = Column(Text, nullable=True)  # Why fallback occurred
     planned_action_index = Column(Integer, nullable=True)  # Which action in the plan (0-based)

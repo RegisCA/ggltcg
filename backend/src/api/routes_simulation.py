@@ -94,18 +94,6 @@ class StartSimulationRequest(BaseModel):
         default="gemini-flash-lite-latest",
         description="Model identifier for player 2"
     )
-    player1_ai_version: int = Field(
-        default=4,
-        ge=2,
-        le=4,
-        description="AI planning version for player 1 (2=per-action, 3=turn-planning, 4=dual-request)"
-    )
-    player2_ai_version: int = Field(
-        default=4,
-        ge=2,
-        le=4,
-        description="AI planning version for player 2 (2=per-action, 3=turn-planning, 4=dual-request)"
-    )
     iterations_per_matchup: int = Field(
         default=10,
         ge=1,
@@ -207,8 +195,6 @@ async def start_simulation(
         deck_names=request.deck_names,
         player1_model=request.player1_model,
         player2_model=request.player2_model,
-        player1_ai_version=request.player1_ai_version,
-        player2_ai_version=request.player2_ai_version,
         iterations_per_matchup=request.iterations_per_matchup,
         max_turns=max_turns,
     )

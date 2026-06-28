@@ -202,8 +202,6 @@ class SimulationOrchestrator:
                 runner = SimulationRunner(
                     player1_model=config.player1_model,
                     player2_model=config.player2_model,
-                    player1_ai_version=config.player1_ai_version,
-                    player2_ai_version=config.player2_ai_version,
                     max_turns=config.max_turns,
                 )
                 result = runner.run_game(

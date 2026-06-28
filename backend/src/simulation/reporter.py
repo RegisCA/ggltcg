@@ -116,8 +116,8 @@ class SimulationReporter:
         lines = [
             "## Configuration",
             "",
-            f"- **Player 1**: AI v{config.get('player1_ai_version', '?')} ({config.get('player1_model', '?')})",
-            f"- **Player 2**: AI v{config.get('player2_ai_version', '?')} ({config.get('player2_model', '?')})",
+            f"- **Player 1**: {config.get('player1_model', '?')}",
+            f"- **Player 2**: {config.get('player2_model', '?')}",
             f"- **Iterations per matchup**: {config.get('iterations_per_matchup', '?')}",
             f"- **Max turns**: {config.get('max_turns', '?')}",
             f"- **Decks**: {', '.join(config.get('deck_names', []))}",

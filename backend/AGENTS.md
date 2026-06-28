@@ -253,22 +253,20 @@ def apply_damage(self, amount: int) -> None:
 
 ## AI System
 
-Two planner modes. **Prod runs `dual` (V4) on Gemini.** The live path
-(`get_ai_player()`) selects the mode from **`AI_VERSION`** (`4` → dual, else →
-single), not `AI_PLANNER_MODE` — that var is read only by `get_planner_mode()`,
-which the live path bypasses, so it has no effect in the running app (unfinished
-migration). `single` = whole-turn planning in one request; `dual` (V4) =
-sequence generation → validator → strategic selection. See
-`docs/development/ai/AI_CURRENT_STATE.md`.
+Single architecture, Gemini only — no planner-mode switch, no provider
+abstraction. `get_ai_player()` always builds the same enum-based player.
 
-### Dual-Request Pattern (V4 — production)
-
-1. **Request 1** (Sequence Generator): Generate valid action sequences
-2. **Request 2** (Strategic Selector): Evaluate and select best sequence
+1. **Enumeration** (engine-side, no LLM call): `enumerator.py` does a
+   depth-limited DFS over the real action space, producing only engine-legal
+   action sequences.
+2. **Strategic selection** (1 Gemini call/turn): the selector picks the best
+   enumerated sequence given board state, card guidance, and threat
+   priorities.
 
 **Files**:
-- `backend/src/game_engine/ai/turn_planner.py` (planner-mode entry point)
-- `backend/src/game_engine/ai/prompts/sequence_generator.py`
+
+- `backend/src/game_engine/ai/enumerator.py`
+- `backend/src/game_engine/ai/turn_planner.py` (`TurnPlanner.create_plan`)
 - `backend/src/game_engine/ai/prompts/strategic_selector.py`
 
 **Reference**: `docs/development/ai/AI_CURRENT_STATE.md`

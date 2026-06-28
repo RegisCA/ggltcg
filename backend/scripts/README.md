@@ -58,5 +58,5 @@ CC Claimed (Request 1): 8
 - Access to production API (https://ggltcg.onrender.com)
 
 **Related Documentation**:
-- [AI V4 Improvements Tracking](../../docs/development/AI_V4_IMPROVEMENTS_TRACKING.md)
-- [AI V4 Game Analyses](../../docs/development/)
+- [AI Current State](../../docs/development/ai/AI_CURRENT_STATE.md)
+- [AI V4 Improvements Tracking (archived)](../../docs/development/ai/archive/AI_V4_IMPROVEMENTS_TRACKING.md)

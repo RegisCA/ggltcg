@@ -366,8 +366,8 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
     
     try:
         # Pay the cost
-        player.spend_cc(cost)
-        
+        player.spend_charge(cost)
+
         # Apply the ability
         activated_effect.apply(
             game_state,
@@ -375,7 +375,7 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
             amount=amount,
             game_engine=engine
         )
-        
+
         # Log to play-by-play
         description = f"Activated {source_card.name}'s ability"
         if target_card:
@@ -485,24 +485,20 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    # Get AI player first to determine version
     ai_player = get_ai_player()
-    
-    # Use ActionValidator for single source of truth
-    # V2: Enable AI filtering to remove strategically bad moves (losing tussles)
-    # V3: Disable filtering - v3 does strategic planning and may need tactical sacrifices
-    is_v3 = ai_player.__class__.__name__ == 'LLMPlayerV3'
-    filter_for_ai = not is_v3  # False for v3, True for v2
-    
+
+    # filter_for_ai=True matches what the enumerator used internally to build
+    # the plan's candidate sequences (drops guaranteed-loss tussles) — keeping
+    # this list filtered the same way means a planned action always has a
+    # corresponding entry here for execution matching.
     validator = ActionValidator(engine)
-    valid_actions = validator.get_valid_actions(player_id, filter_for_ai=filter_for_ai)
-    
-    # Log available actions for debugging
-    logger.debug(f"Available actions (filtered={filter_for_ai}): {[a.description for a in valid_actions]}")
-    
+    valid_actions = validator.get_valid_actions(player_id, filter_for_ai=True)
+
+    logger.debug(f"Available actions: {[a.description for a in valid_actions]}")
+
     # Get AI player and have it select an action
     try:
-        logger.info(f"🤖 AI turn starting for player {player_id} in game {game_id} (v{'3' if is_v3 else '2'})")
+        logger.info(f"🤖 AI turn starting for player {player_id} in game {game_id}")
         logger.debug(f"Available actions: {[a.description for a in valid_actions]}")
         result = ai_player.select_action(game_state, player_id, valid_actions, engine)
         
@@ -514,8 +510,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             try:
                 decision_info = ai_player.get_last_decision_info()
                 stats_service = get_stats_service()
-                v3_plan = decision_info.get("v3_plan")
-                ai_version = v3_plan.get("ai_version", 3) if v3_plan else 2
+                plan = decision_info.get("plan")
                 stats_service.log_ai_decision(
                     game_id=game_id,
                     turn_number=game_state.turn_number,
@@ -526,8 +521,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     response=decision_info.get("response") or "",
                     action_number=None,
                     reasoning="[AI failed to select action — fell back to end turn]",
-                    ai_version=ai_version,
-                    turn_plan=v3_plan,
+                    turn_plan=plan,
                     plan_execution_status="fallback",
                     fallback_reason="select_action returned None",
                 )
@@ -571,36 +565,33 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             decision_info = ai_player.get_last_decision_info()
             stats_service = get_stats_service()
             
-            # Extract v3 plan info if available
-            v3_plan = decision_info.get("v3_plan")
-            # Use actual AI version from plan data, fallback to inference for backwards compatibility
-            ai_version = v3_plan.get("ai_version", 3) if v3_plan else 2
-
-            planned_action_index = v3_plan.get("current_action") if v3_plan else None
+            # Extract plan info if available
+            plan = decision_info.get("plan")
+            planned_action_index = plan.get("current_action") if plan else None
 
             # Prefer logging the planning prompt/response on the first planned action
-            # (otherwise V3/V4 turns often show empty prompt/response in admin logs)
+            # (otherwise planner turns often show empty prompt/response in admin logs)
             prompt_for_log = decision_info.get("prompt") or ""
             response_for_log = decision_info.get("response") or ""
-            if v3_plan and (planned_action_index == 0):
-                planning_prompt = v3_plan.get("planning_prompt") or v3_plan.get("v4_request1_prompt") or ""
-                planning_response = v3_plan.get("planning_response") or v3_plan.get("v4_request1_response") or ""
+            if plan and (planned_action_index == 0):
+                planning_prompt = plan.get("planning_prompt") or ""
+                planning_response = plan.get("planning_response") or ""
                 if planning_prompt and planning_response:
                     prompt_for_log = planning_prompt
                     response_for_log = planning_response
-            
+
             # Determine execution status from reasoning prefix
             plan_execution_status = None
             fallback_reason = None
             if reasoning:
-                if "[v3 Fallback]" in reasoning:
+                if "[fallback]" in reasoning:
                     plan_execution_status = "fallback"
                     # Extract fallback reason (only if "Plan failed:" marker exists)
                     if "Plan failed:" in reasoning:
                         fallback_reason = reasoning.split("Plan failed:", 1)[-1].strip()
-                elif "[v3 Plan]" in reasoning:
+                elif "[plan]" in reasoning:
                     plan_execution_status = "complete"
-            
+
             stats_service.log_ai_decision(
                 game_id=game_id,
                 turn_number=game_state.turn_number,
@@ -611,9 +602,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 response=response_for_log,
                 action_number=decision_info["action_number"],
                 reasoning=decision_info["reasoning"],
-                # v3 fields
-                ai_version=ai_version,
-                turn_plan=v3_plan,  # Will be dict with strategy, actions, etc.
+                turn_plan=plan,  # Dict with strategy, actions, etc.
                 plan_execution_status=plan_execution_status,
                 fallback_reason=fallback_reason,
                 planned_action_index=planned_action_index,
@@ -892,8 +881,8 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             
             try:
                 # Pay the cost
-                player.spend_cc(cost)
-                
+                player.spend_charge(cost)
+
                 # Apply the ability
                 activated_effect.apply(
                     game_state,

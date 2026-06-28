@@ -20,12 +20,6 @@ def is_valid_model_name(model_name: str) -> bool:
     """Validate a simulation model name without provider-specific allowlists."""
     return bool(model_name and model_name.strip())
 
-# Supported AI versions (planning strategies)
-# v2: Per-action LLM calls (original)
-# v3: Turn planning with single request
-# v4: Dual-request architecture (sequence generation + strategic selection)
-SUPPORTED_AI_VERSIONS = [2, 3, 4]
-
 
 class SimulationStatus(str, Enum):
     """Status of a simulation run."""
@@ -95,11 +89,10 @@ class GameResult:
     charge_tracking: list[TurnCharge]
     action_log: list[dict]
     error_message: Optional[str] = None
-    # V4 metrics for AI performance tracking
+    # AI performance tracking
     total_charge_spent_by_winner: int = 0  # Charge efficiency metric
-    illegal_action_count: int = 0  # Actions rejected by validator
-    v2_fallback_count: int = 0  # Times V4 fell back to V2 single-action mode
-    
+    no_sequences_count: int = 0  # Turns where the enumerator found no legal sequence
+
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -116,8 +109,7 @@ class GameResult:
             "action_log": self.action_log,
             "error_message": self.error_message,
             "total_charge_spent_by_winner": self.total_charge_spent_by_winner,
-            "illegal_action_count": self.illegal_action_count,
-            "v2_fallback_count": self.v2_fallback_count,
+            "no_sequences_count": self.no_sequences_count,
         }
 
 
@@ -125,10 +117,8 @@ class GameResult:
 class SimulationConfig:
     """Configuration for a simulation run."""
     deck_names: list[str]  # List of deck names to use (will run all combinations)
-    player1_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
-    player2_model: str = os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
-    player1_ai_version: int = 4  # AI planning version (2, 3, or 4)
-    player2_ai_version: int = 4  # AI planning version (2, 3, or 4)
+    player1_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+    player2_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
     iterations_per_matchup: int = 10  # Games per deck matchup
     max_turns: int = 20  # Turn limit before declaring draw
     
@@ -158,8 +148,6 @@ class SimulationConfig:
             "deck_names": self.deck_names,
             "player1_model": self.player1_model,
             "player2_model": self.player2_model,
-            "player1_ai_version": self.player1_ai_version,
-            "player2_ai_version": self.player2_ai_version,
             "iterations_per_matchup": self.iterations_per_matchup,
             "max_turns": self.max_turns,
         }
