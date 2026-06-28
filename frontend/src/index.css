@@ -61,7 +61,7 @@
   --spacing-card-large-w: 330px;
   --spacing-card-large-h: 450px;
   
-  /* Card stacking offsets for sleep zone display */
+  /* Card stacking offsets for break zone display */
   /* These create the visual "fanned stack" effect when cards overlap */
   /* Calculated to show ~15% of each covered card for readability */
   --card-stack-offset-vertical: 28px;         /* Vertical spacing between stacked cards (desktop) */
@@ -111,7 +111,7 @@
   --color-stat-damaged: #FF6B6B;      /* Red for damaged/reduced stats */
   
   /* Component Widths */
-  --width-sleep-zone-mobile: 140px;   /* Sleep zone width on mobile layout */
+  --width-break-zone-mobile: 140px;   /* Break zone width on mobile layout */
   --width-sidebar-tablet: 280px;      /* Sidebar width on tablet layout */
 }
 

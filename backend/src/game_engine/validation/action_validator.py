@@ -106,7 +106,7 @@ class ActionValidator:
             valid_actions.sort(
                 key=lambda a: (
                     a.action_type != "tussle",
-                    a.cost_cc if a.cost_cc is not None else 999
+                    a.cost_charge if a.cost_charge is not None else 999
                 )
             )
         
@@ -134,7 +134,7 @@ class ActionValidator:
             alternative_cost_options = None
             
             if card.has_effect_type(BallaberCostEffect):
-                # Can sleep any card in hand or in play
+                # Can break any card in hand or in play
                 alt_cards = [
                     c for c in (player.in_play + (player.hand or []))
                 ]
@@ -150,9 +150,9 @@ class ActionValidator:
             target_info = self._get_target_info(card, player)
             
             # Build description
-            desc = f"Play {card.name} (Cost: {cost} CC"
+            desc = f"Play {card.name} (Cost: {cost} Charge"
             if alternative_cost_available:
-                desc += " or sleep a card"
+                desc += " or break a card"
             
             # Special handling for cards with variable cost based on target
             # (Copy, Glue, Stomp - cost is the effective cost of the chosen target)
@@ -168,7 +168,7 @@ class ActionValidator:
                         effective_cost = self.engine._calculate_effective_cost_of_card(
                             target_card, target_player
                         )
-                        if effective_cost <= player.cc:
+                        if effective_cost <= player.charge:
                             affordable_targets.append(target_id)
 
                 # Only show the action if there are affordable targets
@@ -178,7 +178,7 @@ class ActionValidator:
                             action_type="play_card",
                             card_id=card.id,
                             card_name=card.name,
-                            cost_cc=cost,
+                            cost_charge=cost,
                             target_options=affordable_targets,
                             max_targets=target_info["max_targets"],
                             min_targets=target_info["min_targets"],
@@ -198,7 +198,7 @@ class ActionValidator:
                         action_type="play_card",
                         card_id=card.id,
                         card_name=card.name,
-                        cost_cc=cost,
+                        cost_charge=cost,
                         target_options=target_info["target_options"],
                         max_targets=target_info["max_targets"],
                         min_targets=target_info["min_targets"],
@@ -219,7 +219,7 @@ class ActionValidator:
                             action_type="play_card",
                             card_id=card.id,
                             card_name=card.name,
-                            cost_cc=cost,
+                            cost_charge=cost,
                             alternative_cost_available=alternative_cost_available,
                             alternative_cost_options=alternative_cost_options,
                             description=desc
@@ -234,7 +234,7 @@ class ActionValidator:
                         action_type="play_card",
                         card_id=card.id,
                         card_name=card.name,
-                        cost_cc=cost,
+                        cost_charge=cost,
                         alternative_cost_available=alternative_cost_available,
                         alternative_cost_options=alternative_cost_options,
                         description=desc
@@ -334,9 +334,9 @@ class ActionValidator:
                             action_type="tussle",
                             card_id=card.id,
                             card_name=card.name,
-                            cost_cc=cost,
+                            cost_charge=cost,
                             target_options=["direct_attack"],
-                            description=f"{card.name} direct attack (Cost: {cost} CC)"
+                            description=f"{card.name} direct attack (Cost: {cost} Charge)"
                         )
                     )
             
@@ -367,9 +367,9 @@ class ActionValidator:
                             action_type="tussle",
                             card_id=card.id,
                             card_name=card.name,
-                            cost_cc=cost,
+                            cost_charge=cost,
                             target_options=[defender.id],
-                            description=f"{card.name} tussle {defender.name} (Cost: {cost} CC)"
+                            description=f"{card.name} tussle {defender.name} (Cost: {cost} Charge)"
                         )
                     )
         
@@ -415,7 +415,7 @@ class ActionValidator:
                         continue
                 
                 # Standard activated ability (Archer can be used multiple times)
-                cost_cc = effect.cost_cc
+                cost_charge = effect.cost_charge
                 
                 valid_actions.append(
                     ValidAction(
@@ -423,11 +423,11 @@ class ActionValidator:
                         card_id=card.id,
                         card_name=card.name,
                         ability_name=type(effect).__name__,
-                        cost_cc=cost_cc,
+                        cost_charge=cost_charge,
                         target_options=target_options,
                         max_targets=max_targets,
                         min_targets=min_targets,
-                        description=f"{card.name}: Remove 1 stamina - {cost_cc} CC"
+                        description=f"{card.name}: Remove 1 stamina - {cost_charge} Charge"
                     )
                 )
         

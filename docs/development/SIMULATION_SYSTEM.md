@@ -10,7 +10,7 @@ as part of GitHub Issue #243.
 
 - Parallel game execution (10 workers by default) for faster completion
 - N² matchup matrix (all deck permutations)
-- CC tracking for both players per turn
+- Charge tracking for both players per turn
 - Action logging with human-readable descriptions
 - Command-line interface (CLI) for easy local testing
 - Web-based Admin UI for browser-based simulations
@@ -36,7 +36,7 @@ backend/src/simulation/
 ├── config.py          # Data classes (SimulationConfig, GameResult, DeckConfig)
 ├── deck_loader.py     # Loads deck configurations from CSV
 ├── orchestrator.py    # Manages batch runs, parallel execution, DB persistence
-├── runner.py          # Executes games; CC tracking & action logging
+├── runner.py          # Executes games; Charge tracking & action logging
 └── README.md          # Comprehensive CLI documentation
 ```text
 ### Parallel Execution
@@ -65,14 +65,14 @@ Located in `backend/src/api/routes_simulation.py`:
 - `GET  /admin/simulation/runs/{id}/results` —
   Get results & matchup stats
 - `GET  /admin/simulation/runs/{id}/games/{num}` —
-  Get individual game details (CC & action log)
+  Get individual game details (Charge & action log)
 
 ### Database Models
 
 Located in `backend/src/api/db_models.py`:
 
 - `SimulationRunModel` - Tracks run metadata, status, config
-- `SimulationGameModel` - Individual game results with CC tracking and action
+- `SimulationGameModel` - Individual game results with Charge tracking and action
   log
 
 ## Configuration
@@ -173,18 +173,19 @@ Via Admin UI:
 - Cell shows P1 Win% with color coding (green = P1 favored, red = P2 favored)
 - Diagonal cells are mirror matchups
 
-**CC Tracking:**
-Each turn records both players' CC state:
+**Charge Tracking:**
+Each turn records both players' Charge state (the `TurnCharge` dataclass in
+`backend/src/simulation/config.py`):
 
 - `turn`: Turn number (odd = P1's turn, even = P2's turn)
 - For both `p1` and `p2`:
-  - `cc_start`: CC at start of that player's action window
-  - `cc_gained`: CC gained (from abilities like Umbruh's on-tussle effect)
-  - `cc_spent`: CC spent on actions
-  - `cc_end`: CC at end of turn
+  - `charge_start`: Charge at start of that player's action window
+  - `charge_gained`: Charge gained (from abilities like Umbruh's on-tussle effect)
+  - `charge_spent`: Charge spent on actions
+  - `charge_end`: Charge at end of turn
 
-Note: Players can gain CC during their opponent's turn. For example, Umbruh
-can generate CC when it is tussled.
+Note: Players can gain Charge during their opponent's turn. For example, Umbruh
+can generate Charge when it is tussled.
 
 **Action Log:**
 Each action records:
@@ -196,7 +197,7 @@ Each action records:
 - `card`: Card name (if applicable)
 - `target`: Target card (if applicable)
 - `description`: Human-readable action description
-  (e.g., "Spent 2 CC for Knight to tussle Umbruh")
+  (e.g., "Spent 2 Charge for Knight to tussle Umbruh")
 - `reasoning`: AI's reasoning for the decision
 
 ## Testing Protocol
@@ -263,9 +264,9 @@ The Simulation UI is in the Admin Data Viewer
 - **Run History**: View past runs with status
 - **Results Matrix**: Heatmap showing P1 win rates for all deck matchups
 - **Individual Games Table**: List of all games with P1/P2 decks,
-  winner, and total CC spent
+  winner, and total Charge spent
 - **Game Detail Panel**: Inline below clicked game row, showing:
-  - Turn-by-turn CC tracking for both players
+  - Turn-by-turn Charge tracking for both players
   - Color-coded actions (play-by-play descriptions)
   - Turn highlighting (green for P1 turns, blue for P2 turns)
 

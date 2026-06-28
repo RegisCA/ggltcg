@@ -17,7 +17,7 @@ interface TargetSelectionModalProps {
   onConfirm: (selectedTargets: string[], alternativeCostCard?: string) => void;
   onCancel: () => void;
   alternativeCostOptions?: Card[]; // For Ballaber
-  currentCC?: number; // Current CC to determine if Pay CC option is affordable
+  currentCharge?: number; // Current Charge to determine if Pay Charge option is affordable
 }
 
 export function TargetSelectionModal({
@@ -26,7 +26,7 @@ export function TargetSelectionModal({
   onConfirm,
   onCancel,
   alternativeCostOptions,
-  currentCC,
+  currentCharge,
 }: TargetSelectionModalProps) {
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [useAlternativeCost, setUseAlternativeCost] = useState(false);
@@ -40,13 +40,13 @@ export function TargetSelectionModal({
     (card) => card.id !== action.card_id && (card.zone === 'Hand' || card.zone === 'InPlay')
   );
   // Show alternative cost UI if the card has alternative cost available (like Ballaber)
-  // Even if there are no cards to sleep, we need to show "Pay CC" option
+  // Even if there are no cards to break, we need to show "Pay Charge" option
   const hasAlternativeCost = action.alternative_cost_available === true;
-  const hasCardsToSleep = filteredAlternativeCostOptions.length > 0;
+  const hasCardsToBreak = filteredAlternativeCostOptions.length > 0;
   
-  // Check if Pay CC option is affordable (for Ballaber)
-  const canAffordCC = currentCC !== undefined && action.cost_cc !== undefined 
-    ? currentCC >= action.cost_cc 
+  // Check if Pay Charge option is affordable (for Ballaber)
+  const canAffordCharge = currentCharge !== undefined && action.cost_charge !== undefined 
+    ? currentCharge >= action.cost_charge 
     : true;
   
   // Check if this is a tussle action that includes direct_attack as an option
@@ -58,13 +58,13 @@ export function TargetSelectionModal({
     setSelectedTargets([]);
     setAlternativeCostCard(null);
     setUseDirectAttack(false);
-    // If alternative cost is available but no cards to sleep AND can afford CC, auto-select "Pay CC"
-    if (hasAlternativeCost && !hasCardsToSleep && canAffordCC) {
+    // If alternative cost is available but no cards to break AND can afford Charge, auto-select "Pay Charge"
+    if (hasAlternativeCost && !hasCardsToBreak && canAffordCharge) {
       setUseAlternativeCost(true);
     } else {
       setUseAlternativeCost(false);
     }
-  }, [action.card_id, hasAlternativeCost, hasCardsToSleep, canAffordCC]);
+  }, [action.card_id, hasAlternativeCost, hasCardsToBreak, canAffordCharge]);
 
   const toggleTarget = (cardId: string) => {
     if (selectedTargets.includes(cardId)) {
@@ -94,8 +94,8 @@ export function TargetSelectionModal({
     setSelectedTargets([]); // Clear normal targets if switching to alt cost
   };
 
-  // Select to pay CC instead of sleeping a card
-  const selectPayCC = () => {
+  // Select to pay Charge instead of breaking a card
+  const selectPayCharge = () => {
     setUseAlternativeCost(true);
     setAlternativeCostCard(null);
     setSelectedTargets([]);
@@ -112,7 +112,7 @@ export function TargetSelectionModal({
       onConfirm([], alternativeCostCard);
       return;
     }
-    // Ballaber: paying CC (useAlternativeCost=true but no card selected)
+    // Ballaber: paying Charge (useAlternativeCost=true but no card selected)
     if (useAlternativeCost && !alternativeCostCard) {
       onConfirm([], undefined);
       return;
@@ -127,9 +127,9 @@ export function TargetSelectionModal({
     if (useDirectAttack) {
       return true;
     }
-    // Ballaber: if using alt cost, either have CC selected or a card selected
+    // Ballaber: if using alt cost, either have Charge selected or a card selected
     if (useAlternativeCost) {
-      return true; // Can confirm with just CC payment or with a card
+      return true; // Can confirm with just Charge payment or with a card
     }
     // Normal targeting
     if (minTargets === 0) return true;
@@ -151,9 +151,9 @@ export function TargetSelectionModal({
       <div className="flex flex-col" style={{ maxHeight: '70vh' }}>
         {/* Action Description */}
         <div className="flex-shrink-0" style={{ marginBottom: 'var(--spacing-component-md)' }}>
-          {action.action_type !== 'tussle' && action.cost_cc !== undefined && (
+          {action.action_type !== 'tussle' && action.cost_charge !== undefined && (
             <p className="text-base text-gray-300" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
-              Cost: {action.cost_cc} CC
+              Cost: {action.cost_charge} Charge
             </p>
           )}
           <p className="text-base text-gray-100" style={{ marginBottom: 'var(--spacing-component-md)' }}>
@@ -236,9 +236,9 @@ export function TargetSelectionModal({
             <div style={{ marginBottom: 'var(--spacing-component-md)' }}>
               <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Pay cost to play Ballaber:</h3>
               <button
-                disabled={!canAffordCC}
+                disabled={!canAffordCharge}
                 style={{
-                  ...(useAlternativeCost && !alternativeCostCard && canAffordCC
+                  ...(useAlternativeCost && !alternativeCostCard && canAffordCharge
                     ? { boxShadow: '0 0 0 4px rgb(250 204 21), 0 10px 15px -3px rgba(250, 204, 21, 0.5)' }
                     : {}),
                   padding: 'var(--spacing-component-sm) var(--spacing-component-md)',
@@ -246,30 +246,30 @@ export function TargetSelectionModal({
                 }}
                 className={`
                   w-full rounded transition-all text-sm focus:ring-2 focus:ring-yellow-400
-                  ${!canAffordCC
+                  ${!canAffordCharge
                     ? 'bg-gray-600 opacity-50 cursor-not-allowed'
                     : useAlternativeCost && !alternativeCostCard
                       ? 'bg-red-700'
                       : 'bg-red-600 hover:bg-red-700 cursor-pointer'
                   }
                 `}
-                onClick={canAffordCC ? selectPayCC : undefined}
+                onClick={canAffordCharge ? selectPayCharge : undefined}
               >
                 <div className="flex justify-between items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
                   <span className="font-medium leading-tight text-left flex-1">
-                    {canAffordCC ? `Pay ${action.cost_cc} CC` : `🔒 Pay ${action.cost_cc} CC (not enough CC)`}
+                    {canAffordCharge ? `Pay ${action.cost_charge} Charge` : `🔒 Pay ${action.cost_charge} Charge (not enough Charge)`}
                   </span>
                   <span 
                     className="rounded text-xs font-bold whitespace-nowrap flex-shrink-0 bg-black bg-opacity-30"
                     style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-xs)' }}
                   >
-                    {action.cost_cc} CC
+                    {action.cost_charge} Charge
                   </span>
                 </div>
               </button>
-              {hasCardsToSleep ? (
+              {hasCardsToBreak ? (
                 <>
-                  <h4 className="text-md font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Or select a card to sleep:</h4>
+                  <h4 className="text-md font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Or select a card to break:</h4>
                   <div 
                     className="grid grid-cols-2" 
                     style={{ 
@@ -299,7 +299,7 @@ export function TargetSelectionModal({
                 </>
               ) : (
                 <p className="text-gray-400 text-sm">
-                  No cards available to sleep. You must pay {action.cost_cc} CC.
+                  No cards available to break. You must pay {action.cost_charge} Charge.
                 </p>
               )}
             </div>

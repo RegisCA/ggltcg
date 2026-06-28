@@ -42,7 +42,7 @@ class AIDecision(BaseModel):
     )
     alternative_cost_id: Optional[str] = Field(
         default=None,
-        description="UUID of card to sleep for alternative cost (Ballaber). Extract ONLY the UUID from [ID: xxx]."
+        description="UUID of card to break for alternative cost (Ballaber). Extract ONLY the UUID from [ID: xxx]."
     )
 
 
@@ -74,17 +74,17 @@ class PlannedAction(BaseModel):
     )
     alternative_cost_id: Optional[str] = Field(
         default=None,
-        description="UUID of card to sleep for alternative cost (Ballaber)"
+        description="UUID of card to break for alternative cost (Ballaber)"
     )
-    cc_cost: int = Field(
+    charge_cost: int = Field(
         ...,
         ge=0,
-        description="CC cost for this action (0 for free cards, 2 for standard tussle)"
+        description="Charge cost for this action (0 for free cards, 2 for standard tussle)"
     )
-    cc_after: int = Field(
+    charge_after: int = Field(
         ...,
         ge=0,
-        description="Expected CC remaining after this action. Formula: cc_before - cc_cost + cc_gained"
+        description="Expected Charge remaining after this action. Formula: charge_before - charge_cost + charge_gained"
     )
     reasoning: str = Field(
         ...,
@@ -99,65 +99,65 @@ class TurnPlan(BaseModel):
     Phase 1: Threat Assessment - Evaluate opponent's board
     Phase 2: Resource Inventory - Catalog available tools and sequences
     Phase 3: Threat Mitigation - Generate and select removal sequences
-    Phase 4: Offensive Opportunities - Direct attacks with remaining CC
+    Phase 4: Offensive Opportunities - Direct attacks with remaining Charge
     """
     # Phase 1: Threat Assessment
     threat_assessment: str = Field(
         ...,
         description="Summary of opponent threats by priority (CRITICAL > HIGH > MEDIUM > LOW)"
     )
-    
+
     # Phase 2: Resource Inventory
     resources_summary: str = Field(
         ...,
-        description="Summary of available action cards, toys in play, toys in hand, and CC budget"
+        description="Summary of available action cards, toys in play, toys in hand, and Charge budget"
     )
-    
+
     # Phase 3: Viable sequences considered
     sequences_considered: List[str] = Field(
         ...,
-        description="List of action sequences evaluated with their CC costs and outcomes"
+        description="List of action sequences evaluated with their Charge costs and outcomes"
     )
-    
+
     # Selected strategy
     selected_strategy: str = Field(
         ...,
-        description="The chosen strategy and why (e.g., 'Archer removal path: sleep Knight and Paper Plane for 4 CC')"
+        description="The chosen strategy and why (e.g., 'Archer removal path: break Knight and Paper Plane for 4 Charge')"
     )
-    
+
     # Phase 4: Action Sequence
     action_sequence: List[PlannedAction] = Field(
         ...,
         description="Ordered list of actions to execute this turn"
     )
-    
-    # CC Budget tracking
-    cc_start: int = Field(
+
+    # Charge Budget tracking
+    charge_start: int = Field(
         ...,
-        description="CC available at turn start"
+        description="Charge available at turn start"
     )
-    cc_after_plan: int = Field(
+    charge_after_plan: int = Field(
         ...,
-        description="Expected CC remaining after all planned actions"
+        description="Expected Charge remaining after all planned actions"
     )
-    
+
     # Efficiency calculation
-    expected_cards_slept: int = Field(
+    expected_cards_broken: int = Field(
         ...,
-        description="Total opponent cards expected to sleep by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
+        description="Total opponent cards expected to break by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
     )
-    
+
     # Overall reasoning
     plan_reasoning: str = Field(
         ...,
         description="Brief (1-3 sentences) explanation of why this plan was selected. Do NOT repeat analysis.",
         max_length=500
     )
-    
-    # Residual CC justification (v3.1)
-    residual_cc_justification: Optional[str] = Field(
+
+    # Residual Charge justification (v3.1)
+    residual_charge_justification: Optional[str] = Field(
         default=None,
-        description="If ending with CC >= 2, explain why no further attacks were possible"
+        description="If ending with Charge >= 2, explain why no further attacks were possible"
     )
 
 
@@ -174,13 +174,13 @@ TURN_PLAN_JSON_SCHEMA = {
         },
         "resources_summary": {
             "type": "string",
-            "description": "Summary of available action cards, toys in play, toys in hand, and CC budget"
+            "description": "Summary of available action cards, toys in play, toys in hand, and Charge budget"
         },
         "sequences_considered": {
             "type": "array",
             "items": {"type": "string"},
             "maxItems": 5,
-            "description": "List of 3-5 action sequences evaluated with their CC costs and outcomes"
+            "description": "List of 3-5 action sequences evaluated with their Charge costs and outcomes"
         },
         "selected_strategy": {
             "type": "string",
@@ -216,16 +216,16 @@ TURN_PLAN_JSON_SCHEMA = {
                     },
                     "alternative_cost_id": {
                         "type": ["string", "null"],
-                        "description": "UUID of card to sleep for alternative cost"
+                        "description": "UUID of card to break for alternative cost"
                     },
-                    "cc_cost": {
+                    "charge_cost": {
                         "type": "integer",
-                        "description": "CC cost for this action",
+                        "description": "Charge cost for this action",
                         "minimum": 0
                     },
-                    "cc_after": {
+                    "charge_after": {
                         "type": "integer",
-                        "description": "Expected CC remaining after this action. MUST be >= 0. Formula: cc_before - cc_cost + cc_gained (Surge +1, Rush +2)",
+                        "description": "Expected Charge remaining after this action. MUST be >= 0. Formula: charge_before - charge_cost + charge_gained (Surge +1, Rush +2)",
                         "minimum": 0
                     },
                     "reasoning": {
@@ -233,54 +233,54 @@ TURN_PLAN_JSON_SCHEMA = {
                         "description": "Why this specific action"
                     }
                 },
-                "required": ["action_type", "cc_cost", "cc_after", "reasoning"]
+                "required": ["action_type", "charge_cost", "charge_after", "reasoning"]
             },
             "description": "Ordered list of actions to execute"
         },
-        "cc_start": {
+        "charge_start": {
             "type": "integer",
-            "description": "CC available at turn start"
+            "description": "Charge available at turn start"
         },
-        "cc_after_plan": {
+        "charge_after_plan": {
             "type": "integer",
-            "description": "Expected CC after all actions"
+            "description": "Expected Charge after all actions"
         },
-        "expected_cards_slept": {
+        "expected_cards_broken": {
             "type": "integer",
-            "description": "Total opponent cards expected to sleep by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
+            "description": "Total opponent cards expected to break by ANY method (tussle wins, direct attacks, Drop, Archer ability, Monster effect)"
         },
         "plan_reasoning": {
             "type": "string",
             "description": "Brief (1-3 sentences) explanation of why this plan was selected. Do NOT repeat analysis.",
             "maxLength": 500
         },
-        "residual_cc_justification": {
+        "residual_charge_justification": {
             "type": ["string", "null"],
-            "description": "If ending with CC >= 2, explain why no further attacks were possible"
+            "description": "If ending with Charge >= 2, explain why no further attacks were possible"
         }
     },
     "required": [
         "threat_assessment",
-        "resources_summary", 
+        "resources_summary",
         "sequences_considered",
         "selected_strategy",
         "action_sequence",
-        "cc_start",
-        "cc_after_plan",
-        "expected_cards_slept",
+        "charge_start",
+        "charge_after_plan",
+        "expected_cards_broken",
         "plan_reasoning"
     ],
     "propertyOrdering": [
         "threat_assessment",
         "resources_summary",
-        "sequences_considered", 
+        "sequences_considered",
         "selected_strategy",
         "action_sequence",
-        "cc_start",
-        "cc_after_plan",
-        "expected_cards_slept",
+        "charge_start",
+        "charge_after_plan",
+        "expected_cards_broken",
         "plan_reasoning",
-        "residual_cc_justification"
+        "residual_charge_justification"
     ]
 }
 
@@ -324,10 +324,10 @@ AI_DECISION_JSON_SCHEMA = {
 # =============================================================================
 # Future Improvements TODO
 # =============================================================================
-# TODO: Add CC efficiency tracking to game logging for all games (not just simulations)
-# This will allow measuring CC spent per card slept across all game types.
+# TODO: Add Charge efficiency tracking to game logging for all games (not just simulations)
+# This will allow measuring Charge spent per card broken across all game types.
 # Currently, this data exists in simulation results but could be added to:
 # - Game completion events
-# - AI decision logs  
+# - AI decision logs
 # - Stats service aggregations
-# See: AI_V3_SESSION_PROMPT.md for target metrics (≤ 2.5 CC per card slept)
+# See: AI_V3_SESSION_PROMPT.md for target metrics (≤ 2.5 Charge per card broken)

@@ -20,7 +20,7 @@ Before writing backend code, verify these facts:
 |------------|----------|
 | `card.apply_damage(3)` | `card.stamina -= 3` |
 | `card.is_defeated()` | `card.stamina <= 0` |
-| `engine._sleep_card(card, owner, True)` | `player.sleep_zone.append(card)` |
+| `engine._break_card(card, owner, True)` | `player.break_zone.append(card)` |
 | `game_state.find_card_by_id(id)` | `next(c for c in cards if c.name == name)` |
 
 ### Test Setup (HIGH RISK - Causes impossible states)
@@ -38,7 +38,7 @@ setup, cards = create_game_with_cards(
     player1_hand=["Ka"],
     turn_number=3,  # P1's second turn
     active_player="player1",
-    player1_cc=4,
+    player1_charge=4,
 )
 
 # ❌ WRONG - impossible state
@@ -88,9 +88,9 @@ game_state.play_card(card)  # Method shouldn't exist here
 | `owner` | Original card owner | NEVER |
 | `controller` | Who currently controls | Yes, via Twist |
 
-- Cards **always** sleep to `owner`'s sleep zone
+- Cards **always** break to `owner`'s break zone
 - "Your cards" effects check `controller`, not owner
-- When sleeping stolen card: remove from `controller.in_play`, add to `owner.sleep_zone`
+- When breaking stolen card: remove from `controller.in_play`, add to `owner.break_zone`
 
 ### Method-Based State Modification
 
@@ -116,8 +116,8 @@ Card effects are defined in `backend/data/cards.csv`, parsed by `EffectRegistry`
 ```csv
 name,type,cost,effect_definitions,...
 Ka,Toy,1,stat_boost:strength:2,...
-Rush,Action,0,gain_cc:2:not_first_turn,...
-Clean,Action,0,sleep_all,...
+Rush,Action,0,gain_charge:2:not_first_turn,...
+Clean,Action,0,break_all,...
 ```
 
 **Custom classes only** for truly unique mechanics (Copy, Transform).

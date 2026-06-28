@@ -25,7 +25,7 @@ class TestAITargetOwnershipDisplay:
             player1_in_play=["Demideca", "Umbruh"],
             player2_in_play=["Knight"],
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         # Get valid actions for player1 (AI)
@@ -75,7 +75,7 @@ class TestAITargetOwnershipDisplay:
             player1_in_play=["Ka"],
             player2_in_play=["Knight", "Demideca"],
             active_player="player1",
-            player1_cc=3,
+            player1_charge=3,
         )
         
         # Get valid actions
@@ -97,13 +97,13 @@ class TestAITargetOwnershipDisplay:
             "Ka should not be a Twist target (can't steal own cards)"
     
     def test_drop_targets_show_both_ownerships(self):
-        """Drop (sleep any card) should show targets from both players."""
+        """Drop (break any card) should show targets from both players."""
         setup, cards = create_game_with_cards(
             player1_hand=["Drop"],
             player1_in_play=["Ka"],
             player2_in_play=["Knight"],
             active_player="player1",
-            player1_cc=2,
+            player1_charge=2,
         )
         
         # Get valid actions
@@ -129,7 +129,7 @@ class TestAITargetOwnershipDisplay:
             player1_in_play=["Knight"],
             player2_in_play=["Ka", "Demideca"],
             active_player="player1",
-            player1_cc=2,
+            player1_charge=2,
         )
         
         # Get valid actions

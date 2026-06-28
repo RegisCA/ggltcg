@@ -228,7 +228,7 @@ class SimulationOrchestrator:
                     winner_deck=result.winner_deck,
                     turn_count=result.turn_count,
                     duration_ms=result.duration_ms,
-                    cc_tracking=[cc.to_dict() for cc in result.cc_tracking],
+                    charge_tracking=[charge.to_dict() for charge in result.charge_tracking],
                     action_log=result.action_log,
                     error_message=result.error_message,
                 )
@@ -378,12 +378,12 @@ class SimulationOrchestrator:
         def avg(values: list[float]) -> float | None:
             return (sum(values) / len(values)) if values else None
 
-        def compute_active_turn_cc_end_avgs(cc_tracking: list[dict]) -> tuple[float | None, float | None]:
-            if not cc_tracking:
+        def compute_active_turn_charge_end_avgs(charge_tracking: list[dict]) -> tuple[float | None, float | None]:
+            if not charge_tracking:
                 return None, None
             p1_vals: list[float] = []
             p2_vals: list[float] = []
-            for entry in cc_tracking:
+            for entry in charge_tracking:
                 turn = entry.get("turn")
                 pid = entry.get("player_id")
                 if not isinstance(turn, int) or pid not in ("player1", "player2"):
@@ -391,12 +391,12 @@ class SimulationOrchestrator:
                 is_active = (turn % 2 == 1 and pid == "player1") or (turn % 2 == 0 and pid == "player2")
                 if not is_active:
                     continue
-                cc_end = entry.get("cc_end")
-                if isinstance(cc_end, (int, float)):
+                charge_end = entry.get("charge_end")
+                if isinstance(charge_end, (int, float)):
                     if pid == "player1":
-                        p1_vals.append(float(cc_end))
+                        p1_vals.append(float(charge_end))
                     else:
-                        p2_vals.append(float(cc_end))
+                        p2_vals.append(float(charge_end))
             return avg(p1_vals), avg(p2_vals)
 
         max_turns = 20
@@ -409,29 +409,29 @@ class SimulationOrchestrator:
         turn_counts: list[int] = []
         turn_limit_hits = 0
         for game in games:
-            # Calculate CC statistics per player from cc_tracking
-            p1_cc_spent = 0
-            p2_cc_spent = 0
-            p1_cc_gained = 0
-            p2_cc_gained = 0
-            if game.cc_tracking:
-                for entry in game.cc_tracking:
+            # Calculate Charge statistics per player from charge_tracking
+            p1_charge_spent = 0
+            p2_charge_spent = 0
+            p1_charge_gained = 0
+            p2_charge_gained = 0
+            if game.charge_tracking:
+                for entry in game.charge_tracking:
                     if entry.get('player_id') == 'player1':
-                        p1_cc_spent += entry.get('cc_spent', 0)
-                        p1_cc_gained += entry.get('cc_gained', 0)
+                        p1_charge_spent += entry.get('charge_spent', 0)
+                        p1_charge_gained += entry.get('charge_gained', 0)
                     elif entry.get('player_id') == 'player2':
-                        p2_cc_spent += entry.get('cc_spent', 0)
-                        p2_cc_gained += entry.get('cc_gained', 0)
+                        p2_charge_spent += entry.get('charge_spent', 0)
+                        p2_charge_gained += entry.get('charge_gained', 0)
 
-            p1_avg_cc_end_active, p2_avg_cc_end_active = compute_active_turn_cc_end_avgs(game.cc_tracking or [])
+            p1_avg_charge_end_active, p2_avg_charge_end_active = compute_active_turn_charge_end_avgs(game.charge_tracking or [])
 
             # Track aggregates for the run
             if isinstance(game.turn_count, int):
                 turn_counts.append(game.turn_count)
-            if p1_avg_cc_end_active is not None:
-                p1_game_avgs.append(p1_avg_cc_end_active)
-            if p2_avg_cc_end_active is not None:
-                p2_game_avgs.append(p2_avg_cc_end_active)
+            if p1_avg_charge_end_active is not None:
+                p1_game_avgs.append(p1_avg_charge_end_active)
+            if p2_avg_charge_end_active is not None:
+                p2_game_avgs.append(p2_avg_charge_end_active)
 
             hit_turn_limit = bool(game.outcome == 'draw' and isinstance(game.turn_count, int) and game.turn_count == max_turns)
             if hit_turn_limit:
@@ -445,12 +445,12 @@ class SimulationOrchestrator:
                 "winner_deck": game.winner_deck,
                 "turn_count": game.turn_count,
                 "duration_ms": game.duration_ms,
-                "p1_cc_spent": p1_cc_spent,
-                "p2_cc_spent": p2_cc_spent,
-                "p1_cc_gained": p1_cc_gained,
-                "p2_cc_gained": p2_cc_gained,
-                "p1_avg_cc_end_active": p1_avg_cc_end_active,
-                "p2_avg_cc_end_active": p2_avg_cc_end_active,
+                "p1_charge_spent": p1_charge_spent,
+                "p2_charge_spent": p2_charge_spent,
+                "p1_charge_gained": p1_charge_gained,
+                "p2_charge_gained": p2_charge_gained,
+                "p1_avg_charge_end_active": p1_avg_charge_end_active,
+                "p2_avg_charge_end_active": p2_avg_charge_end_active,
                 "hit_turn_limit": hit_turn_limit,
                 "error_message": game.error_message,
             })
@@ -470,8 +470,8 @@ class SimulationOrchestrator:
                 "avg_turns": avg_turns,
                 "turn_limit_hits": turn_limit_hits,
                 "turn_limit_hit_pct": round(turn_limit_hit_pct, 1),
-                "avg_p1_cc_end_active": avg(p1_game_avgs),
-                "avg_p2_cc_end_active": avg(p2_game_avgs),
+                "avg_p1_charge_end_active": avg(p1_game_avgs),
+                "avg_p2_charge_end_active": avg(p2_game_avgs),
             },
             "games": game_results,
             "created_at": run.created_at.isoformat() if run.created_at else None,
@@ -480,14 +480,14 @@ class SimulationOrchestrator:
     
     def get_game_details(self, run_id: int, game_number: int) -> dict:
         """
-        Get detailed results for a specific game including CC tracking.
+        Get detailed results for a specific game including Charge tracking.
         
         Args:
             run_id: ID of the simulation run
             game_number: Game number within the run
             
         Returns:
-            Detailed game data including CC tracking and action log
+            Detailed game data including Charge tracking and action log
         """
         db = self._get_db()
         
@@ -512,7 +512,7 @@ class SimulationOrchestrator:
             "winner_deck": game.winner_deck,
             "turn_count": game.turn_count,
             "duration_ms": game.duration_ms,
-            "cc_tracking": game.cc_tracking,
+            "charge_tracking": game.charge_tracking,
             "action_log": game.action_log,
             "error_message": game.error_message,
             "created_at": game.created_at.isoformat() if game.created_at else None,

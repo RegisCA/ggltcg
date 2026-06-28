@@ -5,7 +5,7 @@ Replaces V4's Request 1 (LLM sequence generation) with engine-side enumeration
 of legal action sequences. Legal-sequence generation is a computation, not a
 judgment call: a depth-limited search over the real action space — using a
 cloned full-fidelity GameState and real GameEngine transitions — produces exact
-CC math by construction and cannot emit illegal actions.
+Charge math by construction and cannot emit illegal actions.
 
 The search reuses the two single-step authorities the live game already trusts:
 
@@ -13,15 +13,15 @@ The search reuses the two single-step authorities the live game already trusts:
   (with ``filter_for_ai=True`` to drop guaranteed-loss tussles, matching
   ``SuicideAttackValidator``).
 - ``ActionExecutor`` applies a chosen action exactly as the human/AI endpoints
-  do, so "tussle sleeps the last toy → direct_attack becomes legal" falls out of
+  do, so "tussle breaks the last toy → direct_attack becomes legal" falls out of
   real transitions rather than hand-written rules.
 
 Output is the structured sequence-dict shape that ``add_tactical_labels`` and
 ``convert_sequence_to_turn_plan`` already consume (see
 ``prompts/sequence_generator.parse_sequences_response``): a list of action dicts
-plus ``total_cc_spent``, ``cc_available``, ``cards_slept`` and a human-readable
+plus ``total_charge_spent``, ``charge_available``, ``cards_broken`` and a human-readable
 ``raw_string`` for the Request-2 selector prompt. Real ``card_id``s and exact
-per-step CC are a strict improvement over the LLM's regex-parsed string path.
+per-step Charge are a strict improvement over the LLM's regex-parsed string path.
 """
 
 import contextlib
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Search bounds. CC budget prunes most branches naturally (get_valid_actions
+# Search bounds. Charge budget prunes most branches naturally (get_valid_actions
 # only returns affordable actions); these cap the pathological cases the audit
 # flagged: multi-target cards, repeated Archer activations, target-combination
 # blow-up. Tunable; Phase 4.1 measures enumeration time against them.
@@ -86,10 +86,10 @@ def clone_game_state(game_state: "GameState") -> "GameState":
       no ``requesting_player_id`` is supplied (``Player.to_dict`` defaults to
       ``reveal_hand=False``), so it silently loses hand contents.
     - ``serialize_game_state`` / ``deserialize_game_state`` preserve hands but
-      drop ``cc_history`` and the transient in-turn CC-tracking fields.
+      drop ``charge_history`` and the transient in-turn Charge-tracking fields.
 
     ``copy.deepcopy`` reproduces the entire object graph — both hands,
-    ``cc_history``, transient CC tracking, and any dynamic per-card attributes
+    ``charge_history``, transient Charge tracking, and any dynamic per-card attributes
     (e.g. ``_copied_effects``) — with no references shared back to the original,
     so mutations during search cannot leak into the live game. It is safe
     because cards hold no live effect-object references: effects are resolved
@@ -103,13 +103,13 @@ def _state_signature(game_state: "GameState") -> Tuple:
 
     Used as a transposition key so order-equivalent lines that reach the same
     board (e.g. Surge→Knight vs Knight→Surge) are explored once. Captures each
-    player's CC, per-card id/stamina/zone, and direct-attack count.
+    player's Charge, per-card id/stamina/zone, and direct-attack count.
     """
     parts: List[Any] = []
     for pid in sorted(game_state.players):
         p = game_state.players[pid]
-        parts.append((pid, p.cc, p.direct_attacks_this_turn))
-        for zone_name, zone in (("h", p.hand), ("p", p.in_play), ("s", p.sleep_zone)):
+        parts.append((pid, p.charge, p.direct_attacks_this_turn))
+        for zone_name, zone in (("h", p.hand), ("p", p.in_play), ("s", p.break_zone)):
             cards = sorted(
                 (c.id, c.current_stamina, c.zone.value) for c in zone
             )
@@ -184,7 +184,7 @@ def _apply_step(engine: GameEngine, player_id: str, step: Dict[str, Any]) -> boo
     """Apply one step to ``engine``'s state via the real execution path.
 
     Returns True on success. Any failure (illegal in this state, insufficient
-    CC, missing target) returns False so the branch is dropped — the search only
+    Charge, missing target) returns False so the branch is dropped — the search only
     ever keeps lines the engine actually accepts.
     """
     at = step["action_type"]
@@ -217,7 +217,7 @@ def _apply_activate(engine: GameEngine, player_id: str, card_id: str,
     """Apply an activated ability (e.g. Archer), mirroring routes_actions.
 
     ActionExecutor has no activate path, so this replicates the endpoint's:
-    find source card → resolve its ActivatedEffect → pay CC → apply → settle.
+    find source card → resolve its ActivatedEffect → pay Charge → apply → settle.
     """
     gs = engine.game_state
     player = gs.players[player_id]
@@ -228,26 +228,26 @@ def _apply_activate(engine: GameEngine, player_id: str, card_id: str,
         (e for e in EffectRegistry.get_effects(source) if isinstance(e, ActivatedEffect)),
         None,
     )
-    if effect is None or player.cc < effect.cost_cc:
+    if effect is None or player.charge < effect.cost_charge:
         return False
     target = gs.find_card_by_id(target_id) if target_id else None
-    player.spend_cc(effect.cost_cc)
+    player.spend_charge(effect.cost_charge)
     effect.apply(gs, target=target, amount=1, game_engine=engine)
     engine.check_state_based_actions()
     return True
 
 
-def _action_cc_cost(step: Dict[str, Any], cc_before: int, cc_after: int) -> int:
-    """Real CC cost of an applied step, derived from the CC delta and known gains.
+def _action_charge_cost(step: Dict[str, Any], charge_before: int, charge_after: int) -> int:
+    """Real Charge cost of an applied step, derived from the Charge delta and known gains.
 
-    cc_after = cc_before - cost + gain  ⇒  cost = cc_before - cc_after + gain.
-    Only Surge (+1) and Rush (+2) grant CC on play (pinned by
-    test_cc_gain_tables); every other action's cost is just the CC drop.
+    charge_after = charge_before - cost + gain  ⇒  cost = charge_before - charge_after + gain.
+    Only Surge (+1) and Rush (+2) grant Charge on play (pinned by
+    test_cc_gain_tables); every other action's cost is just the Charge drop.
     """
     gain = 0
     if step["action_type"] == "play_card":
         gain = {"Surge": 1, "Rush": 2}.get(step["card_name"], 0)
-    return max(0, cc_before - cc_after + gain)
+    return max(0, charge_before - charge_after + gain)
 
 
 def enumerate_sequences(
@@ -262,15 +262,15 @@ def enumerate_sequences(
     Depth-limited DFS over the real action space on cloned states. Every prefix
     is a valid "do these actions, then end turn" line, so each is recorded;
     order-equivalent lines are de-duplicated and the result is ranked
-    (winning → most sleeps → least CC wasted → shortest) and capped at
+    (winning → most breaks → least Charge wasted → shortest) and capped at
     ``max_sequences``.
 
     Returns sequence dicts matching ``parse_sequences_response``'s shape so the
     rest of the V4 pipeline (validation cross-check, ``add_tactical_labels``,
     strategic selection, ``convert_sequence_to_turn_plan``) is unchanged.
     """
-    start_opp_slept = len(game_state.get_opponent(player_id).sleep_zone)
-    start_own_slept = len(game_state.players[player_id].sleep_zone)
+    start_opp_broken = len(game_state.get_opponent(player_id).break_zone)
+    start_own_broken = len(game_state.players[player_id].break_zone)
 
     # Built once from the root state, before any simulated action moves cards
     # between zones. Card ids are stable through deepcopy, so this same
@@ -302,26 +302,26 @@ def enumerate_sequences(
 
         opp = state.get_opponent(player_id)
         me = state.players[player_id]
-        cards_slept = max(0, len(opp.sleep_zone) - start_opp_slept)
-        # Net own cards left sleeping by this line. Wake/Sun move cards back out of
-        # the sleep zone, so a Drop+Wake recovery combo nets to 0 (no penalty);
-        # only a self-sleep with no payoff leaves the count positive.
-        own_slept = max(0, len(me.sleep_zone) - start_own_slept)
+        cards_broken = max(0, len(opp.break_zone) - start_opp_broken)
+        # Net own cards left broken by this line. Wake/Sun move cards back out of
+        # the break zone, so a Drop+Wake recovery combo nets to 0 (no penalty);
+        # only a self-break with no payoff leaves the count positive.
+        own_broken = max(0, len(me.break_zone) - start_own_broken)
         wins = state.winner_id == player_id
-        total_cc_spent = sum(costs)
-        cc_wasted = me.cc  # leftover CC the line did not spend
-        cc_available = total_cc_spent + cc_wasted
+        total_charge_spent = sum(costs)
+        charge_wasted = me.charge  # leftover Charge the line did not spend
+        charge_available = total_charge_spent + charge_wasted
 
         candidate = {
             "actions": _format_actions(path, state),
-            "total_cc_spent": total_cc_spent,
-            "cc_available": cc_available,
-            "cards_slept": cards_slept,
-            "raw_string": _raw_string(path, total_cc_spent, cc_available, cards_slept, card_labels),
+            "total_charge_spent": total_charge_spent,
+            "charge_available": charge_available,
+            "cards_broken": cards_broken,
+            "raw_string": _raw_string(path, total_charge_spent, charge_available, cards_broken, card_labels),
             # internal ranking fields (ignored by downstream consumers)
             "_wins": wins,
-            "_own_slept": own_slept,
-            "_cc_wasted": cc_wasted,
+            "_own_broken": own_broken,
+            "_charge_wasted": charge_wasted,
             "_length": len(path),
         }
         prev = recorded.get(multiset_sig)
@@ -349,12 +349,12 @@ def enumerate_sequences(
             for step in _expand_action(va, state):
                 child = clone_game_state(state)
                 child_engine = GameEngine(child)
-                cc_before = child.players[player_id].cc
+                charge_before = child.players[player_id].charge
                 if not _apply_step(child_engine, player_id, step):
                     continue
-                cc_after = child.players[player_id].cc
-                cost = _action_cc_cost(step, cc_before, cc_after)
-                step["cc_cost"] = cost  # real engine-derived cost (e.g. Raggy tussle = 0)
+                charge_after = child.players[player_id].charge
+                cost = _action_charge_cost(step, charge_before, charge_after)
+                step["charge_cost"] = cost  # real engine-derived cost (e.g. Raggy tussle = 0)
                 dfs(child, path + [step], costs + [cost])
 
     root = clone_game_state(game_state)
@@ -373,7 +373,7 @@ def enumerate_sequences(
     else:
         sequences = ranked[:max_sequences]
     for seq in sequences:  # strip internal ranking fields
-        for k in ("_wins", "_own_slept", "_cc_wasted", "_length"):
+        for k in ("_wins", "_own_broken", "_charge_wasted", "_length"):
             seq.pop(k, None)
 
     logger.debug(
@@ -384,20 +384,20 @@ def enumerate_sequences(
 
 
 def _rank_key(seq: Dict[str, Any]) -> Tuple:
-    """Sort key: winning lines first, then most opponent sleeps, fewest own cards
-    left sleeping, least CC waste, shortest.
+    """Sort key: winning lines first, then most opponent breaks, fewest own cards
+    left broken, least Charge waste, shortest.
 
-    The ``-_own_slept`` term sits below ``cards_slept`` so a productive line that
-    also self-sleeps (e.g. Clean clearing the whole board) is still preferred when
-    the opponent-sleep payoff justifies it, but above ``-_cc_wasted`` so spending
-    CC to sleep your own card can never out-rank simply not doing so. This is what
+    The ``-_own_broken`` term sits below ``cards_broken`` so a productive line that
+    also self-breaks (e.g. Clean clearing the whole board) is still preferred when
+    the opponent-break payoff justifies it, but above ``-_charge_wasted`` so spending
+    Charge to break your own card can never out-rank simply not doing so. This is what
     keeps a pointless self-Drop ranked below the pass line.
     """
     return (
         1 if seq.get("_wins") else 0,
-        seq.get("cards_slept", 0),
-        -seq.get("_own_slept", 0),
-        -seq.get("_cc_wasted", 0),
+        seq.get("cards_broken", 0),
+        -seq.get("_own_broken", 0),
+        -seq.get("_charge_wasted", 0),
         -seq.get("_length", 0),
     )
 
@@ -417,8 +417,8 @@ def _format_actions(path: List[Dict[str, Any]], state: "GameState") -> List[Dict
         ]
         # Prefer the real engine-derived cost recorded during the search; fall
         # back to nominal costs only if it is somehow absent.
-        cc_cost = step.get(
-            "cc_cost",
+        charge_cost = step.get(
+            "charge_cost",
             {"tussle": 2, "direct_attack": 2, "activate_ability": 1}.get(step["action_type"], 0),
         )
         actions.append({
@@ -429,7 +429,7 @@ def _format_actions(path: List[Dict[str, Any]], state: "GameState") -> List[Dict
             "target_id": target_ids[0] if target_ids else None,
             "target_names": target_names or None,
             "target_name": target_names[0] if target_names else None,
-            "cc_cost": cc_cost,
+            "charge_cost": charge_cost,
         })
     actions.append(_end_turn_action())
     return actions
@@ -444,19 +444,19 @@ def _end_turn_action() -> Dict[str, Any]:
         "target_id": None,
         "target_names": None,
         "target_name": None,
-        "cc_cost": 0,
+        "charge_cost": 0,
     }
 
 
-def _raw_string(path: List[Dict[str, Any]], cc_spent: int, cc_available: int,
-                cards_slept: int, card_labels: Dict[str, str]) -> str:
+def _raw_string(path: List[Dict[str, Any]], charge_spent: int, charge_available: int,
+                cards_broken: int, card_labels: Dict[str, str]) -> str:
     """Human-readable line for the Request-2 selector prompt (format_sequence_for_display).
 
     Tussle/ability/play_card targets are rendered via ``card_labels`` (the same
     Y1/O2-style short labels shown in the prompt's board legend) instead of
     raw card-id UUIDs, so the model can actually tell which card a candidate
     sequence targets. ``card_labels`` covers the AI's own hand/in_play/
-    sleep_zone and the opponent's in_play (see build_card_labels), so this
+    break_zone and the opponent's in_play (see build_card_labels), so this
     also resolves Wake/Sun/Glue/"That was fun" recursion targets correctly.
     """
     parts = []
@@ -480,4 +480,4 @@ def _raw_string(path: List[Dict[str, Any]], cc_spent: int, cc_available: int,
             tgt = card_labels.get(tgt_id, tgt_id)
             parts.append(f"activate {name}->{tgt}")
     actions_str = " -> ".join(parts) if parts else "end_turn"  # empty path = pass
-    return f"{actions_str} | CC: {cc_spent}/{cc_available} | Sleeps: {cards_slept}"
+    return f"{actions_str} | Charge: {charge_spent}/{charge_available} | Breaks: {cards_broken}"

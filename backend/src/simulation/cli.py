@@ -379,10 +379,10 @@ def _display_summary(results: dict):
     avg_turns = sum(g['turn_count'] for g in games) / total if games else 0
     click.echo(f"   Avg Turns: {avg_turns:.1f}")
     
-    # CC stats
-    avg_p1_cc = sum(g.get('p1_cc_gained', 0) for g in games) / total if games else 0
-    avg_p2_cc = sum(g.get('p2_cc_gained', 0) for g in games) / total if games else 0
-    click.echo(f"   Avg CC Generated: P1={avg_p1_cc:.1f}, P2={avg_p2_cc:.1f}")
+    # Charge stats
+    avg_p1_charge = sum(g.get('p1_charge_gained', 0) for g in games) / total if games else 0
+    avg_p2_charge = sum(g.get('p2_charge_gained', 0) for g in games) / total if games else 0
+    click.echo(f"   Avg Charge Generated: P1={avg_p1_charge:.1f}, P2={avg_p2_charge:.1f}")
 
 
 if __name__ == '__main__':

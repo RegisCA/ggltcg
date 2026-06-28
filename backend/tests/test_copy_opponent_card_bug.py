@@ -86,7 +86,7 @@ class TestCopyOpponentCardBug(unittest.TestCase):
         # Player 1 has Copy in hand
         copy_card = self._create_copy_card(self.player1.player_id)
         self.player1.hand.append(copy_card)
-        self.player1.cc = 10
+        self.player1.charge = 10
         
         # Player 2 has a toy in play
         opponent_toy = self._create_toy_card("Ka", self.player2.player_id)
@@ -121,7 +121,7 @@ class TestCopyOpponentCardBug(unittest.TestCase):
         # Player 1 has Copy in hand and Knight in play
         copy_card = self._create_copy_card(self.player1.player_id)
         self.player1.hand.append(copy_card)
-        self.player1.cc = 10
+        self.player1.charge = 10
         
         player1_toy = self._create_toy_card("Knight", self.player1.player_id)
         self.player1.in_play.append(player1_toy)
@@ -172,7 +172,7 @@ class TestCopyOpponentCardBug(unittest.TestCase):
         # Player 1 has Copy in hand and Knight in play
         copy_card = self._create_copy_card(self.player1.player_id)
         self.player1.hand.append(copy_card)
-        self.player1.cc = 10
+        self.player1.charge = 10
         
         player1_toy = self._create_toy_card("Knight", self.player1.player_id)
         self.player1.in_play.append(player1_toy)

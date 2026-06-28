@@ -5,7 +5,7 @@ Clone reuses Copy's copy_card effect but at a flat cost (regression coverage
 for a latent bug where the variable-cost dispatch was keyed on effect type
 alone, which would have silently hijacked Clone's flat cost).
 
-Glue (unsleep:1) and Stomp (sleep_target:1) introduce variable cost - the
+Glue (fix:1) and Stomp (break_target:1) introduce variable cost - the
 play cost equals the effective cost of whichever card is targeted - which
 generalizes a mechanic that previously only existed for Copy. These tests
 also cover the generalized ActionValidator affordability filter and the
@@ -34,7 +34,7 @@ class TestCloneFlatCost:
             player1_in_play=["Knight"],  # Knight costs 1
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         clone = cards["p1_hand_Clone"]
         knight = cards["p1_inplay_Knight"]
@@ -47,7 +47,7 @@ class TestCloneFlatCost:
             player1_in_play=["Wizard"],  # Wizard costs 2
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         clone = cards["p1_hand_Clone"]
         wizard = cards["p1_inplay_Wizard"]
@@ -60,7 +60,7 @@ class TestCloneFlatCost:
             player1_hand=["Clone"],
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         clone = cards["p1_hand_Clone"]
         cost = setup.engine.calculate_card_cost(clone, setup.player1)
@@ -68,96 +68,96 @@ class TestCloneFlatCost:
 
 
 class TestGlueVariableCost:
-    """Glue (unsleep:1) costs the effective cost of the sleeping card it targets."""
+    """Glue (fix:1) costs the effective cost of the broken card it targets."""
 
     def test_glue_cost_equals_cheap_target_cost(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Glue"],
-            player1_sleep=["Surge"],  # Surge costs 0
+            player1_break=["Surge"],  # Surge costs 0
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         glue = cards["p1_hand_Glue"]
-        surge = cards["p1_sleep_Surge"]
+        surge = cards["p1_break_Surge"]
         cost = setup.engine.calculate_card_cost(glue, setup.player1, target_id=surge.id)
         assert cost == 0
 
     def test_glue_cost_equals_expensive_target_cost(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Glue"],
-            player1_sleep=["Ka"],  # Ka costs 2
+            player1_break=["Ka"],  # Ka costs 2
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         glue = cards["p1_hand_Glue"]
-        ka = cards["p1_sleep_Ka"]
+        ka = cards["p1_break_Ka"]
         cost = setup.engine.calculate_card_cost(glue, setup.player1, target_id=ka.id)
         assert cost == 2
 
     def test_glue_uses_targets_effective_cost_not_base_cost(self):
-        """Targeting Dream (base cost 4) while it sits among other sleeping cards
+        """Targeting Dream (base cost 4) while it sits among other broken cards
         should use Dream's reduced effective cost, mirroring Copy's behavior."""
         setup, cards = create_game_with_cards(
             player1_hand=["Glue"],
-            player1_sleep=["Dream", "Surge"],  # 2 cards in sleep zone -> Dream costs 4-2=2
+            player1_break=["Dream", "Surge"],  # 2 cards in break zone -> Dream costs 4-2=2
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         glue = cards["p1_hand_Glue"]
-        dream = cards["p1_sleep_Dream"]
+        dream = cards["p1_break_Dream"]
         cost = setup.engine.calculate_card_cost(glue, setup.player1, target_id=dream.id)
         assert cost == 2, f"Expected Dream's effective cost (2), got {cost}"
 
-    def test_glue_cannot_target_opponents_sleep_zone(self):
+    def test_glue_cannot_target_opponents_break_zone(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Glue"],
-            player2_sleep=["Ka"],
+            player2_break=["Ka"],
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         glue = cards["p1_hand_Glue"]
         from game_engine.rules.effects.effect_registry import EffectRegistry
         effect = next(e for e in EffectRegistry.get_effects(glue) if e.requires_targets())
         valid_targets = effect.get_valid_targets(setup.game_state, player=setup.player1)
-        assert valid_targets == [], "Glue must not be able to target the opponent's Sleep Zone"
+        assert valid_targets == [], "Glue must not be able to target the opponent's Break Zone"
 
-    def test_glue_no_target_falls_back_to_cheapest_sleeping_card(self):
+    def test_glue_no_target_falls_back_to_cheapest_broken_card(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Glue"],
-            player1_sleep=["Ka", "Surge"],  # Ka costs 2, Surge costs 0
+            player1_break=["Ka", "Surge"],  # Ka costs 2, Surge costs 0
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         glue = cards["p1_hand_Glue"]
         cost = setup.engine.calculate_card_cost(glue, setup.player1)
         assert cost == 0, f"With no target chosen, should conservatively estimate the cheapest (0), got {cost}"
 
-    def test_glue_play_through_engine_unsleeps_target_and_deducts_correct_cost(self):
+    def test_glue_play_through_engine_unbreaks_target_and_deducts_correct_cost(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Glue"],
-            player1_sleep=["Ka", "Surge"],
+            player1_break=["Ka", "Surge"],
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         glue = cards["p1_hand_Glue"]
-        ka = cards["p1_sleep_Ka"]
+        ka = cards["p1_break_Ka"]
 
         success = setup.engine.play_card(setup.player1, glue, target_ids=[ka.id])
 
         assert success
         assert ka in setup.player1.hand
-        assert ka not in setup.player1.sleep_zone
-        assert setup.player1.cc == 8, f"Should have spent Ka's cost (2), got cc={setup.player1.cc}"
+        assert ka not in setup.player1.break_zone
+        assert setup.player1.charge == 8, f"Should have spent Ka's cost (2), got charge={setup.player1.charge}"
 
 
 class TestStompVariableCost:
-    """Stomp (sleep_target:1) costs the effective cost of the in-play card it targets."""
+    """Stomp (break_target:1) costs the effective cost of the in-play card it targets."""
 
     def test_stomp_cost_equals_opponents_target_cost(self):
         setup, cards = create_game_with_cards(
@@ -165,7 +165,7 @@ class TestStompVariableCost:
             player2_in_play=["Ka"],  # Ka costs 2
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         stomp = cards["p1_hand_Stomp"]
         ka = cards["p2_inplay_Ka"]
@@ -178,7 +178,7 @@ class TestStompVariableCost:
             player1_in_play=["Knight"],  # Knight costs 1
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         stomp = cards["p1_hand_Stomp"]
         knight = cards["p1_inplay_Knight"]
@@ -192,7 +192,7 @@ class TestStompVariableCost:
             player1_hand=["Stomp"],
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         stomp = cards["p1_hand_Stomp"]
         cost = setup.engine.calculate_card_cost(stomp, setup.player1)
@@ -204,7 +204,7 @@ class TestStompVariableCost:
             player2_in_play=["Beary"],  # opponent_immunity
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         stomp = cards["p1_hand_Stomp"]
         from game_engine.rules.effects.effect_registry import EffectRegistry
@@ -212,13 +212,13 @@ class TestStompVariableCost:
         valid_targets = effect.get_valid_targets(setup.game_state, player=setup.player1)
         assert valid_targets == [], "Beary's opponent_immunity should block Stomp from targeting it"
 
-    def test_stomp_play_through_engine_sleeps_target_and_deducts_correct_cost(self):
+    def test_stomp_play_through_engine_breaks_target_and_deducts_correct_cost(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Stomp"],
             player2_in_play=["Ka"],
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         setup.game_state.phase = Phase.MAIN
         stomp = cards["p1_hand_Stomp"]
@@ -227,25 +227,25 @@ class TestStompVariableCost:
         success = setup.engine.play_card(setup.player1, stomp, target_ids=[ka.id])
 
         assert success
-        assert ka in setup.player2.sleep_zone
+        assert ka in setup.player2.break_zone
         assert ka not in setup.player2.in_play
-        assert setup.player1.cc == 8, f"Should have spent Ka's cost (2), got cc={setup.player1.cc}"
+        assert setup.player1.charge == 8, f"Should have spent Ka's cost (2), got charge={setup.player1.charge}"
 
 
 class TestActionValidatorAffordabilityFilter:
     """Glue/Stomp should filter their target menu to affordable targets, like Copy does."""
 
-    def test_glue_target_options_exclude_unaffordable_sleeping_cards(self):
+    def test_glue_target_options_exclude_unaffordable_breaking_cards(self):
         setup, cards = create_game_with_cards(
             player1_hand=["Glue"],
-            player1_sleep=["Surge", "Ka"],  # Surge costs 0, Ka costs 2
+            player1_break=["Surge", "Ka"],  # Surge costs 0, Ka costs 2
             active_player="player1",
             turn_number=1,
-            player1_cc=1,
+            player1_charge=1,
         )
         glue = cards["p1_hand_Glue"]
-        surge = cards["p1_sleep_Surge"]
-        ka = cards["p1_sleep_Ka"]
+        surge = cards["p1_break_Surge"]
+        ka = cards["p1_break_Ka"]
 
         validator = ActionValidator(setup.engine)
         actions = validator.get_valid_actions(setup.player1.player_id)
@@ -264,7 +264,7 @@ class TestActionValidatorAffordabilityFilter:
             player2_in_play=["Ka"],      # cost 2
             active_player="player1",
             turn_number=1,
-            player1_cc=1,
+            player1_charge=1,
         )
         stomp = cards["p1_hand_Stomp"]
         knight = cards["p1_inplay_Knight"]
@@ -283,7 +283,7 @@ class TestActionExecutorCostReporting:
     """
     Regression coverage for a pre-existing bug: cost used to be computed
     before the target was resolved, so the executor's reported cost (and
-    description) could mismatch the CC actually deducted whenever the chosen
+    description) could mismatch the Charge actually deducted whenever the chosen
     target wasn't the cheapest available one.
     """
 
@@ -293,7 +293,7 @@ class TestActionExecutorCostReporting:
             player1_in_play=["Knight", "Ka"],  # Knight costs 1 (cheapest), Ka costs 2
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         copy_card = cards["p1_hand_Copy"]
         ka = cards["p1_inplay_Ka"]
@@ -307,7 +307,7 @@ class TestActionExecutorCostReporting:
 
         assert result.success
         assert result.cost == 2, f"Should report Ka's actual cost (2), not the cheaper Knight's, got {result.cost}"
-        assert setup.player1.cc == 8
+        assert setup.player1.charge == 8
 
     def test_stomp_reports_actual_target_cost_not_cheapest_estimate(self):
         setup, cards = create_game_with_cards(
@@ -316,7 +316,7 @@ class TestActionExecutorCostReporting:
             player2_in_play=["Ka"],      # cost 2 (the actual target)
             active_player="player1",
             turn_number=1,
-            player1_cc=10,
+            player1_charge=10,
         )
         setup.game_state.phase = Phase.MAIN
         stomp = cards["p1_hand_Stomp"]
@@ -331,4 +331,4 @@ class TestActionExecutorCostReporting:
 
         assert result.success
         assert result.cost == 2, f"Should report Ka's actual cost (2), not Knight's cheaper cost, got {result.cost}"
-        assert setup.player1.cc == 8
+        assert setup.player1.charge == 8

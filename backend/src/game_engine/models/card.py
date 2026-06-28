@@ -15,7 +15,7 @@ class Zone(Enum):
     """Game zones where cards can be located."""
     HAND = "Hand"
     IN_PLAY = "InPlay"
-    SLEEP = "Sleep"
+    BREAK = "Break"
 
 
 @dataclass
@@ -27,7 +27,7 @@ class Card:
         id: Unique identifier for this card instance
         name: Card name (e.g., "Ka", "Twist")
         card_type: Type of card (Toy or Action)
-        cost: CC cost to play the card
+        cost: Charge cost to play the card
         effect_text: Text description of card's effect
         effect_definitions: Data-driven effect definitions from CSV (e.g., "stat_boost:strength:2")
         speed: Speed stat (Toys only)

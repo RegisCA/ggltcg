@@ -58,7 +58,7 @@ class TestPaperPlaneDirectAttack:
             player2_in_play=["Ka"],  # Opponent has a card in play
             player2_hand=["Rush"],   # Opponent has cards in hand to attack
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
@@ -74,7 +74,7 @@ class TestPaperPlaneDirectAttack:
             player2_in_play=["Knight"],  # Opponent has a card in play
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         ka = cards["p1_inplay_Ka"]
@@ -91,7 +91,7 @@ class TestPaperPlaneDirectAttack:
             player2_in_play=["Ka"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
@@ -116,7 +116,7 @@ class TestPaperPlaneDirectAttack:
             player2_in_play=["Knight"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         ka = cards["p1_inplay_Ka"]
@@ -138,49 +138,49 @@ class TestPaperPlaneDirectAttack:
 class TestPaperPlaneExecution:
     """Tests for executing Paper Plane's direct attack."""
     
-    def test_paper_plane_direct_attack_sleeps_opponent_hand_card(self):
-        """Paper Plane direct attack should sleep a random card from opponent's hand."""
+    def test_paper_plane_direct_attack_breaks_opponent_hand_card(self):
+        """Paper Plane direct attack should break a random card from opponent's hand."""
         setup, cards = create_game_with_cards(
             player1_in_play=["Paper Plane"],
             player2_in_play=["Ka"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
         rush = cards["p2_hand_Rush"]
         
         initial_hand_count = len(setup.player2.hand)
-        initial_sleep_count = len(setup.player2.sleep_zone)
+        initial_break_count = len(setup.player2.break_zone)
         
         # Execute direct attack
         setup.engine.initiate_tussle(paper_plane, None, setup.player1)
         
-        # Opponent should have one fewer card in hand, one more in sleep zone
+        # Opponent should have one fewer card in hand, one more in break zone
         assert len(setup.player2.hand) == initial_hand_count - 1
-        assert len(setup.player2.sleep_zone) == initial_sleep_count + 1
+        assert len(setup.player2.break_zone) == initial_break_count + 1
     
-    def test_paper_plane_direct_attack_costs_cc(self):
-        """Paper Plane direct attack should cost CC like normal tussles."""
+    def test_paper_plane_direct_attack_costs_charge(self):
+        """Paper Plane direct attack should cost Charge like normal tussles."""
         setup, cards = create_game_with_cards(
             player1_in_play=["Paper Plane"],
             player2_in_play=["Ka"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
-        initial_cc = setup.player1.cc
+        initial_charge = setup.player1.charge
         
         tussle_cost = setup.engine.calculate_tussle_cost(paper_plane, setup.player1)
         
         # Execute direct attack
         setup.engine.initiate_tussle(paper_plane, None, setup.player1)
         
-        # CC should be reduced by tussle cost
-        assert setup.player1.cc == initial_cc - tussle_cost
+        # Charge should be reduced by tussle cost
+        assert setup.player1.charge == initial_charge - tussle_cost
     
     def test_paper_plane_respects_direct_attack_limit(self):
         """Paper Plane should still respect the 2 direct attacks per turn limit."""
@@ -189,7 +189,7 @@ class TestPaperPlaneExecution:
             player2_in_play=["Ka"],
             player2_hand=["Rush", "Clean", "Wake"],  # Multiple cards to attack
             active_player="player1",
-            player1_cc=20,  # Plenty of CC
+            player1_charge=20,  # Plenty of Charge
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
@@ -220,7 +220,7 @@ class TestPaperPlaneCanAlsoTussleNormally:
             player2_in_play=["Ka"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
@@ -237,7 +237,7 @@ class TestPaperPlaneCanAlsoTussleNormally:
             player2_in_play=["Ka"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
@@ -270,7 +270,7 @@ class TestPaperPlaneEdgeCases:
             player2_in_play=["Ka"],
             # player2_hand is empty
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]
@@ -286,7 +286,7 @@ class TestPaperPlaneEdgeCases:
             # player2_in_play is empty
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         paper_plane = cards["p1_inplay_Paper Plane"]

@@ -43,15 +43,15 @@ def get_relevant_examples(game_state: "GameState", player_id: str) -> list[str]:
         examples.append(COMBO_EXAMPLES["surge_knight"])
         cards_covered.update(["Surge", "Knight"])
     elif "Surge" in card_names and len([c for c in player.hand if c.cost == 1]) >= 2:
-        # Surge + multiple 1-CC toys
+        # Surge + multiple 1-Charge toys
         examples.append(COMBO_EXAMPLES["surge_double_play"])
         cards_covered.add("Surge")
-    
+
     # Archer finish combo - check if opponent has low-STA toy
     if "Archer" in card_names and "Archer" not in cards_covered:
         low_sta_targets = [
-            c for c in opponent.in_play 
-            if c.is_toy() and c.get_effective_stamina() <= player.cc
+            c for c in opponent.in_play
+            if c.is_toy() and c.get_effective_stamina() <= player.charge
         ]
         if low_sta_targets:
             examples.append(COMBO_EXAMPLES["archer_finish"])
@@ -100,7 +100,7 @@ def get_relevant_examples(game_state: "GameState", player_id: str) -> list[str]:
         cards_covered.add(card_name)
     
     # 4. Pad with generic efficiency if needed
-    # Use early_game as fallback since it covers CC efficiency
+    # Use early_game as fallback since it covers Charge efficiency
     while len(examples) < 3:
         # Avoid duplicates
         if PHASE_EXAMPLES["early_game"] not in examples:

@@ -4,11 +4,11 @@ Board-state legend / short-label resolution (issue #338).
 Pins four things:
 1. build_card_labels/format_board_legend (card_loader.py) produce the
    expected Y1/O2-style label scheme over the AI's own hand+in_play+
-   sleep_zone and the opponent's in_play only.
+   break_zone and the opponent's in_play only.
 2. The opponent's HAND is never labeled or shown - this game does not reveal
    hand contents to the opponent (see get_relevant_card_names, which scopes
    card_guidance lookups the same way), and a board legend must not leak it.
-3. The AI's own sleep zone IS labeled and shown - it's the AI's own zone (not
+3. The AI's own break zone IS labeled and shown - it's the AI's own zone (not
    hidden information), and recursion cards (Wake/Sun/Glue/"That was fun")
    target it, so the model needs to see what's actually recoverable.
 4. The enumerator's raw_string (which independently calls build_card_labels
@@ -24,14 +24,14 @@ from game_engine.ai.prompts.card_loader import build_card_labels, format_board_l
 
 
 def _scenario():
-    """P1 Knight in play + CC; P2 has 2 hand cards and one in-play toy Knight can beat."""
+    """P1 Knight in play + Charge; P2 has 2 hand cards and one in-play toy Knight can beat."""
     return create_game_with_cards(
         player1_hand=["Surge"],
         player1_in_play=["Knight"],
         player2_hand=["Ka", "Wizard"],
         player2_in_play=["Paper Plane"],
-        player1_cc=5,
-        player2_cc=0,
+        player1_charge=5,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -106,17 +106,17 @@ def test_format_board_legend_excludes_opponent_hand():
     assert "Wizard" not in legend
 
 
-def test_build_card_labels_includes_own_sleep_zone():
-    """The AI's own sleep zone is visible information (not hidden, unlike the
+def test_build_card_labels_includes_own_break_zone():
+    """The AI's own break zone is visible information (not hidden, unlike the
     opponent's hand) and recursion cards target it, so it must be labeled."""
     setup, _ = create_game_with_cards(
         player1_hand=["Wake"],
         player1_in_play=[],
-        player1_sleep=["Knight", "Ka"],
+        player1_break=["Knight", "Ka"],
         player2_hand=[],
         player2_in_play=["Paper Plane"],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -125,47 +125,47 @@ def test_build_card_labels_includes_own_sleep_zone():
 
     p1 = gs.players["player1"]
     wake = next(c for c in p1.hand if c.name == "Wake")
-    knight = next(c for c in p1.sleep_zone if c.name == "Knight")
-    ka = next(c for c in p1.sleep_zone if c.name == "Ka")
+    knight = next(c for c in p1.break_zone if c.name == "Knight")
+    ka = next(c for c in p1.break_zone if c.name == "Ka")
 
     assert labels[wake.id] == "Y1"
-    # Sleep zone continues the same Y-sequence after hand/in_play.
+    # Break zone continues the same Y-sequence after hand/in_play.
     assert labels[knight.id] == "Y2"
     assert labels[ka.id] == "Y3"
 
 
-def test_format_board_legend_shows_own_sleep_zone_contents():
+def test_format_board_legend_shows_own_break_zone_contents():
     setup, _ = create_game_with_cards(
         player1_hand=["Wake"],
         player1_in_play=[],
-        player1_sleep=["Knight", "Ka"],
+        player1_break=["Knight", "Ka"],
         player2_hand=[],
         player2_in_play=["Paper Plane"],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
     legend = format_board_legend(setup.game_state, "player1", setup.engine)
 
-    assert "YOU sleep_zone" in legend
-    knight_line = next(line for line in legend.splitlines() if "sleep_zone" in line and "Knight" in line)
+    assert "YOU break_zone" in legend
+    knight_line = next(line for line in legend.splitlines() if "break_zone" in line and "Knight" in line)
     assert "Y2" in knight_line
-    assert "STA]" in knight_line  # Toy stats still shown for a sleeping card
+    assert "STA]" in knight_line  # Toy stats still shown for a broken card
 
 
-def test_enumerator_wake_target_uses_sleep_zone_label():
-    """Wake's target (a card in the AI's own sleep zone) must resolve to a
+def test_enumerator_wake_target_uses_break_zone_label():
+    """Wake's target (a card in the AI's own break zone) must resolve to a
     label, not a raw UUID - this is exactly the case Wake/Sun/Glue/"That was
     fun" need in order to be reasoned about at all."""
     setup, _ = create_game_with_cards(
         player1_hand=["Wake"],
         player1_in_play=[],
-        player1_sleep=["Knight", "Ka"],
+        player1_break=["Knight", "Ka"],
         player2_hand=[],
         player2_in_play=["Paper Plane"],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -173,7 +173,7 @@ def test_enumerator_wake_target_uses_sleep_zone_label():
     sequences = enumerate_sequences(gs, "player1")
     labels = build_card_labels(gs, "player1")
 
-    knight = next(c for c in gs.players["player1"].sleep_zone if c.name == "Knight")
+    knight = next(c for c in gs.players["player1"].break_zone if c.name == "Knight")
     expected_label = labels[knight.id]
 
     wake_knight_seqs = [s for s in sequences if f"play Wake->{expected_label}" in s["raw_string"]]
@@ -189,8 +189,8 @@ def test_format_board_legend_in_play_stats_reflect_continuous_effects():
         player1_in_play=["Ka", "Knight"],
         player2_hand=[],
         player2_in_play=[],
-        player1_cc=5,
-        player2_cc=0,
+        player1_charge=5,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -225,15 +225,15 @@ def test_enumerator_raw_string_uses_legend_labels_not_uuids():
 
 
 def test_enumerator_play_card_target_uses_label():
-    """play_card targets (e.g. Drop sleeping an in-play card) should also resolve
+    """play_card targets (e.g. Drop broken an in-play card) should also resolve
     to a short label, not a raw UUID - same fix as tussle/ability targets."""
     setup, _ = create_game_with_cards(
         player1_hand=["Drop"],
         player1_in_play=[],
         player2_hand=[],
         player2_in_play=["Knight"],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -258,8 +258,8 @@ def test_enumerator_activate_ability_target_uses_label():
         player1_in_play=["Archer"],
         player2_hand=[],
         player2_in_play=["Knight"],
-        player1_cc=3,
-        player2_cc=0,
+        player1_charge=3,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )

@@ -1,8 +1,8 @@
 """
-Test for Copy card bug where it goes to sleep zone without target selection.
+Test for Copy card bug where it goes to break zone without target selection.
 
 Bug: When Copy is played with no cards in play, it should NOT be a valid action.
-Current behavior: Copy appears in valid actions, gets played, goes to sleep zone.
+Current behavior: Copy appears in valid actions, gets played, goes to break zone.
 Expected behavior: Copy should not appear in valid actions when no targets exist.
 """
 
@@ -83,7 +83,7 @@ class TestCopyCardBug(unittest.TestCase):
         # Give player Copy card in hand but no cards in play
         copy_card = self._create_copy_card()
         self.player1.hand.append(copy_card)
-        self.player1.cc = 10  # Plenty of CC
+        self.player1.charge = 10  # Plenty of Charge
         
         # Get valid actions
         valid_actions = self.validator.get_valid_actions(self.player1.player_id)
@@ -110,7 +110,7 @@ class TestCopyCardBug(unittest.TestCase):
         
         self.player1.hand.append(copy_card)
         self.player1.in_play.append(target_card)
-        self.player1.cc = 10  # Plenty of CC
+        self.player1.charge = 10  # Plenty of Charge
         
         # Get valid actions
         valid_actions = self.validator.get_valid_actions(self.player1.player_id)
@@ -144,7 +144,7 @@ class TestCopyCardBug(unittest.TestCase):
         """
         copy_card = self._create_copy_card()
         self.player1.hand.append(copy_card)
-        self.player1.cc = 10
+        self.player1.charge = 10
         
         # Try to play Copy without providing a target
         success = self.game_engine.play_card(self.player1, copy_card)
@@ -156,11 +156,11 @@ class TestCopyCardBug(unittest.TestCase):
                 hasattr(copy_card, '_is_transformed') and copy_card._is_transformed,
                 "Copy should not transform if no target was provided"
             )
-            # Verify Copy went to sleep zone (as an Action card)
+            # Verify Copy went to break zone (as an Action card)
             self.assertIn(
                 copy_card,
-                self.player1.sleep_zone,
-                "Copy should be in sleep zone if played without valid target"
+                self.player1.break_zone,
+                "Copy should be in break zone if played without valid target"
             )
     
     def test_copy_transforms_when_played_with_target(self):
@@ -175,7 +175,7 @@ class TestCopyCardBug(unittest.TestCase):
         
         self.player1.hand.append(copy_card)
         self.player1.in_play.append(target_card)
-        self.player1.cc = 10
+        self.player1.charge = 10
         
         # Play Copy with target
         success = self.game_engine.play_card(
@@ -192,7 +192,7 @@ class TestCopyCardBug(unittest.TestCase):
             "Copy should be transformed after being played with a target"
         )
         
-        # Verify Copy is in IN_PLAY zone (not sleep)
+        # Verify Copy is in IN_PLAY zone (not break)
         self.assertIn(
             copy_card,
             self.player1.in_play,
@@ -200,8 +200,8 @@ class TestCopyCardBug(unittest.TestCase):
         )
         self.assertNotIn(
             copy_card,
-            self.player1.sleep_zone,
-            "Copy should NOT be in sleep zone after transforming"
+            self.player1.break_zone,
+            "Copy should NOT be in break zone after transforming"
         )
         
         # Verify Copy took on target's name
@@ -220,8 +220,8 @@ class TestCopyCardBug(unittest.TestCase):
             speed=4,
             strength=5,
             stamina=4,
-            effect_text="This card costs 1 less for each of your sleeping cards.",
-            effect_definitions="reduce_cost_by_sleeping",
+            effect_text="This card costs 1 less for each of your broken cards.",
+            effect_definitions="reduce_cost_by_broken",
             owner=self.player1.player_id,
             controller=self.player1.player_id,
             primary_color="#d8c7fa",
@@ -230,7 +230,7 @@ class TestCopyCardBug(unittest.TestCase):
         )
 
     def _create_simple_toy(self, name="Beary"):
-        """Helper to create a simple Toy card for sleep zone."""
+        """Helper to create a simple Toy card for break zone."""
         return Card(
             name=name,
             card_type=CardType.TOY,
@@ -244,15 +244,15 @@ class TestCopyCardBug(unittest.TestCase):
             controller=self.player1.player_id,
             primary_color="brown",
             accent_color="brown",
-            zone=Zone.SLEEP
+            zone=Zone.BREAK
         )
 
     def test_copy_of_dream_uses_effective_cost(self):
         """
-        Test that copying Dream uses Dream's effective cost (reduced by sleeping cards),
+        Test that copying Dream uses Dream's effective cost (reduced by broken cards),
         not its base cost of 4.
         
-        If player has 2 cards in sleep zone, Dream would cost 2 (4 - 2) to play.
+        If player has 2 cards in break zone, Dream would cost 2 (4 - 2) to play.
         Copy targeting Dream should also cost 2, not 4.
         """
         # Put Dream in play so it can be copied
@@ -260,50 +260,50 @@ class TestCopyCardBug(unittest.TestCase):
         dream.zone = Zone.IN_PLAY
         self.player1.in_play.append(dream)
         
-        # Put some cards in sleep zone to reduce Dream's cost
-        sleeping1 = self._create_simple_toy("Sleeper1")
-        sleeping2 = self._create_simple_toy("Sleeper2")
-        self.player1.sleep_zone.append(sleeping1)
-        self.player1.sleep_zone.append(sleeping2)
+        # Put some cards in break zone to reduce Dream's cost
+        breaking1 = self._create_simple_toy("Breaker1")
+        breaking2 = self._create_simple_toy("Breaker2")
+        self.player1.break_zone.append(breaking1)
+        self.player1.break_zone.append(breaking2)
         
         # Add Copy to hand
         copy_card = self._create_copy_card()
         self.player1.hand.append(copy_card)
-        self.player1.cc = 7  # Give enough CC
+        self.player1.charge = 7  # Give enough Charge
         
         # Calculate Copy's cost when targeting Dream
-        # Dream base cost: 4, but with 2 sleeping cards it would cost 2 to play
+        # Dream base cost: 4, but with 2 broken cards it would cost 2 to play
         # Copy should use this effective cost (2), not the base cost (4)
         copy_cost = self.game_engine.calculate_card_cost(copy_card, self.player1, target_id=dream.id)
         self.assertEqual(
             copy_cost,
             2,  # Should use Dream's effective cost, not base cost of 4
-            f"Copy of Dream should cost 2 (Dream's effective cost with 2 sleeping cards), got {copy_cost}"
+            f"Copy of Dream should cost 2 (Dream's effective cost with 2 broken cards), got {copy_cost}"
         )
 
-    def test_copy_of_dream_base_cost_without_sleeping(self):
+    def test_copy_of_dream_base_cost_without_broken(self):
         """
-        Test that Copy of Dream costs 4 when there are no sleeping cards.
+        Test that Copy of Dream costs 4 when there are no broken cards.
         """
         # Put Dream in play
         dream = self._create_dream_card()
         dream.zone = Zone.IN_PLAY
         self.player1.in_play.append(dream)
         
-        # No sleeping cards
-        self.player1.sleep_zone.clear()
+        # No broken cards
+        self.player1.break_zone.clear()
         
         # Add Copy to hand
         copy_card = self._create_copy_card()
         self.player1.hand.append(copy_card)
-        self.player1.cc = 7
+        self.player1.charge = 7
         
-        # Dream with no sleeping cards should cost 4
+        # Dream with no broken cards should cost 4
         dream_effective_cost = self.game_engine.calculate_card_cost(dream, self.player1)
         self.assertEqual(
             dream_effective_cost,
             4,
-            f"Dream should cost 4 with no sleeping cards, got {dream_effective_cost}"
+            f"Dream should cost 4 with no broken cards, got {dream_effective_cost}"
         )
         
         # Copy should also cost 4
@@ -311,7 +311,7 @@ class TestCopyCardBug(unittest.TestCase):
         self.assertEqual(
             copy_cost,
             4,
-            f"Copy of Dream should cost 4 with no sleeping cards, got {copy_cost}"
+            f"Copy of Dream should cost 4 with no broken cards, got {copy_cost}"
         )
 
 

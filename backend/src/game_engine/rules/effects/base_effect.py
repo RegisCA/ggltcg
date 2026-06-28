@@ -28,7 +28,7 @@ class EffectType(Enum):
 
 class TriggerTiming(Enum):
     """When triggered effects can activate."""
-    WHEN_SLEEPED = "when_sleeped"           # Umbruh
+    WHEN_BROKEN = "when_broken"             # Umbruh
     WHEN_OPPONENT_TUSSLES = "when_opponent_tussles"  # Beary
     WHEN_PLAYED = "when_played"
     START_OF_TURN = "start_of_turn"         # Belchaletta
@@ -127,7 +127,7 @@ class TriggeredEffect(BaseEffect):
     """
     Base class for triggered effects that activate when a condition is met.
     
-    Examples: Beary (cancel tussle), Umbruh (gain CC when sleeped)
+    Examples: Beary (cancel tussle), Umbruh (gain Charge when broken)
 
     Triggered effects:
     - Have a specific trigger condition (timing)
@@ -148,7 +148,7 @@ class TriggeredEffect(BaseEffect):
         
         Args:
             game_state: The current game state
-            **kwargs: Context about what triggered this (e.g., which card was sleeped)
+            **kwargs: Context about what triggered this (e.g., which card was broken)
             
         Returns:
             True if the trigger condition is met
@@ -164,40 +164,40 @@ class TriggeredEffect(BaseEffect):
 class ActivatedEffect(BaseEffect):
     """
     Base class for activated abilities that require payment to use.
-    
-    Example: Archer (spend CC to remove Stamina from cards)
-    
+
+    Example: Archer (spend Charge to remove Stamina from cards)
+
     Activated effects:
-    - Require the player to pay a cost (CC or other resource)
+    - Require the player to pay a cost (Charge or other resource)
     - Can be used multiple times if affordable
     - Only available during appropriate phase/timing
     """
-    
-    def __init__(self, source_card: "Card", cost_cc: int = 0):
+
+    def __init__(self, source_card: "Card", cost_charge: int = 0):
         super().__init__(source_card)
         self.effect_type = EffectType.ACTIVATED
-        self.cost_cc = cost_cc
-    
+        self.cost_charge = cost_charge
+
     def can_apply(self, game_state: "GameState", **kwargs: Any) -> bool:
         """
         Check if the ability can be activated.
-        
+
         Checks:
-        - Player has enough CC to pay the cost
+        - Player has enough Charge to pay the cost
         - It's the appropriate phase/timing
         - Source card is in play and controlled by the active player
         """
         controller = game_state.get_card_controller(self.source_card)
         if not controller:
             return False
-        
+
         active_player = game_state.get_active_player()
         if controller != active_player:
             return False
-        
-        if controller.cc < self.cost_cc:
+
+        if controller.charge < self.cost_charge:
             return False
-        
+
         return True
     
     @abstractmethod
@@ -218,7 +218,7 @@ class PlayEffect(BaseEffect):
     
     Play effects:
     - Resolve immediately when the card is played
-    - Action cards go to Sleep Zone after resolving
+    - Action cards go to Break Zone after resolving
     - May require targets or choices to be made when played
     """
     
@@ -282,7 +282,7 @@ class CostModificationEffect(ContinuousEffect):
     """
     Special continuous effect that modifies costs.
     
-    Examples: Wizard (tussles cost 1), Dream (costs 1 less per sleeping card)
+    Examples: Wizard (tussles cost 1), Dream (costs 1 less per broken card)
     
     These effects are checked when calculating costs for actions.
     """

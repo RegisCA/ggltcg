@@ -5,8 +5,8 @@ This directory contains automated regression tests for AI V4 (Phase 2 of the rem
 ## Purpose
 
 Replace the manual "play 2 turns, check if AI is reasonable" workflow with automated tests that:
-- Validate CC efficiency (waste ≤1 CC per turn)
-- Validate damage output (sleep ≥1 card per turn)
+- Validate Charge efficiency (waste ≤1 Charge per turn)
+- Validate damage output (break ≥1 card per turn)
 - Catch prompt regressions automatically
 
 ## Running Tests
@@ -40,19 +40,19 @@ This runs 3 tests:
 ## Expected Behavior
 
 ### Turn 1 (Player 1)
-- **Setup**: 2 CC, Hand=[Surge, Knight, Umbruh, Wake]
-- **Expected**: Surge (0 CC) → Knight (1 CC) → direct_attack (2 CC)
-- **Result**: 3 CC used, 1 card slept, 0 CC wasted
-- **Acceptance**: cc_wasted ≤ 1, cards_slept ≥ 1
+- **Setup**: 2 Charge, Hand=[Surge, Knight, Umbruh, Wake]
+- **Expected**: Surge (0 Charge) → Knight (1 Charge) → direct_attack (2 Charge)
+- **Result**: 3 Charge used, 1 card slept, 0 Charge wasted
+- **Acceptance**: charge_wasted ≤ 1, cards_broken ≥ 1
 
 ### Turn 2 (Player 2)
-- **Setup**: 4 CC, Knight in play vs opponent Knight
-- **Expected**: Tussle (2 CC) + play toys or direct_attack
-- **Result**: 4-5 CC used, 1-2 cards slept, 0-1 CC wasted
-- **Acceptance**: cc_wasted ≤ 1, cards_slept ≥ 1
+- **Setup**: 4 Charge, Knight in play vs opponent Knight
+- **Expected**: Tussle (2 Charge) + play toys or direct_attack
+- **Result**: 4-5 Charge used, 1-2 cards slept, 0-1 Charge wasted
+- **Acceptance**: charge_wasted ≤ 1, cards_broken ≥ 1
 
 ### Full Scenario
-- **Acceptance**: total_cc_wasted ≤ 2, total_sleeps ≥ 2
+- **Acceptance**: total_charge_wasted ≤ 2, total_breaks ≥ 2
 
 ## Understanding Test Results
 
@@ -83,8 +83,8 @@ If tests fail occasionally but pass most of the time, the AI is functioning corr
 ## Metrics Used
 
 Tests use `TurnMetrics` from `game_engine.ai.quality_metrics`:
-- `cc_wasted`: CC remaining at end of turn (target: ≤1)
-- `cards_slept`: Opponent cards put to sleep (target: ≥1 per turn)
+- `charge_wasted`: Charge remaining at end of turn (target: ≤1)
+- `cards_broken`: Opponent cards put to break (target: ≥1 per turn)
 - `efficiency_rating`: optimal / acceptable / wasteful
 - `meets_expectations()`: Boolean + reason string
 

@@ -204,7 +204,7 @@ interface GameStateResponse {
 
 ### Zone Organization
 
-- Each player's zones: InPlay + Sleep side-by-side
+- Each player's zones: InPlay + Break side-by-side
 - Clear divider between opponent and player zones
 - Hand full-width below player's zones only
 - Messages + Actions always visible on right

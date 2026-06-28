@@ -96,8 +96,8 @@ export function CardDetailModal({
           </div>
         </div>
 
-        {/* Badges (Copy, Sleeped) */}
-        {card.is_sleeped && (
+        {/* Badges (Copy, Broken) */}
+        {card.is_broken && (
           <div className="flex flex-wrap" style={{ gap: 'var(--spacing-component-xs)' }}>
             <span
               className="rounded font-bold text-white bg-red-600"
@@ -106,7 +106,7 @@ export function CardDetailModal({
                 padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
               }}
             >
-              SLEEPED
+              BROKEN
             </span>
           </div>
         )}

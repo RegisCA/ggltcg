@@ -47,19 +47,19 @@ def test_archer_requires_opponent_cards_in_play():
     player1 = Player(
         player_id="player1",
         name="Player 1",
-        cc=5,  # Enough CC to use ability
+        charge=5,  # Enough Charge to use ability
         hand=[],
         in_play=[archer],  # Archer is in play
-        sleep_zone=[]
+        break_zone=[]
     )
     
     player2 = Player(
         player_id="player2",
         name="Player 2",
-        cc=5,
+        charge=5,
         hand=[],
         in_play=[],  # NO cards in play - this is the key
-        sleep_zone=[]
+        break_zone=[]
     )
     
     # Create game state
@@ -143,19 +143,19 @@ def test_archer_only_targets_opponent_cards():
     player1 = Player(
         player_id="player1",
         name="Player 1",
-        cc=5,
+        charge=5,
         hand=[],
         in_play=[archer, knight],  # Both Archer and Knight in player1's play
-        sleep_zone=[]
+        break_zone=[]
     )
     
     player2 = Player(
         player_id="player2",
         name="Player 2",
-        cc=5,
+        charge=5,
         hand=[],
         in_play=[ka],  # Ka in player2's play
-        sleep_zone=[]
+        break_zone=[]
     )
     
     # Create game state
@@ -227,19 +227,19 @@ def test_archer_cannot_target_sock_sorcerer_protected_cards():
     player1 = Player(
         player_id="player1",
         name="Player 1",
-        cc=5,
+        charge=5,
         hand=[],
         in_play=[archer],
-        sleep_zone=[]
+        break_zone=[]
     )
     
     player2 = Player(
         player_id="player2",
         name="Player 2",
-        cc=5,
+        charge=5,
         hand=[],
         in_play=[sock_sorcerer, ka],  # Sock Sorcerer protects Ka
-        sleep_zone=[]
+        break_zone=[]
     )
     
     # Create game state
@@ -325,19 +325,19 @@ def test_archer_cannot_target_beary_issue_189():
     player1 = Player(
         player_id="player1",
         name="Player 1",
-        cc=5,
+        charge=5,
         hand=[],
         in_play=[archer],
-        sleep_zone=[]
+        break_zone=[]
     )
     
     player2 = Player(
         player_id="player2",
         name="Player 2",
-        cc=5,
+        charge=5,
         hand=[],
         in_play=[beary, ka],  # Both Beary (protected) and Ka (targetable)
-        sleep_zone=[]
+        break_zone=[]
     )
     
     # Create game state

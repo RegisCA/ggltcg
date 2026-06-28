@@ -2,7 +2,7 @@
 Simulation runner for executing AI vs AI games.
 
 This module runs individual games between two AI players with configurable
-models and deck compositions, tracking CC usage per turn for analysis.
+models and deck compositions, tracking Charge usage per turn for analysis.
 """
 
 import logging
@@ -26,7 +26,7 @@ from .config import (
     DeckConfig,
     GameResult,
     GameOutcome,
-    TurnCC,
+    TurnCharge,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class SimulationRunner:
     This class handles:
     - Game state initialization with specified decks
     - AI player instantiation with configurable models and AI versions
-    - Turn execution with CC tracking
+    - Turn execution with Charge tracking
     - Game completion detection and result generation
     """
     
@@ -99,10 +99,10 @@ class SimulationRunner:
             game_number: Game number within the simulation run
             
         Returns:
-            GameResult with outcome, turn count, CC tracking, and action log
+            GameResult with outcome, turn count, Charge tracking, and action log
         """
         start_time = time.time()
-        cc_tracking: list[TurnCC] = []
+        charge_tracking: list[TurnCharge] = []
         action_log: list[dict] = []
         error_message: Optional[str] = None
         game_initialized = False  # Track successful game initialization
@@ -154,11 +154,11 @@ class SimulationRunner:
                 inactive_player_id = "player2" if current_player_id == "player1" else "player1"
                 inactive_player = game_state.players[inactive_player_id]
                 
-                # CC tracking - capture BOTH players' CC after start_turn
-                active_cc_start = active_player.cc
-                inactive_cc_start = inactive_player.cc
-                active_cc_spent = 0
-                inactive_cc_end_of_turn = inactive_cc_start  # Initialize in case loop doesn't run
+                # Charge tracking - capture BOTH players' Charge after start_turn
+                active_charge_start = active_player.charge
+                inactive_charge_start = inactive_player.charge
+                active_charge_spent = 0
+                inactive_charge_end_of_turn = inactive_charge_start  # Initialize in case loop doesn't run
                 
                 # Determine which AI is playing
                 if current_player_id == "player1":
@@ -218,59 +218,59 @@ class SimulationRunner:
                     action_log.append(action_entry)
                     
                     # Execute action
-                    cc_before = active_player.cc
-                    inactive_cc_before_action = inactive_player.cc
+                    charge_before = active_player.charge
+                    inactive_charge_before_action = inactive_player.charge
                     action_ended_turn = self._execute_action(
                         engine, game_state, ai_player, selected_action
                     )
-                    cc_after = active_player.cc
-                    active_cc_spent += max(0, cc_before - cc_after)
-                    
-                    # Capture inactive player's CC BEFORE end_turn gives them their turn-start CC
+                    charge_after = active_player.charge
+                    active_charge_spent += max(0, charge_before - charge_after)
+
+                    # Capture inactive player's Charge BEFORE end_turn gives them their turn-start Charge
                     # (end_turn internally calls start_turn for the next player)
                     if action_ended_turn:
-                        # Use the CC value right before end_turn was processed
-                        inactive_cc_end_of_turn = inactive_cc_before_action
+                        # Use the Charge value right before end_turn was processed
+                        inactive_charge_end_of_turn = inactive_charge_before_action
                         break
-                    
+
                     # Check victory after each action
                     engine.check_state_based_actions()
                     if game_state.winner_id is not None:
                         break
                 else:
                     # Loop ended without break - no end_turn action was taken
-                    inactive_cc_end_of_turn = inactive_player.cc
-                
-                # Track CC for BOTH players at end of this turn
-                active_cc_end = active_player.cc
-                
+                    inactive_charge_end_of_turn = inactive_player.charge
+
+                # Track Charge for BOTH players at end of this turn
+                active_charge_end = active_player.charge
+
                 # Active player: gained = end - start + spent (clamped at 0)
-                active_cc_gained = max(0, active_cc_end - active_cc_start + active_cc_spent)
-                
-                # Inactive player: may have gained CC from effects (e.g., Umbruh sleeped)
-                # They don't spend CC during opponent's turn, so gained = end - start
-                # Use inactive_cc_end_of_turn which was captured BEFORE end_turn/start_turn
-                inactive_cc_gained = max(0, inactive_cc_end_of_turn - inactive_cc_start)
-                
+                active_charge_gained = max(0, active_charge_end - active_charge_start + active_charge_spent)
+
+                # Inactive player: may have gained Charge from effects (e.g., Umbruh broken)
+                # They don't spend Charge during opponent's turn, so gained = end - start
+                # Use inactive_charge_end_of_turn which was captured BEFORE end_turn/start_turn
+                inactive_charge_gained = max(0, inactive_charge_end_of_turn - inactive_charge_start)
+
                 # Record active player's turn
-                cc_tracking.append(TurnCC(
+                charge_tracking.append(TurnCharge(
                     turn=current_turn,
                     player_id=current_player_id,
-                    cc_start=active_cc_start,
-                    cc_gained=active_cc_gained,
-                    cc_spent=active_cc_spent,
-                    cc_end=active_cc_end,
+                    charge_start=active_charge_start,
+                    charge_gained=active_charge_gained,
+                    charge_spent=active_charge_spent,
+                    charge_end=active_charge_end,
                 ))
-                
-                # Record inactive player's CC changes during this turn (if any)
-                if inactive_cc_gained > 0:
-                    cc_tracking.append(TurnCC(
+
+                # Record inactive player's Charge changes during this turn (if any)
+                if inactive_charge_gained > 0:
+                    charge_tracking.append(TurnCharge(
                         turn=current_turn,
                         player_id=inactive_player_id,
-                        cc_start=inactive_cc_start,
-                        cc_gained=inactive_cc_gained,
-                        cc_spent=0,  # Inactive player can't spend during opponent's turn
-                        cc_end=inactive_cc_end_of_turn,
+                        charge_start=inactive_charge_start,
+                        charge_gained=inactive_charge_gained,
+                        charge_spent=0,  # Inactive player can't spend during opponent's turn
+                        charge_end=inactive_charge_end_of_turn,
                     ))
                 
                 # If turn didn't end from action, check state
@@ -336,7 +336,7 @@ class SimulationRunner:
             winner_deck=winner_deck,
             turn_count=turn_count,
             duration_ms=duration_ms,
-            cc_tracking=cc_tracking,
+            charge_tracking=charge_tracking,
             action_log=action_log,
             error_message=error_message,
             v2_fallback_count=v2_fallback_count,
@@ -515,9 +515,9 @@ class SimulationRunner:
                     
                     # Pay the cost (default amount is 1)
                     amount = 1
-                    cost = activated_effect.cost_cc * amount
-                    if player.cc >= cost:
-                        player.spend_cc(cost)
+                    cost = activated_effect.cost_charge * amount
+                    if player.charge >= cost:
+                        player.spend_charge(cost)
                         
                         # Apply the ability
                         activated_effect.apply(

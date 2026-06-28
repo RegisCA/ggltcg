@@ -95,7 +95,7 @@ language:
 name,effects
 Ka,stat_boost:strength:2
 Demideca,stat_boost:all:1
-Wake,unsleep:1
+Wake,fix:1
 Wizard,set_tussle_cost:1
 ```text
 **Format**: `effect_type:param1:param2`
@@ -129,37 +129,37 @@ Parses effect definition strings into runtime effect objects.
 "stat_boost:strength:2" → StatBoostEffect(card, "strength", 2)
 
 # Parse multiple effects
-"stat_boost:strength:2;unsleep:1" → [
+"stat_boost:strength:2;fix:1" → [
     StatBoostEffect(card, "strength", 2),
-    UnsleepEffect(card, 1)
+    FixEffect(card, 1)
 ]
 ```text
 **Supported Effect Types (as of December 2025)**:
 
 - `stat_boost:stat_name:amount` – Continuous stat buffs (`speed`, `strength`,
   `stamina`, `all`)
-- `gain_cc:amount[:not_first_turn]` – Gain CC when played, with optional
+- `gain_charge:amount[:not_first_turn]` – Gain Charge when played, with optional
   `not_first_turn` restriction
-- `unsleep:count` – Return cards from Sleep Zone to hand
-- `sleep_all` – Sleep all cards in play
+- `fix:count` – Return cards from Break Zone to hand
+- `break_all` – Break all cards in play
 - `set_tussle_cost:cost` – Set cost for all your tussles
 - `set_self_tussle_cost:cost[:not_turn_1]` – Set cost for this card's tussles,
   optionally disabled on turn 1
-- `reduce_cost_by_sleeping` – Reduce play cost by number of your sleeping cards
-- `opponent_cost_increase:amount` – Opponent's cards cost +amount CC to play
-- `gain_cc_when_sleeped:amount` – Gain CC when this card is sleeped from play
+- `reduce_cost_by_broken` – Reduce play cost by number of your broken cards
+- `opponent_cost_increase:amount` – Opponent's cards cost +amount Charge to play
+- `gain_charge_when_broken:amount` – Gain Charge when this card is broken from play
 - `opponent_immunity` – This card is immune to opponent's effects
 - `team_opponent_immunity` – All your cards are immune to opponent's effects
-- `alternative_cost_sleep_card` – May sleep one of your cards instead of paying
-  CC
+- `alternative_cost_break_card` – May break one of your cards instead of paying
+  Charge
 - `return_all_to_hand` – Return all cards in play to owners' hands
 - `take_control` – Take control of an opponent's Toy
 - `copy_card` – Copy another card's effect definitions onto this card
-- `sleep_target:count` – Sleep targeted cards in play
+- `break_target:count` – Break targeted cards in play
 - `return_target_to_hand:count` – Return targeted cards in play to hand
 - `turn_stat_boost:all:amount` – One-turn stat buff to all your Toys
-- `start_of_turn_gain_cc:amount` – Gain CC at start of your turn
-- `on_card_played_gain_cc:amount` – Gain CC when you play another card
+- `start_of_turn_gain_charge:amount` – Gain Charge at start of your turn
+- `on_card_played_gain_charge:amount` – Gain Charge when you play another card
 
 ### 4. EffectRegistry
 
@@ -214,7 +214,7 @@ Apply ongoing modifications while card is in play.
 Examples:
 - **StatBoostEffect**: Ka buffs adjacent cards (+2 strength)
 - **SetTussleCostEffect**: Wizard makes all tussles cost 1
-- **GainCCWhenSleepedEffect**: Umbruh gains 1 CC when sleeped
+- **GainChargeWhenBrokenEffect**: Umbruh gains 1 Charge when broken
 
 ### Action Effects
 
@@ -224,8 +224,8 @@ Trigger once when action card is played.
 **Location**: `backend/src/game_engine/rules/effects/action_effects.py`
 
 Examples:
-- **UnsleepEffect**: Wake/Sun returns cards to hand
-- **SleepAllEffect**: Clean sleeps all cards
+- **FixEffect**: Wake/Sun returns cards to hand
+- **BreakAllEffect**: Clean breaks all cards
 - **CopyEffect**: Copy transforms into another card
 
 ---
@@ -554,7 +554,7 @@ Located: `backend/tests/test_comprehensive_serialization.py`
 
 Tests that all Card fields survive save/load cycle:
 - All card types (Toy, Action)
-- All zones (Hand, InPlay, Sleep)
+- All zones (Hand, InPlay, Break)
 - Transformed cards
 - Multi-effect cards
 - Edge cases from issue #77

@@ -29,8 +29,8 @@ def test_rush_effect_parsing():
     rush = next(c for c in all_cards if c.name == "Rush")
     print(f"  Rush effect_definitions: '{rush.effect_definitions}'")
     
-    if rush.effect_definitions != "gain_cc:2:not_first_turn":
-        print(f"✗ Rush should have effect_definitions='gain_cc:2:not_first_turn'")
+    if rush.effect_definitions != "gain_charge:2:not_first_turn":
+        print(f"✗ Rush should have effect_definitions='gain_charge:2:not_first_turn'")
         return False
     
     # Get the effect
@@ -41,14 +41,14 @@ def test_rush_effect_parsing():
         print(f"✗ Rush should have 1 effect")
         return False
     
-    if effects[0].__class__.__name__ != "GainCCEffect":
-        print(f"✗ Rush effect should be GainCCEffect")
+    if effects[0].__class__.__name__ != "GainChargeEffect":
+        print(f"✗ Rush effect should be GainChargeEffect")
         return False
     
     # Check parameters
     effect = effects[0]
     if effect.amount != 2:
-        print(f"✗ Rush should gain 2 CC, got {effect.amount}")
+        print(f"✗ Rush should gain 2 Charge, got {effect.amount}")
         return False
     
     if not effect.not_first_turn:
@@ -70,19 +70,19 @@ def test_wake_effect_parsing():
     wake = next(c for c in all_cards if c.name == "Wake")
     print(f"  Wake effect_definitions: '{wake.effect_definitions}'")
     
-    if wake.effect_definitions != "unsleep:1":
-        print(f"✗ Wake should have effect_definitions='unsleep:1'")
+    if wake.effect_definitions != "fix:1":
+        print(f"✗ Wake should have effect_definitions='fix:1'")
         return False
     
     effects = EffectRegistry.get_effects(wake)
     print(f"  Wake has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
     
-    if len(effects) != 1 or effects[0].__class__.__name__ != "UnsleepEffect":
-        print(f"✗ Wake should have 1 UnsleepEffect")
+    if len(effects) != 1 or effects[0].__class__.__name__ != "FixEffect":
+        print(f"✗ Wake should have 1 FixEffect")
         return False
     
     if effects[0].count != 1:
-        print(f"✗ Wake should unsleep 1 card")
+        print(f"✗ Wake should fix 1 card")
         return False
     
     print(f"✓ Wake effect parsed correctly")
@@ -100,19 +100,19 @@ def test_sun_effect_parsing():
     sun = next(c for c in all_cards if c.name == "Sun")
     print(f"  Sun effect_definitions: '{sun.effect_definitions}'")
     
-    if sun.effect_definitions != "unsleep:2":
-        print(f"✗ Sun should have effect_definitions='unsleep:2'")
+    if sun.effect_definitions != "fix:2":
+        print(f"✗ Sun should have effect_definitions='fix:2'")
         return False
     
     effects = EffectRegistry.get_effects(sun)
     print(f"  Sun has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
     
-    if len(effects) != 1 or effects[0].__class__.__name__ != "UnsleepEffect":
-        print(f"✗ Sun should have 1 UnsleepEffect")
+    if len(effects) != 1 or effects[0].__class__.__name__ != "FixEffect":
+        print(f"✗ Sun should have 1 FixEffect")
         return False
     
     if effects[0].count != 2:
-        print(f"✗ Sun should unsleep 2 cards")
+        print(f"✗ Sun should fix 2 cards")
         return False
     
     print(f"✓ Sun effect parsed correctly")
@@ -130,24 +130,24 @@ def test_clean_effect_parsing():
     clean = next(c for c in all_cards if c.name == "Clean")
     print(f"  Clean effect_definitions: '{clean.effect_definitions}'")
     
-    if clean.effect_definitions != "sleep_all":
-        print(f"✗ Clean should have effect_definitions='sleep_all'")
+    if clean.effect_definitions != "break_all":
+        print(f"✗ Clean should have effect_definitions='break_all'")
         return False
     
     effects = EffectRegistry.get_effects(clean)
     print(f"  Clean has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
     
-    if len(effects) != 1 or effects[0].__class__.__name__ != "SleepAllEffect":
-        print(f"✗ Clean should have 1 SleepAllEffect")
+    if len(effects) != 1 or effects[0].__class__.__name__ != "BreakAllEffect":
+        print(f"✗ Clean should have 1 BreakAllEffect")
         return False
     
     print(f"✓ Clean effect parsed correctly")
     return True
 
 
-def test_rush_cc_gain():
-    """Test that Rush gains 2 CC when played."""
-    print("\nTesting Rush CC gain...")
+def test_rush_charge_gain():
+    """Test that Rush gains 2 Charge when played."""
+    print("\nTesting Rush Charge gain...")
     
     csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
     loader = CardLoader(str(csv_path))
@@ -161,7 +161,7 @@ def test_rush_cc_gain():
         player_id="p1",
         name="Player 1",
         hand=[rush],
-        cc=5,
+        charge=5,
     )
     
     player2 = Player(
@@ -183,16 +183,16 @@ def test_rush_cc_gain():
     effects = EffectRegistry.get_effects(rush)
     effect = effects[0]
     
-    initial_cc = player1.cc
+    initial_charge = player1.charge
     effect.apply(game_state, player=player1)
     
-    print(f"  CC before: {initial_cc}, after: {player1.cc}")
+    print(f"  Charge before: {initial_charge}, after: {player1.charge}")
     
-    if player1.cc != initial_cc + 2:
-        print(f"✗ Rush should gain 2 CC")
+    if player1.charge != initial_charge + 2:
+        print(f"✗ Rush should gain 2 Charge")
         return False
     
-    print(f"✓ Rush gains 2 CC correctly")
+    print(f"✓ Rush gains 2 Charge correctly")
     return True
 
 
@@ -262,9 +262,9 @@ def test_rush_first_turn_restriction():
     return True
 
 
-def test_clean_sleeps_all_cards():
-    """Test that Clean sleeps all cards in play."""
-    print("\nTesting Clean sleeps all cards...")
+def test_clean_breaks_all_cards():
+    """Test that Clean breaks all cards in play."""
+    print("\nTesting Clean breaks all cards...")
     
     csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
     loader = CardLoader(str(csv_path))
@@ -307,7 +307,7 @@ def test_clean_sleeps_all_cards():
     )
     
     print(f"  Before Clean: P1 has {len(player1.in_play)} in play, P2 has {len(player2.in_play)} in play")
-    print(f"  Before Clean: P1 has {len(player1.sleep_zone)} sleeping, P2 has {len(player2.sleep_zone)} sleeping")
+    print(f"  Before Clean: P1 has {len(player1.break_zone)} broken, P2 has {len(player2.break_zone)} broken")
     
     # Apply Clean effect
     effects = EffectRegistry.get_effects(clean)
@@ -315,17 +315,17 @@ def test_clean_sleeps_all_cards():
     effect.apply(game_state, player=player1)
     
     print(f"  After Clean: P1 has {len(player1.in_play)} in play, P2 has {len(player2.in_play)} in play")
-    print(f"  After Clean: P1 has {len(player1.sleep_zone)} sleeping, P2 has {len(player2.sleep_zone)} sleeping")
+    print(f"  After Clean: P1 has {len(player1.break_zone)} broken, P2 has {len(player2.break_zone)} broken")
     
     if len(player1.in_play) != 0 or len(player2.in_play) != 0:
-        print(f"✗ Clean should sleep all cards in play")
+        print(f"✗ Clean should break all cards in play")
         return False
     
-    if len(player1.sleep_zone) != 2 or len(player2.sleep_zone) != 1:
-        print(f"✗ Clean should move all cards to sleep zones")
+    if len(player1.break_zone) != 2 or len(player2.break_zone) != 1:
+        print(f"✗ Clean should move all cards to break zones")
         return False
     
-    print(f"✓ Clean sleeps all cards correctly")
+    print(f"✓ Clean breaks all cards correctly")
     return True
 
 
@@ -340,9 +340,9 @@ def main():
         test_wake_effect_parsing,
         test_sun_effect_parsing,
         test_clean_effect_parsing,
-        test_rush_cc_gain,
+        test_rush_charge_gain,
         test_rush_first_turn_restriction,
-        test_clean_sleeps_all_cards,
+        test_clean_breaks_all_cards,
     ]
     
     passed = 0

@@ -211,7 +211,7 @@ async def get_game_state(game_id: str, player_id: str = None) -> GameStateRespon
     for pid, player in game_state.players.items():
         # Convert cards to CardState
         in_play_cards = [_card_to_state(c, engine, player) for c in player.in_play]
-        sleep_cards = [_card_to_state(c, engine, player) for c in player.sleep_zone]
+        break_cards = [_card_to_state(c, engine, player) for c in player.break_zone]
         
         # Only include hand if player_id matches
         hand_cards = None
@@ -221,11 +221,11 @@ async def get_game_state(game_id: str, player_id: str = None) -> GameStateRespon
         players_state[pid] = PlayerState(
             player_id=pid,
             name=player.name,
-            cc=player.cc,
+            charge=player.charge,
             hand_count=len(player.hand),
             hand=hand_cards,
             in_play=in_play_cards,
-            sleep_zone=sleep_cards,
+            break_zone=break_cards,
             direct_attacks_this_turn=player.direct_attacks_this_turn,
         )
     
@@ -332,7 +332,7 @@ def _card_to_state(card, engine, player) -> CardState:
         base_speed=base_speed,
         base_strength=base_strength,
         base_stamina=base_stamina,
-        is_sleeped=(card.zone == Zone.SLEEP),
+        is_broken=(card.zone == Zone.BREAK),
         primary_color=card.primary_color,
         accent_color=card.accent_color,
     )
@@ -461,14 +461,14 @@ async def get_game_debug_state(game_id: str) -> Dict[str, Any]:
         return {
             "player_id": player.player_id,
             "name": player.name,
-            "cc": player.cc,
+            "charge": player.charge,
             "direct_attacks_this_turn": player.direct_attacks_this_turn,
             "hand": [_debug_card(card) for card in player.hand],
             "in_play": [_debug_card(card) for card in player.in_play],
-            "sleep_zone": [_debug_card(card) for card in player.sleep_zone],
+            "break_zone": [_debug_card(card) for card in player.break_zone],
             "hand_count": len(player.hand),
             "in_play_count": len(player.in_play),
-            "sleep_zone_count": len(player.sleep_zone),
+            "break_zone_count": len(player.break_zone),
         }
     
     # Build comprehensive debug state
@@ -492,7 +492,7 @@ async def get_game_debug_state(game_id: str) -> Dict[str, Any]:
         
         # Metadata
         "total_cards": sum(
-            len(p.hand) + len(p.in_play) + len(p.sleep_zone)
+            len(p.hand) + len(p.in_play) + len(p.break_zone)
             for p in game_state.players.values()
         ),
         

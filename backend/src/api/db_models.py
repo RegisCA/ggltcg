@@ -324,9 +324,9 @@ class GamePlaybackModel(Base):
     play_by_play = Column(JSONType, nullable=False)  # List of action entries
     turn_count = Column(Integer, nullable=False)
     
-    # CC tracking per turn (Issue #252)
-    # List of {turn, player_id, cc_start, cc_gained, cc_spent, cc_end}
-    cc_tracking = Column(JSONType, nullable=True)
+    # Charge tracking per turn (Issue #252)
+    # List of {turn, player_id, charge_start, charge_gained, charge_spent, charge_end}
+    charge_tracking = Column(JSONType, nullable=True)
     
     # Timestamps
     created_at = Column(
@@ -489,7 +489,7 @@ class SimulationGameModel(Base):
     """
     Database model for individual simulation game results.
     
-    Stores per-game results including CC tracking for analysis.
+    Stores per-game results including Charge tracking for analysis.
     Retention: 7 days (cascades with parent simulation run).
     """
     __tablename__ = "simulation_games"
@@ -523,13 +523,13 @@ class SimulationGameModel(Base):
     turn_count = Column(Integer, nullable=False)
     duration_ms = Column(Integer, nullable=False)
     
-    # CC tracking per turn (JSON array)
+    # Charge tracking per turn (JSON array)
     # Structure: [
-    #   {"turn": 1, "player_id": "player1", "cc_start": 0, "cc_gained": 2, "cc_spent": 1, "cc_end": 1},
-    #   {"turn": 1, "player_id": "player2", "cc_start": 0, "cc_gained": 2, "cc_spent": 0, "cc_end": 2},
+    #   {"turn": 1, "player_id": "player1", "charge_start": 0, "charge_gained": 2, "charge_spent": 1, "charge_end": 1},
+    #   {"turn": 1, "player_id": "player2", "charge_start": 0, "charge_gained": 2, "charge_spent": 0, "charge_end": 2},
     #   ...
     # ]
-    cc_tracking = Column(JSONType, nullable=False)
+    charge_tracking = Column(JSONType, nullable=False)
     
     # Full action log for replay
     action_log = Column(JSONType, nullable=False)

@@ -1,6 +1,6 @@
 /**
  * PlayerZone Component
- * Displays a player's zones (hand, in play, sleep zone) and stats
+ * Displays a player's zones (hand, in play, break zone) and stats
  */
 
 import type { Player } from '../types/game';
@@ -51,12 +51,12 @@ export function PlayerZone({
           )}
         </div>
         <div className="text-right" style={{ flexShrink: 0 }}>
-          <div style={{ fontSize: isMobile ? 'var(--font-size-xl)' : 'var(--font-size-2xl)', fontWeight: 'bold' }}>{player.cc} CC</div>
-          <div className="text-xs text-gray-400">Command Counters</div>
+          <div style={{ fontSize: isMobile ? 'var(--font-size-xl)' : 'var(--font-size-2xl)', fontWeight: 'bold' }}>{player.charge} Charge</div>
+          <div className="text-xs text-gray-400">Available</div>
         </div>
       </div>
 
-      {/* Content Grid - Zones on left, Sleep on right */}
+      {/* Content Grid - Zones on left, Break on right */}
       <div className="flex" style={{ gap: 'var(--spacing-component-sm)' }}>
         {/* Left side - Main zones (80% width) */}
         <div className="flex-1 flex flex-col" style={{ minWidth: 0, gap: 'var(--spacing-component-sm)' }}>
@@ -204,19 +204,19 @@ export function PlayerZone({
           )}
         </div>
 
-        {/* Right side - Sleep Zone (fixed width) */}
+        {/* Right side - Break Zone (fixed width) */}
         <div className="w-40 flex-shrink-0">
           <h3 className="text-sm font-bold text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)', paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}>
-            SLEEP ZONE ({player.sleep_zone.length})
+            BREAK ZONE ({player.break_zone.length})
           </h3>
           <div 
             className="flex flex-col min-h-[340px] bg-black bg-opacity-20 rounded"
             style={{ gap: 'var(--spacing-component-xs)', padding: 'var(--spacing-component-md)' }}
           >
-            {player.sleep_zone.length === 0 ? (
-              <div className="text-gray-500 italic text-sm m-auto text-center">No sleeping cards</div>
+            {player.break_zone.length === 0 ? (
+              <div className="text-gray-500 italic text-sm m-auto text-center">No broken cards</div>
             ) : (
-              player.sleep_zone.map((card) => (
+              player.break_zone.map((card) => (
                 <CardDisplay
                   key={card.id}
                   card={card}

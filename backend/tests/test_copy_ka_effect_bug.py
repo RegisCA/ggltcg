@@ -60,7 +60,7 @@ class TestCopyKaEffectBug(unittest.TestCase):
         ka.controller = player.player_id
         ka.zone = Zone.HAND
         player.hand.append(ka)
-        player.cc = 10
+        player.charge = 10
         
         # Play Ka
         success = self.game_engine.play_card(player, ka)
@@ -95,7 +95,7 @@ class TestCopyKaEffectBug(unittest.TestCase):
         copy.controller = player.player_id
         copy.zone = Zone.HAND
         player.hand.append(copy)
-        player.cc = 10
+        player.charge = 10
         
         # Check Ka's strength before playing Copy
         ka_strength_before = self.game_engine.get_card_stat(ka, "strength")

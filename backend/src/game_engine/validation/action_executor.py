@@ -15,7 +15,7 @@ from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.models.card import Card
 from game_engine.rules.effects.continuous_effects import BallaberCostEffect
-from game_engine.rules.effects.action_effects import UnsleepEffect, CopyEffect, TwistEffect, SleepTargetEffect
+from game_engine.rules.effects.action_effects import FixEffect, CopyEffect, TwistEffect, BreakTargetEffect
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class ActionExecutor:
         if not success:
             return ExecutionResult(
                 success=False,
-                message="Failed to play card (insufficient CC or invalid target)",
+                message="Failed to play card (insufficient Charge or invalid target)",
                 description="",
                 cost=cost
             )
@@ -183,8 +183,8 @@ class ActionExecutor:
             if defender is None:
                 # Provide detailed diagnostic information
                 opponent = self.game_state.get_opponent(player.player_id)
-                opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.sleep_zone)]
-                player_card_ids = [c.id for c in (player.hand + player.in_play + player.sleep_zone)]
+                opponent_card_ids = [c.id for c in (opponent.hand + opponent.in_play + opponent.break_zone)]
+                player_card_ids = [c.id for c in (player.hand + player.in_play + player.break_zone)]
                 
                 logger.error(
                     f"Defender card lookup failed:\n"
@@ -203,7 +203,7 @@ class ActionExecutor:
         cost = self.engine.calculate_tussle_cost(attacker, player)
         
         # Execute tussle
-        success, sleeped_from_hand = self.engine.initiate_tussle(attacker, defender, player)
+        success, broken_from_hand = self.engine.initiate_tussle(attacker, defender, player)
         
         if not success:
             return ExecutionResult(
@@ -219,11 +219,11 @@ class ActionExecutor:
         # Build description
         if defender:
             target_desc = defender.name
-        elif sleeped_from_hand:
-            target_desc = f"{sleeped_from_hand} (from hand)"
+        elif broken_from_hand:
+            target_desc = f"{broken_from_hand} (from hand)"
         else:
             target_desc = "opponent directly"
-        description = f"Spent {cost} CC for {attacker.name} to tussle {target_desc}"
+        description = f"Spent {cost} Charge for {attacker.name} to tussle {target_desc}"
         
         # Check for victory
         winner = self.game_state.check_victory()
@@ -261,22 +261,22 @@ class ActionExecutor:
         kwargs = {}
 
         if alternative_cost_card_id and card.has_effect_type(BallaberCostEffect):
-            # Find card to sleep (can be in hand or play)
-            card_to_sleep = next(
+            # Find card to break (can be in hand or play)
+            card_to_break = next(
                 (c for c in (player.in_play + (player.hand or []))
                  if c.id == alternative_cost_card_id),
                 None
             )
-            if card_to_sleep is None:
+            if card_to_break is None:
                 raise ValueError(
                     f"Alternative cost card with ID '{alternative_cost_card_id}' not found"
                 )
-            # Sleep the card via game engine to trigger effects
-            was_in_play = card_to_sleep in player.in_play
-            owner = self.game_state.get_card_owner(card_to_sleep)
-            self.engine._sleep_card(card_to_sleep, owner, was_in_play=was_in_play)
+            # Break the card via game engine to trigger effects
+            was_in_play = card_to_break in player.in_play
+            owner = self.game_state.get_card_owner(card_to_break)
+            self.engine._break_card(card_to_break, owner, was_in_play=was_in_play)
             kwargs["alternative_cost_paid"] = True
-            kwargs["alternative_cost_card"] = card_to_sleep.name
+            kwargs["alternative_cost_card"] = card_to_break.name
             cost = 0
         else:
             # Calculate normal cost, using the resolved target for variable-cost cards
@@ -304,7 +304,7 @@ class ActionExecutor:
                 # Provide detailed diagnostic information for card lookup failures
                 all_card_ids = []
                 for p in self.game_state.players.values():
-                    all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
+                    all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.break_zone)])
                 
                 logger.error(
                     f"Target card lookup failed:\n"
@@ -332,7 +332,7 @@ class ActionExecutor:
                     # Provide detailed diagnostic information
                     all_card_ids = []
                     for p in self.game_state.players.values():
-                        all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.sleep_zone)])
+                        all_card_ids.extend([c.id for c in (p.hand + p.in_play + p.break_zone)])
                     
                     logger.error(
                         f"Multi-target card lookup failed:\n"
@@ -366,14 +366,14 @@ class ActionExecutor:
         """
         Execute card play with alternative cost.
         
-        Alternative cost was already paid (card already slept), so we just need
-        to pay 0 CC and move the card to the appropriate zone.
+        Alternative cost was already paid (card already broken), so we just need
+        to pay 0 Charge and move the card to the appropriate zone.
         
         Returns:
             bool: True if successful
         """
-        # Pay 0 CC (should always succeed)
-        if not player.spend_cc(0):
+        # Pay 0 Charge (should always succeed)
+        if not player.spend_charge(0):
             return False
         
         # Remove from hand
@@ -384,10 +384,10 @@ class ActionExecutor:
             card.zone = Zone.IN_PLAY
             player.in_play.append(card)
         elif card.card_type == CardType.ACTION:
-            # Actions resolve and go to sleep zone
+            # Actions resolve and go to break zone
             self.engine._resolve_action_card(card, player, **kwargs)
-            card.zone = Zone.SLEEP
-            player.sleep_zone.append(card)
+            card.zone = Zone.BREAK
+            player.break_zone.append(card)
         
         return True
     
@@ -406,24 +406,24 @@ class ActionExecutor:
         """
         # Base description
         if kwargs.get("alternative_cost_paid"):
-            description = f"Played {card.name} by sleeping {kwargs['alternative_cost_card']}"
+            description = f"Played {card.name} by breaking {kwargs['alternative_cost_card']}"
         else:
-            description = f"Spent {cost} CC to play {card.name}"
+            description = f"Spent {cost} Charge to play {card.name}"
         
         # Add target-specific details for Action cards (the meaningful part)
         if card.is_action():
-            if card.has_effect_type(SleepTargetEffect) and kwargs.get("target"):
+            if card.has_effect_type(BreakTargetEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
-                description += f". Slept {target_card.name}"
-            elif card.has_effect_type(SleepTargetEffect) and kwargs.get("targets"):
+                description += f". Broke {target_card.name}"
+            elif card.has_effect_type(BreakTargetEffect) and kwargs.get("targets"):
                 target_names = [t.name for t in kwargs["targets"]]
-                description += f". Slept {', '.join(target_names)}"
-            elif card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
+                description += f". Broke {', '.join(target_names)}"
+            elif card.has_effect_type(FixEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
-                description += f". Unslept {target_card.name}"
-            elif card.has_effect_type(UnsleepEffect) and kwargs.get("targets"):
+                description += f". Fixed {target_card.name}"
+            elif card.has_effect_type(FixEffect) and kwargs.get("targets"):
                 target_names = [t.name for t in kwargs["targets"]]
-                description += f". Unslept {', '.join(target_names)}"
+                description += f". Fixed {', '.join(target_names)}"
             elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
                 target_card = kwargs["target"]
                 description += f". Copied {target_card.name}"
@@ -434,7 +434,7 @@ class ActionExecutor:
         # For cards with alternative cost (e.g., Ballaber)
         if card.has_effect_type(BallaberCostEffect) and kwargs.get("alternative_cost_paid"):
             alt_card = kwargs["alternative_cost_card"]
-            description += f". Slept {alt_card} for alternative cost"
+            description += f". Broke {alt_card} for alternative cost"
         
         return description
     
@@ -447,13 +447,13 @@ class ActionExecutor:
         Build target info string for response message.
         
         Returns:
-            str: Target info like " (unslept Knight)" or ""
+            str: Target info like " (fixed Knight)" or ""
         """
-        if card.has_effect_type(UnsleepEffect) and kwargs.get("target"):
-            return f" (unslept {kwargs['target'].name})"
-        elif card.has_effect_type(UnsleepEffect) and kwargs.get("targets"):
+        if card.has_effect_type(FixEffect) and kwargs.get("target"):
+            return f" (fixed {kwargs['target'].name})"
+        elif card.has_effect_type(FixEffect) and kwargs.get("targets"):
             target_names = [t.name for t in kwargs["targets"]]
-            return f" (unslept {', '.join(target_names)})"
+            return f" (fixed {', '.join(target_names)})"
         elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
             return f" (copied {kwargs['target'].name})"
         elif card.has_effect_type(TwistEffect) and kwargs.get("target"):

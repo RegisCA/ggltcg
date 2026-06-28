@@ -151,8 +151,8 @@ class GameSetup:
 
 
 def create_basic_game(
-    player1_cc: int = 10,
-    player2_cc: int = 10,
+    player1_charge: int = 10,
+    player2_charge: int = 10,
     active_player: str = "player1",
     turn_number: int = 2,  # Default to turn 2 so Rush/Raggy restrictions don't apply
 ) -> GameSetup:
@@ -160,8 +160,8 @@ def create_basic_game(
     Create a basic game with two players and no cards.
     
     Args:
-        player1_cc: Starting CC for player 1
-        player2_cc: Starting CC for player 2
+        player1_charge: Starting Charge for player 1
+        player2_charge: Starting Charge for player 2
         active_player: Which player is active ("player1" or "player2")
         turn_number: Current turn number
         
@@ -171,8 +171,8 @@ def create_basic_game(
     player1 = Player(player_id="player1", name="Player 1")
     player2 = Player(player_id="player2", name="Player 2")
     
-    player1.cc = player1_cc
-    player2.cc = player2_cc
+    player1.charge = player1_charge
+    player2.charge = player2_charge
     
     game_state = GameState(
         game_id="test_game",
@@ -196,12 +196,12 @@ def create_basic_game(
 def create_game_with_cards(
     player1_hand: Optional[List[str]] = None,
     player1_in_play: Optional[List[str]] = None,
-    player1_sleep: Optional[List[str]] = None,
+    player1_break: Optional[List[str]] = None,
     player2_hand: Optional[List[str]] = None,
     player2_in_play: Optional[List[str]] = None,
-    player2_sleep: Optional[List[str]] = None,
-    player1_cc: int = 10,
-    player2_cc: int = 10,
+    player2_break: Optional[List[str]] = None,
+    player1_charge: int = 10,
+    player2_charge: int = 10,
     active_player: str = "player1",
     turn_number: int = 2,
 ) -> Tuple[GameSetup, Dict[str, Card]]:
@@ -211,12 +211,12 @@ def create_game_with_cards(
     Args:
         player1_hand: List of card names for player 1's hand
         player1_in_play: List of card names for player 1's play zone
-        player1_sleep: List of card names for player 1's sleep zone
+        player1_break: List of card names for player 1's break zone
         player2_hand: List of card names for player 2's hand
         player2_in_play: List of card names for player 2's play zone
-        player2_sleep: List of card names for player 2's sleep zone
-        player1_cc: Starting CC for player 1
-        player2_cc: Starting CC for player 2
+        player2_break: List of card names for player 2's break zone
+        player1_charge: Starting Charge for player 1
+        player2_charge: Starting Charge for player 2
         active_player: Which player is active
         turn_number: Current turn number
         
@@ -224,7 +224,7 @@ def create_game_with_cards(
         Tuple of (GameSetup, dict mapping unique keys to Card instances)
         Keys are formatted as "p1_hand_Ka" or "p2_in_play_Knight"
     """
-    setup = create_basic_game(player1_cc, player2_cc, active_player, turn_number)
+    setup = create_basic_game(player1_charge, player2_charge, active_player, turn_number)
     cards: Dict[str, Card] = {}
     
     def add_cards(player: Player, player_prefix: str, card_names: Optional[List[str]], 
@@ -248,12 +248,12 @@ def create_game_with_cards(
     # Add cards for player 1
     add_cards(setup.player1, "p1", player1_hand, Zone.HAND, setup.player1.hand)
     add_cards(setup.player1, "p1", player1_in_play, Zone.IN_PLAY, setup.player1.in_play)
-    add_cards(setup.player1, "p1", player1_sleep, Zone.SLEEP, setup.player1.sleep_zone)
+    add_cards(setup.player1, "p1", player1_break, Zone.BREAK, setup.player1.break_zone)
     
     # Add cards for player 2
     add_cards(setup.player2, "p2", player2_hand, Zone.HAND, setup.player2.hand)
     add_cards(setup.player2, "p2", player2_in_play, Zone.IN_PLAY, setup.player2.in_play)
-    add_cards(setup.player2, "p2", player2_sleep, Zone.SLEEP, setup.player2.sleep_zone)
+    add_cards(setup.player2, "p2", player2_break, Zone.BREAK, setup.player2.break_zone)
     
     return setup, cards
 
@@ -315,7 +315,7 @@ def create_knight(owner: str, zone: Zone = Zone.HAND) -> Card:
 
 
 def create_dream(owner: str, zone: Zone = Zone.HAND) -> Card:
-    """Create a Dream card (cost reduced by sleeping cards)."""
+    """Create a Dream card (cost reduced by broken cards)."""
     return create_card("Dream", owner=owner, zone=zone)
 
 
@@ -340,22 +340,22 @@ def create_copy(owner: str, zone: Zone = Zone.HAND) -> Card:
 
 
 def create_rush(owner: str, zone: Zone = Zone.HAND) -> Card:
-    """Create a Rush card (gain 2 CC, not on first turn)."""
+    """Create a Rush card (gain 2 Charge, not on first turn)."""
     return create_card("Rush", owner=owner, zone=zone)
 
 
 def create_surge(owner: str, zone: Zone = Zone.HAND) -> Card:
-    """Create a Surge card (gain 1 CC)."""
+    """Create a Surge card (gain 1 Charge)."""
     return create_card("Surge", owner=owner, zone=zone)
 
 
 def create_clean(owner: str, zone: Zone = Zone.HAND) -> Card:
-    """Create a Clean card (sleep all cards in play)."""
+    """Create a Clean card (break all cards in play)."""
     return create_card("Clean", owner=owner, zone=zone)
 
 
 def create_wake(owner: str, zone: Zone = Zone.HAND) -> Card:
-    """Create a Wake card (unsleep 1 card)."""
+    """Create a Wake card (fix 1 card)."""
     return create_card("Wake", owner=owner, zone=zone)
 
 
@@ -370,7 +370,7 @@ def create_archer(owner: str, zone: Zone = Zone.HAND) -> Card:
 
 
 def create_ballaber(owner: str, zone: Zone = Zone.HAND) -> Card:
-    """Create a Ballaber card (alternative cost: sleep a card)."""
+    """Create a Ballaber card (alternative cost: break a card)."""
     return create_card("Ballaber", owner=owner, zone=zone)
 
 

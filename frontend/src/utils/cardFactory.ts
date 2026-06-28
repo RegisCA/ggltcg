@@ -39,7 +39,7 @@ export function createCardFromApiData(
     base_speed: cardData.speed,
     base_strength: cardData.strength,
     base_stamina: cardData.stamina,
-    is_sleeped: false,
+    is_broken: false,
     primary_color: cardData.primary_color,
     accent_color: cardData.accent_color,
   };
@@ -79,7 +79,7 @@ export function createTestCard(
     base_speed: isToy ? 1 : null,
     base_strength: isToy ? 1 : null,
     base_stamina: isToy ? 1 : null,
-    is_sleeped: false,
+    is_broken: false,
     primary_color: '#888888',
     accent_color: '#888888',
     ...overrides,
@@ -94,13 +94,13 @@ export function createTestCard(
  * @returns Card with zone-appropriate properties
  */
 export function createCardInZone(
-  baseCard: Omit<Card, 'zone' | 'is_sleeped'>,
+  baseCard: Omit<Card, 'zone' | 'is_broken'>,
   zone: Zone
 ): Card {
   return {
     ...baseCard,
     zone,
-    is_sleeped: zone === 'Sleep',
+    is_broken: zone === 'Break',
   };
 }
 

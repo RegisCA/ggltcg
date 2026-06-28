@@ -26,7 +26,7 @@ interface CardDisplayProps {
   isClickable?: boolean;
   isHighlighted?: boolean;
   isDisabled?: boolean;
-  isUnplayable?: boolean;  // Card cannot be played this turn (not enough CC, restricted, etc.)
+  isUnplayable?: boolean;  // Card cannot be played this turn (not enough Charge, restricted, etc.)
   isTussling?: boolean;
   isCopy?: boolean;  // Card created by Copy effect
   size?: 'small' | 'medium' | 'large';
@@ -166,12 +166,12 @@ export function CardDisplay({
           border: `${borderWidth} solid ${effectiveBorderColor}`,
           boxShadow,
           animation,
-          // Apply grayscale filter for sleeped cards, but not opacity (handled by animate)
-          filter: card.is_sleeped && !isSelected ? 'grayscale(100%)' : undefined,
+          // Apply grayscale filter for broken cards, but not opacity (handled by animate)
+          filter: card.is_broken && !isSelected ? 'grayscale(100%)' : undefined,
         }}
         initial={enableLayoutAnimation ? false : { opacity: 0, scale: prefersReducedMotion ? 1 : 0.9 }}
         animate={{ 
-          opacity: effectivelyDisabled ? 0.5 : (card.is_sleeped && !isSelected ? 0.6 : 1), 
+          opacity: effectivelyDisabled ? 0.5 : (card.is_broken && !isSelected ? 0.6 : 1), 
           scale: 1 
         }}
         transition={{ 
@@ -333,13 +333,13 @@ export function CardDisplay({
           </div>
         )}
 
-        {/* Sleeped Indicator */}
-        {card.is_sleeped && (
+        {/* Broken Indicator */}
+        {card.is_broken && (
           <div 
             className="text-center font-bold text-red-400"
             style={{ marginTop: 'var(--spacing-component-xs)', fontSize: size === 'small' ? '0.625rem' : '0.75rem', position: 'relative', zIndex: 1 }}
           >
-            SLEEPED
+            BROKEN
           </div>
         )}
       </motion.div>

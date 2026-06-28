@@ -29,8 +29,8 @@ def test_prompt_includes_board_legend_and_card_guidance():
         player1_in_play=["Knight"],
         player2_hand=["Ka", "Wizard"],
         player2_in_play=["Paper Plane"],
-        player1_cc=5,
-        player2_cc=0,
+        player1_charge=5,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -68,7 +68,7 @@ def test_prompt_includes_board_legend_and_card_guidance():
 
 def test_system_instruction_has_no_card_specific_knowledge():
     """The system_instruction is supposed to be generic framing - per-card quirks
-    (Knight's auto-win, Raggy's free tussles, Wizard's 1cc tussles, etc.) belong
+    (Knight's auto-win, Raggy's free tussles, Wizard's 1charge tussles, etc.) belong
     only in card_guidance.yaml, which is dynamically filtered to cards actually
     in the current game. Hardcoding a specific card's name here would duplicate
     that data-driven source and go stale as cards are added/changed."""
@@ -88,8 +88,8 @@ def test_prompt_works_without_game_engine():
         player1_in_play=["Knight"],
         player2_hand=[],
         player2_in_play=[],
-        player1_cc=2,
-        player2_cc=0,
+        player1_charge=2,
+        player2_charge=0,
         active_player="player1",
         turn_number=3,
     )
@@ -109,7 +109,7 @@ def test_strategic_system_instruction_is_not_v2_system_prompt():
     assert "[ID: xxx]" not in instruction
 
     # It should still cover the basics needed to judge a pre-validated tussle.
-    assert "Sleep Zone" in instruction
+    assert "Break Zone" in instruction
     assert "Stamina" in instruction or "STA" in instruction
 
 

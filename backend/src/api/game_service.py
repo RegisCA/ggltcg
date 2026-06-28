@@ -358,8 +358,8 @@ class GameService:
             player = entry.get('player', '')
             description = entry.get('description', '').lower()
             
-            # Count cards played (look for "spent X CC to play")
-            if 'spent' in description and 'cc to play' in description:
+            # Count cards played (look for "spent X Charge to play")
+            if 'spent' in description and 'charge to play' in description:
                 if player == winner_id:
                     winner_cards_played += 1
                 elif player == loser_id:
@@ -425,7 +425,7 @@ class GameService:
             # Legacy fallback: reconstruct from current state (may be inaccurate)
             logger.warning(f"Game {game_id} missing starting_decks, using fallback reconstruction")
             def get_deck_names(player: Player) -> list[str]:
-                all_cards = player.hand + player.in_play + player.sleep_zone
+                all_cards = player.hand + player.in_play + player.break_zone
                 deck_names = []
                 for card in all_cards:
                     if card.name.startswith("Copy of "):
@@ -458,7 +458,7 @@ class GameService:
                     p2_tussles += 1
             
             # Note: Tussle wins are not explicitly logged in play-by-play
-            # We would need to infer from "is sleeped" entries following tussles
+            # We would need to infer from "is broken" entries following tussles
             # For now, tussles_won will remain 0 until we add explicit logging
         
         # Save game playback
@@ -494,7 +494,7 @@ class GameService:
                 play_by_play=game_state.play_by_play,
                 turn_count=game_state.turn_number,
                 game_started_at=game_started_at,
-                cc_tracking=[r.to_dict() for r in game_state.cc_history],
+                charge_tracking=[r.to_dict() for r in game_state.charge_history],
             )
         except Exception as e:
             logger.error(f"Failed to save game playback: {e}")

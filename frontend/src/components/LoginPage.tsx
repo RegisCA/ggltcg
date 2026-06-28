@@ -95,7 +95,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
             </p>
             <p>
               Win <span className="text-game-highlight font-semibold">Tussles</span> and 
-              sleep all their cards to claim victory!
+              break all their cards to claim victory!
             </p>
           </div>
 

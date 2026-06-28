@@ -5,11 +5,11 @@ strategy.*
 
 ## **Quick Rules Summary**
 
-* **Objective:** Put all opponent's cards into their Sleep Zone.
-* **Turn Start:** Gain 4 CC (Player 1 on Turn 1 gains only 2).
-* **CC:** Use CC to play cards and tussle. Unspent CC are saved for your
-  next turn. Max 7 CC per player at any time.
-* **Tussle:** Pay CC to have two Toys fight. Higher speed strikes first (turn
+* **Objective:** Put all opponent's cards into their Break Zone.
+* **Turn Start:** Gain 4 Charge (Player 1 on Turn 1 gains only 2).
+* **Charge:** Use Charge to play cards and tussle. Unspent Charge are saved for your
+  next turn. Max 7 Charge per player at any time.
+* **Tussle:** Pay Charge to have two Toys fight. Higher speed strikes first (turn
   bonus).
 
 ***
@@ -22,15 +22,15 @@ If a card's text contradicts these rules, the card text takes precedence.
 
 ## **Game Objective**
 
-Win immediately by putting all your opponent's cards into their Sleep Zone.
+Win immediately by putting all your opponent's cards into their Break Zone.
 
 ***
 
 ## **Game Components**
 
 * **18 unique cards** (no duplicates)
-* **Command Counters (CC)**: The resource for playing cards and tussling
-* **Three zones per player**: Hand, In Play, Sleep Zone
+* **Charge**: The resource for playing cards and tussling
+* **Three zones per player**: Hand, In Play, Break Zone
 
 ***
 
@@ -39,13 +39,13 @@ Win immediately by putting all your opponent's cards into their Sleep Zone.
 ### **Toy**
 
 Cards with three stats: **Speed**, **Strength**, and **Stamina**. Toys are
-played into the In Play zone and remain there until sleeped. They can
+played into the In Play zone and remain there until broken. They can
 participate in tussles.
 
 ### **Action**
 
 Cards with no stats. When played, an Action resolves its effect immediately,
-then moves to your Sleep Zone.
+then moves to your Break Zone.
 
 ***
 
@@ -56,7 +56,7 @@ then moves to your Sleep Zone.
 2. Both players **reveal** their 6 cards to each other.
 3. Both players place their 6 cards into their **hand**.
 4. Randomly determine who goes first (coin flip, die roll, mutual agreement).
-5. The game begins with **no CC** held by either player.
+5. The game begins with **no Charge** held by either player.
 
 ***
 
@@ -69,12 +69,12 @@ opponent unless an effect reveals them.
 
 ### **In Play**
 
-Where Toys remain after being played. Cards here are considered "awake" and
-active.
+Where Toys remain after being played. Cards here are considered in play and
+working.
 
-### **Sleep Zone**
+### **Break Zone**
 
-Where cards go when sleeped. Cards here are face-up and visible to both players.
+Where cards go when broken. Cards here are face-up and visible to both players.
 
 ### **Zone Change Reset**
 
@@ -90,8 +90,8 @@ Each turn has three phases:
 
 ### **Phase 1: Start of Turn**
 
-1. Gain **4 CC**. **First Turn Exception**: The starting player gains only **2
-   CC** on their first turn (Turn 1).
+1. Gain **4 Charge**. **First Turn Exception**: The starting player gains only **2
+   Charge** on their first turn (Turn 1).
 1. Resolve any "at the start of your turn" effects (none in the current 18-card
    set).
 
@@ -113,7 +113,7 @@ When both players pass priority consecutively, move to End Phase.
 ### **Phase 3: End of Turn**
 
 1. Resolve any "at the end of your turn" effects.
-2. **Unspent CC is lost**—it does not carry over to the next turn.
+2. **Unspent Charge is lost**—it does not carry over to the next turn.
 3. Your turn ends; your opponent begins their turn.
 
 ***
@@ -125,9 +125,10 @@ When both players pass priority consecutively, move to End Phase.
 1. **Announce** the card you're playing from your hand.
 2. Make any required choices (e.g., if playing Copy, choose which Toy to copy).
 3. Calculate the **total cost** after applying any cost reductions or increases.
-4. **Pay the cost** in CC (you can only play a card if you have enough CC).
-5. **Resolve the card**: Toys enter In Play awake—their effects work
-   immediately; Actions resolve their effect, then move to your Sleep Zone.
+4. **Pay the cost** in Charge (you can only play a card if you have enough Charge).
+5. **Resolve the card**: Toys enter In Play and are immediately working—their
+   effects work immediately; Actions resolve their effect, then move to your
+   Break Zone.
 
 ### **When Card Text Works**
 
@@ -152,31 +153,31 @@ opponent's turn using its own triggered ability.
 4. Pay that cost; Copy enters play as an exact duplicate of the chosen Toy (same
    name, stats, text, everything).
 
-* Copy remains a duplicate while in play. If it leaves play (sleeped, returned
+* Copy remains a duplicate while in play. If it leaves play (broken, returned
   to hand, etc.), it reverts to being "Copy" with cost "?".
 * You can have multiple Copies in play, each copying different Toys (or the same
   Toy).
 
 ### **Dream**
 
-* **Text**: "This card costs 1 less for each of your sleeping cards."
-* Count the number of cards in your Sleep Zone when you announce Dream. Reduce
+* **Text**: "This card costs 1 less for each of your broken cards."
+* Count the number of cards in your Break Zone when you announce Dream. Reduce
   Dream's cost by that amount (minimum 0).
-* **Example**: Dream's printed cost is 4. If you have 3 cards in your Sleep
-  Zone, Dream costs 1 CC.
+* **Example**: Dream's printed cost is 4. If you have 3 cards in your Break
+  Zone, Dream costs 1 Charge.
 
 ### **Ballaber**
 
-* **Text**: "You may sleep 1 of your cards to play this card for free."
+* **Text**: "You may break 1 of your cards to play this card for free."
 * You have two payment options:
-* **Option A**: Pay Ballaber's printed cost (3 CC) normally.
-* **Option B**: Sleep 1 of your cards currently in play (move it to your Sleep
-    Zone), then pay 0 CC for Ballaber.
+* **Option A**: Pay Ballaber's printed cost (3 Charge) normally.
+* **Option B**: Break 1 of your cards currently in play (move it to your Break
+    Zone), then pay 0 Charge for Ballaber.
 * Ballaber then enters In Play.
 
 ### **Rush**
 
-* **Text**: "Gain 2 CC. This card may not be played on your first turn."
+* **Text**: "Gain 2 Charge. This card may not be played on your first turn."
 * Rush cannot be played on Turn 1 (the starting player's first turn). After Turn
   1, any player may play Rush normally.
 
@@ -187,7 +188,7 @@ opponent's turn using its own triggered ability.
 ### **Starting a Tussle**
 
 Tussling is how you engage your opponent's cards. You may only initiate a tussle
-during your turn. The default cost for any tussle is 2 CC, though this can be
+during your turn. The default cost for any tussle is 2 Charge, though this can be
 modified by card effects (e.g., Wizard, Raggy).
 
 There are two types of tussles, depending on whether your opponent has Toys in
@@ -199,7 +200,7 @@ Use this when your opponent has one or more Toys in play.
 
 1. **Declare Tussle:** Choose one of your active Toys (the attacker) and one of
    your opponent's active Toys (the defender).
-2. **Pay Cost:** Pay the tussle cost (default 2 CC).
+2. **Pay Cost:** Pay the tussle cost (default 2 Charge).
 3. **Resolve:** Follow the **Tussle Resolution** steps below.
 
 ### **Type 2: Direct Attack (No Defenders)**
@@ -208,28 +209,28 @@ Use this when your opponent has **no Toys in play**. You may do this at most
 **twice per turn**.
 
 1. **Declare Attack:** Choose one of your active Toys to be the attacker.
-2. **Pay Cost:** Pay the tussle cost (default 2 CC).
+2. **Pay Cost:** Pay the tussle cost (default 2 Charge).
 3. **Target Hand:** Your opponent must have at least one card in their hand.
-4. **Resolve:** A random card from your opponent's hand is moved to their Sleep
-   Zone; the card is revealed to both players. Important: Cards sleeped from the
-   hand this way do **not** trigger their "when sleeped" abilities.
+4. **Resolve:** A random card from your opponent's hand is moved to their Break
+   Zone; the card is revealed to both players. Important: Cards broken from the
+   hand this way do **not** trigger their "when broken" abilities.
 
 ### **Tussle Cost Modifiers**
 
 * **Wizard**: "Your cards' tussles cost 1." If you control Wizard, all your
-  tussles cost 1 CC instead of 2.
-* **Raggy**: "This card's tussles cost 0." Raggy's tussles cost 0 CC.
+  tussles cost 1 Charge instead of 2.
+* **Raggy**: "This card's tussles cost 0." Raggy's tussles cost 0 Charge.
 * **Restriction**: Raggy cannot tussle on Turn 1 (the starting player's first
     turn).
 * Multiple cost modifiers: Use the lowest cost. Modifiers don't stack beyond the
-  lowest option (e.g., two Wizards still cost 1 CC per tussle, not 0).
+  lowest option (e.g., two Wizards still cost 1 Charge per tussle, not 0).
 
 ### **Tussle Cancellation (Beary)**
 
 * **Beary**: "When your opponent tussles, you may play this card, the tussle is
   cancelled."
 * **Timing**: After your opponent declares a tussle and pays the tussle cost,
-  you may play Beary from your hand (paying Beary's 1 CC cost).
+  you may play Beary from your hand (paying Beary's 1 Charge cost).
 * **Effect**: The tussle is cancelled—no strikes occur, no damage is dealt.
   Beary enters play. **Your opponent does not get their tussle cost refunded.**
 * Your opponent may then take another action.
@@ -241,96 +242,96 @@ Use this when your opponent has **no Toys in play**. You may do this at most
 * Apply buffs from cards like Ka (+2 Strength) or Demideca (+1 to all stats).
 * **Determine Strike Order**:
 * **Higher Speed strikes first**. If that first strike reduces the defender to
-    0 or fewer Stamina, the defender is sleeped immediately and does **not**
+    0 or fewer Stamina, the defender is broken immediately and does **not**
     strike back.
 * **Tied Speed**: Both Toys strike simultaneously.
 * **Resolve Strikes**:
 * Each striking Toy deals damage equal to its **Strength** to the opposing
     Toy's **Stamina**.
 * Reduce the opposing Toy's Stamina by the attacking Toy's Strength.
-* **Sleep Check**: After all strikes, if any Toy has Stamina ≤ 0, that Toy is
-  **sleeped** (moved to its owner's Sleep Zone).
+* **Break Check**: After all strikes, if any Toy has Stamina ≤ 0, that Toy is
+  **broken** (moved to its owner's Break Zone).
 
 ### **Direct Attack (No Defenders)**
 
 If your opponent has **no Toys in play** when you start a tussle:
 
 1. Choose one of your Toys in play.
-2. Pay the tussle cost (default 2 CC, modified by Wizard/Raggy).
-3. **Sleep a random card from your opponent's hand**:
+2. Pay the tussle cost (default 2 Charge, modified by Wizard/Raggy).
+3. **Break a random card from your opponent's hand**:
     * If your opponent has N cards in hand, generate a random number from 1 to
       N.
-    * Sleep the card at that position.
-    * Reveal the sleeped card to both players.
+    * Break the card at that position.
+    * Reveal the broken card to both players.
 4. This counts as a tussle for cost purposes.
 5. You may do this **at most twice per turn**.
 6. Your opponent must have at least one card in hand; if their hand is empty,
    you cannot make a direct attack.
 
-**Important**: Cards sleeped from hand do **not** trigger "when sleeped"
+**Important**: Cards broken from hand do **not** trigger "when broken"
 abilities.
 
 ***
 
-## **Sleeping and Unsleeping**
+## **Breaking and Fixing**
 
-### **How Cards Become Sleeped**
+### **How Cards Become Broken**
 
-A card is **sleeped** (moved to its owner's Sleep Zone) when:
+A card is **broken** (moved to its owner's Break Zone) when:
 
 * A Toy's Stamina is reduced to 0 or less (automatic).
-* An effect specifically sleeps it (Clean, Snuggles, direct attack).
+* An effect specifically breaks it (Clean, Snuggles, direct attack).
 * It's an Action that has finished resolving.
 
-### **"When Sleeped" Triggers**
+### **"When Broken" Triggers**
 
-Triggered abilities that say "when sleeped" (Umbruh, Snuggles) only activate if
-the card was **in play** when it became sleeped.
+Triggered abilities that say "when broken" (Umbruh, Snuggles) only activate if
+the card was **in play** when it became broken.
 
-* Cards sleeped from hand (via direct attack) do **not** trigger these
+* Cards broken from hand (via direct attack) do **not** trigger these
   abilities.
 * Cards returned to hand (via Toynado) do **not** trigger these abilities
-  because they weren't sleeped.
+  because they weren't broken.
 
-### **Unsleep**
+### **Fix**
 
-"Unsleep" means to return a card from your Sleep Zone to your hand.
+"Fix" means to return a card from your Break Zone to your hand.
 
-* **Wake**: "Unsleep 1 of your cards." Choose 1 card in your Sleep Zone and
+* **Wake**: "Fix 1 of your cards." Choose 1 card in your Break Zone and
   return it to your hand.
-* **Sun**: "Unsleep 2 of your cards." Choose up to 2 cards in your Sleep Zone
+* **Sun**: "Fix 2 of your cards." Choose up to 2 cards in your Break Zone
   and return them to your hand.
 
 ***
 
-## **Command Counters (CC)**
+## **Charge**
 
-### **Gaining CC**
+### **Gaining Charge**
 
-* At the start of your turn: Gain 4 CC (2 CC on Turn 1 for the starting player).
+* At the start of your turn: Gain 4 Charge (2 Charge on Turn 1 for the starting player).
 * From card effects:
-* **Umbruh**: "When sleeped, gain 1 CC."
-* **Rush**: "Gain 2 CC."
+* **Umbruh**: "When broken, gain 1 Charge."
+* **Rush**: "Gain 2 Charge."
 
-### **Spending CC**
+### **Spending Charge**
 
 * Playing cards (pay the card's cost).
-* Starting tussles (default 2 CC, modified by Wizard/Raggy).
-* Activating abilities (Archer: 1 CC per 1 Stamina removed).
+* Starting tussles (default 2 Charge, modified by Wizard/Raggy).
+* Activating abilities (Archer: 1 Charge per 1 Stamina removed).
 
 ### **Payment Rules**
 
 * You can only announce an action if you can pay its full cost.
 * Apply cost reductions when calculating cost, before payment.
 
-### **CC End of Turn & Maximum Cap**
+### **Charge End of Turn & Maximum Cap**
 
-* **Banking CC:** Unspent Command Counters are not lost at the end of your turn.
-  They are saved for your next turn.
-* **Maximum Cap:** A player can hold a maximum of 7 CC at any time. If gaining
-  CC would cause your total to exceed 7, you only gain enough to reach the cap
+* **Banking Charge:** Unspent Charge is not lost at the end of your turn.
+  It is saved for your next turn.
+* **Maximum Cap:** A player can hold a maximum of 7 Charge at any time. If gaining
+  Charge would cause your total to exceed 7, you only gain enough to reach the cap
   of 7.
-* *Example: If you have 5 CC at the start of your turn, you will only gain 2 CC
+* *Example: If you have 5 Charge at the start of your turn, you will only gain 2 Charge
   (to reach the maximum of 7), instead of the usual 4.*
 
 ***
@@ -356,7 +357,7 @@ all affected cards.
 
 ### **Triggered Abilities**
 
-Triggered abilities activate when their condition is met (e.g., "when sleeped,"
+Triggered abilities activate when their condition is met (e.g., "when broken,"
 "when your opponent tussles").
 
 * **Optional** triggers use "may"—you choose whether to use them (Beary,
@@ -365,13 +366,13 @@ Triggered abilities activate when their condition is met (e.g., "when sleeped,"
 
 ### **Activated Abilities**
 
-**Archer**: "You may spend CC to remove Stamina from cards."
+**Archer**: "You may spend Charge to remove Stamina from cards."
 
-* During your Main Phase, pay 1 CC to remove 1 Stamina from any Toy in play
+* During your Main Phase, pay 1 Charge to remove 1 Stamina from any Toy in play
   (yours or your opponent's).
 * You can repeat this as many times as you can afford.
 * This Stamina removal is not damage—it's direct stat reduction.
-* If this reduces a Toy to 0 or fewer Stamina, that Toy is sleeped immediately.
+* If this reduces a Toy to 0 or fewer Stamina, that Toy is broken immediately.
 * **Archer restriction**: "This card can't start tussles." Archer cannot be
   declared as an attacker in a tussle.
 
@@ -386,7 +387,7 @@ Triggered abilities activate when their condition is met (e.g., "when sleeped,"
 * Your opponent's Archer cannot target your Knight. Your own Archer can target
   your own Knight.
 * **Conditional Win**: "On your turn, this card wins all tussles it enters."
-* When Knight tussles on your turn, it automatically sleeps the opposing Toy
+* When Knight tussles on your turn, it automatically breaks the opposing Toy
     (no matter the stats).
 * The opposing Toy does not strike back.
 * On your opponent's turn, Knight tussles normally (no auto-win).
@@ -406,8 +407,8 @@ Triggered abilities activate when their condition is met (e.g., "when sleeped,"
 
 These are automatic checks that happen constantly:
 
-* **Zero Stamina**: If a Toy has Stamina ≤ 0, it's sleeped immediately.
-* **Victory Check**: If all your opponent's cards are in their Sleep Zone, you
+* **Zero Stamina**: If a Toy has Stamina ≤ 0, it's broken immediately.
+* **Victory Check**: If all your opponent's cards are in their Break Zone, you
   win immediately.
 
 ### **Ownership and Control**
@@ -419,11 +420,11 @@ These are automatic checks that happen constantly:
     control."
 * Choose an opposing Toy in play. It switches to your side (you now control
     it).
-* Ownership is unchanged. If it leaves play, it goes to its owner's Sleep Zone
+* Ownership is unchanged. If it leaves play, it goes to its owner's Break Zone
     or hand (your opponent's).
 * **Toynado**: "Put all cards that are in play into their owner's hands."
 * All Toys return to their **owners' hands** (not controllers').
-* No "when sleeped" triggers occur (cards aren't sleeped, they're returned).
+* No "when broken" triggers occur (cards aren't broken, they're returned).
 
 ### **Targeting**
 
@@ -436,7 +437,7 @@ These are automatic checks that happen constantly:
 ### **Infinite Loops**
 
 * **Optional Loops**: If you could repeat an optional action endlessly (e.g.,
-  Archer with infinite CC), you must choose a finite number of repetitions, then
+  Archer with infinite Charge), you must choose a finite number of repetitions, then
   take a different action or pass priority.
 * **Mandatory Loops**: None exist in the current 18-card set.
 
@@ -446,9 +447,9 @@ These are automatic checks that happen constantly:
 
 ### **Turn Sequence**
 
-1. **Start**: Gain 4 CC (2 on Turn 1 for starting player).
+1. **Start**: Gain 4 Charge (2 on Turn 1 for starting player).
 2. **Main**: Play cards, tussle, activate abilities.
-3. **End**: Unspent CC is lost. Turn passes.
+3. **End**: Unspent Charge is lost. Turn passes.
 
 ### **Tussle Steps**
 
@@ -458,16 +459,16 @@ These are automatic checks that happen constantly:
 4. Calculate Speed (include turn bonus and buffs).
 5. Higher Speed strikes first; tied Speed strikes simultaneously.
 6. Apply damage (Strength reduces opponent's Stamina).
-7. Sleep any Toy with Stamina ≤ 0.
+7. Break any Toy with Stamina ≤ 0.
 
 ### **Key Interactions**
 
 * **Knight's auto-win**: Only on your turn; doesn't work vs. Beary.
-* **"When sleeped" triggers**: Only if the card was in play when sleeped.
-* **Toynado**: Returns all Toys to owners' hands (not sleeped; no triggers).
+* **"When broken" triggers**: Only if the card was in play when broken.
+* **Toynado**: Returns all Toys to owners' hands (not broken; no triggers).
 * **Copy**: Costs the same as the Toy you're copying; becomes an exact
   duplicate.
-* **Direct attacks**: Sleep a random card from opponent's hand when they have no
+* **Direct attacks**: Break a random card from opponent's hand when they have no
   Toys in play (max 2/turn).
 
 ***
@@ -475,16 +476,14 @@ These are automatic checks that happen constantly:
 ## **Glossary**
 
 **Action**: Card type with no stats. Resolves its effect when played, then
-becomes sleeped.
+becomes broken.
 
 **Activated Ability**: An ability you can use by paying a cost (Archer's Stamina
 removal).
 
 **Active Player**: The player whose turn it is.
 
-**Awake**: A Toy that's in play (not sleeped).
-
-**CC (Command Counters)**: The resource for playing cards, tussling, and
+**Charge**: The resource for playing cards, tussling, and
 abilities. Gain 4 per turn (2 on Turn 1 for starting player).
 
 **Control**: The player who makes decisions for a card. Can change via Twist.
@@ -492,14 +491,14 @@ abilities. Gain 4 per turn (2 on Turn 1 for starting player).
 **Continuous Effect**: An effect that applies while its source is in play (Ka,
 Wizard, Demideca).
 
-**Direct Attack**: A tussle when your opponent has no Toys in play. Sleeps a
+**Direct Attack**: A tussle when your opponent has no Toys in play. Breaks a
 random card from their hand (max 2/turn).
 
 **Effect**: Text on a card that does something. Does not include tussle damage.
 
 **Hand**: Zone where you hold cards before playing them. Start with 6 cards.
 
-**In Play**: Zone where Toys remain until sleeped.
+**In Play**: Zone where Toys remain, working, until broken.
 
 **Owner**: The player who started with a card. Never changes.
 
@@ -508,21 +507,21 @@ Main Phase.
 
 **Protection**: Immunity to effects from specific sources (Knight, Beary).
 
-**Sleep**: To move a card to its owner's Sleep Zone.
+**Break**: To move a card to its owner's Break Zone.
 
-**Sleeped**: State of being in the Sleep Zone; also the event of becoming
-sleeped.
+**Broken**: State of being in the Break Zone; also the event of becoming
+broken.
 
-**Sleep Zone**: Where cards go when sleeped. Face-up and visible to both
+**Break Zone**: Where cards go when broken. Face-up and visible to both
 players.
 
 **Speed**: Stat determining strike order in tussles. Higher Speed strikes first.
 
 **Stamina**: Stat representing a Toy's durability. When Stamina reaches 0, the
-Toy is sleeped.
+Toy is broken.
 
-**State-Based Action**: Automatic check (0 Stamina → sleep, all opponent cards
-sleeped → you win).
+**State-Based Action**: Automatic check (0 Stamina → break, all opponent cards
+broken → you win).
 
 **Strength**: Stat determining how much damage a Toy deals in tussles.
 
@@ -531,18 +530,18 @@ sleeped → you win).
 **Target**: A card chosen for an effect.
 
 **Toy**: Card type with Speed, Strength, and Stamina. Remains in play until
-sleeped.
+broken.
 
-**Trigger**: An ability that activates when a condition is met ("when sleeped,"
+**Trigger**: An ability that activates when a condition is met ("when broken,"
 "when your opponent tussles").
 
-**Turn 1**: The starting player's first turn. They gain 2 CC (not 4).
+**Turn 1**: The starting player's first turn. They gain 2 Charge (not 4).
 
-**Tussle**: Combat between two Toys. Default cost 2 CC.
+**Tussle**: Combat between two Toys. Default cost 2 Charge.
 
-**Unsleep**: Return a card from your Sleep Zone to your hand.
+**Fix**: Return a card from your Break Zone to your hand.
 
-**Zone**: A game area (Hand, In Play, Sleep Zone).
+**Zone**: A game area (Hand, In Play, Break Zone).
 
 ***
 

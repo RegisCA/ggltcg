@@ -4,7 +4,7 @@ Auto-report generator for simulation results.
 Generates markdown reports with:
 - Overall statistics (win rates, draws, errors)
 - Matchup matrix (deck vs deck)
-- CC efficiency analysis
+- Charge efficiency analysis
 - Notable games (fastest wins, longest games)
 - First-player advantage analysis
 """
@@ -44,7 +44,7 @@ class SimulationReporter:
             self._configuration(),
             self._overall_statistics(),
             self._matchup_matrix(),
-            self._cc_analysis(),
+            self._charge_analysis(),
             self._first_player_advantage(),
             self._notable_games(),
             self._footer(),
@@ -70,7 +70,7 @@ class SimulationReporter:
             "config": self.config,
             "overall_stats": self._calculate_overall_stats(),
             "matchup_stats": self._calculate_matchup_stats(),
-            "cc_stats": self._calculate_cc_stats(),
+            "charge_stats": self._calculate_charge_stats(),
             "first_player_advantage": self._calculate_first_player_advantage(),
         }
     
@@ -170,32 +170,32 @@ class SimulationReporter:
         
         return "\n".join(lines)
     
-    def _cc_analysis(self) -> str:
-        """Generate CC efficiency analysis section."""
-        stats = self._calculate_cc_stats()
-        
+    def _charge_analysis(self) -> str:
+        """Generate Charge efficiency analysis section."""
+        stats = self._calculate_charge_stats()
+
         lines = [
-            "## CC (Charge Counter) Analysis",
+            "## Charge Analysis",
             "",
-            "**Note**: CC gained represents total resources generated (higher in longer games).  ",
-            "CC efficiency should be evaluated in context of game length and outcomes.",
+            "**Note**: Charge gained represents total resources generated (higher in longer games).  ",
+            "Charge efficiency should be evaluated in context of game length and outcomes.",
             "",
-            f"- **Avg CC Generated (Player 1)**: {stats['avg_p1_cc_gained']:.1f}",
-            f"- **Avg CC Generated (Player 2)**: {stats['avg_p2_cc_gained']:.1f}",
-            f"- **Avg CC Spent (Player 1)**: {stats['avg_p1_cc_spent']:.1f}",
-            f"- **Avg CC Spent (Player 2)**: {stats['avg_p2_cc_spent']:.1f}",
+            f"- **Avg Charge Generated (Player 1)**: {stats['avg_p1_charge_gained']:.1f}",
+            f"- **Avg Charge Generated (Player 2)**: {stats['avg_p2_charge_gained']:.1f}",
+            f"- **Avg Charge Spent (Player 1)**: {stats['avg_p1_charge_spent']:.1f}",
+            f"- **Avg Charge Spent (Player 2)**: {stats['avg_p2_charge_spent']:.1f}",
         ]
-        
-        if stats.get('winner_cc_avg') and stats.get('loser_cc_avg'):
+
+        if stats.get('winner_charge_avg') and stats.get('loser_charge_avg'):
             lines.extend([
                 "",
                 "### Winners vs Losers",
-                f"- **Winners avg CC generated**: {stats['winner_cc_avg']:.1f}",
-                f"- **Losers avg CC generated**: {stats['loser_cc_avg']:.1f}",
+                f"- **Winners avg Charge generated**: {stats['winner_charge_avg']:.1f}",
+                f"- **Losers avg Charge generated**: {stats['loser_charge_avg']:.1f}",
                 "",
-                "*Winners often generate more CC due to playing longer games.*",
+                "*Winners often generate more Charge due to playing longer games.*",
             ])
-        
+
         return "\n".join(lines)
     
     def _first_player_advantage(self) -> str:
@@ -323,37 +323,37 @@ Full results available via API: `GET /admin/simulation/runs/{self.run_id}/result
         
         return dict(matchups)
     
-    def _calculate_cc_stats(self) -> dict:
-        """Calculate CC-related statistics."""
+    def _calculate_charge_stats(self) -> dict:
+        """Calculate Charge-related statistics."""
         games = self.games
         total = len(games)
-        
+
         if total == 0:
             return {}
-        
+
         stats = {
-            'avg_p1_cc_gained': sum(g.get('p1_cc_gained', 0) for g in games) / total,
-            'avg_p2_cc_gained': sum(g.get('p2_cc_gained', 0) for g in games) / total,
-            'avg_p1_cc_spent': sum(g.get('p1_cc_spent', 0) for g in games) / total,
-            'avg_p2_cc_spent': sum(g.get('p2_cc_spent', 0) for g in games) / total,
+            'avg_p1_charge_gained': sum(g.get('p1_charge_gained', 0) for g in games) / total,
+            'avg_p2_charge_gained': sum(g.get('p2_charge_gained', 0) for g in games) / total,
+            'avg_p1_charge_spent': sum(g.get('p1_charge_spent', 0) for g in games) / total,
+            'avg_p2_charge_spent': sum(g.get('p2_charge_spent', 0) for g in games) / total,
         }
-        
+
         # Winners vs losers
-        winner_cc = []
-        loser_cc = []
-        
+        winner_charge = []
+        loser_charge = []
+
         for game in games:
             if game['outcome'] == 'player1_win':
-                winner_cc.append(game.get('p1_cc_gained', 0))
-                loser_cc.append(game.get('p2_cc_gained', 0))
+                winner_charge.append(game.get('p1_charge_gained', 0))
+                loser_charge.append(game.get('p2_charge_gained', 0))
             elif game['outcome'] == 'player2_win':
-                winner_cc.append(game.get('p2_cc_gained', 0))
-                loser_cc.append(game.get('p1_cc_gained', 0))
-        
-        if winner_cc:
-            stats['winner_cc_avg'] = sum(winner_cc) / len(winner_cc)
-            stats['loser_cc_avg'] = sum(loser_cc) / len(loser_cc)
-        
+                winner_charge.append(game.get('p2_charge_gained', 0))
+                loser_charge.append(game.get('p1_charge_gained', 0))
+
+        if winner_charge:
+            stats['winner_charge_avg'] = sum(winner_charge) / len(winner_charge)
+            stats['loser_charge_avg'] = sum(loser_charge) / len(loser_charge)
+
         return stats
     
     def _calculate_first_player_advantage(self) -> dict:

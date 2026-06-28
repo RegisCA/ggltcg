@@ -136,7 +136,7 @@ python -m simulation.cli list-decks
 ### Output Structure
 
 After each simulation, you get:
-1. **Console summary** - Win rates, average turns, CC stats
+1. **Console summary** - Win rates, average turns, Charge stats
 2. **Markdown report** - Saved to `backend/reports/simulation_run_<id>_<timestamp>.md`
 3. **Database records** - Full details queryable via API
 
@@ -156,14 +156,14 @@ Deck-by-deck win rates showing Player 1's performance with each deck against eac
 - Values show P1 win rate (0-100%)
 - Mirror matches (same deck both sides) measure first-player advantage
 
-#### CC (Charge Counter) Analysis
-**Important:** Raw CC totals are context-dependent!
+#### Charge Analysis
+**Important:** Raw Charge totals are context-dependent!
 
-- **CC Generated**: Total resources gained (higher in longer games)
-- **CC Spent**: Total resources used (also higher in longer games)
-- **Winners vs Losers**: Winners often generate MORE CC because they survive longer
+- **Charge Generated**: Total resources gained (higher in longer games)
+- **Charge Spent**: Total resources used (also higher in longer games)
+- **Winners vs Losers**: Winners often generate MORE Charge because they survive longer
 
-**Key insight:** Don't compare raw CC numbers without considering game length. Use CC-per-turn or efficiency metrics instead.
+**Key insight:** Don't compare raw Charge numbers without considering game length. Use Charge-per-turn or efficiency metrics instead.
 
 #### First-Player Advantage
 Measures whether going first provides a significant edge.
@@ -227,7 +227,7 @@ simulation/
 1. **CLI Command** → Parses arguments, creates `SimulationConfig`
 2. **Orchestrator** → Validates decks, creates DB record, generates matchup matrix
 3. **Parallel Execution** → ThreadPoolExecutor runs multiple games simultaneously
-4. **Runner** → Executes individual game, tracks CC, logs actions
+4. **Runner** → Executes individual game, tracks Charge, logs actions
 5. **Database Update** → Saves results after each game
 6. **Report Generation** → Creates markdown report on completion
 
@@ -239,7 +239,7 @@ simulation/
 
 **SimulationGameModel**
 - Individual game result
-- Stores: outcome, winner, turns, duration, CC tracking, action log
+- Stores: outcome, winner, turns, duration, Charge tracking, action log
 
 ### Parallel Execution
 - Default: 10 parallel workers (configurable via `--parallel`)
@@ -311,7 +311,7 @@ Returns markdown report as plain text.
 ```http
 GET /admin/simulation/runs/{run_id}/games/{game_number}
 ```
-Returns detailed CC tracking and action log for a specific game.
+Returns detailed Charge tracking and action log for a specific game.
 
 ## Admin UI
 
@@ -321,7 +321,7 @@ Access the web-based admin interface at `http://localhost:8000/admin.html`:
 2. **Monitor Progress**: Live polling shows completion percentage
 3. **View Results**: Heatmap matrix, game list, detailed breakdowns
 4. **Download Reports**: Click "Download Report" button for markdown file
-5. **Inspect Games**: Click any game to see turn-by-turn CC tracking and actions
+5. **Inspect Games**: Click any game to see turn-by-turn Charge tracking and actions
 
 ## Troubleshooting
 
@@ -349,10 +349,10 @@ python -m simulation.cli baseline
 - Verify API rate limits (Gemini API has quota limits)
 - Check logs for specific errors: `tail -f backend/logs/simulation.log`
 
-**High CC values seem wrong**
-- Remember: Winners generate more CC because they play longer
-- Compare CC-per-turn, not raw totals
-- Check matchup length (longer games = more CC generated)
+**High Charge values seem wrong**
+- Remember: Winners generate more Charge because they play longer
+- Compare Charge-per-turn, not raw totals
+- Check matchup length (longer games = more Charge generated)
 
 ### Debug Mode
 
@@ -407,7 +407,7 @@ python -m simulation.cli baseline
 
 4. **Analyze report:**
    - Check matchup matrix for weaknesses
-   - Compare CC efficiency to baseline decks
+   - Compare Charge efficiency to baseline decks
    - Identify problematic matchups
 
 5. **Iterate:**
@@ -499,11 +499,11 @@ python -m simulation.cli list-runs --limit 5
 - Automated report generation
 - Pre-flight deck validation with suggestions
 - Simulation-specific logging control
-- CC tracking enhancements (gained + spent)
+- Charge tracking enhancements (gained + spent)
 
 ### v1.0 (December 2025)
 - Initial simulation system
 - Parallel execution with ThreadPoolExecutor
 - Database persistence
 - Admin UI with live progress
-- CC tracking per turn
+- Charge tracking per turn

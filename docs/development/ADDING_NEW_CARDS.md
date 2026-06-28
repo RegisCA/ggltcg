@@ -33,7 +33,7 @@ name,status,cost,effect,speed,strength,stamina,faction,quote,primary_color,accen
 
 - `name` (Required) — Unique card name
 - `status` (Required) — Status code (18 = active)
-- `cost` (Required) — CC cost to play (0–5 typical)
+- `cost` (Required) — Charge cost to play (0–5 typical)
 - `effect` (Required) — Human-readable effect description (shown in UI)
 - `speed` — Toys only — Speed stat for tussles
 - `strength` — Toys only — Strength stat for tussles
@@ -74,21 +74,21 @@ type-safe > effect definitions. This module provides constants like
 
 - `turn_stat_boost:all:N` – This turn only, +N to all stats
 
-#### CC Effects
+#### Charge Effects
 
-- `gain_cc:N` – Gain N CC when played
-- `gain_cc:N:not_first_turn` – Gain N CC (cannot play on your first turn)
-- `start_of_turn_gain_cc:N` – Gain N CC at start of your turn
-- `on_card_played_gain_cc:N` – Gain N CC when you play another card
-- `gain_cc_when_sleeped:N` – Gain N CC when this card is sleeped from play
+- `gain_charge:N` – Gain N Charge when played
+- `gain_charge:N:not_first_turn` – Gain N Charge (cannot play on your first turn)
+- `start_of_turn_gain_charge:N` – Gain N Charge at start of your turn
+- `on_card_played_gain_charge:N` – Gain N Charge when you play another card
+- `gain_charge_when_broken:N` – Gain N Charge when this card is broken from play
 
 #### Targeting Effects
 
-- `sleep_target:N` – Sleep N target card(s) in play
+- `break_target:N` – Break N target card(s) in play
 - `return_target_to_hand:N` – Return N target card(s) to owner's hand
-- `unsleep:N` – Return N card(s) from your sleep zone to hand
-- `unsleep:actions:N` – Return N Action card(s) from your sleep zone to hand
-- `unsleep:toys:N` – Return N Toy card(s) from your sleep zone to hand
+- `fix:N` – Return N card(s) from your break zone to hand
+- `fix:actions:N` – Return N Action card(s) from your break zone to hand
+- `fix:toys:N` – Return N Toy card(s) from your break zone to hand
 
 #### Protection Effects
 
@@ -100,38 +100,38 @@ type-safe > effect definitions. This module provides constants like
 - `auto_win_tussle_on_own_turn` – This card wins all tussles it enters on your
 turn
 
-- `set_tussle_cost:N` – Your tussles cost N CC
-- `set_self_tussle_cost:N:not_turn_1` – This card's tussles cost N CC, but not
+- `set_tussle_cost:N` – Your tussles cost N Charge
+- `set_self_tussle_cost:N:not_turn_1` – This card's tussles cost N Charge, but not
 on turn 1
 
 - `cannot_tussle` – This card cannot initiate tussles
 - `direct_attack` – This card may attack the opponent directly even when they
 have cards in play
 
-- `remove_stamina_ability:cc[:amount]` – Activated ability: spend `cc` CC to
-remove `amount` (default 1) stamina from a target card
+- `remove_stamina_ability:charge_cost[:amount]` – Activated ability: spend
+`charge_cost` Charge to remove `amount` (default 1) stamina from a target card
 
 #### Special Effects
 
-- `sleep_all` – Sleep all Toys in play
+- `break_all` – Break all Toys in play
 - `damage_all_opponent_cards:N` – Deal N damage to every opponent card in play
 - `return_all_to_hand` – Return all cards in play to owners' hands
 - `copy_card` – Action: copy the effects of another card
 - `take_control` – Action: take control of an opponent's Toy
 - `return_all_to_hand` – Return all cards in play to owners' hands
-- `sleep_target:N` – Sleep N target card(s) in play
+- `break_target:N` – Break N target card(s) in play
 - `return_target_to_hand:N` – Return N target card(s) to owner's hand
-- `start_of_turn_gain_cc:N` – Gain N CC at start of your turn
-- `on_card_played_gain_cc:N` – Gain N CC when you play another card
+- `start_of_turn_gain_charge:N` – Gain N Charge at start of your turn
+- `on_card_played_gain_charge:N` – Gain N Charge when you play another card
 - `turn_stat_boost:all:N` – This turn only, +N to all stats
 
 #### Cost Modifiers
 
-- `reduce_cost_by_sleeping` – Cost reduced by 1 per card in your sleep zone
-- `alternative_cost_sleep_card` – May sleep one of your cards instead of paying
-CC
+- `reduce_cost_by_broken` – Cost reduced by 1 per card in your break zone
+- `alternative_cost_break_card` – May break one of your cards instead of paying
+Charge
 
-- `opponent_cost_increase:N` – Opponent's cards cost N more CC to play
+- `opponent_cost_increase:N` – Opponent's cards cost N more Charge to play
 
 > If you introduce a new effect string that is not yet parsed in >
 `EffectFactory.parse_effects`, you **must** add a parser there as part of > the
@@ -153,7 +153,7 @@ Blockhead,18,1,A sturdy little toy.,2,2,4,,,#eb9113,#eb9113,
 **Action Card (simple)**:
 
 ```csv
-Surge,18,0,Gain 1 CC.,,,,,,#e612d0,#e612d0,gain_cc:1
+Surge,18,0,Gain 1 Charge.,,,,,,#e612d0,#e612d0,gain_charge:1
 
 ```
 
@@ -167,7 +167,7 @@ Drum,18,1,Your cards have 2 more speed.,1,3,2,,,#eb9113,#eb9113,stat_boost:speed
 **Toy Card (triggered effect)**:
 
 ```csv
-Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,,,#eb9113,#eb9113,start_of_turn_gain_cc:2
+Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,,,#eb9113,#eb9113,start_of_turn_gain_charge:2
 
 ```
 
@@ -247,11 +247,11 @@ The AI-layer touchpoints for a new card are:
   **single** mode does not use them. See 3c.
 
 > **⚠️ Hardcoded card names**: several AI files still hardcode card names
-> until card metadata is centralized. A card with a **CC-gain on play** or a
+> until card metadata is centralized. A card with a **Charge-gain on play** or a
 > **target-requirement** effect may need a manual entry in one or more of:
 >
 > - `backend/src/game_engine/ai/prompts/sequence_generator.py` (restriction hints)
-> - `backend/src/game_engine/ai/turn_planner.py` (`_CC_GAIN_ON_PLAY`)
+> - `backend/src/game_engine/ai/turn_planner.py` (`_CHARGE_GAIN_ON_PLAY`)
 > - `backend/src/game_engine/ai/validators/turn_plan_validator.py`
 > - `backend/src/game_engine/ai/quality_metrics.py`
 >
@@ -274,7 +274,7 @@ MyNewCard:
 **Action Type Specifications** (critical for abilities):
 
 - **Passive effects** (automatic): `"No activate_ability - happens on play"`
-- **Activated abilities**: `"Use action_type: activate_ability (costs N CC)"`
+- **Activated abilities**: `"Use action_type: activate_ability (costs N Charge)"`
 - **Combat abilities**: `"Can tussle (action_type: tussle) OR direct_attack"`
 
 **Examples**:
@@ -282,12 +282,12 @@ MyNewCard:
 ```yaml
 Paper Plane:
   trap: "PASSIVE bypass: Can direct_attack with opponent toys present (NO activate_ability!)"
-  reminder: "Action types: direct_attack (2 CC) OR regular tussle (2 CC). Has NO activated ability"
+  reminder: "Action types: direct_attack (2 Charge) OR regular tussle (2 Charge). Has NO activated ability"
   threat: "MEDIUM"
 
 Wake:
   trap: "ACTIVATED_ABILITY! Use action_type: activate_ability (NOT play_card after playing)"
-  reminder: "1. play_card Wake → in play. 2. activate_ability Wake (1CC) → target returns to hand. Then play that card"
+  reminder: "1. play_card Wake → in play. 2. activate_ability Wake (1 Charge) → target returns to hand. Then play that card"
   threat: "LOW"
 ```
 
@@ -311,9 +311,9 @@ If your card introduces a new effect type, add metadata to the `EFFECT_METADATA_
 **Classifications**:
 
 - `continuous` - Always active while in play (stat boosts, opponent_immunity)
-- `triggered` - Automatic on game events (start_of_turn_gain_cc, gain_cc_when_sleeped)
-- `activated` - Requires `action_type: activate_ability` (sleep_target, unsleep)
-- `passive` - Triggers on play automatically (gain_cc, sleep_all)
+- `triggered` - Automatic on game events (start_of_turn_gain_charge, gain_charge_when_broken)
+- `activated` - Requires `action_type: activate_ability` (break_target, fix)
+- `passive` - Triggers on play automatically (gain_charge, break_all)
 - `temporary` - Lasts this turn only (turn_stat_boost)
 
 **Important**: The effect metadata is dynamically loaded based on cards in play, so the AI only sees guidance for effects actually present in the game.
@@ -333,7 +333,7 @@ mode ignores them, so do not rely on examples alone to fix single-mode play.
 Use these prefixes for consistency:
 
 - `FORCE MULTIPLIER` - Boosts other cards
-- `CC ENGINE` - Generates CC advantage
+- `CHARGE ENGINE` - Generates Charge advantage
 - `PROTECTION` - Defensive capability
 - `BOARD WIPE` - Clears multiple cards
 - `PRECISION REMOVAL` - Removes specific threats
@@ -344,7 +344,7 @@ Use these prefixes for consistency:
 ### Threat Levels
 
 - `CRITICAL` - Must deal with immediately (Twist, Clean, Sock Sorcerer)
-- `HIGH` - Significant board impact (Ka, stat boosters, CC generators)
+- `HIGH` - Significant board impact (Ka, stat boosters, Charge generators)
 - `MEDIUM` - Solid value but manageable
 - `LOW` - Minor impact
 
@@ -377,7 +377,7 @@ class TestMyNewCard:
             player1_hand=["MyNewCard"],
             player1_in_play=["Ka"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
 
         my_card = cards["p1_hand_MyNewCard"]
@@ -409,12 +409,12 @@ Always use `create_game_with_cards` from `conftest.py`:
 setup, cards = create_game_with_cards(
     player1_hand=["Card1", "Card2"],
     player1_in_play=["Card3"],
-    player1_sleep=["Card4"],
+    player1_break=["Card4"],
     player2_hand=["Card5"],
     player2_in_play=["Card6"],
     active_player="player1",  # or "player2"
-    player1_cc=5,  # Optional, default 10
-    player2_cc=3,  # Optional, default 10
+    player1_charge=5,  # Optional, default 10
+    player2_charge=3,  # Optional, default 10
 )
 
 # Access cards by key: p{1|2}_{zone}_{CardName}
@@ -494,7 +494,7 @@ This checks:
 
 1. Verify a `card_guidance.yaml` entry exists for the card
 1. Check the guidance gives clear strategic direction
-1. If a CC-gain or target-requirement effect, check the hardcoded card-name
+1. If a Charge-gain or target-requirement effect, check the hardcoded card-name
    lists noted in Step 3
 1. Test if AI understands when card is valuable
 

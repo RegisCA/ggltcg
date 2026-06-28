@@ -24,7 +24,7 @@ from .prompts import (
     PlannedAction,
     TURN_PLAN_JSON_SCHEMA,
     PROMPTS_VERSION,
-    format_sleep_zone_for_planning,
+    format_break_zone_for_planning,
     format_game_state_for_ai,
 )
 from .prompts.planning_prompt_v3 import (
@@ -84,9 +84,9 @@ class TurnPlanner:
     Generates turn plans using the 4-phase strategic framework.
     
     Phase 1: Threat Assessment - Evaluate opponent's board
-    Phase 2: Resource Inventory - Catalog available tools and sequences  
+    Phase 2: Resource Inventory - Catalog available tools and sequences
     Phase 3: Threat Mitigation - Generate and select removal sequences
-    Phase 4: Offensive Opportunities - Direct attacks with remaining CC
+    Phase 4: Offensive Opportunities - Direct attacks with remaining Charge
     """
     
     # Class-level V4 metrics (shared across instances)
@@ -248,8 +248,8 @@ class TurnPlanner:
 **Opponent's Toys (THREATS):**
 {opp_in_play}
 
-**Your Sleep Zone:** {format_sleep_zone_for_planning(ai_player.sleep_zone)}
-**Opponent's Sleep Zone:** {format_sleep_zone_for_planning(opponent.sleep_zone)}"""
+**Your Break Zone:** {format_break_zone_for_planning(ai_player.break_zone)}
+**Opponent's Break Zone:** {format_break_zone_for_planning(opponent.break_zone)}"""
         
         # Generate the compressed v3 planning prompt with dynamic card guidance
         base_prompt = get_planning_prompt_v3(
@@ -286,11 +286,11 @@ class TurnPlanner:
                 
                 # Convert to TurnPlan object
                 plan = self._parse_plan(plan_data)
-                # Ground cc_start to actual player CC — LLMs frequently output the wrong
-                # value (e.g. 0 instead of 2 on turn 1), which corrupts every cc_after
-                # figure shown in admin logs and makes the plan look impossible.
-                plan.cc_start = ai_player.cc
-                self._reground_cc_chain(plan)
+                # Ground charge_start to actual player Charge — LLMs frequently output the
+                # wrong value (e.g. 0 instead of 2 on turn 1), which corrupts every
+                # charge_after figure shown in admin logs and makes the plan look impossible.
+                plan.charge_start = ai_player.charge
+                self._reground_charge_chain(plan)
                 self._last_plan = plan
                 
                 # Validate card IDs exist in game state
@@ -302,22 +302,22 @@ class TurnPlanner:
                 # Run turn plan validators if available
                 if self._validator:
                     validation_errors = self._validator.validate(
-                        plan, game_state, player_id, ai_player.cc
+                        plan, game_state, player_id, ai_player.charge
                     )
-                    
+
                     if validation_errors:
                         # Single-request mode: no LLM retry, but prune any
                         # actions that failed critical checks so the execution
                         # layer never encounters them.  This turns a broken
                         # plan like [play Rush (T1), direct_attack, end_turn]
-                        # into [end_turn], which at least doesn't waste CC and
+                        # into [end_turn], which at least doesn't waste Charge and
                         # keeps mid-turn-replan logic from being cheated.
                         if self.planner_mode == "single":
                             critical_types = {
-                                "cc_budget",
+                                "charge_budget",
                                 "no_attacker",
                                 "opponent_toys",
-                                "sleep_zone_play",
+                                "break_zone_play",
                                 "invalid_attacker",
                                 "dependency",
                             }
@@ -571,9 +571,9 @@ class TurnPlanner:
             enum_disagreements: list[str] = []
             for i, seq in enumerate(sequences):
                 # Convert sequence to TurnPlan for validation
-                temp_plan = self._sequence_to_temp_plan(seq, ai_player.cc)
+                temp_plan = self._sequence_to_temp_plan(seq, ai_player.charge)
                 errors = self._validator.validate(
-                    temp_plan, game_state, player_id, ai_player.cc
+                    temp_plan, game_state, player_id, ai_player.charge
                 )
                 if not errors:
                     valid_sequences.append(seq)
@@ -690,13 +690,13 @@ class TurnPlanner:
                 trust_action_costs=use_enumerator,
             )
             plan = self._parse_plan(plan_data)
-            plan.cc_start = ai_player.cc
-            # Enumerated sequences already carry exact, engine-derived CC (incl.
-            # discounted tussles like Raggy=0 / Wizard=1). _reground_cc_chain is
+            plan.charge_start = ai_player.charge
+            # Enumerated sequences already carry exact, engine-derived Charge (incl.
+            # discounted tussles like Raggy=0 / Wizard=1). _reground_charge_chain is
             # an LLM-output correction pass that enforces canonical costs and
             # would wrongly drop those affordable actions — skip it for enum.
             if not use_enumerator:
-                self._reground_cc_chain(plan)
+                self._reground_charge_chain(plan)
             self._last_plan = plan
 
             TurnPlanner._v4_metrics["v4_success"] += 1
@@ -723,9 +723,9 @@ class TurnPlanner:
                     trust_action_costs=use_enumerator,
                 )
                 plan = self._parse_plan(plan_data)
-                plan.cc_start = ai_player.cc
+                plan.charge_start = ai_player.charge
                 if not use_enumerator:  # enum costs are engine-exact; see above
-                    self._reground_cc_chain(plan)
+                    self._reground_charge_chain(plan)
                 self._last_plan = plan
                 TurnPlanner._v4_metrics["v4_success"] += 1  # Still V4 success, just with fallback selection
                 
@@ -756,60 +756,60 @@ class TurnPlanner:
             return 256
         return 384
     
-    def _sequence_to_temp_plan(self, sequence: dict, starting_cc: int) -> TurnPlan:
+    def _sequence_to_temp_plan(self, sequence: dict, starting_charge: int) -> TurnPlan:
         """
         Convert a sequence dict to a temporary TurnPlan for validation.
-        
+
         Args:
             sequence: Sequence dictionary from generator
-            starting_cc: CC at turn start
-            
+            starting_charge: Charge at turn start
+
         Returns:
             TurnPlan object for validation
         """
         actions = []
-        cc = starting_cc
-        
+        charge = starting_charge
+
         for action in sequence.get("actions", []):
-            cc_cost = action.get("cc_cost", 0)
+            charge_cost = action.get("charge_cost", 0)
             card_name = action.get("card_name", "")
-            
-            # Calculate CC gain
-            cc_gain = 0
+
+            # Calculate Charge gain
+            charge_gain = 0
             if action.get("action_type") == "play_card":
                 if card_name == "Surge":
-                    cc_gain = 1
+                    charge_gain = 1
                 elif card_name == "Rush":
-                    cc_gain = 2
-            
-            cc_after = cc - cc_cost + cc_gain
-            
+                    charge_gain = 2
+
+            charge_after = charge - charge_cost + charge_gain
+
             # Convert target_name (singular) to target_names (list) if needed
             target_name = action.get("target_name")
             target_names = action.get("target_names") or ([target_name] if target_name else None)
-            
+
             actions.append(PlannedAction(
                 action_type=action.get("action_type", "end_turn"),
                 card_id=action.get("card_id"),
                 card_name=card_name,
                 target_ids=action.get("target_ids"),
                 target_names=target_names,
-                cc_cost=cc_cost,
-                cc_after=max(0, cc_after),
+                charge_cost=charge_cost,
+                charge_after=max(0, charge_after),
                 reasoning="",
             ))
-            
-            cc = cc_after
-        
+
+            charge = charge_after
+
         return TurnPlan(
             threat_assessment="",
             resources_summary="",
             sequences_considered=[],
             selected_strategy="",
             action_sequence=actions,
-            cc_start=starting_cc,
-            cc_after_plan=max(0, cc),
-            expected_cards_slept=sequence.get("cards_slept", 0),
+            charge_start=starting_charge,
+            charge_after_plan=max(0, charge),
+            expected_cards_broken=sequence.get("cards_broken", 0),
             plan_reasoning="",
         )
     
@@ -855,8 +855,8 @@ class TurnPlanner:
                 target_ids=action_data.get("target_ids"),
                 target_names=action_data.get("target_names"),
                 alternative_cost_id=action_data.get("alternative_cost_id"),
-                cc_cost=_safe_nonneg_int(action_data.get("cc_cost")),
-                cc_after=_safe_nonneg_int(action_data.get("cc_after")),
+                charge_cost=_safe_nonneg_int(action_data.get("charge_cost")),
+                charge_after=_safe_nonneg_int(action_data.get("charge_after")),
                 reasoning=action_data.get("reasoning") or "No reasoning provided",
             )
             action_sequence.append(action)
@@ -870,8 +870,8 @@ class TurnPlanner:
                     target_ids=None,
                     target_names=None,
                     alternative_cost_id=None,
-                    cc_cost=0,
-                    cc_after=action_sequence[-1].cc_after if action_sequence else plan_data.get("cc_start", 0),
+                    charge_cost=0,
+                    charge_after=action_sequence[-1].charge_after if action_sequence else plan_data.get("charge_start", 0),
                     reasoning="End turn after planned actions.",
                 )
             )
@@ -891,75 +891,75 @@ class TurnPlanner:
             sequences_considered=plan_data.get("sequences_considered", []),
             selected_strategy=_str(plan_data.get("selected_strategy", "")),
             action_sequence=action_sequence,
-            cc_start=plan_data.get("cc_start", 0),
-            cc_after_plan=plan_data.get("cc_after_plan", 0),
-            expected_cards_slept=plan_data.get("expected_cards_slept", 0),
+            charge_start=plan_data.get("charge_start", 0),
+            charge_after_plan=plan_data.get("charge_after_plan", 0),
+            expected_cards_broken=plan_data.get("expected_cards_broken", 0),
             plan_reasoning=_str(plan_data.get("plan_reasoning", "")),
         )
-        
+
         return plan
     
-    # Cards that gain CC when played (mirrors CCBudgetValidator.CC_GAIN_ON_PLAY).
+    # Cards that gain Charge when played (mirrors ChargeBudgetValidator.CHARGE_GAIN_ON_PLAY).
     # Keys are pinned to real cards by tests/test_cc_gain_tables.py.
-    _CC_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2, "Cake": 5}
+    _CHARGE_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2, "Cake": 5}
 
-    # Canonical CC cost for non-play_card actions — these are fixed by game rules.
+    # Canonical Charge cost for non-play_card actions — these are fixed by game rules.
     # Override whatever the LLM stated so regrounding is correct even if the LLM
-    # hallucinates cc_cost=0 (which would prevent pruning an unaffordable step).
+    # hallucinates charge_cost=0 (which would prevent pruning an unaffordable step).
     _CANONICAL_ACTION_COSTS = {"direct_attack": 2, "tussle": 2}
 
-    def _reground_cc_chain(self, plan: TurnPlan) -> None:
+    def _reground_charge_chain(self, plan: TurnPlan) -> None:
         """
-        Recompute cc_after for each planned action from the grounded cc_start,
-        and prune any action that would require more CC than is available at
+        Recompute charge_after for each planned action from the grounded charge_start,
+        and prune any action that would require more Charge than is available at
         that point in the sequence.
 
         The LLM sometimes builds a mathematically consistent chain from a wrong
-        cc_start, or miscalculates steps, or includes cards the player cannot
-        afford.  After we override plan.cc_start with the actual player CC, this
-        method walks the sequence, drops impossible actions (logging a warning),
-        and patches each remaining action's cc_after so the chain is consistent.
+        charge_start, or miscalculates steps, or includes cards the player cannot
+        afford.  After we override plan.charge_start with the actual player Charge,
+        this method walks the sequence, drops impossible actions (logging a warning),
+        and patches each remaining action's charge_after so the chain is consistent.
 
-        cc_after is informational (shown in admin) — execution uses live game
-        state CC — but wrong values mislead human reviewers and make the plan
+        charge_after is informational (shown in admin) — execution uses live game
+        state Charge — but wrong values mislead human reviewers and make the plan
         look impossible when the test suite checks it.
         """
-        running_cc = plan.cc_start
+        running_charge = plan.charge_start
         grounded: list = []
         for action in plan.action_sequence:
             if action.action_type == "end_turn":
-                action.cc_after = max(0, running_cc)
+                action.charge_after = max(0, running_charge)
                 grounded.append(action)
                 continue
-            # Enforce canonical cost for actions whose CC cost is fixed by game rules.
-            # This prevents a hallucinated cc_cost=0 from bypassing the affordability
+            # Enforce canonical cost for actions whose Charge cost is fixed by game rules.
+            # This prevents a hallucinated charge_cost=0 from bypassing the affordability
             # check and producing a plan that fails silently at execution time.
             canonical = self._CANONICAL_ACTION_COSTS.get(action.action_type)
-            if canonical is not None and action.cc_cost != canonical:
+            if canonical is not None and action.charge_cost != canonical:
                 logger.warning(
-                    "Plan grounding: correcting cc_cost for %s from %d to %d (game rule)",
-                    action.action_type, action.cc_cost, canonical,
+                    "Plan grounding: correcting charge_cost for %s from %d to %d (game rule)",
+                    action.action_type, action.charge_cost, canonical,
                 )
-                action.cc_cost = canonical
-            gain = self._CC_GAIN_ON_PLAY.get(action.card_name or "", 0)
-            net_cost = action.cc_cost - gain
-            if net_cost > running_cc:
+                action.charge_cost = canonical
+            gain = self._CHARGE_GAIN_ON_PLAY.get(action.card_name or "", 0)
+            net_cost = action.charge_cost - gain
+            if net_cost > running_charge:
                 logger.warning(
                     "Plan grounding: dropping unaffordable action "
                     "%s %s (costs %d, gain %d, available %d)",
                     action.action_type,
                     action.card_name or action.card_id or "",
-                    action.cc_cost,
+                    action.charge_cost,
                     gain,
-                    running_cc,
+                    running_charge,
                 )
                 continue
-            running_cc = max(0, running_cc - action.cc_cost + gain)
-            action.cc_after = running_cc
+            running_charge = max(0, running_charge - action.charge_cost + gain)
+            action.charge_after = running_charge
             grounded.append(action)
         plan.action_sequence = grounded
-        # Also patch the plan-level cc_after_plan to match
-        plan.cc_after_plan = running_cc
+        # Also patch the plan-level charge_after_plan to match
+        plan.charge_after_plan = running_charge
 
     def _log_plan_summary(self, plan: TurnPlan) -> None:
         """Log a human-readable summary of the plan."""
@@ -968,8 +968,8 @@ class TurnPlanner:
         logger.debug("=" * 60)
         logger.debug(f"Threat Assessment: {plan.threat_assessment[:100]}...")
         logger.debug(f"Selected Strategy: {plan.selected_strategy}")
-        logger.debug(f"CC Budget: {plan.cc_start} → {plan.cc_after_plan}")
-        logger.debug(f"Expected cards to sleep: {plan.expected_cards_slept}")
+        logger.debug(f"Charge Budget: {plan.charge_start} → {plan.charge_after_plan}")
+        logger.debug(f"Expected cards to break: {plan.expected_cards_broken}")
         logger.debug("-" * 40)
         logger.debug("Action Sequence:")
         for i, action in enumerate(plan.action_sequence, 1):
@@ -979,7 +979,7 @@ class TurnPlanner:
                 target_info = f" → {', '.join(action.target_names)}"
             elif action.target_ids:
                 target_info = f" → {', '.join(action.target_ids[:2])}..."
-            logger.debug(f"  {i}. {action.action_type}: {card_info}{target_info} ({action.cc_cost} CC → {action.cc_after} CC)")
+            logger.debug(f"  {i}. {action.action_type}: {card_info}{target_info} ({action.charge_cost} Charge → {action.charge_after} Charge)")
         logger.debug("=" * 60)
     
     def get_last_plan_info(self) -> Dict[str, Any]:
@@ -1038,11 +1038,11 @@ class TurnPlanner:
         # Build sets of valid card IDs
         ai_hand_ids = {card.id for card in ai_player.hand}
         ai_in_play_ids = {card.id for card in ai_player.in_play}
-        ai_sleep_ids = {card.id for card in ai_player.sleep_zone}
+        ai_break_ids = {card.id for card in ai_player.break_zone}
         opp_in_play_ids = {card.id for card in opponent.in_play}
-        
-        _all_ai_ids = ai_hand_ids | ai_in_play_ids | ai_sleep_ids  # noqa: F841 - reserved for future validation
-        all_targetable_ids = ai_in_play_ids | opp_in_play_ids | ai_sleep_ids
+
+        _all_ai_ids = ai_hand_ids | ai_in_play_ids | ai_break_ids  # noqa: F841 - reserved for future validation
+        all_targetable_ids = ai_in_play_ids | opp_in_play_ids | ai_break_ids
         
         for i, action in enumerate(plan.action_sequence):
             # Validate card_id

@@ -6,7 +6,7 @@ to make strategic decisions in GGLTCG games.
 
 Version 3.0 Changes:
 - Two-phase architecture: Plan entire turn first, then execute actions
-- CC budgeting and efficiency tracking
+- Charge budgeting and efficiency tracking
 - Action ordering optimization (HLK, Surge, VVAJ combos)
 
 Version 2.1 Changes:
@@ -427,7 +427,7 @@ class LLMPlayerV3(LLMPlayer):
     """
     AI player v3 with two-phase turn planning.
     
-    Phase 1: Generate complete turn plan with CC budgeting
+    Phase 1: Generate complete turn plan with Charge budgeting
     Phase 2: Execute each action from the plan sequentially
     
     Inherits from LLMPlayer for API calls and action execution.
@@ -569,12 +569,12 @@ class LLMPlayerV3(LLMPlayer):
                 
                 # Log plan summary
                 logger.debug(f"✅ Plan created: {len(plan.action_sequence)} actions")
-                logger.debug(f"📊 CC: {plan.cc_start} → {plan.cc_after_plan}")
-                logger.debug(f"🎯 Expected cards slept: {plan.expected_cards_slept}")
+                logger.debug(f"📊 Charge: {plan.charge_start} → {plan.charge_after_plan}")
+                logger.debug(f"🎯 Expected cards broken: {plan.expected_cards_broken}")
                 logger.debug(f"💡 Strategy: {plan.selected_strategy[:100]}...")
-                
+
                 for i, action in enumerate(plan.action_sequence):
-                    logger.debug(f"  {i+1}. {action.action_type}: {action.card_name or 'N/A'} ({action.cc_cost} CC)")
+                    logger.debug(f"  {i+1}. {action.action_type}: {action.card_name or 'N/A'} ({action.charge_cost} Charge)")
             else:
                 logger.warning("Failed to create plan, will use fallback")
                 self._current_plan = None
@@ -593,7 +593,7 @@ class LLMPlayerV3(LLMPlayer):
         """Trigger a mid-turn re-plan when combat options remain but the plan is exhausted.
 
         Only re-plans when ALL of:
-        - Player has > 1 CC remaining (minimum for tussle/direct_attack)
+        - Player has > 1 Charge remaining (minimum for tussle/direct_attack)
         - At least one tussle or direct_attack is in valid_actions
         - Re-plan count for this turn is < 2 (prevents infinite loops)
         """
@@ -609,19 +609,19 @@ class LLMPlayerV3(LLMPlayer):
         has_combat = any(
             a.action_type in ("tussle", "direct_attack") for a in valid_actions
         )
-        if ai_player.cc <= 1 or not has_combat:
+        if ai_player.charge <= 1 or not has_combat:
             logger.debug(
-                "⏭️ No re-plan warranted: CC=%d, combat_available=%s",
-                ai_player.cc,
+                "⏭️ No re-plan warranted: Charge=%d, combat_available=%s",
+                ai_player.charge,
                 has_combat,
             )
             return None
 
         self._midturn_replan_count += 1
         logger.debug(
-            "🔄 Mid-turn re-plan #%d (CC=%d, combat actions available)",
+            "🔄 Mid-turn re-plan #%d (Charge=%d, combat actions available)",
             self._midturn_replan_count,
-            ai_player.cc,
+            ai_player.charge,
         )
 
         self._create_turn_plan(game_state, ai_player_id, game_engine)
@@ -720,7 +720,7 @@ class LLMPlayerV3(LLMPlayer):
             action_index=self._plan_action_index,
             total_actions=len(self._current_plan.action_sequence),
             valid_actions_text=valid_actions_text,
-            current_cc=ai_player.cc,
+            current_charge=ai_player.charge,
             num_valid_actions=len(valid_actions),
         )
         
@@ -890,10 +890,10 @@ class LLMPlayerV3(LLMPlayer):
                     "action_type": action.action_type,
                     "card_name": action.card_name,
                     "target_names": action.target_names,
-                    "cc_cost": action.cc_cost,
+                    "charge_cost": action.charge_cost,
                     "reasoning": action.reasoning,
                 })
-            
+
             info["v3_plan"] = {
                 "planner_mode": planner_mode,
                 # Backward compat: map planner_mode back to version ints for DB/admin
@@ -901,9 +901,9 @@ class LLMPlayerV3(LLMPlayer):
                 "strategy": self._current_plan.selected_strategy,
                 "total_actions": len(self._current_plan.action_sequence),
                 "current_action": self._plan_action_index,
-                "cc_start": self._current_plan.cc_start,
-                "cc_after_plan": self._current_plan.cc_after_plan,
-                "expected_cards_slept": self._current_plan.expected_cards_slept,
+                "charge_start": self._current_plan.charge_start,
+                "charge_after_plan": self._current_plan.charge_after_plan,
+                "expected_cards_broken": self._current_plan.expected_cards_broken,
                 # Full action sequence for debugging
                 "action_sequence": action_sequence,
                 # Planning prompt and response (from turn planner, if available)

@@ -5,8 +5,8 @@ Validates AI turn plans for multi-step reasoning errors that the game engine
 doesn't catch. Each validator focuses on a specific class of planning errors.
 
 Architecture Philosophy:
-- Game Engine: Validates individual actions (turn, phase, CC, zones, targets)
-- These Validators: Validate action sequences (CC budgeting, mid-plan state, dependencies)
+- Game Engine: Validates individual actions (turn, phase, Charge, zones, targets)
+- These Validators: Validate action sequences (Charge budgeting, mid-plan state, dependencies)
 """
 
 import logging
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class ValidationError:
     """A single validation error in a turn plan."""
     action_index: int  # 0-based index of the action that caused the error
-    error_type: str  # "cc_budget", "opponent_toys", "suicide_attack", "dependency"
+    error_type: str  # "charge_budget", "opponent_toys", "suicide_attack", "dependency"
     message: str  # Human-readable error message
     
     def to_llm_feedback(self) -> str:
@@ -32,94 +32,94 @@ class ValidationError:
         return f"[Action {self.action_index + 1}] {self.message}"
 
 
-class CCBudgetValidator:
+class ChargeBudgetValidator:
     """
-    Validates that the turn plan doesn't exceed the CC budget.
-    
+    Validates that the turn plan doesn't exceed the Charge budget.
+
     The game engine validates individual actions, but the AI must budget
-    CC across the entire sequence, accounting for CC gains from cards like:
-    - Surge: +1 CC when played
-    - Rush: +2 CC when played
-    - Umbruh: +1 CC when sleeped (not modeled — happens off the active turn)
-    - Belchaletta: +2 CC at start of turn (continuous effect, not modeled here)
+    Charge across the entire sequence, accounting for Charge gains from cards like:
+    - Surge: +1 Charge when played
+    - Rush: +2 Charge when played
+    - Umbruh: +1 Charge when broken (not modeled — happens off the active turn)
+    - Belchaletta: +2 Charge at start of turn (continuous effect, not modeled here)
     """
 
-    # Cards that gain CC when played (mirrors TurnPlanner._CC_GAIN_ON_PLAY).
-    # Keys MUST be real card names whose CSV effect is a play-triggered `gain_cc:`
-    # — pinned by tests/test_cc_gain_tables.py. CC gains from other triggers
-    # (start-of-turn, when-sleeped, on-card-played) are intentionally NOT modeled.
-    CC_GAIN_ON_PLAY = {
+    # Cards that gain Charge when played (mirrors TurnPlanner._CHARGE_GAIN_ON_PLAY).
+    # Keys MUST be real card names whose CSV effect is a play-triggered `gain_charge:`
+    # — pinned by tests/test_cc_gain_tables.py. Charge gains from other triggers
+    # (start-of-turn, when-broken, on-card-played) are intentionally NOT modeled.
+    CHARGE_GAIN_ON_PLAY = {
         "Surge": 1,
         "Rush": 2,
         "Cake": 5,
     }
 
-    # Canonical CC cost for non-play_card actions (fixed by game rules).
-    # Use these instead of the LLM's stated cc_cost so cc_budget validation
+    # Canonical Charge cost for non-play_card actions (fixed by game rules).
+    # Use these instead of the LLM's stated charge_cost so charge_budget validation
     # is correct even when the LLM hallucinates a wrong value.
     CANONICAL_ACTION_COSTS = {"direct_attack": 2, "tussle": 2}
-    
-    def validate(self, plan: "TurnPlan", starting_cc: int) -> List[ValidationError]:
+
+    def validate(self, plan: "TurnPlan", starting_charge: int) -> List[ValidationError]:
         """
-        Validate CC budget across the entire action sequence.
-        
+        Validate Charge budget across the entire action sequence.
+
         Args:
             plan: The turn plan to validate
-            starting_cc: CC at the start of the turn
-            
+            starting_charge: Charge at the start of the turn
+
         Returns:
             List of ValidationError objects (empty if valid)
         """
         errors = []
-        cc_remaining = starting_cc
-        
+        charge_remaining = starting_charge
+
         for i, action in enumerate(plan.action_sequence):
-            # Track CC gains from playing cards
-            cc_gain = 0
+            # Track Charge gains from playing cards
+            charge_gain = 0
 
             if action.action_type == "play_card" and action.card_name:
-                # Direct CC gain from playing the card (Surge/Rush)
-                cc_gain += self.CC_GAIN_ON_PLAY.get(action.card_name, 0)
+                # Direct Charge gain from playing the card (Surge/Rush)
+                charge_gain += self.CHARGE_GAIN_ON_PLAY.get(action.card_name, 0)
 
-            # Apply CC gains first
-            cc_remaining += cc_gain
-            
+            # Apply Charge gains first
+            charge_remaining += charge_gain
+
             # Check if we can afford this action.
             # Use the canonical cost for actions with a fixed game-rule price;
-            # fall back to the LLM's stated cc_cost for variable-cost actions (play_card).
+            # fall back to the LLM's stated charge_cost for variable-cost actions (play_card).
             canonical = self.CANONICAL_ACTION_COSTS.get(action.action_type)
-            action_cost = canonical if canonical is not None else (action.cc_cost or 0)
+            action_cost = canonical if canonical is not None else (action.charge_cost or 0)
 
-            if action_cost > cc_remaining:
+            if action_cost > charge_remaining:
                 errors.append(ValidationError(
                     action_index=i,
-                    error_type="cc_budget",
+                    error_type="charge_budget",
                     message=f"Cannot afford {action.card_name or action.action_type} "
-                           f"(need {action_cost} CC, have {cc_remaining} CC)"
+                           f"(need {action_cost} Charge, have {charge_remaining} Charge)"
                 ))
-            
+
             # Deduct cost
-            cc_remaining -= action_cost
-            
-            # Check for negative CC
-            if cc_remaining < 0:
+            charge_remaining -= action_cost
+
+            # Check for negative Charge
+            if charge_remaining < 0:
                 errors.append(ValidationError(
                     action_index=i,
-                    error_type="cc_budget",
-                    message=f"CC went negative ({cc_remaining} CC) after {action.card_name or action.action_type}"
+                    error_type="charge_budget",
+                    message=f"Charge went negative ({charge_remaining} Charge) after {action.card_name or action.action_type}"
                 ))
                 # Stop checking - plan is fundamentally broken
                 break
-        
+
         return errors
 
 
 class OpponentToyTracker:
     """
     Tracks opponent toys remaining during plan execution.
-    
+
     Prevents "direct attack while opponent has toys" errors by simulating
-    which toys get sleeped by tussles/effects during the plan.
+    which toys get broken by tussles/effects during the plan.
     
     Critical Rule: Direct attacks require EXACTLY 0 opponent toys in play.
     Even 0-STR toys like Archer block direct attacks.
@@ -158,9 +158,9 @@ class OpponentToyTracker:
         }
 
         for i, action in enumerate(plan.action_sequence):
-            # Remove toys that get sleeped / track toys entering play
+            # Remove toys that get broken / track toys entering play
             if action.action_type == "tussle" and action.target_ids:
-                # Tussle sleeps the target (assuming it dies - we check this in SuicideAttackValidator)
+                # Tussle breaks the target (assuming it dies - we check this in SuicideAttackValidator)
                 # Note: This is a simplification - the target might survive
                 # But the AI should plan tussles that kill the target
                 target_id = action.target_ids[0]
@@ -175,23 +175,23 @@ class OpponentToyTracker:
                             player_toys_in_play.add(card.id)
                             break
 
-                # Some cards sleep opponent toys
+                # Some cards break opponent toys
                 if action.card_name == "Drop" and action.target_ids:
-                    # Drop sleeps a target toy
+                    # Drop breaks a target toy
                     for target_id in action.target_ids:
                         toys_remaining.discard(target_id)
-                
+
                 elif action.card_name == "Twist" and action.target_ids:
                     # Twist returns target to hand (not in play)
                     for target_id in action.target_ids:
                         toys_remaining.discard(target_id)
-                
+
                 elif action.card_name == "Clean":
-                    # Clean sleeps all toys
+                    # Clean breaks all toys
                     toys_remaining.clear()
-            
+
             elif action.action_type == "activate_ability":
-                # Archer's ability sleeps a target
+                # Archer's ability breaks a target
                 if action.card_name == "Archer" and action.target_ids:
                     for target_id in action.target_ids:
                         toys_remaining.discard(target_id)
@@ -248,7 +248,7 @@ class SuicideAttackValidator:
     A tussle is a suicide attack if:
     1. Defender is faster (higher SPD + attacker bonus)
     2. Defender's STR >= Attacker's STA (attacker dies in first strike)
-    3. Result: Attacker sleeped, defender survives = 2 CC wasted
+    3. Result: Attacker broken, defender survives = 2 Charge wasted
     
     Uses the game engine's predict_tussle_winner() method for accuracy.
     """
@@ -297,7 +297,7 @@ class SuicideAttackValidator:
             winner = self.game_engine.predict_tussle_winner(attacker, defender)
             
             if winner == "defender":
-                # Attacker dies, deals 0 damage = waste of CC
+                # Attacker dies, deals 0 damage = waste of Charge
                 errors.append(ValidationError(
                     action_index=i,
                     error_type="suicide_attack",
@@ -314,7 +314,7 @@ class DependencyValidator:
     Validates action sequence dependencies.
     
     Certain cards must be played before their effects are used:
-    - Surge: Must play before spending the +1 CC it grants
+    - Surge: Must play before spending the +1 Charge it grants
     - Wake: Must play before using the woken card
     - VeryVeryAppleJuice: Should play before tussling (stat boost)
     """
@@ -343,32 +343,32 @@ class DependencyValidator:
         hlk_played = False
         woken_card_ids = set()
         ai_player = game_state.players[player_id]
-        
-        # Track starting hand and sleep zone for dependency checks
+
+        # Track starting hand and break zone for dependency checks
         starting_hand_ids = {card.id for card in ai_player.hand}
         starting_hand_names = {card.name for card in ai_player.hand}
-        sleep_zone_ids = {card.id for card in ai_player.sleep_zone}
-        sleep_zone_names = {card.name for card in ai_player.sleep_zone}
-        
+        break_zone_ids = {card.id for card in ai_player.break_zone}
+        break_zone_names = {card.name for card in ai_player.break_zone}
+
         for i, action in enumerate(plan.action_sequence):
             # Track Wake targets - Wake is a play_card action (played from hand with target)
-            # The target is the card to unsleep from your sleep zone
+            # The target is the card to fix from your break zone
             if action.card_name == "Wake" and action.action_type == "play_card" and action.target_ids:
                 woken_card_ids.update(action.target_ids)
-            
+
             # Check if playing a card that wasn't in the starting hand
             if action.action_type == "play_card":
                 if action.card_id:
                     if action.card_id not in starting_hand_ids and action.card_id not in woken_card_ids:
-                        if action.card_id in sleep_zone_ids:
-                            # Sleep zone card played without Wake — most common hallucination
+                        if action.card_id in break_zone_ids:
+                            # Break zone card played without Wake — most common hallucination
                             errors.append(ValidationError(
                                 action_index=i,
-                                error_type="sleep_zone_play",
+                                error_type="break_zone_play",
                                 message=(
                                     f"Cannot play {action.card_name} (ID {action.card_id}): "
-                                    f"it is in your sleep zone, not your hand. "
-                                    f"Play Wake first (1 CC, target this card) to return it to hand."
+                                    f"it is in your break zone, not your hand. "
+                                    f"Play Wake first (1 Charge, target this card) to return it to hand."
                                 ),
                             ))
                         else:
@@ -379,7 +379,7 @@ class DependencyValidator:
                             ))
                 elif action.card_name:
                     # No card_id — fall back to name-based check
-                    if action.card_name in sleep_zone_names and action.card_name not in starting_hand_names:
+                    if action.card_name in break_zone_names and action.card_name not in starting_hand_names:
                         woken_names = {
                             c.name
                             for wid in woken_card_ids
@@ -388,16 +388,16 @@ class DependencyValidator:
                         if action.card_name not in woken_names:
                             errors.append(ValidationError(
                                 action_index=i,
-                                error_type="sleep_zone_play",
+                                error_type="break_zone_play",
                                 message=(
-                                    f"Cannot play {action.card_name}: it is in your sleep zone, "
-                                    f"not your hand. Play Wake first (1 CC) to return it to hand."
+                                    f"Cannot play {action.card_name}: it is in your break zone, "
+                                    f"not your hand. Play Wake first (1 Charge) to return it to hand."
                                 ),
                             ))
-            
-        # Note: We can't easily detect "spending Surge CC before playing Surge"
-        # without detailed CC tracking per action, which CCBudgetValidator handles
-        
+
+        # Note: We can't easily detect "spending Surge Charge before playing Surge"
+        # without detailed Charge tracking per action, which ChargeBudgetValidator handles
+
         return errors
 
 
@@ -407,48 +407,48 @@ class TurnPlanValidator:
     
     Usage:
         validator = TurnPlanValidator(game_engine)
-        errors = validator.validate(plan, game_state, player_id, starting_cc)
+        errors = validator.validate(plan, game_state, player_id, starting_charge)
         if errors:
             feedback = validator.format_feedback_for_llm(errors)
             # Send feedback to LLM for retry
     """
-    
+
     def __init__(self, game_engine):
         """
         Initialize with a game engine.
-        
+
         Args:
             game_engine: GameEngine instance for tussle prediction
         """
-        self.cc_validator = CCBudgetValidator()
+        self.charge_validator = ChargeBudgetValidator()
         self.toy_tracker = OpponentToyTracker()
         self.suicide_validator = SuicideAttackValidator(game_engine)
         self.dependency_validator = DependencyValidator()
-    
+
     def validate(
         self,
         plan: "TurnPlan",
         game_state: "GameState",
         player_id: str,
-        starting_cc: int
+        starting_charge: int
     ) -> List[ValidationError]:
         """
         Run all validators on a turn plan.
-        
+
         Args:
             plan: The turn plan to validate
             game_state: Current game state
             player_id: AI player's ID
-            starting_cc: CC at the start of the turn
-            
+            starting_charge: Charge at the start of the turn
+
         Returns:
             List of all validation errors (empty if valid)
         """
         all_errors = []
-        
-        # Run CC budget validator
-        cc_errors = self.cc_validator.validate(plan, starting_cc)
-        all_errors.extend(cc_errors)
+
+        # Run Charge budget validator
+        charge_errors = self.charge_validator.validate(plan, starting_charge)
+        all_errors.extend(charge_errors)
         
         # Run opponent toy tracker
         toy_errors = self.toy_tracker.validate(plan, game_state, player_id)

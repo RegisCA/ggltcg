@@ -66,15 +66,15 @@ def test_dream_effect_parsing():
     dream = next(c for c in all_cards if c.name == "Dream")
     print(f"  Dream effect_definitions: '{dream.effect_definitions}'")
     
-    if dream.effect_definitions != "reduce_cost_by_sleeping":
-        print(f"✗ Dream should have effect_definitions='reduce_cost_by_sleeping'")
+    if dream.effect_definitions != "reduce_cost_by_broken":
+        print(f"✗ Dream should have effect_definitions='reduce_cost_by_broken'")
         return False
     
     effects = EffectRegistry.get_effects(dream)
     print(f"  Dream has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
     
-    if len(effects) != 1 or effects[0].__class__.__name__ != "ReduceCostBySleepingEffect":
-        print(f"✗ Dream should have 1 ReduceCostBySleepingEffect")
+    if len(effects) != 1 or effects[0].__class__.__name__ != "ReduceCostByBrokenEffect":
+        print(f"✗ Dream should have 1 ReduceCostByBrokenEffect")
         return False
     
     print(f"✓ Dream effect parsed correctly")
@@ -150,9 +150,9 @@ def test_wizard_sets_tussle_cost():
     return True
 
 
-def test_dream_cost_reduction_no_sleeping():
-    """Test Dream's cost with no sleeping cards."""
-    print("\nTesting Dream cost with 0 sleeping cards...")
+def test_dream_cost_reduction_no_broken():
+    """Test Dream's cost with no broken cards."""
+    print("\nTesting Dream cost with 0 broken cards...")
     
     csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
     loader = CardLoader(str(csv_path))
@@ -166,7 +166,7 @@ def test_dream_cost_reduction_no_sleeping():
         player_id="p1",
         name="Player 1",
         hand=[dream],
-        sleep_zone=[],  # No sleeping cards
+        break_zone=[],  # No broken cards
     )
     
     player2 = Player(
@@ -188,24 +188,24 @@ def test_dream_cost_reduction_no_sleeping():
     effects = EffectRegistry.get_effects(dream)
     effect = effects[0]
     
-    # Test cost modification with no sleeping cards
+    # Test cost modification with no broken cards
     base_cost = 4  # Dream's base cost
     modified_cost = effect.modify_card_cost(dream, base_cost, game_state, player1)
     
-    print(f"  Sleeping cards: {len(player1.sleep_zone)}")
+    print(f"  Broken cards: {len(player1.break_zone)}")
     print(f"  Base cost: {base_cost}, modified cost: {modified_cost}")
     
     if modified_cost != 4:
-        print(f"✗ Dream with 0 sleeping cards should cost 4, got {modified_cost}")
+        print(f"✗ Dream with 0 broken cards should cost 4, got {modified_cost}")
         return False
     
-    print(f"✓ Dream costs 4 with no sleeping cards")
+    print(f"✓ Dream costs 4 with no broken cards")
     return True
 
 
-def test_dream_cost_reduction_with_sleeping():
-    """Test Dream's cost reduction with sleeping cards."""
-    print("\nTesting Dream cost reduction with sleeping cards...")
+def test_dream_cost_reduction_with_broken():
+    """Test Dream's cost reduction with broken cards."""
+    print("\nTesting Dream cost reduction with broken cards...")
     
     csv_path = Path(__file__).parent.parent / "data" / "cards.csv"
     loader = CardLoader(str(csv_path))
@@ -227,7 +227,7 @@ def test_dream_cost_reduction_with_sleeping():
         player_id="p1",
         name="Player 1",
         hand=[dream],
-        sleep_zone=[ka, wizard, beary],  # 3 sleeping cards
+        break_zone=[ka, wizard, beary],  # 3 broken cards
     )
     
     player2 = Player(
@@ -249,19 +249,19 @@ def test_dream_cost_reduction_with_sleeping():
     effects = EffectRegistry.get_effects(dream)
     effect = effects[0]
     
-    # Test cost modification with 3 sleeping cards
+    # Test cost modification with 3 broken cards
     base_cost = 4
     modified_cost = effect.modify_card_cost(dream, base_cost, game_state, player1)
     
-    print(f"  Sleeping cards: {len(player1.sleep_zone)}")
+    print(f"  Broken cards: {len(player1.break_zone)}")
     print(f"  Base cost: {base_cost}, modified cost: {modified_cost}")
     
-    expected_cost = 4 - 3  # 4 base - 3 sleeping = 1
+    expected_cost = 4 - 3  # 4 base - 3 broken = 1
     if modified_cost != expected_cost:
-        print(f"✗ Dream with 3 sleeping cards should cost {expected_cost}, got {modified_cost}")
+        print(f"✗ Dream with 3 broken cards should cost {expected_cost}, got {modified_cost}")
         return False
     
-    print(f"✓ Dream costs {expected_cost} with 3 sleeping cards")
+    print(f"✓ Dream costs {expected_cost} with 3 broken cards")
     return True
 
 
@@ -275,8 +275,8 @@ def test_dream_cost_cannot_go_negative():
     
     dream = next(c for c in all_cards if c.name == "Dream")
     
-    # Create 5 cards for sleep zone
-    sleeping_cards = [
+    # Create 5 cards for break zone
+    breaking_cards = [
         next(c for c in all_cards if c.name == "Ka"),
         next(c for c in all_cards if c.name == "Wizard"),
         next(c for c in all_cards if c.name == "Beary"),
@@ -287,14 +287,14 @@ def test_dream_cost_cannot_go_negative():
     dream.owner = "p1"
     dream.controller = "p1"
     
-    for card in sleeping_cards:
+    for card in breaking_cards:
         card.owner = "p1"
     
     player1 = Player(
         player_id="p1",
         name="Player 1",
         hand=[dream],
-        sleep_zone=sleeping_cards,  # 5 sleeping cards (more than Dream's base cost)
+        break_zone=breaking_cards,  # 5 broken cards (more than Dream's base cost)
     )
     
     player2 = Player(
@@ -316,11 +316,11 @@ def test_dream_cost_cannot_go_negative():
     effects = EffectRegistry.get_effects(dream)
     effect = effects[0]
     
-    # Test cost modification with 5 sleeping cards
+    # Test cost modification with 5 broken cards
     base_cost = 4
     modified_cost = effect.modify_card_cost(dream, base_cost, game_state, player1)
     
-    print(f"  Sleeping cards: {len(player1.sleep_zone)}")
+    print(f"  Broken cards: {len(player1.break_zone)}")
     print(f"  Base cost: {base_cost}, modified cost: {modified_cost}")
     
     if modified_cost != 0:
@@ -341,8 +341,8 @@ def main():
         test_wizard_effect_parsing,
         test_dream_effect_parsing,
         test_wizard_sets_tussle_cost,
-        test_dream_cost_reduction_no_sleeping,
-        test_dream_cost_reduction_with_sleeping,
+        test_dream_cost_reduction_no_broken,
+        test_dream_cost_reduction_with_broken,
         test_dream_cost_cannot_go_negative,
     ]
     

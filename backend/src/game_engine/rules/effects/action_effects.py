@@ -1,7 +1,7 @@
 """
 Action card effects and activated abilities.
 
-Action cards resolve their effect when played, then move to Sleep Zone.
+Action cards resolve their effect when played, then move to Break Zone.
 Activated abilities can be used by paying a cost during the Main Phase.
 """
 
@@ -19,23 +19,23 @@ if TYPE_CHECKING:
 # GENERIC ACTION EFFECTS (Data-Driven)
 # ============================================================================
 
-class GainCCEffect(PlayEffect):
+class GainChargeEffect(PlayEffect):
     """
-    Generic CC gain effect for data-driven cards.
-    
+    Generic Charge gain effect for data-driven cards.
+
     Can optionally restrict when the effect can be played (e.g., not on first turn).
-    
+
     Examples:
-    - Rush: GainCCEffect(source_card, amount=2, not_first_turn=True)
+    - Rush: GainChargeEffect(source_card, amount=2, not_first_turn=True)
     """
-    
+
     def __init__(self, source_card: "Card", amount: int, not_first_turn: bool = False):
         """
-        Initialize CC gain effect.
-        
+        Initialize Charge gain effect.
+
         Args:
             source_card: The card providing this effect
-            amount: How much CC to gain
+            amount: How much Charge to gain
             not_first_turn: If True, cannot be played on player's first turn
         """
         super().__init__(source_card)
@@ -70,10 +70,10 @@ class GainCCEffect(PlayEffect):
         return not is_first_turn
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Grant CC to the player who played this card."""
+        """Grant Charge to the player who played this card."""
         player: Optional["Player"] = kwargs.get("player")
         if player:
-            player.gain_cc(self.amount)
+            player.gain_charge(self.amount)
 
 
 class TurnStatBoostEffect(PlayEffect):
@@ -119,98 +119,98 @@ class TurnStatBoostEffect(PlayEffect):
                 card.add_turn_modification(current_turn, self.stat_name, self.amount)
 
 
-class UnsleepEffect(PlayEffect):
+class FixEffect(PlayEffect):
     """
-    Generic unsleep effect for data-driven cards.
-    
-    Returns N cards from player's Sleep Zone to their hand.
-    Player chooses which cards to unsleep.
+    Generic fix effect for data-driven cards.
+
+    Returns N cards from player's Break Zone to their hand.
+    Player chooses which cards to fix.
     Can optionally filter by card type (actions or toys only).
-    
+
     Examples:
-    - Wake: UnsleepEffect(source_card, count=1)
-    - Sun: UnsleepEffect(source_card, count=2)
-    - That was fun: UnsleepEffect(source_card, count=1, card_type_filter="actions")
+    - Wake: FixEffect(source_card, count=1)
+    - Sun: FixEffect(source_card, count=2)
+    - That was fun: FixEffect(source_card, count=1, card_type_filter="actions")
     """
-    
+
     def __init__(self, source_card: "Card", count: int, card_type_filter: Optional[str] = None):
         """
-        Initialize unsleep effect.
-        
+        Initialize fix effect.
+
         Args:
             source_card: The card providing this effect
-            count: How many cards to unsleep
+            count: How many cards to fix
             card_type_filter: Optional filter - "actions" or "toys" (None = all cards)
         """
         super().__init__(source_card)
         self.count = count
         self.card_type_filter = card_type_filter
-    
+
     def requires_targets(self) -> bool:
-        """Unsleep effect requires choosing cards to unsleep."""
+        """Fix effect requires choosing cards to fix."""
         return True
-    
+
     def get_max_targets(self) -> int:
-        """Return the maximum number of cards that can be unsleeped."""
+        """Return the maximum number of cards that can be fixed."""
         return self.count
-    
+
     def get_min_targets(self) -> int:
-        """Unsleep requires at least 0 targets (optional if no sleeping cards)."""
+        """Fix requires at least 0 targets (optional if no broken cards)."""
         return 0
-    
+
     def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get cards in player's Sleep Zone, optionally filtered by card type."""
+        """Get cards in player's Break Zone, optionally filtered by card type."""
         if player is None:
             player = game_state.get_active_player()
         if not player:
             return []
-        
-        cards = list(player.sleep_zone)
-        
+
+        cards = list(player.break_zone)
+
         # Apply card type filter if specified
         if self.card_type_filter == "actions":
             cards = [c for c in cards if c.is_action()]
         elif self.card_type_filter == "toys":
             cards = [c for c in cards if c.is_toy()]
-        
+
         return cards
-    
+
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Return target cards from Sleep Zone to hand."""
+        """Return target cards from Break Zone to hand."""
         targets: Optional[List["Card"]] = kwargs.get("targets")
         player: Optional["Player"] = kwargs.get("player")
-        
+
         if not targets or not player:
             return
-        
-        # Unsleep each target (up to count)
+
+        # Fix each target (up to count)
         for target in targets[:self.count]:
-            if target in player.sleep_zone:
-                game_state.unsleep_card(target, player)
+            if target in player.break_zone:
+                game_state.fix_card(target, player)
 
 
-class SleepAllEffect(PlayEffect):
+class BreakAllEffect(PlayEffect):
     """
-    Generic sleep all cards effect for data-driven cards.
-    
-    Sleeps ALL toys in play from both players.
-    All sleeped cards trigger their "when sleeped" abilities if they have them.
-    
+    Generic break all cards effect for data-driven cards.
+
+    Breaks ALL toys in play from both players.
+    All broken cards trigger their "when broken" abilities if they have them.
+
     Examples:
-    - Clean: SleepAllEffect(source_card)
+    - Clean: BreakAllEffect(source_card)
     """
-    
+
     def __init__(self, source_card: "Card"):
         """
-        Initialize sleep all effect.
-        
+        Initialize break all effect.
+
         Args:
             source_card: The card providing this effect
         """
         super().__init__(source_card)
-    
+
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Sleep all cards currently in play (except protected ones)."""
+        """Break all cards currently in play (except protected ones)."""
         # Get game_engine reference to properly trigger effects
         game_engine = kwargs.get("game_engine")
         if not game_engine:
@@ -220,81 +220,81 @@ class SleepAllEffect(PlayEffect):
             for card in all_cards_in_play:
                 # FIX (Issue #70): Check if card is protected from this effect
                 if not game_state.is_protected_from_effect(card, self):
-                    game_state.sleep_card(card, was_in_play=True)
+                    game_state.break_card(card, was_in_play=True)
             return
-        
+
         # Get all cards in play from both players
         all_cards_in_play = game_state.get_all_cards_in_play()
-        
-        # Sleep each card through game engine (triggers effects)
+
+        # Break each card through game engine (triggers effects)
         for card in all_cards_in_play:
             # FIX (Issue #70): Check if card is protected from this effect
             if game_state.is_protected_from_effect(card, self):
                 continue  # Skip protected cards
-            
+
             owner = game_state.get_card_owner(card)
             if owner:
-                game_engine._sleep_card(card, owner, was_in_play=True)
+                game_engine._break_card(card, owner, was_in_play=True)
 
 
-class SleepTargetEffect(PlayEffect):
+class BreakTargetEffect(PlayEffect):
     """
-    Drop: "Sleep a card that is in play."
-    
-    Targeted sleep effect - player chooses one card from either player's
-    in-play zone to sleep. Triggers "when sleeped" effects.
+    Drop: "Break a card that is in play."
+
+    Targeted break effect - player chooses one card from either player's
+    in-play zone to break. Triggers "when broken" effects.
     Respects protection effects (e.g., Beary, Sock Sorcerer).
     """
-    
+
     def __init__(self, source_card: "Card", count: int = 1):
         """
-        Initialize targeted sleep effect.
-        
+        Initialize targeted break effect.
+
         Args:
             source_card: The card providing this effect
-            count: Number of targets to sleep (default 1)
+            count: Number of targets to break (default 1)
         """
         super().__init__(source_card)
         self.count = count
-    
+
     def requires_targets(self) -> bool:
-        """Sleep target effect requires choosing cards to sleep."""
+        """Break target effect requires choosing cards to break."""
         return True
-    
+
     def get_max_targets(self) -> int:
         """Return the maximum number of cards that can be targeted."""
         return self.count
-    
+
     def get_min_targets(self) -> int:
         """At least 1 target required if any valid targets exist."""
         return 1
-    
+
     def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
         """Get all cards in play from both players (except protected ones)."""
         all_cards = game_state.get_all_cards_in_play()
         return [c for c in all_cards if not game_state.is_protected_from_effect(c, self)]
-    
+
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Sleep target cards."""
+        """Break target cards."""
         targets: Optional[List["Card"]] = kwargs.get("targets")
         game_engine = kwargs.get("game_engine")
-        
+
         if not targets:
             return
-        
+
         for target in targets[:self.count]:
             # Double-check protection (in case state changed)
             if game_state.is_protected_from_effect(target, self):
                 continue
-            
+
             owner = game_state.get_card_owner(target)
             if owner:
                 if game_engine:
-                    game_engine._sleep_card(target, owner, was_in_play=True)
-                    game_state.log_event(f"{target.name} is sleeped by {self.source_card.name}!")
+                    game_engine._break_card(target, owner, was_in_play=True)
+                    game_state.log_event(f"{target.name} is broken by {self.source_card.name}!")
                 else:
-                    game_state.sleep_card(target, was_in_play=True)
-                    game_state.log_event(f"{target.name} is sleeped by {self.source_card.name}!")
+                    game_state.break_card(target, was_in_play=True)
+                    game_state.log_event(f"{target.name} is broken by {self.source_card.name}!")
 
 
 class ReturnTargetToHandEffect(PlayEffect):
@@ -303,7 +303,7 @@ class ReturnTargetToHandEffect(PlayEffect):
     
     Targeted bounce effect - player chooses one card from either player's
     in-play zone to return to its OWNER's hand (not controller's).
-    Does NOT trigger "when sleeped" effects (card is bounced, not sleeped).
+    Does NOT trigger "when broken" effects (card is bounced, not broken).
     Respects protection effects.
     """
     
@@ -372,7 +372,7 @@ class ToynadoEffect(PlayEffect):
     Toynado: "Put all cards that are in play into their owner's hands."
     
     Returns ALL Toys in play to their owners' hands (not controllers').
-    No "when sleeped" triggers occur (cards aren't sleeped, they're returned).
+    No "when broken" triggers occur (cards aren't broken, they're returned).
     """
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
@@ -545,16 +545,16 @@ class CopyEffect(PlayEffect):
 
 class ArcherActivatedAbility(ActivatedEffect):
     """
-    Archer: "You may spend CC to remove Stamina from cards."
+    Archer: "You may spend Charge to remove Stamina from cards."
     
-    Costs 1 CC per 1 Stamina removed.
+    Costs 1 Charge per 1 Stamina removed.
     Can only target opponent's Toys in play.
     Stamina removal is direct (not damage), so it doesn't trigger combat effects.
-    If a Toy reaches 0 or fewer Stamina, it's sleeped immediately.
+    If a Toy reaches 0 or fewer Stamina, it's broken immediately.
     """
     
     def __init__(self, source_card: "Card"):
-        super().__init__(source_card, cost_cc=1)  # 1 CC per activation
+        super().__init__(source_card, cost_charge=1)  # 1 Charge per activation
     
     def requires_targets(self) -> bool:
         """Archer's ability requires choosing a card to affect."""
@@ -572,7 +572,7 @@ class ArcherActivatedAbility(ActivatedEffect):
         Remove 1 Stamina from target card.
         
         Requires 'target' and 'amount' in kwargs.
-        Amount defaults to 1 but can be higher if player pays more CC.
+        Amount defaults to 1 but can be higher if player pays more Charge.
         """
         target: Optional["Card"] = kwargs.get("target")
         amount: int = kwargs.get("amount", 1)
@@ -588,23 +588,23 @@ class ArcherActivatedAbility(ActivatedEffect):
         # Apply damage (updates current_stamina, not base stamina)
         target.apply_damage(amount)
         
-        # Check if card should be sleeped using proper effective stamina calculation
+        # Check if card should be broken using proper effective stamina calculation
         # Use game_engine.is_card_defeated() for consistency with tussle resolution
         if game_engine and game_engine.is_card_defeated(target):
-            # Sleep via game engine to trigger when-sleeped effects
+            # Break via game engine to trigger when-broken effects
             owner = game_state.get_card_owner(target)
-            game_engine._sleep_card(target, owner, was_in_play=True)
+            game_engine._break_card(target, owner, was_in_play=True)
         elif not game_engine and target.current_stamina <= 0:
             # Fallback for tests without game_engine - simple check
-            game_state.sleep_card(target, was_in_play=True)
+            game_state.break_card(target, was_in_play=True)
 
 
 class DamageAllOpponentCardsEffect(TriggeredEffect):
     """
-    Monster: "When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are sleeped instead."
+    Monster: "When played, set all cards' stamina to 1, if they naturally have 1 stamina, they are broken instead."
     
     One-time triggered effect that sets ALL cards' stamina to 1 (both players).
-    Cards with base stamina of 1 are sleeped instead.
+    Cards with base stamina of 1 are broken instead.
     Respects protection effects (e.g., Beary, Sock Sorcerer).
     
     Note: The class name is a misnomer from initial implementation - it affects ALL cards, not just opponent's.
@@ -626,7 +626,7 @@ class DamageAllOpponentCardsEffect(TriggeredEffect):
         return True
     
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
-        """Set all cards' stamina to 1. Cards with base stamina of 1 are sleeped instead."""
+        """Set all cards' stamina to 1. Cards with base stamina of 1 are broken instead."""
         player: Optional["Player"] = kwargs.get("player")
         game_engine = kwargs.get("game_engine")
         
@@ -660,11 +660,11 @@ class DamageAllOpponentCardsEffect(TriggeredEffect):
             
             # Check BASE stamina (natural stamina), not current_stamina
             if card.stamina == 1:
-                # Cards with natural 1 stamina are sleeped
+                # Cards with natural 1 stamina are broken
                 if game_engine:
-                    game_engine._sleep_card(card, card_owner, was_in_play=True)
+                    game_engine._break_card(card, card_owner, was_in_play=True)
                 else:
-                    game_state.sleep_card(card, was_in_play=True)
+                    game_state.break_card(card, was_in_play=True)
             else:
                 # Set current stamina to 1
                 if card.current_stamina is not None and card.current_stamina > 1:

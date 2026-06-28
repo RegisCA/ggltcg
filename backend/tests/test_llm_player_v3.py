@@ -15,7 +15,7 @@ from api.schemas import ValidAction
 
 # Helper to create mock GameState
 def create_mock_game_state(
-    ai_cc: int = 4,
+    ai_charge: int = 4,
     ai_cards_in_hand: list = None,
     ai_field: list = None,
     opp_field: list = None,
@@ -27,14 +27,14 @@ def create_mock_game_state(
     
     # AI player
     ai_player = Mock()
-    ai_player.cc = ai_cc
+    ai_player.charge = ai_charge
     ai_player.id = "ai_player"
     ai_player.hand = ai_cards_in_hand or []
     ai_player.field = ai_field or []
     
     # Opponent
     opp_player = Mock()
-    opp_player.cc = 4
+    opp_player.charge = 4
     opp_player.id = "opponent"
     opp_player.field = opp_field or []
     
@@ -194,9 +194,9 @@ class TestActionMatching:
         planned = PlannedAction(
             action_type="play_card",
             card_name="Rush",
-            reasoning="Play Rush for CC",
-            cc_cost=0,
-            cc_after=5
+            reasoning="Play Rush for Charge",
+            charge_cost=0,
+            charge_after=5
         )
         
         valid_actions = create_mock_valid_actions([
@@ -216,8 +216,8 @@ class TestActionMatching:
             action_type="end_turn",
             card_name=None,
             reasoning="Done for the turn",
-            cc_cost=0,
-            cc_after=2
+            charge_cost=0,
+            charge_after=2
         )
         
         valid_actions = create_mock_valid_actions([
@@ -236,8 +236,8 @@ class TestActionMatching:
             action_type="direct_attack",
             card_name="Knight",
             reasoning="Attack opponent directly",
-            cc_cost=1,
-            cc_after=3
+            charge_cost=1,
+            charge_after=3
         )
         
         valid_actions = create_mock_valid_actions([
@@ -256,14 +256,14 @@ class TestActionMatching:
             action_type="activate_ability",
             card_name="Archer",
             reasoning="Remove stamina from Knight",
-            cc_cost=1,
-            cc_after=3
+            charge_cost=1,
+            charge_after=3
         )
         
         # Real game uses this format for Archer ability
         valid_actions = create_mock_valid_actions([
             ("end_turn", None, "End your turn"),
-            ("activate_ability", "Archer", "Archer: Remove 1 stamina - 1 CC"),
+            ("activate_ability", "Archer", "Archer: Remove 1 stamina - 1 Charge"),
         ])
         
         index = find_matching_action_index(planned, valid_actions)
@@ -277,8 +277,8 @@ class TestActionMatching:
             action_type="play_card",
             card_name="NonexistentCard",
             reasoning="Play it",
-            cc_cost=2,
-            cc_after=2
+            charge_cost=2,
+            charge_after=2
         )
         
         valid_actions = create_mock_valid_actions([
@@ -322,9 +322,9 @@ class TestDecisionInfo:
         mock_plan = Mock(spec=TurnPlan)
         mock_plan.selected_strategy = "Aggressive attack"
         mock_plan.action_sequence = [Mock(), Mock()]
-        mock_plan.cc_start = 4
-        mock_plan.cc_after_plan = 0
-        mock_plan.expected_cards_slept = 2
+        mock_plan.charge_start = 4
+        mock_plan.charge_after_plan = 0
+        mock_plan.expected_cards_broken = 2
         
         v3_player._current_plan = mock_plan
         v3_player._plan_action_index = 1

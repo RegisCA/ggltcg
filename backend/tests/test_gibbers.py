@@ -32,7 +32,7 @@ class TestGibbersBasicEffect:
             player1_in_play=["Gibbers"],
             player2_hand=["Rush"],  # Rush normally costs 0
             active_player="player2",
-            player2_cc=10,
+            player2_charge=10,
         )
         
         # Get reference to P2's Rush
@@ -51,7 +51,7 @@ class TestGibbersBasicEffect:
             player1_in_play=["Gibbers"],
             player1_hand=["Rush"],  # Rush normally costs 0
             active_player="player1",
-            player1_cc=10,
+            player1_charge=10,
         )
         
         # Get reference to P1's Rush
@@ -63,14 +63,14 @@ class TestGibbersBasicEffect:
         # Assert: Rush should still cost 0 (Gibbers only affects opponent)
         assert cost == 0, f"Rush should cost 0 for Gibbers controller, got {cost}"
     
-    def test_gibbers_effect_stops_when_sleeped(self):
+    def test_gibbers_effect_stops_when_broken(self):
         """Gibbers effect should stop when it leaves play."""
         # Arrange: P1 has Gibbers in play, P2 has a card in hand
         setup, cards = create_game_with_cards(
             player1_in_play=["Gibbers"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=10,
+            player1_charge=10,
         )
         
         gibbers = cards["p1_inplay_Gibbers"]
@@ -80,12 +80,12 @@ class TestGibbersBasicEffect:
         cost_before = setup.engine.calculate_card_cost(rush, setup.player2)
         assert cost_before == 1, "Rush should cost 1 while Gibbers is in play"
         
-        # Act: Sleep Gibbers
-        setup.engine._sleep_card(gibbers, setup.player1, was_in_play=True)
+        # Act: Break Gibbers
+        setup.engine._break_card(gibbers, setup.player1, was_in_play=True)
         
-        # Assert: Rush should cost 0 after Gibbers is sleeped
+        # Assert: Rush should cost 0 after Gibbers is broken
         cost_after = setup.engine.calculate_card_cost(rush, setup.player2)
-        assert cost_after == 0, f"Rush should cost 0 after Gibbers is sleeped, got {cost_after}"
+        assert cost_after == 0, f"Rush should cost 0 after Gibbers is broken, got {cost_after}"
 
 
 class TestGibbersStacking:
@@ -114,18 +114,18 @@ class TestGibbersInteractions:
     
     def test_gibbers_stacks_with_dream_cost_reduction(self):
         """Gibbers cost increase should combine with Dream's cost reduction."""
-        # Arrange: P1 has Gibbers in play, P2 has Dream in hand and cards in sleep zone
+        # Arrange: P1 has Gibbers in play, P2 has Dream in hand and cards in break zone
         setup, cards = create_game_with_cards(
             player1_in_play=["Gibbers"],
-            player2_hand=["Dream"],  # Dream costs 4, reduced by sleeping cards
-            player2_sleep=["Ka", "Knight"],  # 2 sleeping cards = -2 cost
+            player2_hand=["Dream"],  # Dream costs 4, reduced by broken cards
+            player2_break=["Ka", "Knight"],  # 2 broken cards = -2 cost
             active_player="player2",
         )
         
         dream = cards["p2_hand_Dream"]
         
         # Act: Calculate cost
-        # Dream base: 4, minus 2 for sleeping cards = 2, plus 1 for Gibbers = 3
+        # Dream base: 4, minus 2 for broken cards = 2, plus 1 for Gibbers = 3
         cost = setup.engine.calculate_card_cost(dream, setup.player2)
         
         # Assert: Dream should cost 3 (4 - 2 + 1)
@@ -175,11 +175,11 @@ class TestGibbersPlayability:
     """Test that Gibbers can be played and has correct stats."""
     
     def test_gibbers_can_be_played(self):
-        """Gibbers should be playable for 1 CC."""
+        """Gibbers should be playable for 1 Charge."""
         setup, cards = create_game_with_cards(
             player1_hand=["Gibbers"],
             active_player="player1",
-            player1_cc=1,
+            player1_charge=1,
         )
         
         gibbers = cards["p1_hand_Gibbers"]
@@ -210,7 +210,7 @@ class TestGibbersPlayability:
             player1_hand=["Gibbers"],
             player2_hand=["Rush"],
             active_player="player1",
-            player1_cc=5,
+            player1_charge=5,
         )
         
         gibbers = cards["p1_hand_Gibbers"]

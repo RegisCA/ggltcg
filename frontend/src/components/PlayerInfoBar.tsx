@@ -29,10 +29,10 @@ export function PlayerInfoBar({ player, isActive }: PlayerInfoBarProps) {
 
       <span className="text-sm text-gray-400">|</span>
       
-      {/* 3. CC Count (Bigger Number, Smaller Label) */}
+      {/* 3. Charge Count (Bigger Number, Smaller Label) */}
       <div className="flex items-end leading-none" style={{ gap: 'var(--spacing-component-xs)' }}>
-        <span className="text-2xl font-bold">{player.cc}</span>
-        <span className="text-sm text-gray-400">CC</span>
+        <span className="text-2xl font-bold">{player.charge}</span>
+        <span className="text-sm text-gray-400">Charge</span>
       </div>
     </div>
   );

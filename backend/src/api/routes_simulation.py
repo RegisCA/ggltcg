@@ -340,7 +340,7 @@ async def get_game_details(
     """
     Get detailed results for a specific game.
     
-    Includes CC tracking per turn and full action log.
+    Includes Charge tracking per turn and full action log.
     
     Args:
         run_id: Simulation run ID
@@ -348,7 +348,7 @@ async def get_game_details(
         db: Database session
         
     Returns:
-        Detailed game data including CC tracking and action log
+        Detailed game data including Charge tracking and action log
     """
     try:
         orchestrator = SimulationOrchestrator(db)
@@ -397,7 +397,7 @@ async def get_simulation_report(
     Returns a formatted markdown report with:
     - Overall statistics
     - Matchup matrix
-    - CC efficiency analysis
+    - Charge efficiency analysis
     - First-player advantage
     - Notable games
     

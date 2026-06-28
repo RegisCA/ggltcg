@@ -257,10 +257,10 @@ class TestV3AILogging:
                 {"action_number": 1, "card_name": "Knight", "action": "play"},
                 {"action_number": 2, "card_name": "Knight", "action": "attack"},
             ],
-            "cc_start": 5,
-            "cc_after_plan": 2,
-            "expected_cards_slept": 3,
-            "cc_efficiency": 1.0,
+            "charge_start": 5,
+            "charge_after_plan": 2,
+            "expected_cards_broken": 3,
+            "charge_efficiency": 1.0,
             "current_action": 0,
         }
         
