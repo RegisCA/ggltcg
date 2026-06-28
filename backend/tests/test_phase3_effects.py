@@ -36,32 +36,23 @@ def test_parse_gain_charge_when_broken_effect():
     umbruh = next(c for c in all_cards if c.name == "Umbruh")
     print(f"  Umbruh effect_definitions: '{umbruh.effect_definitions}'")
     
-    if umbruh.effect_definitions != "gain_charge_when_broken:1":
-        print(f"✗ Umbruh should have effect_definitions='gain_charge_when_broken:1'")
-        return False
-    
+    assert umbruh.effect_definitions == "gain_charge_when_broken:1", (
+        "Umbruh should have effect_definitions='gain_charge_when_broken:1'"
+    )
+
     effects = EffectRegistry.get_effects(umbruh)
     print(f"  Umbruh has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1:
-        print(f"✗ Umbruh should have 1 effect")
-        return False
-    
-    if effects[0].__class__.__name__ != "GainChargeWhenBrokenEffect":
-        print(f"✗ Umbruh effect should be GainChargeWhenBrokenEffect")
-        return False
-    
+
+    assert len(effects) == 1, "Umbruh should have 1 effect"
+    assert effects[0].__class__.__name__ == "GainChargeWhenBrokenEffect", (
+        "Umbruh effect should be GainChargeWhenBrokenEffect"
+    )
+
     effect = effects[0]
-    if effect.amount != 1:
-        print(f"✗ Umbruh should gain 1 Charge, got {effect.amount}")
-        return False
-    
-    if effect.trigger != TriggerTiming.WHEN_BROKEN:
-        print(f"✗ Umbruh should trigger when broken")
-        return False
-    
+    assert effect.amount == 1, f"Umbruh should gain 1 Charge, got {effect.amount}"
+    assert effect.trigger == TriggerTiming.WHEN_BROKEN, "Umbruh should trigger when broken"
+
     print(f"✓ Umbruh effect parsed correctly")
-    return True
 
 
 def test_parse_set_self_tussle_cost_effect():
@@ -75,32 +66,23 @@ def test_parse_set_self_tussle_cost_effect():
     raggy = next(c for c in all_cards if c.name == "Raggy")
     print(f"  Raggy effect_definitions: '{raggy.effect_definitions}'")
     
-    if raggy.effect_definitions != "set_self_tussle_cost:0:not_turn_1":
-        print(f"✗ Raggy should have effect_definitions='set_self_tussle_cost:0:not_turn_1'")
-        return False
-    
+    assert raggy.effect_definitions == "set_self_tussle_cost:0:not_turn_1", (
+        "Raggy should have effect_definitions='set_self_tussle_cost:0:not_turn_1'"
+    )
+
     effects = EffectRegistry.get_effects(raggy)
     print(f"  Raggy has {len(effects)} effect(s): {[e.__class__.__name__ for e in effects]}")
-    
-    if len(effects) != 1:
-        print(f"✗ Raggy should have 1 effect")
-        return False
-    
-    if effects[0].__class__.__name__ != "SetSelfTussleCostEffect":
-        print(f"✗ Raggy effect should be SetSelfTussleCostEffect")
-        return False
-    
+
+    assert len(effects) == 1, "Raggy should have 1 effect"
+    assert effects[0].__class__.__name__ == "SetSelfTussleCostEffect", (
+        "Raggy effect should be SetSelfTussleCostEffect"
+    )
+
     effect = effects[0]
-    if effect.cost != 0:
-        print(f"✗ Raggy tussle cost should be 0, got {effect.cost}")
-        return False
-    
-    if not effect.not_turn_1:
-        print(f"✗ Raggy should have not_turn_1 restriction")
-        return False
-    
+    assert effect.cost == 0, f"Raggy tussle cost should be 0, got {effect.cost}"
+    assert effect.not_turn_1, "Raggy should have not_turn_1 restriction"
+
     print(f"✓ Raggy effect parsed correctly")
-    return True
 
 
 def test_umbruh_gains_charge_when_broken():
@@ -144,16 +126,10 @@ def test_umbruh_gains_charge_when_broken():
     
     print(f"  Player Charge after: {player1.charge}")
     
-    if player1.charge != 6:
-        print(f"✗ Player should have 6 Charge (gained 1), but has {player1.charge}")
-        return False
-    
-    if umbruh not in player1.break_zone:
-        print(f"✗ Umbruh should be in break zone")
-        return False
-    
+    assert player1.charge == 6, f"Player should have 6 Charge (gained 1), but has {player1.charge}"
+    assert umbruh in player1.break_zone, "Umbruh should be in break zone"
+
     print(f"✓ Umbruh triggered effect works correctly")
-    return True
 
 
 def test_raggy_tussle_cost_and_turn_restriction():
@@ -186,29 +162,22 @@ def test_raggy_tussle_cost_and_turn_restriction():
     can_tussle_t1 = effect.can_tussle(game_state)
     print(f"  Can tussle on turn 1: {can_tussle_t1}")
     
-    if can_tussle_t1:
-        print(f"✗ Raggy should NOT be able to tussle on turn 1")
-        return False
-    
+    assert not can_tussle_t1, "Raggy should NOT be able to tussle on turn 1"
+
     # Test turn 2 (can tussle)
     game_state.turn_number = 2
     can_tussle_t2 = effect.can_tussle(game_state)
     print(f"  Can tussle on turn 2: {can_tussle_t2}")
-    
-    if not can_tussle_t2:
-        print(f"✗ Raggy SHOULD be able to tussle on turn 2")
-        return False
-    
+
+    assert can_tussle_t2, "Raggy SHOULD be able to tussle on turn 2"
+
     # Test tussle cost is 0
     tussle_cost = effect.modify_tussle_cost(2, game_state, player1)
     print(f"  Tussle cost: {tussle_cost}")
-    
-    if tussle_cost != 0:
-        print(f"✗ Raggy tussle cost should be 0, got {tussle_cost}")
-        return False
-    
+
+    assert tussle_cost == 0, f"Raggy tussle cost should be 0, got {tussle_cost}"
+
     print(f"✓ Raggy cost effect and restriction work correctly")
-    return True
 
 
 def test_clean_breaks_umbruh_and_triggers():
@@ -259,16 +228,10 @@ def test_clean_breaks_umbruh_and_triggers():
     print(f"  Player Charge after Clean: {player1.charge}")
     print(f"  Umbruh in break: {umbruh in player1.break_zone}")
     
-    if player1.charge != 4:
-        print(f"✗ Player should have 4 Charge (3 + 1 from Umbruh trigger), but has {player1.charge}")
-        return False
-    
-    if umbruh not in player1.break_zone:
-        print(f"✗ Umbruh should be in break zone")
-        return False
-    
+    assert player1.charge == 4, f"Player should have 4 Charge (3 + 1 from Umbruh trigger), but has {player1.charge}"
+    assert umbruh in player1.break_zone, "Umbruh should be in break zone"
+
     print(f"✓ Clean + Umbruh interaction works correctly")
-    return True
 
 
 if __name__ == "__main__":

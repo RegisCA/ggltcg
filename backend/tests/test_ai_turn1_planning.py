@@ -22,88 +22,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from conftest import create_game_with_cards
-from ai_test_support import has_valid_ai_api_key, build_turn_planner
-
-
-def validate_charge_math(plan) -> list:
-    """
-    Validate that the plan's Charge math is consistent and legal.
-    
-    Uses KNOWN card costs rather than trusting AI's reported charge_cost,
-    since LLMs sometimes report incorrect values while planning correctly.
-    
-    Returns a list of CRITICAL errors only (negative Charge situations).
-    """
-    # Known card costs (from game data)
-    CARD_COSTS = {
-        "Surge": 0, "Rush": 0, "Drop": 2, "Wake": 1, "Clean": 3, "Twist": 3,
-        "Sun": 3, "VeryVeryAppleJuice": 0, "Copy": 0, "Jumpscare": 2,
-        "Knight": 1, "Umbruh": 1, "Archer": 0, "Beary": 1, "Ka": 2,
-        "Wizard": 2, "Raggy": 3, "Dream": 4, "Belchaletta": 1,
-        "Gibbers": 1, "Paper Plane": 1, "Sock Sorcerer": 3, "Monster": 2,
-        "Hind Leg Kicker": 1, "Violin": 1, "Drum": 2, "Demideca": 2,
-        "Ballaber": 3, "That Was Fun": 1,
-    }
-    
-    # Cards that give Charge when played
-    CHARGE_GAINS = {
-        "Surge": 1,
-        "Rush": 2,
-    }
-    
-    # Action costs (fixed)
-    ACTION_COSTS = {
-        "tussle": 2,
-        "direct_attack": 2,
-        "activate_ability": 1,  # Default for abilities like Archer
-        "play_card": None,  # Use card cost
-        "end_turn": 0,
-    }
-    
-    running_charge = plan.charge_start
-    errors = []
-    warnings = []
-    
-    for i, action in enumerate(plan.action_sequence, 1):
-        if action.action_type == "end_turn":
-            continue
-        
-        # Determine the ACTUAL cost
-        if action.action_type == "play_card":
-            actual_cost = CARD_COSTS.get(action.card_name, action.charge_cost)
-        else:
-            actual_cost = ACTION_COSTS.get(action.action_type, action.charge_cost)
-        
-        charge_gain = CHARGE_GAINS.get(action.card_name, 0)
-        expected_charge = running_charge - actual_cost + charge_gain
-        
-        # Check for negative Charge (CRITICAL ERROR)
-        if expected_charge < 0:
-            errors.append(
-                f"Action {i} ({action.card_name}): Would spend more Charge than available! "
-                f"{running_charge} - {actual_cost} + {charge_gain} = {expected_charge}"
-            )
-        
-        # Check charge_after accuracy (warning only)
-        if action.charge_after != expected_charge and expected_charge >= 0:
-            warnings.append(
-                f"Action {i} ({action.card_name}): charge_after mismatch - "
-                f"Reported: {action.charge_after}, Expected: {expected_charge}"
-            )
-        
-        running_charge = max(0, expected_charge)
-    
-    # Print warnings (not errors)
-    for warning in warnings:
-        print(f"  ⚠️  {warning}")
-    
-    # Print and return only critical errors
-    if errors:
-        print("\n❌ Charge MATH ERRORS:")
-        for error in errors:
-            print(f"  • {error}")
-    
-    return errors
+from ai_test_support import has_valid_ai_api_key, build_turn_planner, validate_charge_math
 
 
 # Skip all tests if no valid API key
@@ -184,29 +103,11 @@ class TestTurn1WithSurge:
         
         assert plan is not None, "Plan should be generated"
         log_plan(plan, "TURN 1: Surge + Knight + Direct Attack Test")
-        
+
         # Validate Charge math in the plan
-        running_charge = plan.charge_start
-        for i, action in enumerate(plan.action_sequence):
-            if action.action_type == "end_turn":
-                continue
-            
-            # Calculate expected Charge after this action
-            charge_gain = 1 if action.card_name == "Surge" else 0
-            expected_charge = running_charge - action.charge_cost + charge_gain
-            
-            # Check that reported charge_after is reasonable
-            assert action.charge_after >= 0, \
-                f"Action {i+1} ({action.card_name}): charge_after cannot be negative! " \
-                f"Reported {action.charge_after}, calculated {expected_charge}"
-            
-            # Charge should never go negative during the sequence
-            assert expected_charge >= 0, \
-                f"Action {i+1} ({action.card_name}): Would result in negative Charge! " \
-                f"{running_charge} - {action.charge_cost} + {charge_gain} = {expected_charge}"
-            
-            running_charge = expected_charge
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # The AI should find a way to break at least 1 card
         # With Surge + Knight + Direct Attack, this is achievable
         # But we only soft-assert this since the AI might find other valid plans
@@ -239,11 +140,10 @@ class TestTurn1WithSurge:
         
         assert plan is not None
         log_plan(plan, "TURN 1: Surge + Umbruh + Direct Attack Test")
-        
-        # Validate no negative Charge in the sequence
-        for action in plan.action_sequence:
-            assert action.charge_after >= 0, \
-                f"Action {action.card_name}: charge_after cannot be negative!"
+
+        # Validate Charge math in the plan
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
 
 
 class TestTurn1DropTrap:
@@ -639,33 +539,6 @@ class TestTurn1Regression:
         assert len(failures) == 0, \
             f"Regression tests failed: {[r[0] for r in failures]}"
 
-
-def validate_charge_math(plan):
-    """
-    Validate Charge math throughout a plan.
-    
-    Returns list of errors, empty list if valid.
-    """
-    CHARGE_GAINS = {"Surge": 1, "Rush": 2}
-    
-    running_charge = plan.charge_start
-    errors = []
-    
-    for i, action in enumerate(plan.action_sequence, 1):
-        if action.action_type == "end_turn":
-            continue
-        
-        charge_gain = CHARGE_GAINS.get(action.card_name, 0)
-        expected_charge = running_charge - action.charge_cost + charge_gain
-        
-        if expected_charge < 0:
-            errors.append(
-                f"Action {i} ({action.card_name}): {running_charge} - {action.charge_cost} + {charge_gain} = {expected_charge} (negative!)"
-            )
-        
-        running_charge = max(0, expected_charge)
-    
-    return errors
 
 class TestCopyTrap:
     def test_copy_only_targets_own_toys(self, turn_planner):

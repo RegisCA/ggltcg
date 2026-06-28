@@ -19,7 +19,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from conftest import create_game_with_cards
-from ai_test_support import has_valid_ai_api_key, build_turn_planner
+from ai_test_support import has_valid_ai_api_key, build_turn_planner, validate_charge_math
 
 
 # Skip all tests if no valid API key (CI environment uses dummy key)
@@ -64,13 +64,14 @@ class TestTurnPlannerBasic:
         
         # Assertions
         assert plan is not None, "Plan should be generated"
-        # charge_start is LLM-generated metadata; prompt now instructs the model to use "Your Charge"
-        # value from game state, so we accept any non-negative value here (execution uses
-        # actual game state Charge, not plan.charge_start).
-        assert plan.charge_start >= 0, "Charge start should be non-negative"
+        # charge_start is engine-derived (set directly from ai_player.charge at plan
+        # creation, see turn_planner.py create_plan) — not LLM output — so it's exact.
+        assert plan.charge_start == 2, "Charge start should match the player's actual Charge"
         assert len(plan.action_sequence) > 0, "Plan should have at least one action"
         assert plan.action_sequence[-1].action_type == "end_turn", "Plan should end with end_turn"
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # Log plan for manual review
         print("\n" + "=" * 60)
         print("PLAN OUTPUT (empty board):")
@@ -108,7 +109,9 @@ class TestTurnPlannerBasic:
         assert plan is not None, "Plan should be generated"
         assert "Knight" in plan.threat_assessment or "Paper Plane" in plan.threat_assessment, \
             "Threat assessment should mention opponent's cards"
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # Log plan for manual review
         print("\n" + "=" * 60)
         print("PLAN OUTPUT (opponent has threats):")
@@ -138,18 +141,25 @@ class TestTurnPlannerBasic:
             setup.engine
         )
         
+        assert plan is not None
+
         # Validate plan
         errors = turn_planner.validate_plan_actions(
             plan,
             setup.game_state,
             "player1"
         )
-        
+
         # Log validation results
         print(f"\nValidation errors: {errors}")
-        
+
         # Should have few or no errors if LLM is working correctly
         # (We don't assert zero errors because LLM might make mistakes)
+
+        # Charge math itself (separate from the advisory validator above) is
+        # engine-derived and must be exact.
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
 
 
 class TestTurnPlannerScenarios:
@@ -177,7 +187,9 @@ class TestTurnPlannerScenarios:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # The plan should consider Archer path
         # Expected: ~4 Charge to break 2 cards = 2.0 Charge per card
         print("\n" + "=" * 60)
@@ -208,10 +220,12 @@ class TestTurnPlannerScenarios:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # Should identify Sock Sorcerer as CRITICAL
         assert "CRITICAL" in plan.threat_assessment or "Sock Sorcerer" in plan.threat_assessment
-        
+
         print("\n" + "=" * 60)
         print("SOCK SORCERER (CRITICAL) SCENARIO:")
         print(f"Threat Assessment: {plan.threat_assessment}")
@@ -234,7 +248,9 @@ class TestTurnPlannerScenarios:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # Should mention Wizard in threat assessment
         print("\n" + "=" * 60)
         print("WIZARD (HIGH THREAT) SCENARIO:")
@@ -258,7 +274,9 @@ class TestTurnPlannerScenarios:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # Should plan direct attacks
         direct_attack_count = sum(
             1 for a in plan.action_sequence if a.action_type == "direct_attack"
@@ -292,7 +310,9 @@ class TestTurnPlannerScenarios:
         
         assert plan is not None
         assert plan.charge_start == 0
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # With 0 Charge, the only reasonable action is to end turn
         # (Surge is 0 Charge but doesn't help if we can't attack after)
         print("\n" + "=" * 60)
@@ -323,23 +343,16 @@ class TestTurnPlannerChargeBudgeting:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         # Verify Charge tracking
         print("\n" + "=" * 60)
         print("Charge TRACKING TEST:")
         print(f"Starting Charge: {plan.charge_start}")
-        
-        running_charge = plan.charge_start
         for i, action in enumerate(plan.action_sequence, 1):
-            expected_after = running_charge - action.charge_cost
-            # Note: Some actions generate Charge (Surge, Rush) - the charge_after should reflect this
             print(f"  {i}. {action.action_type}: {action.card_name or 'N/A'}")
-            print(f"      Cost: {action.charge_cost} Charge, After: {action.charge_after} Charge (expected: {expected_after}+)")
-            
-            if action.action_type != "end_turn":
-                # Update running Charge (simplified - doesn't account for Charge generation)
-                running_charge = action.charge_after
-        
+            print(f"      Cost: {action.charge_cost} Charge, After: {action.charge_after} Charge")
         print(f"Final Charge: {plan.charge_after_plan}")
         print("=" * 60)
 
@@ -359,7 +372,9 @@ class TestTurnPlannerChargeBudgeting:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         print("\n" + "=" * 60)
         print("SURGE Charge GENERATION TEST:")
         print(f"Starting Charge: {plan.charge_start}")
@@ -399,7 +414,9 @@ class TestTurnPlannerChargeBudgeting:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         print("\n" + "=" * 60)
         print("RAGGY FREE TUSSLE TEST:")
         print(f"Starting Charge: {plan.charge_start}")
@@ -435,7 +452,9 @@ class TestTurnPlannerChargeBudgeting:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         print("\n" + "=" * 60)
         print("WIZARD REDUCED TUSSLE TEST:")
         print(f"Starting Charge: {plan.charge_start}")
@@ -474,7 +493,9 @@ class TestActionOrderOptimization:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         print("\n" + "=" * 60)
         print("HIND LEG KICKER COMBO TEST:")
         print(f"Starting Charge: {plan.charge_start}")
@@ -512,7 +533,9 @@ class TestActionOrderOptimization:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         print("\n" + "=" * 60)
         print("SURGE ENABLES EXTRA ATTACKS TEST:")
         print(f"Starting Charge: {plan.charge_start}")
@@ -569,7 +592,9 @@ class TestActionOrderOptimization:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         print("\n" + "=" * 60)
         print("VVAJ BEFORE TUSSLE TEST:")
         print(f"Starting Charge: {plan.charge_start}")
@@ -614,7 +639,9 @@ class TestActionOrderOptimization:
         )
         
         assert plan is not None
-        
+        charge_errors = validate_charge_math(plan)
+        assert not charge_errors, f"Plan has impossible Charge math: {charge_errors}"
+
         print("\n" + "=" * 60)
         print("DREAM COST REDUCTION COMBO TEST:")
         print(f"Starting Charge: {plan.charge_start}")
