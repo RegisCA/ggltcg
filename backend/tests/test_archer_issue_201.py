@@ -444,19 +444,29 @@ def test_activate_ability_route_spends_charge():
 
     # Inject the prepared engine directly into the service's in-memory cache
     # so the route operates on this exact board state without needing to
-    # play cards from hand first.
-    get_game_service()._cache[game_state.game_id] = game_engine
+    # play cards from hand first (and without a real /games POST, which is
+    # what would normally create the DB row update_game() expects).
+    service = get_game_service()
+    service._cache[game_state.game_id] = game_engine
 
-    client = TestClient(app)
-    response = client.post(
-        f"/games/{game_state.game_id}/activate-ability",
-        json={
-            "player_id": "player1",
-            "card_id": archer.id,
-            "target_id": ka.id,
-            "amount": 1,
-        },
-    )
+    # This test only cares about the route's pre-persistence logic (Charge
+    # spend + effect application); disable DB writes so it doesn't depend on
+    # a `games` row that only a real POST /games would have created.
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(
+            f"/games/{game_state.game_id}/activate-ability",
+            json={
+                "player_id": "player1",
+                "card_id": archer.id,
+                "target_id": ka.id,
+                "amount": 1,
+            },
+        )
+    finally:
+        service.use_database = original_use_database
 
     assert response.status_code == 200, (
         f"Expected 200, got {response.status_code}: {response.text}"
