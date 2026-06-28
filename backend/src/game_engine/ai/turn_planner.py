@@ -138,7 +138,12 @@ class TurnPlanner:
 
         TurnPlanner._metrics["total_turns"] += 1
 
-        # Reset per-turn tracking
+        # Reset per-turn tracking. _last_prompt/_last_response are cleared too
+        # (not just the _selection_* mirrors) so that a turn which fails before
+        # reaching Request 2 surfaces as "no prompt", not the previous turn's
+        # stale prompt/response leaking through get_last_plan_info().
+        self._last_prompt = None
+        self._last_response = None
         self._selection_prompt = None
         self._selection_response = None
         self._selection_system_instruction = None
@@ -146,6 +151,7 @@ class TurnPlanner:
             "sequences_generated": 0,
             "sequences_after_validation": 0,
             "sequence_disagreements": [],
+            "enumeration_exception": None,
             "selection_parse_error": False,
             "selection_invalid_index": False,
             "selection_index_used": None,
@@ -159,6 +165,7 @@ class TurnPlanner:
             sequences = enumerate_sequences(game_state, player_id)
         except Exception as e:
             logger.error(f"Enumeration failed: {e}", exc_info=True)
+            self._enum_debug["enumeration_exception"] = str(e)
             sequences = []
         self._enum_debug["sequences_generated"] = len(sequences)
         logger.debug(f"   Enumerated {len(sequences)} sequences")

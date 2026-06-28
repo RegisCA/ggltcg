@@ -1121,17 +1121,30 @@ const AdminDataViewer: React.FC = () => {
                           <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
                             <span className="text-gray-500">Planner diagnostics: </span>
                             <span className="text-gray-300">
-                              sequences: {(enumDebug?.sequences_generated as number | undefined) ?? 'N/A'} gen
-                              {' / '}{(enumDebug?.sequences_after_validation as number | undefined) ?? 'N/A'} valid
+                              sequences generated: {(enumDebug?.sequences_generated as number | undefined) ?? 'N/A'}
                               {' · '}selection index: {(enumDebug?.selection_index_used as number | undefined) ?? 'N/A'}
                               {' · '}parse_error: {String((enumDebug?.selection_parse_error as boolean | undefined) ?? false)}
                               {' · '}invalid_index: {String((enumDebug?.selection_invalid_index as boolean | undefined) ?? false)}
                               {' · '}fallback_used: {String((enumDebug?.selection_fallback_used as boolean | undefined) ?? false)}
                             </span>
+                            {/* The validator is advisory-only in enum mode and never
+                                filters sequences, so "valid" would always equal
+                                "generated" — not shown as a separate count. Its only
+                                signal is the disagreement list below. */}
                             {Array.isArray(enumDebug?.sequence_disagreements) && (enumDebug.sequence_disagreements as unknown[]).length > 0 && (
                               <div className="text-gray-400 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                                 Validator disagreements (advisory): {(enumDebug.sequence_disagreements as string[]).slice(0, 3).join(' · ')}
                                 {(enumDebug.sequence_disagreements as string[]).length > 3 ? ` (+${(enumDebug.sequence_disagreements as string[]).length - 3} more)` : ''}
+                              </div>
+                            )}
+                            {!!enumDebug?.enumeration_exception && (
+                              <div className="text-red-300 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                ❌ Enumeration failed (0 sequences, fell back to plain end_turn): {String(enumDebug.enumeration_exception)}
+                              </div>
+                            )}
+                            {!!enumDebug?.selection_exception && (
+                              <div className="text-red-300 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                ❌ Strategic selection failed: {String(enumDebug.selection_exception)}
                               </div>
                             )}
                           </div>
@@ -1198,7 +1211,11 @@ const AdminDataViewer: React.FC = () => {
                                       </span>
                                     )}
                                     
-                                    {action.reasoning && !notAttempted && (
+                                    {/* Enum sequences carry one reasoning for the whole
+                                        plan (shown in "Strategy:" above), not per action —
+                                        action.reasoning is always the literal sentinel
+                                        below, so skip rendering it. */}
+                                    {action.reasoning && action.reasoning !== 'No reasoning provided' && !notAttempted && (
                                       <span className="text-gray-500 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
                                         {action.reasoning}
                                       </span>

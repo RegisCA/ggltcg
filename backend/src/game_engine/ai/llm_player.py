@@ -527,13 +527,20 @@ class LLMPlayer:
             }
         else:
             # Plan failed or not yet generated — still surface a plan dict so
-            # the admin UI groups this log under the planner view.
+            # the admin UI groups this log under the planner view. Surface
+            # enum_debug too: even with no plan, it carries sequences_generated
+            # and enumeration_exception/selection_exception, which is the only
+            # way to tell *why* planning failed instead of just that it did.
             info["plan"] = {
                 "planner": "enum",
                 "total_actions": 0,
                 "current_action": None,
                 "planning_prompt": plan_info.get("prompt") if plan_info else None,
                 "planning_response": plan_info.get("response") if plan_info else None,
+                "selection_prompt": plan_info.get("selection_prompt") if plan_info else None,
+                "selection_response": plan_info.get("selection_response") if plan_info else None,
+                "selection_system_instruction": plan_info.get("selection_system_instruction") if plan_info else None,
+                "enum_debug": plan_info.get("enum_debug") if plan_info else None,
             }
 
         return info
