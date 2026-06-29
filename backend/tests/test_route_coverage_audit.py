@@ -266,6 +266,352 @@ def test_ai_turn_route_dispatches_play_card():
     assert game_state.play_by_play, "Route should log the AI's play to play-by-play"
 
 
+def test_ai_turn_route_dispatches_tussle():
+    """POST /ai-turn: the tussle dispatch branch (routes_actions.py:741-793) -
+    only the play_card branch was previously exercised at the HTTP level.
+
+    Knight attacking Paper Plane is the same deterministic, one-sided trade
+    used by test_tussle_route_basic, so this isolates the /ai-turn route's
+    own tussle dispatch/execution/victory-check logic from combat-math
+    correctness (covered elsewhere).
+    """
+    import api.routes_actions as routes_actions
+    from api.app import app
+
+    knight = _load_card("Knight")
+    knight.owner = "player1"
+    knight.controller = "player1"
+    knight.zone = Zone.IN_PLAY
+
+    paper_plane = _load_card("Paper Plane")
+    paper_plane.owner = "player2"
+    paper_plane.controller = "player2"
+    paper_plane.zone = Zone.IN_PLAY
+
+    player1 = Player(player_id="player1", name="Player 1", charge=2, hand=[], in_play=[knight])
+    player2 = Player(player_id="player2", name="Player 2", charge=2, hand=[], in_play=[paper_plane])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=3,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    class _FakeAIPlayer:
+        """Picks the tussle action targeting Paper Plane from whatever
+        ActionValidator actually produced, so the route's own dispatch runs
+        unmodified against real validator output."""
+
+        def select_action(self, game_state, player_id, valid_actions, game_engine=None):
+            for i, action in enumerate(valid_actions):
+                if action.action_type == "tussle" and action.card_id == knight.id:
+                    return (i, "fake: tussle Paper Plane")
+            raise AssertionError("expected a tussle action for Knight in valid_actions")
+
+        def get_action_details(self, selected_action):
+            return {
+                "action_type": "tussle",
+                "attacker_id": selected_action.card_id,
+                "defender_id": paper_plane.id,
+            }
+
+        def get_endpoint_name(self):
+            return "FakeAI"
+
+        def get_last_decision_info(self):
+            return {
+                "model_name": "fake",
+                "prompts_version": "fake",
+                "action_number": 1,
+                "reasoning": "fake",
+                "prompt": "",
+                "response": "",
+                "plan": None,
+            }
+
+    original_get_ai_player = routes_actions.get_ai_player
+    routes_actions.get_ai_player = lambda: _FakeAIPlayer()
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(f"/games/{game_state.game_id}/ai-turn", params={"player_id": "player1"})
+    finally:
+        routes_actions.get_ai_player = original_get_ai_player
+        service.use_database = original_use_database
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+    assert body["ai_turn_summary"]["action"] == "tussle"
+
+    assert player1.charge == 0, f"Tussle should cost 2 Charge, player1.charge={player1.charge}"
+    assert any(c.id == paper_plane.id for c in player2.break_zone), "Paper Plane should be broken"
+    assert knight in player1.in_play, "Knight should survive the trade"
+
+
+def test_ai_turn_route_dispatches_activate_ability():
+    """POST /ai-turn: the activate_ability dispatch branch
+    (routes_actions.py:815-944) - untested at the HTTP level until now.
+
+    Mirrors test_activate_ability_route_spends_charge's Archer-targets-Ka
+    setup (test_archer_issue_201.py), but through the AI dispatch path
+    instead of the dedicated /activate-ability route.
+    """
+    import api.routes_actions as routes_actions
+    from api.app import app
+
+    archer = _load_card("Archer")
+    archer.owner = "player1"
+    archer.controller = "player1"
+    archer.zone = Zone.IN_PLAY
+
+    ka = _load_card("Ka")
+    ka.owner = "player2"
+    ka.controller = "player2"
+    ka.zone = Zone.IN_PLAY
+
+    player1 = Player(player_id="player1", name="Player 1", charge=5, hand=[], in_play=[archer])
+    player2 = Player(player_id="player2", name="Player 2", charge=5, hand=[], in_play=[ka])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=1,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    class _FakeAIPlayer:
+        """Picks the activate_ability action for Archer targeting Ka from
+        whatever ActionValidator actually produced."""
+
+        def select_action(self, game_state, player_id, valid_actions, game_engine=None):
+            for i, action in enumerate(valid_actions):
+                if action.action_type == "activate_ability" and action.card_id == archer.id:
+                    return (i, "fake: activate Archer on Ka")
+            raise AssertionError("expected an activate_ability action for Archer in valid_actions")
+
+        def get_action_details(self, selected_action):
+            return {
+                "action_type": "activate_ability",
+                "card_id": selected_action.card_id,
+                "target_id": ka.id,
+                "amount": 1,
+            }
+
+        def get_endpoint_name(self):
+            return "FakeAI"
+
+        def get_last_decision_info(self):
+            return {
+                "model_name": "fake",
+                "prompts_version": "fake",
+                "action_number": 1,
+                "reasoning": "fake",
+                "prompt": "",
+                "response": "",
+                "plan": None,
+            }
+
+    original_get_ai_player = routes_actions.get_ai_player
+    routes_actions.get_ai_player = lambda: _FakeAIPlayer()
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(f"/games/{game_state.game_id}/ai-turn", params={"player_id": "player1"})
+    finally:
+        routes_actions.get_ai_player = original_get_ai_player
+        service.use_database = original_use_database
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+    assert body["ai_turn_summary"]["action"] == "activate_ability"
+    assert player1.charge == 4, f"Archer's ability should cost 1 Charge, player1.charge={player1.charge}"
+
+
+def test_ai_turn_route_falls_back_to_end_turn_when_ai_selects_none():
+    """POST /ai-turn: the AI-failed-to-select fallback branch
+    (routes_actions.py:505-556) - untested at the HTTP level until now.
+
+    When select_action returns None (e.g. the LLM call failed entirely),
+    the route must not 500 - it falls back to engine.end_turn() and reports
+    a "pass" action.
+    """
+    import api.routes_actions as routes_actions
+    from api.app import app
+
+    player1 = Player(player_id="player1", name="Player 1", charge=2, hand=[], in_play=[])
+    player2 = Player(player_id="player2", name="Player 2", charge=2, hand=[], in_play=[])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=1,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    class _FakeAIPlayer:
+        """Simulates a total AI selection failure."""
+
+        def select_action(self, game_state, player_id, valid_actions, game_engine=None):
+            return None
+
+        def get_endpoint_name(self):
+            return "FakeAI"
+
+        def get_last_decision_info(self):
+            return {
+                "model_name": "fake",
+                "prompts_version": "fake",
+                "prompt": "",
+                "response": "",
+                "plan": None,
+            }
+
+    original_get_ai_player = routes_actions.get_ai_player
+    routes_actions.get_ai_player = lambda: _FakeAIPlayer()
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(f"/games/{game_state.game_id}/ai-turn", params={"player_id": "player1"})
+    finally:
+        routes_actions.get_ai_player = original_get_ai_player
+        service.use_database = original_use_database
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+    assert body["ai_turn_summary"]["action"] == "pass"
+
+    assert game_state.turn_number == 2, "Fallback should end the turn"
+    assert game_state.active_player_id == "player2", "Fallback should pass turn to the opponent"
+
+
+def test_tussle_route_direct_attack():
+    """POST /tussle with no defender_id: the direct-attack branch
+    (routes_actions.py:161-170, defender stays None) - only the
+    defender-provided happy path was previously exercised at the HTTP
+    level.
+
+    Opponent has no cards in play (direct attack legal) and exactly one
+    card in hand, so the broken card is deterministic.
+    """
+    from api.app import app
+
+    knight = _load_card("Knight")
+    knight.owner = "player1"
+    knight.controller = "player1"
+    knight.zone = Zone.IN_PLAY
+
+    opponent_hand_card = _load_card("Surge")
+    opponent_hand_card.owner = "player2"
+    opponent_hand_card.controller = "player2"
+    opponent_hand_card.zone = Zone.HAND
+
+    player1 = Player(player_id="player1", name="Player 1", charge=2, hand=[], in_play=[knight])
+    player2 = Player(player_id="player2", name="Player 2", charge=2, hand=[opponent_hand_card], in_play=[])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=3,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(
+            f"/games/{game_state.game_id}/tussle",
+            json={"player_id": "player1", "attacker_id": knight.id},
+        )
+    finally:
+        service.use_database = original_use_database
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+
+    assert player1.charge == 0, f"Direct attack should still cost 2 Charge, player1.charge={player1.charge}"
+    assert opponent_hand_card not in player2.hand, "Direct attack should break the opponent's only hand card"
+    assert any(c.id == opponent_hand_card.id for c in player2.break_zone)
+    assert player1.direct_attacks_this_turn == 1
+
+
+def test_tussle_route_victory_ends_game():
+    """POST /tussle: the victory branch (routes_actions.py:206-219) returns
+    a distinct response shape ({"winner": ...}, no "turn" key) that was
+    never asserted on at the HTTP level - test_tussle_route_basic's
+    opponent happened to have no other cards either, but didn't check this.
+
+    Breaking Paper Plane, the opponent's only card anywhere, ends the game.
+    """
+    from api.app import app
+
+    knight = _load_card("Knight")
+    knight.owner = "player1"
+    knight.controller = "player1"
+    knight.zone = Zone.IN_PLAY
+
+    paper_plane = _load_card("Paper Plane")
+    paper_plane.owner = "player2"
+    paper_plane.controller = "player2"
+    paper_plane.zone = Zone.IN_PLAY
+
+    player1 = Player(player_id="player1", name="Player 1", charge=2, hand=[], in_play=[knight])
+    player2 = Player(player_id="player2", name="Player 2", charge=2, hand=[], in_play=[paper_plane], break_zone=[])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=3,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(
+            f"/games/{game_state.game_id}/tussle",
+            json={"player_id": "player1", "attacker_id": knight.id, "defender_id": paper_plane.id},
+        )
+    finally:
+        service.use_database = original_use_database
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+    assert "wins" in body["message"]
+    assert body["game_state"]["winner"] == "player1"
+    assert "turn" not in body["game_state"], "Victory response shape has no 'turn' key"
+
+
 def test_get_game_state_hides_opponent_hand_and_applies_stat_buffs():
     """GET /{game_id}: hand-visibility-by-player_id and continuous-effect
     stat buffs are computed in the route handler itself (_card_to_state),
