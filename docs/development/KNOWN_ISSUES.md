@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 29, 2026 (Active Issue #2 resolved)
+**Last Updated**: June 29, 2026 (Active Issue #1 resolved and deleted)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -55,6 +55,24 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   `test_ai_enum_scenario.py` (or rewriting them against a real, current
   notion of correctness, not a deleted mode's baseline) rather than
   continuing to treat their failures as actionable.
+### 2. Route-level (HTTP) test coverage gap
+
+- **Where**: full detail, priority order, and per-route handler-complexity
+  notes are in `docs/plans/TEST_SUITE_AUDIT_REPORT.md` §2 — this entry is a
+  pointer so it's visible from this doc too, not a duplicate.
+- **What it is**: `/ai-turn` (509 LOC, 4-way action dispatch + LLM fallback),
+  `/tussle` (cost/defender/victory branching), `GET /{game_id}`
+  (hand-visibility-by-`player_id`, security-relevant), and `/play-card`
+  (status-code mapping) all have real handler logic and zero HTTP-level test
+  coverage — only engine/validator-level tests exercise the logic they call.
+  `POST /activate-ability` had the same gap until a real `spend_cc`→`spend_charge`
+  rename bug shipped to prod for two weeks uncaught (see
+  `feedback_rename_refactor_route_coverage_gap` in session memory); it now has
+  a `TestClient`-based regression test (`test_activate_ability_route_spends_charge`
+  in `test_archer_issue_201.py`) that's the template to copy for these four.
+- **Note**: §3 of that same report ("validator advisory noise... leave in
+  backlog") is now moot as of PR #344 — `TurnPlanValidator` no longer exists.
+- **Status**: Open — not yet started, no committed timeline.
 
 ### 3. `ARCHITECTURE.md` / `EFFECT_SYSTEM_ARCHITECTURE.md` — describe a pre-CSV effect system that no longer exists
 
@@ -118,6 +136,23 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   branches. `GET /{game_id}` and `/play-card`'s main risk areas
   (hand-visibility, 400 mapping) were already covered by #343 — no further
   work needed there.
+### `test_ai_enum_scenario.py` — stale migration-parity gate, not a real correctness check
+
+- **Fixed**: June 29, 2026.
+- **What it was**: introduced in PR #331 (WP-4 Phase 4.2) to gate the new
+  deterministic-enumerator (`enum`) planner mode against the old dual-LLM
+  (`dual`/V4) planner mode's *measured baseline* on two scenarios. The `dual`
+  mode was deleted in PR #342 when the AI was pruned to a single
+  architecture, but the `≤1` Charge-waste threshold survived and later
+  passes reworded the docstring to drop the "vs dual" qualifier, making a
+  migration-parity number look like a self-contained correctness bar.
+  `charge_wasted` doesn't measure play quality (see prior analysis below),
+  and `test_turn2_aggressive_enum` was also gated behind a live,
+  non-deterministic Gemini call, so it could flip pass/fail run-to-run
+  independent of any code change.
+- **Fix**: deleted `backend/tests/test_ai_enum_scenario.py` outright — no
+  salvageable assertion. Confirmed nothing else in the test suite imports
+  the file or its test names; its local fixtures weren't shared elsewhere.
 
 ### Mechanical dead-code scan — legacy `EffectRegistry` dispatch path + assorted orphans
 
