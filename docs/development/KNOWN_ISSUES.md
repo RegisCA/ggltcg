@@ -1,60 +1,12 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 29, 2026 (Active Issue #3 added)
+**Last Updated**: June 29, 2026 (Active Issue #1 resolved and deleted)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
 ---
 
 ## 🔴 Active Issues
-
-### 1. `test_ai_enum_scenario.py` — stale migration-parity gate, not a real correctness check
-
-- **Where**: `backend/tests/test_ai_enum_scenario.py` —
-  `test_turn1_surge_knight_enum` and `test_turn2_aggressive_enum`.
-- **What it actually is**: introduced in PR #331 (WP-4 Phase 4.2) to gate the
-  new deterministic-enumerator (`enum`) planner mode against the old
-  dual-LLM (`dual`/V4) planner mode's *measured baseline* on two scenarios.
-  Original docstring: "Gate: ... CC waste ≤ **the dual baseline** (≤1)", and
-  both assertions originally read
-  `f"enum wasted {X} CC (dual baseline ≤1)"`. The `dual` mode and its own
-  test file (`test_ai_standard_scenario.py`) were deleted in PR #342 when the
-  AI was pruned to a single architecture. The `≤1` threshold survived, and
-  later passes (PR #341's cc→charge rename, then #342/#343's doc cleanup)
-  reworded the docstring to "Gate: ... Charge waste ≤1" — dropping the "vs
-  dual" qualifier and making a migration-parity number look like a
-  self-contained correctness bar. There is no longer a `dual` baseline to be
-  ≤ of.
-- **Why it doesn't actually test anything useful now**: `charge_wasted`
-  doesn't measure play quality. Enumerating `test_turn2_aggressive_enum`'s
-  exact scenario shows a 0-waste sequence exists (play Archer, play Umbruh,
-  activate Archer's stamina-removal ability against no remaining valid
-  target, then tussle) but it is not obviously *better* play than the 2-waste
-  line the AI actually picked (tussle only, hold the rest of the hand) —
-  Archer's ability has nothing useful to target once the opponent's only toy
-  is broken, and playing Umbruh just exposes a second toy for no immediate
-  benefit. The metric rewards "spent the number" over "made a good
-  decision." `test_turn1_surge_knight_enum` currently passes, but for the
-  same non-reason — it happens to coincide with the obviously-correct
-  Surge→Knight→direct_attack line in that simpler scenario, not because the
-  metric is principled.
-- **Compounding problem**: gated behind a live, non-deterministic Gemini call
-  (skipped without a real API key), so `test_turn2_aggressive_enum` will flip
-  pass/fail run-to-run independent of any code change — reproduced as
-  failing identically on `main` before PR #344's unrelated changes, via a
-  throwaway worktree.
-- **Caught and rationalized twice**: PR #343's test-suite audit found this
-  exact failure and filed it as "a live AI strategic-quality gap... left as a
-  backlog item," and it was rationalized the same way again during PR #344's
-  review — both times treating the failure as actionable AI-quality
-  feedback instead of recognizing the test's premise (compare against a
-  deleted `dual` baseline) no longer holds. Caught on the third pass only
-  because the user pushed back and the original PR #331 docstring was pulled
-  via `git show`.
-- **Status**: Open — recommend deleting both tests in
-  `test_ai_enum_scenario.py` (or rewriting them against a real, current
-  notion of correctness, not a deleted mode's baseline) rather than
-  continuing to treat their failures as actionable.
 
 ### 2. Route-level (HTTP) test coverage gap
 
@@ -111,6 +63,24 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 ---
 
 ## ✅ Resolved
+
+### `test_ai_enum_scenario.py` — stale migration-parity gate, not a real correctness check
+
+- **Fixed**: June 29, 2026.
+- **What it was**: introduced in PR #331 (WP-4 Phase 4.2) to gate the new
+  deterministic-enumerator (`enum`) planner mode against the old dual-LLM
+  (`dual`/V4) planner mode's *measured baseline* on two scenarios. The `dual`
+  mode was deleted in PR #342 when the AI was pruned to a single
+  architecture, but the `≤1` Charge-waste threshold survived and later
+  passes reworded the docstring to drop the "vs dual" qualifier, making a
+  migration-parity number look like a self-contained correctness bar.
+  `charge_wasted` doesn't measure play quality (see prior analysis below),
+  and `test_turn2_aggressive_enum` was also gated behind a live,
+  non-deterministic Gemini call, so it could flip pass/fail run-to-run
+  independent of any code change.
+- **Fix**: deleted `backend/tests/test_ai_enum_scenario.py` outright — no
+  salvageable assertion. Confirmed nothing else in the test suite imports
+  the file or its test names; its local fixtures weren't shared elsewhere.
 
 ### Mechanical dead-code scan — legacy `EffectRegistry` dispatch path + assorted orphans
 
