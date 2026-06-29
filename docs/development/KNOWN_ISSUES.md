@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 29, 2026 (Active Issue #3 added)
+**Last Updated**: June 29, 2026 (Active Issue #2 resolved)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -56,25 +56,6 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   notion of correctness, not a deleted mode's baseline) rather than
   continuing to treat their failures as actionable.
 
-### 2. Route-level (HTTP) test coverage gap
-
-- **Where**: full detail, priority order, and per-route handler-complexity
-  notes are in `docs/plans/TEST_SUITE_AUDIT_REPORT.md` §2 — this entry is a
-  pointer so it's visible from this doc too, not a duplicate.
-- **What it is**: `/ai-turn` (509 LOC, 4-way action dispatch + LLM fallback),
-  `/tussle` (cost/defender/victory branching), `GET /{game_id}`
-  (hand-visibility-by-`player_id`, security-relevant), and `/play-card`
-  (status-code mapping) all have real handler logic and zero HTTP-level test
-  coverage — only engine/validator-level tests exercise the logic they call.
-  `POST /activate-ability` had the same gap until a real `spend_cc`→`spend_charge`
-  rename bug shipped to prod for two weeks uncaught (see
-  `feedback_rename_refactor_route_coverage_gap` in session memory); it now has
-  a `TestClient`-based regression test (`test_activate_ability_route_spends_charge`
-  in `test_archer_issue_201.py`) that's the template to copy for these four.
-- **Note**: §3 of that same report ("validator advisory noise... leave in
-  backlog") is now moot as of PR #344 — `TurnPlanValidator` no longer exists.
-- **Status**: Open — not yet started, no committed timeline.
-
 ### 3. `ARCHITECTURE.md` / `EFFECT_SYSTEM_ARCHITECTURE.md` — describe a pre-CSV effect system that no longer exists
 
 - **Where**: `docs/development/ARCHITECTURE.md` (effect type hierarchy diagram,
@@ -111,6 +92,32 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 ---
 
 ## ✅ Resolved
+
+### Route-level (HTTP) test coverage gap
+
+- **Fixed**: June 29, 2026.
+- **What it was**: `/ai-turn` (509 LOC, 4-way action dispatch + LLM
+  fallback), `/tussle` (cost/defender/victory branching), `GET /{game_id}`
+  (hand-visibility-by-`player_id`, security-relevant), and `/play-card`
+  (status-code mapping) all had real handler logic exercised only at the
+  engine/validator layer, never through the actual route. `POST
+  /activate-ability` had the same gap until a real `spend_cc`→`spend_charge`
+  rename bug shipped to prod for two weeks uncaught — see
+  `test_activate_ability_route_spends_charge` in `test_archer_issue_201.py`,
+  the template this fix follows.
+- **Note**: this doc previously described the gap as fully open. PR #343
+  (June 28) had already closed the first layer — one `TestClient`-based
+  happy-path test per route, in `backend/tests/test_route_coverage_audit.py`
+  — but neither this doc nor `TEST_SUITE_AUDIT_REPORT.md §2`'s own status
+  line were updated to reflect that, so the remaining gap looked larger than
+  it was.
+- **Fix**: added 5 tests covering the specific branches #343 left
+  untested: `/ai-turn`'s `tussle` and `activate_ability` dispatch branches
+  and its AI-selected-nothing fallback (falls back to `engine.end_turn()`),
+  and `/tussle`'s direct-attack (`defender_id` omitted) and victory-response
+  branches. `GET /{game_id}` and `/play-card`'s main risk areas
+  (hand-visibility, 400 mapping) were already covered by #343 — no further
+  work needed there.
 
 ### Mechanical dead-code scan — legacy `EffectRegistry` dispatch path + assorted orphans
 
