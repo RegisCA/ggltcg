@@ -5,7 +5,6 @@ Provides endpoints for user authentication, token verification, and profile mana
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, attributes
 from typing import Optional, Annotated, List

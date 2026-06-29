@@ -151,7 +151,7 @@ const { data: gameState } = useQuery({
 **File**: `frontend/src/utils/cardFactory.ts`
 
 ```typescript
-import { createCardFromApiData, createTestCard } from '../utils/cardFactory';
+import { createCardFromApiData } from '../utils/cardFactory';
 
 // ✅ CORRECT - use factory functions
 const card = createCardFromApiData(apiResponse, 'preview');

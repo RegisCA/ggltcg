@@ -119,10 +119,6 @@ class GameState:
         """Check if this is the first turn of the game."""
         return self.turn_number == 1
 
-    def is_active_player(self, player_id: str) -> bool:
-        """Check if the specified player is the active player."""
-        return player_id == self.active_player_id
-
     def log_event(self, message: str):
         """Add an event to the game log."""
         self.game_log.append(f"Turn {self.turn_number} ({self.phase.value}): {message}")
@@ -425,21 +421,6 @@ class GameState:
         new_controller.in_play.append(card)
 
         self.log_event(f"Control of {card.name} changed from {current_controller.name} to {new_controller.name}")
-
-    def play_card_from_hand(self, card: Card, player: Player) -> None:
-        """
-        Play a card from hand (move to in play).
-
-        Used by Beary's tussle cancel effect.
-
-        Args:
-            card: Card to play
-            player: Player playing the card
-        """
-        if card in player.hand:
-            player.hand.remove(card)
-            card.zone = Zone.IN_PLAY
-            player.in_play.append(card)
 
     def is_protected_from_effect(self, card: Card, effect: Any) -> bool:
         """

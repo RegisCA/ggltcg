@@ -340,7 +340,7 @@ class LLMPlayer:
 
             if action_number is None or action_number < 1 or action_number > len(valid_actions):
                 logger.error(f"Invalid action number from LLM: {action_number}")
-                return self._handle_plan_failure(valid_actions, planned_action, "Invalid action number")
+                return self._handle_plan_failure(valid_actions, "Invalid action number")
 
             action_index = action_number - 1
             selected_action = valid_actions[action_index]
@@ -374,7 +374,7 @@ class LLMPlayer:
                     "status": "failed",
                     "reason": f"Action not available: {str(e)}",
                 })
-            return self._handle_plan_failure(valid_actions, planned_action, str(e))
+            return self._handle_plan_failure(valid_actions, str(e))
 
     def _is_action_available(self, planned_action: 'PlannedAction', valid_actions: list) -> bool:
         """
@@ -451,7 +451,6 @@ class LLMPlayer:
     def _handle_plan_failure(
         self,
         valid_actions: list['ValidAction'],
-        failed_action: 'PlannedAction',
         failure_reason: str
     ) -> Optional[tuple[int, str]]:
         """Handle when a planned action can't be executed."""
@@ -466,13 +465,6 @@ class LLMPlayer:
 
         self._current_plan = None
         return None
-
-    def reset_plan(self) -> None:
-        """Reset the current plan (call at start of turn if needed)."""
-        self._current_plan = None
-        self._plan_action_index = 0
-        self._completed_actions = []
-        self._plan_turn_number = None
 
     def get_last_decision_info(self) -> Dict[str, Any]:
         """Get information about the last AI decision, including the turn plan."""

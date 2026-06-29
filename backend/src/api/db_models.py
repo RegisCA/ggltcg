@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column, String, Integer, DateTime, Text, CheckConstraint, Index, ForeignKey, JSON
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 import uuid

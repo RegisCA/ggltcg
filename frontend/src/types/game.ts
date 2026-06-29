@@ -73,15 +73,3 @@ export interface ValidAction {
   description: string;
 }
 
-// Card data from CSV
-export interface CardData {
-  name: string;
-  status: string;
-  cost: number | string; // "?" for Copy
-  effect: string;
-  speed: number | null;
-  strength: number | null;
-  stamina: number | null;
-  faction: string;
-  quote: string;
-}

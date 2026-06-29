@@ -418,10 +418,10 @@ python -m simulation.cli baseline --model gemini-2.0-flash --iterations 30
 python -m simulation.cli baseline --model gemini-2.5-flash-lite --iterations 30
 
 # 2. Head-to-head comparison (both player orders)
-python -m simulation.cli compare --v1 4 --v2 4 --model1 gemini-2.0-flash --model2 gemini-2.5-flash-lite --iterations 30
+python -m simulation.cli compare --model1 gemini-2.0-flash --model2 gemini-2.5-flash-lite --iterations 30
 
 # 3. Reverse player order
-python -m simulation.cli compare --v1 4 --v2 4 --model1 gemini-2.5-flash-lite --model2 gemini-2.0-flash --iterations 30
+python -m simulation.cli compare --model1 gemini-2.5-flash-lite --model2 gemini-2.0-flash --iterations 30
 
 # 4. Analyze reports to check for:
 # - Win rate differences

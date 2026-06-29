@@ -19,7 +19,7 @@ Before writing backend code, verify these facts:
 | ✅ CORRECT | ❌ WRONG |
 |------------|----------|
 | `card.apply_damage(3)` | `card.stamina -= 3` |
-| `card.is_defeated()` | `card.stamina <= 0` |
+| `card.get_effective_stamina() <= 0` | `card.stamina <= 0` |
 | `engine._break_card(card, owner, True)` | `player.break_zone.append(card)` |
 | `game_state.find_card_by_id(id)` | `next(c for c in cards if c.name == name)` |
 
@@ -96,9 +96,9 @@ game_state.play_card(card)  # Method shouldn't exist here
 
 ```python
 # ✅ CORRECT - uses proper methods
-card.apply_damage(amount)        # Updates current_stamina
-card.is_defeated()               # Checks current_stamina
-card.modifications["strength"]   # Via effect system
+card.apply_damage(amount)              # Updates current_stamina
+card.get_effective_stamina() <= 0      # Checks current_stamina (incl. modifiers)
+card.modifications["strength"]         # Via effect system
 
 # ❌ WRONG - bypasses game logic
 card.stamina -= 1                # Modifies BASE stat, not current!

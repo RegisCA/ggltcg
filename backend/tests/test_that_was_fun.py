@@ -14,17 +14,11 @@ from pathlib import Path
 from conftest import create_game_with_cards, get_card_template
 from game_engine.rules.effects.effect_registry import EffectRegistry
 from game_engine.rules.effects.action_effects import FixEffect
-from game_engine.effects_constants import EffectDefinitions
 
 
 class TestThatWasFunEffectParsing:
     """Tests for effect parsing of 'That was fun' card."""
-    
-    def test_effect_definition_constant_exists(self):
-        """Verify FIX_ACTIONS_1 constant is defined."""
-        assert hasattr(EffectDefinitions, "FIX_ACTIONS_1")
-        assert EffectDefinitions.FIX_ACTIONS_1 == "fix:actions:1"
-    
+
     def test_that_was_fun_effect_parsing(self):
         """Test that 'That was fun' effect is parsed correctly from CSV."""
         card = get_card_template("That was fun")

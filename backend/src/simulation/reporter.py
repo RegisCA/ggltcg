@@ -52,28 +52,6 @@ class SimulationReporter:
         
         return "\n\n".join(sections)
     
-    def generate_summary_json(self) -> dict:
-        """
-        Generate a summary JSON for programmatic consumption.
-        
-        Returns:
-            Dictionary with key statistics
-        """
-        games = self.games
-        total = len(games)
-        
-        return {
-            "run_id": self.run_id,
-            "total_games": total,
-            "completed_games": self.results['completed_games'],
-            "status": self.results['status'],
-            "config": self.config,
-            "overall_stats": self._calculate_overall_stats(),
-            "matchup_stats": self._calculate_matchup_stats(),
-            "charge_stats": self._calculate_charge_stats(),
-            "first_player_advantage": self._calculate_first_player_advantage(),
-        }
-    
     def save_report(self, output_dir: str = "reports") -> str:
         """
         Save markdown report to file.
@@ -372,27 +350,6 @@ Full results available via API: `GET /admin/simulation/runs/{self.run_id}/result
             'p1_win_rate': p1_win_rate,
             'advantage': advantage,
         }
-
-
-def generate_report(run_id: int, orchestrator=None) -> str:
-    """
-    Convenience function to generate a report for a simulation run.
-    
-    Args:
-        run_id: ID of the simulation run
-        orchestrator: Optional SimulationOrchestrator instance
-        
-    Returns:
-        Markdown report string
-    """
-    if orchestrator is None:
-        from simulation.orchestrator import SimulationOrchestrator
-        orchestrator = SimulationOrchestrator()
-    
-    results = orchestrator.get_results(run_id)
-    reporter = SimulationReporter(results)
-    
-    return reporter.generate_markdown_report()
 
 
 def save_report(run_id: int, output_dir: str = "../../reports", orchestrator=None) -> str:

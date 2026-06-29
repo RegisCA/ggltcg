@@ -61,12 +61,6 @@ export interface ValidActionsResponse {
   valid_actions: ValidAction[];
 }
 
-// Error Response
-export interface ErrorResponse {
-  error: string;
-  details?: string;
-}
-
 // Card Data
 export interface CardDataResponse {
   name: string;

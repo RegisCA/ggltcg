@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 28, 2026 (Active Issue #2 added)
+**Last Updated**: June 29, 2026 (mechanical dead-code scan)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -82,6 +82,41 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 ---
 
 ## ✅ Resolved
+
+### Mechanical dead-code scan — legacy `EffectRegistry` dispatch path + assorted orphans
+
+- **Fixed**: June 29, 2026.
+- **What it was**: ran `vulture` (backend) and `knip` (frontend) for the first time
+  against this repo, then hand-verified every hit (both tools are dominated by
+  framework false positives — FastAPI routes, SQLAlchemy event listeners, Click
+  commands, multi-entry Vite blind spots — so raw output isn't actionable on its
+  own). The biggest find: `EffectRegistry`'s entire legacy name-based dispatch
+  path (`_effect_map`, `register_effect`, `has_effects`, `clear_registry`,
+  `get_all_cards_with_effects`, plus 5 effect classes — `KaEffect`,
+  `WizardEffect`, `DemidecaEffect`, `RaggyEffect`, `DreamCostEffect`) predates the
+  current CSV-driven `EffectFactory` system. `register_effect` was never called
+  (only a commented-out example remained), so the registry's "Priority 2"
+  fallback branch never fired for any card — `tests/test_effects.py` already had
+  a docstring saying as much. Also found: a whole second implementation of the
+  `/maintenance/cleanup` logic in `StatsService` (`cleanup_old_ai_logs` /
+  `cleanup_old_playback` / `cleanup_old_simulations`) that was never wired to the
+  actual route (which does the same thing via inline SQL) — only its own unit
+  test called it. And a frontend component, `PlayerZone.tsx`, that's been
+  unreferenced since `GameBoard.tsx` was decomposed into smaller zone
+  components, yet kept receiving drive-by edits from global refactors
+  (terminology rename, Tailwind-token passes) that touched every file in
+  `components/` without checking liveness first.
+- **Fix**: removed the legacy registry path and its 5 dead effect classes, two
+  orphaned `TriggerTiming` enum members (`WHEN_OPPONENT_TUSSLES`, `END_OF_TURN`
+  — stale "# Beary" comment, no dispatch branch ever checked them), the
+  entirely-unused `effects_constants.py` module (and the two tautological tests
+  that only asserted its constants equal themselves), the duplicate
+  `StatsService` cleanup methods, several one-off dead methods across the API/AI
+  layers, stale `--v1/--v2` CLI examples in two simulation docs left over from
+  the AI-pruning pass (#342), and 4 orphaned frontend files (`PlayerZone.tsx`,
+  `CardHoverPreview.tsx`, `TurnTransition.tsx`, `App.css`) plus several unused
+  exported types/functions. Net: 31 files, +19/−1351 lines. All 389 backend
+  tests pass; frontend `tsc -b && vite build` succeeds.
 
 ### AI test suite — purged tautological/toothless tests
 

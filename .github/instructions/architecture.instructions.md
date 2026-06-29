@@ -24,13 +24,13 @@ card = next((c for c in cards if c.name == "Ka"), None)
 ```python
 # ✅ CORRECT
 card.apply_damage(amount)
-if card.is_defeated():
-    engine._sleep_card(card, owner, was_in_play=True)
+if card.get_effective_stamina() <= 0:
+    engine._break_card(card, owner, was_in_play=True)
 
 # ❌ WRONG
 card.stamina -= 1
 if card.stamina <= 0:
-    player.sleep_zone.append(card)
+    player.break_zone.append(card)
 ```
 
 ### 3. GameEngine vs GameState Separation

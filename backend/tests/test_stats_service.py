@@ -74,15 +74,6 @@ class TestStatsServiceNoDb:
             tussles_won=2,
         )
     
-    def test_cleanup_no_db_returns_zero(self):
-        """Test that cleanup returns 0 without database."""
-        from api.stats_service import StatsService
-        
-        service = StatsService(use_database=False)
-        
-        assert service.cleanup_old_ai_logs() == 0
-        assert service.cleanup_old_playback() == 0
-    
     def test_get_player_stats_no_db_returns_none(self):
         """Test that get_player_stats returns None without database."""
         from api.stats_service import StatsService

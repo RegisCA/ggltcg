@@ -13,7 +13,6 @@ from api.schemas import (
     GameStateResponse,
     PlayerState,
     CardState,
-    ErrorResponse,
     RandomDeckRequest,
     RandomDeckResponse,
     QuickPlayRequest,

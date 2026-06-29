@@ -72,10 +72,6 @@ export async function getGameState(gameId: string, playerId?: string): Promise<G
   return response.data;
 }
 
-export async function deleteGame(gameId: string): Promise<void> {
-  await apiClient.delete(`/games/${gameId}`);
-}
-
 // ============================================================================
 // PLAYER ACTIONS
 // ============================================================================

@@ -42,26 +42,6 @@ export async function getLeaderboard(
   return response.data;
 }
 
-/**
- * Get the leaderboard for a specific card
- */
-export async function getCardLeaderboard(
-  cardName: string,
-  limit: number = 10,
-  minGames: number = 3
-): Promise<LeaderboardResponse> {
-  const response = await apiClient.get<LeaderboardResponse>(
-    `/stats/leaderboard/card/${encodeURIComponent(cardName)}`,
-    {
-      params: {
-        limit,
-        min_games: minGames,
-      },
-    }
-  );
-  return response.data;
-}
-
 // ============================================================================
 // CARD STATS (AGGREGATE)
 // ============================================================================
