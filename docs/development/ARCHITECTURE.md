@@ -173,7 +173,7 @@ Wake,Action,1,fix:1,...
 
 **Implementation:**
 
-- All 30 cards in production are CSV-driven through ~25 generic effect types
+- All 40 cards in production are CSV-driven through ~25 generic effect types
   (see `ADDING_NEW_CARDS.md` for the full list and syntax) — including
   cards once thought "too complex" for the generic system, like Knight
   (`auto_win_tussle_on_own_turn`), Copy (`copy_card`), and Twist
