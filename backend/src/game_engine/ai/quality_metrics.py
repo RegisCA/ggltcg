@@ -15,6 +15,8 @@ from datetime import datetime
 import logging
 import threading
 
+from .card_metadata import ACTION_CARD_NAMES, CHARGE_GAIN_ON_PLAY
+
 logger = logging.getLogger("game_engine.ai.quality_metrics")
 
 
@@ -139,13 +141,8 @@ class TurnMetrics:
 
         for action in plan.action_sequence:
             if action.action_type == "play_card":
-                if action.card_name == "Surge":
-                    charge_gained += 1
-                elif action.card_name == "Rush":
-                    charge_gained += 2
-                # Check if it's a toy (simplified - would need card lookup for accuracy)
-                # TODO(Phase 5): Replace with ID-based card lookups using card_type metadata
-                if action.card_name not in ["Surge", "Rush", "Wake", "Drop", "Clean", "Twist", "Sun", "Copy", "Toynado"]:
+                charge_gained += CHARGE_GAIN_ON_PLAY.get(action.card_name, 0)
+                if action.card_name not in ACTION_CARD_NAMES:
                     toys_played += 1
 
         return cls(

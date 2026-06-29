@@ -23,7 +23,6 @@ from .prompts.strategic_selector import (
     parse_selector_response,
     convert_sequence_to_turn_plan,
 )
-from .validators import TurnPlanValidator
 from .quality_metrics import TurnMetrics, record_turn_metrics
 from .providers import GeminiProvider, build_provider
 from .enumerator import enumerate_sequences
@@ -108,9 +107,6 @@ class TurnPlanner:
         # Per-turn enumerator/selection diagnostics for admin UI
         self._enum_debug: Optional[Dict[str, Any]] = None
 
-        # Initialize plan validator (will be set when game_engine available)
-        self._validator: Optional[TurnPlanValidator] = None
-
     def create_plan(
         self,
         game_state: GameState,
@@ -130,10 +126,6 @@ class TurnPlanner:
         """
         logger.debug(f"🧠 Creating turn plan for Turn {game_state.turn_number}")
 
-        # Initialize validator if we have game_engine
-        if game_engine and not self._validator:
-            self._validator = TurnPlanValidator(game_engine)
-
         ai_player = game_state.players[player_id]
 
         TurnPlanner._metrics["total_turns"] += 1
@@ -149,8 +141,6 @@ class TurnPlanner:
         self._selection_system_instruction = None
         self._enum_debug = {
             "sequences_generated": 0,
-            "sequences_after_validation": 0,
-            "sequence_disagreements": [],
             "enumeration_exception": None,
             "selection_parse_error": False,
             "selection_invalid_index": False,
@@ -169,30 +159,6 @@ class TurnPlanner:
             sequences = []
         self._enum_debug["sequences_generated"] = len(sequences)
         logger.debug(f"   Enumerated {len(sequences)} sequences")
-
-        # Validator is advisory only here: enumerated sequences are engine-legal
-        # by construction (every step was applied through the real GameEngine).
-        # TurnPlanValidator is a weaker heuristic with hardcoded, incomplete card
-        # knowledge — e.g. it assumes tussle/direct always cost 2 (wrong for
-        # Raggy, whose tussles cost 0) and only models Drop/Twist/Clean as toy
-        # removal (missing Jumpscare's return-to-hand). It can produce false
-        # positives on engine-perfect input, so disagreements are only logged
-        # for telemetry, never used to drop a sequence.
-        if sequences and self._validator:
-            disagreements: list[str] = []
-            for i, seq in enumerate(sequences):
-                temp_plan = self._sequence_to_temp_plan(seq, ai_player.charge)
-                errors = self._validator.validate(temp_plan, game_state, player_id, ai_player.charge)
-                if errors:
-                    disagreements.append(f"seq {i}: {errors[0].message}")
-            if disagreements:
-                logger.info(
-                    "enum: validator flagged %d/%d enumerated sequences (advisory — "
-                    "enumerator output is authoritative). e.g. %s",
-                    len(disagreements), len(sequences), disagreements[0],
-                )
-                self._enum_debug["sequence_disagreements"] = disagreements[:8]
-            self._enum_debug["sequences_after_validation"] = len(sequences)
 
         if not sequences:
             logger.warning("⚠️ No sequences enumerated for this turn")
@@ -300,64 +266,6 @@ class TurnPlanner:
 
     def _get_selector_output_budget(self) -> int:
         return 384
-
-    # Cards that gain Charge when played. Keys are pinned to real cards by
-    # tests/test_charge_gain_tables.py, and must mirror
-    # ChargeBudgetValidator.CHARGE_GAIN_ON_PLAY exactly.
-    _CHARGE_GAIN_ON_PLAY = {"Surge": 1, "Rush": 2, "Cake": 5}
-
-    def _sequence_to_temp_plan(self, sequence: dict, starting_charge: int) -> TurnPlan:
-        """
-        Convert a sequence dict to a temporary TurnPlan for advisory validation.
-
-        Args:
-            sequence: Sequence dictionary from the enumerator
-            starting_charge: Charge at turn start
-
-        Returns:
-            TurnPlan object for validation
-        """
-        actions = []
-        charge = starting_charge
-
-        for action in sequence.get("actions", []):
-            charge_cost = action.get("charge_cost", 0)
-            card_name = action.get("card_name", "")
-
-            charge_gain = 0
-            if action.get("action_type") == "play_card":
-                charge_gain = self._CHARGE_GAIN_ON_PLAY.get(card_name, 0)
-
-            charge_after = charge - charge_cost + charge_gain
-
-            # Convert target_name (singular) to target_names (list) if needed
-            target_name = action.get("target_name")
-            target_names = action.get("target_names") or ([target_name] if target_name else None)
-
-            actions.append(PlannedAction(
-                action_type=action.get("action_type", "end_turn"),
-                card_id=action.get("card_id"),
-                card_name=card_name,
-                target_ids=action.get("target_ids"),
-                target_names=target_names,
-                charge_cost=charge_cost,
-                charge_after=max(0, charge_after),
-                reasoning="",
-            ))
-
-            charge = charge_after
-
-        return TurnPlan(
-            threat_assessment="",
-            resources_summary="",
-            sequences_considered=[],
-            selected_strategy="",
-            action_sequence=actions,
-            charge_start=starting_charge,
-            charge_after_plan=max(0, charge),
-            expected_cards_broken=sequence.get("cards_broken", 0),
-            plan_reasoning="",
-        )
 
     def _parse_plan(self, plan_data: Dict[str, Any]) -> TurnPlan:
         """

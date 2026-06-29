@@ -14,6 +14,7 @@ import json
 import logging
 from typing import Any, Optional, TYPE_CHECKING
 
+from ..card_metadata import CHARGE_GAIN_ON_PLAY
 from .sequence_format import format_sequence_for_display
 from .card_loader import format_card_guidance, format_board_legend, generate_threat_priorities
 
@@ -247,13 +248,10 @@ def convert_sequence_to_turn_plan(
         else:
             charge_cost = 0
 
-        # Calculate Charge gains from Surge/Rush
+        # Calculate Charge gains from play-triggered gain_charge cards
         charge_gain = 0
         if action_type == "play_card":
-            if card_name == "Surge":
-                charge_gain = 1
-            elif card_name == "Rush":
-                charge_gain = 2
+            charge_gain = CHARGE_GAIN_ON_PLAY.get(card_name, 0)
 
         charge_after = charge_remaining - charge_cost + charge_gain
 

@@ -1127,16 +1127,6 @@ const AdminDataViewer: React.FC = () => {
                               {' · '}invalid_index: {String((enumDebug?.selection_invalid_index as boolean | undefined) ?? false)}
                               {' · '}fallback_used: {String((enumDebug?.selection_fallback_used as boolean | undefined) ?? false)}
                             </span>
-                            {/* The validator is advisory-only in enum mode and never
-                                filters sequences, so "valid" would always equal
-                                "generated" — not shown as a separate count. Its only
-                                signal is the disagreement list below. */}
-                            {Array.isArray(enumDebug?.sequence_disagreements) && (enumDebug.sequence_disagreements as unknown[]).length > 0 && (
-                              <div className="text-gray-400 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                                Validator disagreements (advisory): {(enumDebug.sequence_disagreements as string[]).slice(0, 3).join(' · ')}
-                                {(enumDebug.sequence_disagreements as string[]).length > 3 ? ` (+${(enumDebug.sequence_disagreements as string[]).length - 3} more)` : ''}
-                              </div>
-                            )}
                             {!!enumDebug?.enumeration_exception && (
                               <div className="text-red-300 text-xs" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                                 ❌ Enumeration failed (0 sequences, fell back to plain end_turn): {String(enumDebug.enumeration_exception)}

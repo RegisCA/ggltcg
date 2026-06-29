@@ -247,16 +247,9 @@ The AI-layer touchpoint for a new card is:
   guidance (traps, reminders, threat level), sent in full to the
   strategic-selection prompt for any card present in the game. See 3a.
 
-> **⚠️ Hardcoded card names**: several AI files still hardcode card names
-> until card metadata is centralized. A card with a **Charge-gain on play** or a
-> **target-requirement** effect may need a manual entry in one or more of:
->
-> - `backend/src/game_engine/ai/turn_planner.py` (`_CHARGE_GAIN_ON_PLAY`)
-> - `backend/src/game_engine/ai/validators/turn_plan_validator.py`
-> - `backend/src/game_engine/ai/quality_metrics.py`
->
-> Grep these files for an existing card with a similar effect before assuming
-> CSV alone is enough.
+A card with a **Charge-gain on play** effect (`gain_charge:N` in the `effects`
+column) needs no AI-side edit — `game_engine/ai/card_metadata.py` derives the
+Charge-gain table from `cards.csv` automatically.
 
 ### Card-Specific Guidance (Optional but Recommended)
 

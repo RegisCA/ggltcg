@@ -35,6 +35,7 @@ from game_engine.rules.effects import EffectRegistry
 from game_engine.rules.effects.base_effect import ActivatedEffect
 from game_engine.validation import ActionExecutor, ActionValidator
 
+from .card_metadata import CHARGE_GAIN_ON_PLAY
 from .prompts.card_loader import build_card_labels
 
 if TYPE_CHECKING:
@@ -241,12 +242,12 @@ def _action_charge_cost(step: Dict[str, Any], charge_before: int, charge_after: 
     """Real Charge cost of an applied step, derived from the Charge delta and known gains.
 
     charge_after = charge_before - cost + gain  ⇒  cost = charge_before - charge_after + gain.
-    Only Surge (+1) and Rush (+2) grant Charge on play (pinned by
-    test_cc_gain_tables); every other action's cost is just the Charge drop.
+    Every action's cost is just the Charge drop, except cards in
+    ``CHARGE_GAIN_ON_PLAY`` which also grant Charge on play.
     """
     gain = 0
     if step["action_type"] == "play_card":
-        gain = {"Surge": 1, "Rush": 2}.get(step["card_name"], 0)
+        gain = CHARGE_GAIN_ON_PLAY.get(step["card_name"], 0)
     return max(0, charge_before - charge_after + gain)
 
 
