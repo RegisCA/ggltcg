@@ -64,6 +64,54 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## ✅ Resolved
 
+### AI test suite — purged tautological/toothless tests
+
+- **Fixed**: June 28, 2026, following on from the `TurnPlanValidator`/
+  Charge-gain cleanup below and the `test_ai_enum_scenario.py` finding above.
+- **What it was**: a broad pass across all 12 AI-related test files (~70
+  tests) found ~24 that could never fail regardless of AI quality, confirmed
+  against the actual `ActionValidator`/effect code, not just inference:
+  - `test_ai_wake_hallucination.py` — only exercised `TurnPlanner.create_plan`
+    (Phase 1 selection), whose schema (`selected_index`/`reasoning`/
+    `lethal_check`) has no target field at all; the LLM cannot specify a
+    target there anymore. Superseded by `TestHallucinatedTargetGuard` in
+    `test_ai_multi_target.py`, which tests the one place (Phase 2 execution
+    fallback) where target hallucination is still structurally possible.
+  - `test_turn_planner.py` (whole file, "AI v3 Turn Planner") — nearly every
+    test's only real assertion was `validate_charge_math`, guaranteed by
+    construction since Charge numbers are 100% engine-derived. Several were
+    also toothless independent of that: `test_wizard_high_threat`,
+    `test_direct_attack_opportunity`, `test_hind_leg_kicker_play_first`,
+    `test_surge_enables_extra_direct_attacks`, `test_vvaj_before_tussle`,
+    `test_dream_cost_reduction_combo` computed an interesting value and
+    printed an "OPTIMAL"/"ERROR" label without ever asserting on it.
+  - `test_ai_turn1_planning.py` — `test_turn1_drop_without_targets` /
+    `test_turn1_archer_without_targets` (an action with no legal target is
+    never added to `valid_actions`, `action_validator.py:228`/`:413-415`),
+    `test_cannot_play_card_from_break_zone` (`play_card` only ever enumerates
+    hand cards), `test_copy_only_targets_own_toys` (`CopyEffect.get_valid_targets`
+    only returns the player's own in-play cards), `test_suicide_attack_prevention`
+    and half of `test_must_tussle_to_win_not_direct_attack` (the enumerator's
+    `filter_for_ai=True` already drops guaranteed-loss tussles and
+    `direct_attack` is only ever offered when the opponent has zero toys in
+    play — `action_validator.py:328`,`:350-351`), plus the duplicate
+    `test_turn1_regression_suite` and tautological
+    `test_charge_math_consistency`.
+  - `test_ai_multi_target.py` — `test_llm_player_parses_target_ids_array` and
+    `test_llm_player_handles_legacy_target_id` called no production code at
+    all, just reimplemented parsing logic inline and asserted it against
+    itself; `test_optimal_play_is_wake_then_sun` asserted local constants
+    equal themselves, with its own docstring admitting "this is a
+    documentation test."
+- **Fix**: deleted `test_ai_wake_hallucination.py` and `test_turn_planner.py`
+  outright; trimmed `test_ai_turn1_planning.py` down to the three tests whose
+  failure mode is still legally reachable (`TestWinningTussle`,
+  `TestKnightEfficiency`, `TestCombatMath::test_attacker_wins_clean`) and
+  `test_ai_multi_target.py` down to the tests that exercise real, live code
+  paths. Caught by going looking for this pattern deliberately after
+  `test_ai_enum_scenario.py` (above) turned out to be one instance of it
+  rather than a one-off.
+
 ### `TurnPlanValidator` — advisory-only relic of the pre-enum architecture
 
 - **Fixed**: June 28, 2026 (AI dead-code cleanup pass).

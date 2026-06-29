@@ -5,9 +5,7 @@ This test module verifies that the AI player can correctly select multiple
 targets for cards like Sun that allow "up to 2 targets".
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
-import json
+from unittest.mock import MagicMock
 
 from game_engine.ai.llm_player import LLMPlayer
 from game_engine.ai.prompts import format_valid_actions_for_ai
@@ -47,59 +45,6 @@ class TestAIMultiTargetSelection:
         # Verify multi-target hint appears
         assert "Select up to 2 targets" in result, "Should show multi-target selection hint for Sun"
         assert "target_ids array" in result, "Should mention target_ids array format"
-    
-    def test_llm_player_parses_target_ids_array(self):
-        """
-        Verify that LLMPlayer correctly parses target_ids as an array.
-        """
-        player = LLMPlayer.__new__(LLMPlayer)
-        player._last_target_ids = None
-        player._last_alternative_cost_id = None
-        player._last_prompt = None
-        player._last_response = None
-        player._last_action_number = None
-        player._last_reasoning = None
-        
-        # Simulate parsing a response with target_ids array
-        response_data = {
-            "action_number": 2,
-            "reasoning": "Playing Sun to recover Ka and Knight for board presence.",
-            "target_ids": ["ka-456", "knight-789"],
-            "alternative_cost_id": None
-        }
-        
-        # The actual parsing happens in select_action, but we can test the logic
-        target_ids = response_data.get("target_ids")
-        
-        # Normalize (as done in select_action)
-        if isinstance(target_ids, list):
-            target_ids = [t for t in target_ids if t and t not in ("null", "None")]
-        
-        assert target_ids == ["ka-456", "knight-789"]
-        assert len(target_ids) == 2
-    
-    def test_llm_player_handles_legacy_target_id(self):
-        """
-        Verify backwards compatibility: if LLM returns target_id (string),
-        it should be converted to target_ids array.
-        """
-        # Legacy response with target_id instead of target_ids
-        response_data = {
-            "action_number": 1,
-            "reasoning": "Playing Wake to recover Ka.",
-            "target_id": "ka-456",  # Legacy format
-            "alternative_cost_id": None
-        }
-        
-        # Simulate the conversion logic from select_action
-        target_ids = response_data.get("target_ids")
-        target_id_legacy = response_data.get("target_id")
-        
-        if target_ids is None and target_id_legacy:
-            if target_id_legacy not in ("null", "None"):
-                target_ids = [target_id_legacy]
-        
-        assert target_ids == ["ka-456"], "Legacy target_id should convert to target_ids array"
     
     def test_get_action_details_uses_target_ids(self):
         """
@@ -306,45 +251,3 @@ class TestIssue188Scenario:
         
         assert "Select up to 2" not in wake_text, "Wake should not have multi-target hint"
         assert "Select up to 2" in sun_text, "Sun should have multi-target hint"
-    
-    def test_optimal_play_is_wake_then_sun(self):
-        """
-        Document the optimal play sequence from Issue #188 comment.
-        
-        Optimal sequence:
-        1. Play Wake (1 Charge) → Fix Ka → Ka returns to hand
-        2. Play Sun (3 Charge) → Fix Knight + Wake → Both return to hand
-        
-        Result: 3 cards recovered (Ka, Knight, Wake) for 4 Charge
-        
-        This test documents the expected behavior, not the AI's actual decision.
-        The AI might choose Sun directly (2 cards) which is also valid but suboptimal.
-        """
-        # This is a documentation test - the actual AI decision depends on the LLM
-        # The key point is that the AI CAN now select 2 targets for Sun
-        
-        # Expected optimal sequence
-        optimal_plays = [
-            {"action": "Wake", "targets": ["Ka"], "result": "Ka to hand"},
-            {"action": "Sun", "targets": ["Knight", "Wake"], "result": "Knight and Wake to hand"},
-        ]
-        
-        total_cards_recovered = 3  # Ka + Knight + Wake
-        total_charge_spent = 4  # Wake(1) + Sun(3)
-        
-        # Alternative valid play (what AI was doing before, but only 1 target)
-        # Now AI should be able to do this correctly with 2 targets:
-        good_play = [
-            {"action": "Sun", "targets": ["Ka", "Knight"], "result": "Ka and Knight to hand"},
-        ]
-        
-        cards_recovered_good = 2
-        charge_spent_good = 3
-        
-        # Assert the math is correct
-        assert total_cards_recovered == 3
-        assert cards_recovered_good == 2
-        
-        # The key improvement is that AI can now select 2 targets for Sun
-        # Before: AI would only select 1 target (bug)
-        # After: AI can select 2 targets (fixed)
