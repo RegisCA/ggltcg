@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from game_engine.ai.card_metadata import CHARGE_GAIN_ON_PLAY
 from game_engine.ai.providers import build_provider
 from game_engine.ai.turn_planner import TurnPlanner
 
@@ -41,9 +42,9 @@ def validate_charge_math(plan) -> list[str]:
     generates a Charge number itself. So a mismatch here is a real bug in
     plan construction, not LLM noise, and is worth a hard assertion.
 
-    Uses TurnPlanner._CHARGE_GAIN_ON_PLAY (mirrored and pinned by
-    tests/test_charge_gain_tables.py) instead of a separately maintained
-    cost table, to avoid the two drifting apart.
+    Uses game_engine.ai.card_metadata.CHARGE_GAIN_ON_PLAY (the single
+    CSV-derived source) instead of a separately maintained cost table, to
+    avoid drift.
 
     Returns a list of human-readable errors; empty list if the plan is
     internally consistent.
@@ -56,7 +57,7 @@ def validate_charge_math(plan) -> list[str]:
             continue
 
         charge_gain = (
-            TurnPlanner._CHARGE_GAIN_ON_PLAY.get(action.card_name, 0)
+            CHARGE_GAIN_ON_PLAY.get(action.card_name, 0)
             if action.action_type == "play_card"
             else 0
         )
