@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 29, 2026 (Active Issue #3 resolved)
+**Last Updated**: June 29, 2026 (all Active Issues resolved — PRs #349-#351)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -8,71 +8,7 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## 🔴 Active Issues
 
-### 1. `test_ai_enum_scenario.py` — stale migration-parity gate, not a real correctness check
-
-- **Where**: `backend/tests/test_ai_enum_scenario.py` —
-  `test_turn1_surge_knight_enum` and `test_turn2_aggressive_enum`.
-- **What it actually is**: introduced in PR #331 (WP-4 Phase 4.2) to gate the
-  new deterministic-enumerator (`enum`) planner mode against the old
-  dual-LLM (`dual`/V4) planner mode's *measured baseline* on two scenarios.
-  Original docstring: "Gate: ... CC waste ≤ **the dual baseline** (≤1)", and
-  both assertions originally read
-  `f"enum wasted {X} CC (dual baseline ≤1)"`. The `dual` mode and its own
-  test file (`test_ai_standard_scenario.py`) were deleted in PR #342 when the
-  AI was pruned to a single architecture. The `≤1` threshold survived, and
-  later passes (PR #341's cc→charge rename, then #342/#343's doc cleanup)
-  reworded the docstring to "Gate: ... Charge waste ≤1" — dropping the "vs
-  dual" qualifier and making a migration-parity number look like a
-  self-contained correctness bar. There is no longer a `dual` baseline to be
-  ≤ of.
-- **Why it doesn't actually test anything useful now**: `charge_wasted`
-  doesn't measure play quality. Enumerating `test_turn2_aggressive_enum`'s
-  exact scenario shows a 0-waste sequence exists (play Archer, play Umbruh,
-  activate Archer's stamina-removal ability against no remaining valid
-  target, then tussle) but it is not obviously *better* play than the 2-waste
-  line the AI actually picked (tussle only, hold the rest of the hand) —
-  Archer's ability has nothing useful to target once the opponent's only toy
-  is broken, and playing Umbruh just exposes a second toy for no immediate
-  benefit. The metric rewards "spent the number" over "made a good
-  decision." `test_turn1_surge_knight_enum` currently passes, but for the
-  same non-reason — it happens to coincide with the obviously-correct
-  Surge→Knight→direct_attack line in that simpler scenario, not because the
-  metric is principled.
-- **Compounding problem**: gated behind a live, non-deterministic Gemini call
-  (skipped without a real API key), so `test_turn2_aggressive_enum` will flip
-  pass/fail run-to-run independent of any code change — reproduced as
-  failing identically on `main` before PR #344's unrelated changes, via a
-  throwaway worktree.
-- **Caught and rationalized twice**: PR #343's test-suite audit found this
-  exact failure and filed it as "a live AI strategic-quality gap... left as a
-  backlog item," and it was rationalized the same way again during PR #344's
-  review — both times treating the failure as actionable AI-quality
-  feedback instead of recognizing the test's premise (compare against a
-  deleted `dual` baseline) no longer holds. Caught on the third pass only
-  because the user pushed back and the original PR #331 docstring was pulled
-  via `git show`.
-- **Status**: Open — recommend deleting both tests in
-  `test_ai_enum_scenario.py` (or rewriting them against a real, current
-  notion of correctness, not a deleted mode's baseline) rather than
-  continuing to treat their failures as actionable.
-### 2. Route-level (HTTP) test coverage gap
-
-- **Where**: full detail, priority order, and per-route handler-complexity
-  notes are in `docs/plans/TEST_SUITE_AUDIT_REPORT.md` §2 — this entry is a
-  pointer so it's visible from this doc too, not a duplicate.
-- **What it is**: `/ai-turn` (509 LOC, 4-way action dispatch + LLM fallback),
-  `/tussle` (cost/defender/victory branching), `GET /{game_id}`
-  (hand-visibility-by-`player_id`, security-relevant), and `/play-card`
-  (status-code mapping) all have real handler logic and zero HTTP-level test
-  coverage — only engine/validator-level tests exercise the logic they call.
-  `POST /activate-ability` had the same gap until a real `spend_cc`→`spend_charge`
-  rename bug shipped to prod for two weeks uncaught (see
-  `feedback_rename_refactor_route_coverage_gap` in session memory); it now has
-  a `TestClient`-based regression test (`test_activate_ability_route_spends_charge`
-  in `test_archer_issue_201.py`) that's the template to copy for these four.
-- **Note**: §3 of that same report ("validator advisory noise... leave in
-  backlog") is now moot as of PR #344 — `TurnPlanValidator` no longer exists.
-- **Status**: Open — not yet started, no committed timeline.
+_None currently — see Resolved below._
 
 ---
 
@@ -105,6 +41,7 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   `base_effect.py`, `continuous_effects.py`, `action_effects.py`). Both docs
   now point to `ADDING_NEW_CARDS.md` as the canonical, current effect-type
   list instead of carrying their own copies.
+
 ### Route-level (HTTP) test coverage gap
 
 - **Fixed**: June 29, 2026.
@@ -130,6 +67,7 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   branches. `GET /{game_id}` and `/play-card`'s main risk areas
   (hand-visibility, 400 mapping) were already covered by #343 — no further
   work needed there.
+
 ### `test_ai_enum_scenario.py` — stale migration-parity gate, not a real correctness check
 
 - **Fixed**: June 29, 2026.
@@ -293,8 +231,8 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 - **Fix**: removed all phantom/wrong entries; corrected two direct-attack error
   messages; added `tests/test_cc_gain_tables.py` pinning both tables to real cards
   whose CSV effect is a play-triggered `gain_cc:` (and keeping the two tables in sync).
-- **Note**: the broader hardcoded-card-name problem remains — see Active Issue #1
-  (AI card-metadata centralization).
+- **Note**: the broader hardcoded-card-name problem this pointed to was fixed
+  by "AI card-metadata centralization pending" above (`card_metadata.py`).
 
 ## How to Use This Document
 
