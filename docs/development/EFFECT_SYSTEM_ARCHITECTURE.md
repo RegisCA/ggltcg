@@ -7,8 +7,9 @@ game state, apply stat buffs, and trigger special actions. This document
 explains how effects flow through the system from initial data definition to
 runtime execution.
 
-**Last Updated**: December 8, 2025
-**Status**: Data-driven system complete for all current cards
+**Last Updated**: June 29, 2026
+**Status**: Data-driven system complete for all 30 current cards — no
+name-based registry remains (removed PR #347)
 
 ---
 
@@ -18,7 +19,7 @@ runtime execution.
 2. System Components
 3. Effect Types
 4. Lifecycle
-5. Dual System Problem
+5. Effect Resolution Path
 6. Serialization
 7. Common Pitfalls
 8. Debug Tools
@@ -134,52 +135,36 @@ Parses effect definition strings into runtime effect objects.
     FixEffect(card, 1)
 ]
 ```text
-**Supported Effect Types (as of December 2025)**:
-
-- `stat_boost:stat_name:amount` – Continuous stat buffs (`speed`, `strength`,
-  `stamina`, `all`)
-- `gain_charge:amount[:not_first_turn]` – Gain Charge when played, with optional
-  `not_first_turn` restriction
-- `fix:count` – Return cards from Break Zone to hand
-- `break_all` – Break all cards in play
-- `set_tussle_cost:cost` – Set cost for all your tussles
-- `set_self_tussle_cost:cost[:not_turn_1]` – Set cost for this card's tussles,
-  optionally disabled on turn 1
-- `reduce_cost_by_broken` – Reduce play cost by number of your broken cards
-- `opponent_cost_increase:amount` – Opponent's cards cost +amount Charge to play
-- `gain_charge_when_broken:amount` – Gain Charge when this card is broken from play
-- `opponent_immunity` – This card is immune to opponent's effects
-- `team_opponent_immunity` – All your cards are immune to opponent's effects
-- `alternative_cost_break_card` – May break one of your cards instead of paying
-  Charge
-- `return_all_to_hand` – Return all cards in play to owners' hands
-- `take_control` – Take control of an opponent's Toy
-- `copy_card` – Copy another card's effect definitions onto this card
-- `break_target:count` – Break targeted cards in play
-- `return_target_to_hand:count` – Return targeted cards in play to hand
-- `turn_stat_boost:all:amount` – One-turn stat buff to all your Toys
-- `start_of_turn_gain_charge:amount` – Gain Charge at start of your turn
-- `on_card_played_gain_charge:amount` – Gain Charge when you play another card
+**Supported Effect Types**: ~25 types, e.g. `stat_boost:stat_name:amount`,
+`gain_charge:amount[:not_first_turn]`, `fix:count`, `break_all`,
+`take_control`, `copy_card`. The full, current list with CSV syntax for
+every type (including ones added after this doc's last full pass —
+`auto_win_tussle_on_own_turn`, `cannot_tussle`, `direct_attack`,
+`remove_stamina_ability`, `damage_all_opponent_cards`, etc.) lives in
+[`ADDING_NEW_CARDS.md`](ADDING_NEW_CARDS.md) — kept there as the single
+source of truth rather than duplicated here, where a prior copy of this
+list had already drifted out of sync.
 
 ### 4. EffectRegistry
 
 Located: `backend/src/game_engine/rules/effects/effect_registry.py`
 
-Central dispatcher for getting a card's effects. Implements priority system:
+Central dispatcher for getting a card's effects:
 
 ```python
 def get_effects(card: Card) -> List[BaseEffect]:
-    # Priority 0: Pre-parsed copied effects (Copy card)
+    # Pre-parsed copied effects (Copy card transformation) take precedence
     if hasattr(card, '_copied_effects') and card._copied_effects:
         return card._copied_effects
 
-    # Priority 1: Data-driven effect definitions (MODERN)
-    if hasattr(card, 'effect_definitions') and card.effect_definitions:
-        return EffectFactory.parse_effects(card.effect_definitions, card)
-
-    # Priority 2: Name-based registry (LEGACY - being phased out)
-    return cls._effect_map.get(card.name, [])
+    # Every other card: parse effect_definitions from cards.csv
+    return EffectFactory.parse_effects(card.effect_definitions, card)
 ```text
+
+The legacy name-based registry fallback (`_effect_map`, `register_effect()`)
+was removed in PR #347 — `EffectFactory.parse_effects()` is the only
+effect-resolution path now.
+
 ### 5. GameEngine
 
 Located: `backend/src/game_engine/game_engine.py`
@@ -284,15 +269,12 @@ engine.get_card_stat(ka_card, 'strength')
 ```text
 ---
 
-## Dual System Problem
+## Effect Resolution Path
 
-**⚠️ TECHNICAL DEBT**: Two effect systems currently exist.
-
-### Modern System (Data-Driven)
-
-**Status**: ✅ Active for 10 cards
-**Cards**: Ka, Demideca, Wake, Sun, Clean, Rush, Wizard, Raggy, Umbruh, Dream,
-Ballaber
+There is a single effect system: every one of the 30 production cards,
+including mechanically complex ones like Knight, Copy, and Twist, is
+parsed from its `effect_definitions` CSV string by `EffectFactory` — there
+is no name-based registration and no per-card effect class.
 
 ```python
 # Card data includes effect_definitions
@@ -307,23 +289,13 @@ effects = EffectFactory.parse_effects(card.effect_definitions, card)
 - No code changes needed for new effects
 - Survives serialization
 
-### Name-Based Effect Registration
-
-Some cards with complex, unique effects use custom effect classes registered by
-name:
-
-```python
-# Effects registered by card name
-EffectRegistry.register_effect("Knight", KnightEffect)
-EffectRegistry.register_effect("Copy", CopyEffect)
-EffectRegistry.register_effect("Twist", TwistEffect)
-
-# Retrieved by EffectRegistry.get_effects()
-effects = EffectRegistry.get_effects(card)
-```text
-**When to use**:
-- Complex, unique card mechanics (Knight, Beary, Archer, Copy, Twist, Toynado)
-- Dynamic behavior that can't be parameterized in CSV
+A name-based registry (`EffectRegistry.register_effect(name, EffectClass)`,
+looked up as a fallback when a card had no `effect_definitions`) existed
+historically for cards whose mechanics predated the generic effect types
+needed to express them. As the generic effect types grew to ~25 (see
+[`ADDING_NEW_CARDS.md`](ADDING_NEW_CARDS.md)), every card was migrated onto
+CSV-driven definitions; the registry's fallback branch was confirmed dead
+(never reached, per `tests/test_effects.py`) and removed in PR #347.
 
 ---
 
