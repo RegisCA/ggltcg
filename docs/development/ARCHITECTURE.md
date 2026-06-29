@@ -146,9 +146,9 @@ polymorphism to handle different effect types.
 - **Generic Effect Classes** — Parameterized effects that work for multiple cards
 - **CSV Effect Definitions** — Card data includes `effects` column with effect
   strings
-- **EffectFactory Parser** — Parses effect strings into effect instances
-- **Priority System** — Check CSV effects first, fallback to legacy name-based
-  registry
+- **EffectFactory Parser** — Parses effect strings into effect instances; this
+  is the only effect-resolution path (the legacy name-based registry fallback
+  was removed in PR #347)
 
 **CSV Format:**
 
@@ -173,60 +173,72 @@ Wake,Action,1,fix:1,...
 
 **Implementation:**
 
-- Data-driven effects implemented for 10+ cards
-- Generic effects: StatBoostEffect, GainChargeEffect, FixEffect, BreakAllEffect
-- Complex cards use custom effects: Knight, Beary, Copy, Twist, Archer
-- 30 cards total in production
+- All 40 cards in production are CSV-driven through ~25 generic effect types
+  (see `ADDING_NEW_CARDS.md` for the full list and syntax) — including
+  cards once thought "too complex" for the generic system, like Knight
+  (`auto_win_tussle_on_own_turn`), Copy (`copy_card`), and Twist
+  (`take_control`)
 
 ### Effect Type Hierarchy
 
+Every effect is one of a fixed set of generic, parameterized classes — there
+is no per-card subclass. A card like Knight or Twist gets its specific
+behavior entirely from the parameters `EffectFactory` parses out of its
+`cards.csv` effect string, not from a `KnightEffect`/`TwistEffect` class.
+
 ```text
 BaseEffect (abstract)
-├── ContinuousEffect
-│   ├── StatBoostEffect (generic, data-driven)
-│   ├── KaEffect (card-specific)
-│   ├── DemidecaEffect (card-specific)
-│   └── CostModificationEffect
-│       ├── DreamCostEffect
-│       └── WizardCostEffect
-├── TriggeredEffect
-│   ├── SnugglesWhenPlayedEffect
-│   ├── SnugglesWhenBrokenEffect
-│   └── UmbruhEffect
-├── PlayEffect
-│   ├── GainChargeEffect (generic, data-driven)
-│   ├── FixEffect (generic, data-driven)
-│   ├── BreakAllEffect (generic, data-driven)
-│   ├── WakeEffect (card-specific)
-│   ├── SunEffect (card-specific)
-│   ├── RushEffect (card-specific)
-│   ├── CleanEffect (card-specific)
-│   ├── TwistEffect
-│   └── CopyEffect
-└── ActivatedEffect
-    └── ArcherEffect
-
+├── ContinuousEffect          # checked during stat/cost calculations
+│   ├── StatBoostEffect
+│   ├── KnightWinConditionEffect
+│   ├── DirectAttackEffect
+│   ├── ArcherRestrictionEffect
+│   ├── CostModificationEffect
+│   │   ├── SetTussleCostEffect / SetSelfTussleCostEffect
+│   │   ├── ReduceCostByBrokenEffect / SelfCostIncreaseByBrokenEffect
+│   │   ├── OpponentCostIncreaseEffect
+│   │   └── BallaberCostEffect
+│   └── ProtectionEffect
+│       ├── OpponentImmunityEffect
+│       └── TeamOpponentImmunityEffect
+├── TriggeredEffect            # fires when its trigger condition is met
+│   ├── GainChargeWhenBrokenEffect
+│   ├── StartOfTurnGainChargeEffect
+│   ├── OnCardPlayedGainChargeEffect
+│   └── DamageAllOpponentCardsEffect
+├── PlayEffect                 # executed when an action card is played
+│   ├── GainChargeEffect / FixEffect / BreakAllEffect
+│   ├── BreakTargetEffect / ReturnTargetToHandEffect
+│   └── ToynadoEffect / TwistEffect / CopyEffect / TurnStatBoostEffect
+└── ActivatedEffect            # triggered by the player, not automatic
+    └── ArcherActivatedAbility
 ```
+
+(See `backend/src/game_engine/rules/effects/base_effect.py`,
+`continuous_effects.py`, and `action_effects.py` for the full, current set —
+~25 effect types total. `ADDING_NEW_CARDS.md` lists each one with its CSV
+syntax.)
 
 ### Effect Lifecycle
 
-#### 1. Registration (Startup)
+#### 1. Parsing (Card Loading)
 
-Effects are registered in `effect_registry.py`:
+Effects are parsed from each card's `effect_definitions` CSV column by
+`EffectFactory`, not registered by name at startup:
 
 ```python
-# Example: Register Twist effect
-EffectRegistry.register("Twist", TwistEffect)
+# In effect_registry.py
+effects = EffectFactory.parse_effects(card.effect_definitions, card)
+# e.g. "stat_boost:strength:2" -> [StatBoostEffect(card, strength, 2)]
 
 ```
 
-**When:** Application startup **Where:** `effect_registry.py` static
-
-initialization
+**When:** card loaded from CSV (`CardLoader.load_cards()`) **Where:**
+`EffectFactory.parse_effects()`
 
 #### 2. Instantiation (Card Creation)
 
-Effects are instantiated when cards are loaded:
+Parsed effects are bound to the card and retrieved via:
 
 ```python
 effects = EffectRegistry.get_effects(card)

@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 29, 2026 (Active Issue #1 resolved and deleted)
+**Last Updated**: June 29, 2026 (Active Issue #3 resolved)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -74,35 +74,6 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   backlog") is now moot as of PR #344 — `TurnPlanValidator` no longer exists.
 - **Status**: Open — not yet started, no committed timeline.
 
-### 3. `ARCHITECTURE.md` / `EFFECT_SYSTEM_ARCHITECTURE.md` — describe a pre-CSV effect system that no longer exists
-
-- **Where**: `docs/development/ARCHITECTURE.md` (effect type hierarchy diagram,
-  ~line 181; effect lifecycle section, ~line 213) and
-  `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md` ("Name-Based Effect
-  Registration" section, ~line 310).
-- **What it is**: both docs describe effects as registered at startup by name
-  via `EffectRegistry.register()`/`register_effect()` (e.g.
-  `EffectRegistry.register_effect("Knight", KnightEffect)`,
-  `EffectRegistry.register("Twist", TwistEffect)`), with a class hierarchy
-  listing card-specific classes like `WizardCostEffect`, `SnugglesWhenPlayedEffect`,
-  `SnugglesWhenBrokenEffect`, `UmbruhEffect`, `WakeEffect`, `SunEffect`,
-  `RushEffect`, `CleanEffect`, `ArcherEffect`. None of these classes or methods
-  exist anywhere in the current codebase (confirmed via grep) — Knight, Copy,
-  Twist, Wake, Sun, Rush, Clean, Archer, and Umbruh are all parsed from
-  `cards.csv` `effect_definitions` strings by `EffectFactory`/`EffectRegistry`,
-  same as every other card. This predates even the legacy name-based registry
-  removed in PR #347 (which `KaEffect`/`DemidecaEffect`/`DreamCostEffect`,
-  also referenced in `ARCHITECTURE.md`'s diagram, were the last real instances
-  of) — the docs were already wrong about a different, even older
-  "register-by-name-at-startup" model before that.
-- **How found**: while fixing PR #347's own doc fallout (stale `is_defeated()`/
-  `createTestCard`/`effects_constants.py` references in `AGENTS.md` and
-  `ADDING_NEW_CARDS.md`), a broader grep for every symbol deleted in that PR
-  turned up these two docs as already-stale beyond anything PR #347 touched.
-- **Status**: Open — needs a dedicated docs-truth-pass (same category as
-  PR #322/#327/#329) to rewrite the effect-system sections against the actual
-  CSV-driven `EffectFactory` architecture, not a quick reference fix.
-
 ---
 
 ## 🟡 Monitoring Issues
@@ -111,6 +82,29 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## ✅ Resolved
 
+### `ARCHITECTURE.md` / `EFFECT_SYSTEM_ARCHITECTURE.md` — described a pre-CSV effect system that no longer exists
+
+- **Fixed**: June 29, 2026.
+- **What it was**: both docs described effects as registered at startup by
+  name via `EffectRegistry.register()`/`register_effect()` (e.g.
+  `EffectRegistry.register_effect("Knight", KnightEffect)`), with a class
+  hierarchy listing card-specific classes like `WizardCostEffect`,
+  `SnugglesWhenPlayedEffect`, `UmbruhEffect`, `WakeEffect`, `SunEffect`,
+  `RushEffect`, `CleanEffect`, `ArcherEffect` — none of which exist anywhere
+  in the current codebase. `EFFECT_SYSTEM_ARCHITECTURE.md` also still framed
+  this as a live "Dual System Problem... TECHNICAL DEBT," and both its
+  inline effect-type list (missing 7 of the current ~25 types) and
+  `EffectRegistry.get_effects()`'s documented "Priority 2: legacy registry"
+  fallback were stale beyond just the name-based-registration section
+  `KNOWN_ISSUES.md` originally pointed at.
+- **Fix**: rewrote the effect type hierarchy diagram and lifecycle section in
+  `ARCHITECTURE.md`, and the effect-types list, `EffectRegistry` snippet, and
+  "Dual System Problem" section (renamed "Effect Resolution Path") in
+  `EFFECT_SYSTEM_ARCHITECTURE.md`, against the actual single CSV-driven
+  `EffectFactory.parse_effects()` architecture (`effect_registry.py`,
+  `base_effect.py`, `continuous_effects.py`, `action_effects.py`). Both docs
+  now point to `ADDING_NEW_CARDS.md` as the canonical, current effect-type
+  list instead of carrying their own copies.
 ### Route-level (HTTP) test coverage gap
 
 - **Fixed**: June 29, 2026.
