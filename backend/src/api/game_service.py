@@ -882,18 +882,6 @@ class GameService:
         
         return deck
     
-    def get_active_games_count(self) -> int:
-        """Get the number of active games in the database."""
-        if not self.use_database:
-            return len(self._cache)
-        
-        db = SessionLocal()
-        try:
-            count = db.query(GameModel).filter(GameModel.status == "active").count()
-            return count
-        finally:
-            db.close()
-    
     def generate_random_deck(self, num_toys: int, num_actions: int) -> list[str]:
         """
         Generate a random deck from the available cards.

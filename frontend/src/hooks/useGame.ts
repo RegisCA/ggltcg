@@ -145,13 +145,3 @@ export function useAITurn(
   });
 }
 
-export function useDeleteGame(): UseMutationResult<void, Error, string> {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: gameService.deleteGame,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: gameKeys.all });
-    },
-  });
-}

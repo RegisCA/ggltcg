@@ -122,8 +122,8 @@ python -m simulation.cli list-decks
 # Run baseline V4 vs V4 test
 python -m simulation.cli baseline --iterations 10
 
-# Compare V4 vs V3
-python -m simulation.cli compare --v1 4 --v2 3
+# Compare two models head-to-head
+python -m simulation.cli compare --model1 gemini-2.0-flash --model2 gemini-2.5-flash-lite
 
 # Quick test between two decks
 python -m simulation.cli quick Aggro_Rush Control_Ka

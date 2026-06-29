@@ -5,7 +5,7 @@
  * ensuring all required properties are included and preventing TypeScript errors.
  */
 
-import type { Card, CardType, Zone } from '../types/game';
+import type { Card } from '../types/game';
 import type { CardDataResponse } from '../types/api';
 
 /**
@@ -45,77 +45,3 @@ export function createCardFromApiData(
   };
 }
 
-/**
- * Create a minimal Card object for testing or placeholders.
- * 
- * @param name - Card name
- * @param cardType - Card type ('Toy' or 'Action')
- * @param cost - Card cost
- * @param overrides - Optional property overrides
- * @returns Complete Card object
- */
-export function createTestCard(
-  name: string,
-  cardType: CardType,
-  cost: number,
-  overrides: Partial<Card> = {}
-): Card {
-  const isToy = cardType === 'Toy';
-  
-  return {
-    id: `test-${name}-${Date.now()}`,
-    name,
-    card_type: cardType,
-    cost,
-    effective_cost: null,
-    effect_text: '',
-    zone: 'Hand',
-    owner: 'test-player',
-    controller: 'test-player',
-    speed: isToy ? 1 : null,
-    strength: isToy ? 1 : null,
-    stamina: isToy ? 1 : null,
-    current_stamina: isToy ? 1 : null,
-    base_speed: isToy ? 1 : null,
-    base_strength: isToy ? 1 : null,
-    base_stamina: isToy ? 1 : null,
-    is_broken: false,
-    primary_color: '#888888',
-    accent_color: '#888888',
-    ...overrides,
-  };
-}
-
-/**
- * Create a Card object with zone-specific defaults.
- * 
- * @param baseCard - Base card properties
- * @param zone - Target zone for the card
- * @returns Card with zone-appropriate properties
- */
-export function createCardInZone(
-  baseCard: Omit<Card, 'zone' | 'is_broken'>,
-  zone: Zone
-): Card {
-  return {
-    ...baseCard,
-    zone,
-    is_broken: zone === 'Break',
-  };
-}
-
-/**
- * Update a Card's effective cost.
- * 
- * Helper for updating cost display when Gibbers or Dream effects apply.
- * 
- * @param card - Card to update
- * @param effectiveCost - New effective cost (null if same as base)
- * @returns New Card object with updated effective_cost
- */
-export function withEffectiveCost(card: Card, effectiveCost: number | null): Card {
-  return {
-    ...card,
-    effective_cost: effectiveCost === card.cost ? null : effectiveCost,
-  };
-}

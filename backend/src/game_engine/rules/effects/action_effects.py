@@ -475,14 +475,6 @@ class CopyEffect(PlayEffect):
         # Can copy any card in play, not just Toys
         return game_state.get_cards_in_play(player)
     
-    def get_copy_cost(self, target: "Card") -> int:
-        """
-        Calculate Copy's cost based on target.
-        
-        Copy costs the same as the printed cost of the card being copied.
-        """
-        return target.cost if target.cost >= 0 else 0
-    
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """
         Transform the Copy card into a copy of the target.

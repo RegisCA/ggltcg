@@ -16,18 +16,12 @@ from pathlib import Path
 from conftest import create_game_with_cards, get_card_template
 from game_engine.rules.effects.effect_registry import EffectRegistry
 from game_engine.rules.effects.continuous_effects import DirectAttackEffect
-from game_engine.effects_constants import EffectDefinitions
 from game_engine.validation.action_validator import ActionValidator
 
 
 class TestPaperPlaneEffectParsing:
     """Tests for effect parsing of Paper Plane card."""
-    
-    def test_effect_definition_constant_exists(self):
-        """Verify DIRECT_ATTACK constant is defined."""
-        assert hasattr(EffectDefinitions, "DIRECT_ATTACK")
-        assert EffectDefinitions.DIRECT_ATTACK == "direct_attack"
-    
+
     def test_paper_plane_effect_parsing(self):
         """Test that Paper Plane effect is parsed correctly from CSV."""
         card = get_card_template("Paper Plane")

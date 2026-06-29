@@ -271,12 +271,3 @@ class CardAggregateResponse(BaseModel):
     total_games: int = Field(..., description="Total player-games (pick rate denominator)")
     min_games_required: int = Field(..., description="Minimum games to qualify")
 
-
-# ============================================================================
-# ERROR RESPONSES
-# ============================================================================
-
-class ErrorResponse(BaseModel):
-    """Error response."""
-    error: str
-    details: Optional[str] = None

@@ -208,10 +208,6 @@ class Card:
         if self.current_stamina is not None:
             self.current_stamina -= damage
     
-    def is_defeated(self) -> bool:
-        """Check if card has 0 or less stamina."""
-        return self.get_effective_stamina() <= 0
-    
     def has_effect_type(self, effect_class) -> bool:
         """
         Check if this card has an effect of the specified type.

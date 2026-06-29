@@ -29,10 +29,8 @@ class EffectType(Enum):
 class TriggerTiming(Enum):
     """When triggered effects can activate."""
     WHEN_BROKEN = "when_broken"             # Umbruh
-    WHEN_OPPONENT_TUSSLES = "when_opponent_tussles"  # Beary
     WHEN_PLAYED = "when_played"
     START_OF_TURN = "start_of_turn"         # Belchaletta
-    END_OF_TURN = "end_of_turn"
     WHEN_OTHER_CARD_PLAYED = "when_other_card_played"  # Hind Leg Kicker
 
 
