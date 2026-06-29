@@ -5,74 +5,15 @@ Gates pinned here:
 
 1. **Standard opening** — the Turn-1 Surge+Knight hand MUST yield the
    Surge → Knight → direct_attack line (the canonical optimal opener).
-2. **Validator agreement on common cards** — for these scenarios every
-   enumerated sequence passes the live ``TurnPlanValidator`` (zero rejections).
-   Note this is NOT a universal invariant: ``TurnPlanValidator`` is a weaker
-   heuristic with incomplete hardcoded card knowledge and *will* false-reject
-   some engine-legal lines (e.g. Raggy's 0-cost tussles, Jumpscare's
-   return-to-hand), which is why it is advisory — not a filter — in enum mode
-   (see test_enum_planner_integration.py). These scenarios use cards it models
-   correctly, so agreement here is a useful regression on the enumerator output.
-3. **Engine-derived legality** — "tussle the last toy away → direct_attack
+2. **Engine-derived legality** — "tussle the last toy away → direct_attack
    becomes legal" falls out of real transitions, not hand-written rules.
-4. **Bounded time** — enumeration on a rich state stays in the low-ms range.
+3. **Bounded time** — enumeration on a rich state stays in the low-ms range.
 """
 
 import time
 
-import pytest
-
 from conftest import create_game_with_cards
 from game_engine.ai.enumerator import enumerate_sequences
-from game_engine.ai.validators.turn_plan_validator import TurnPlanValidator
-from game_engine.ai.prompts.schemas import PlannedAction, TurnPlan
-
-
-def _seq_to_plan(seq: dict, starting_charge: int) -> TurnPlan:
-    """Build a TurnPlan from an enumerated sequence for validator cross-checking.
-
-    Mirrors TurnPlanner._sequence_to_temp_plan (the path V4 uses to validate
-    LLM sequences) so the cross-check exercises the real validators.
-    """
-    actions = []
-    charge = starting_charge
-    for action in seq.get("actions", []):
-        charge_cost = action.get("charge_cost", 0)
-        card_name = action.get("card_name") or ""
-        charge_gain = 0
-        if action.get("action_type") == "play_card":
-            charge_gain = {"Surge": 1, "Rush": 2}.get(card_name, 0)
-        charge_after = charge - charge_cost + charge_gain
-        actions.append(PlannedAction(
-            action_type=action.get("action_type", "end_turn"),
-            card_id=action.get("card_id"),
-            card_name=card_name,
-            target_ids=action.get("target_ids"),
-            target_names=action.get("target_names"),
-            charge_cost=charge_cost,
-            charge_after=max(0, charge_after),
-            reasoning="",
-        ))
-        charge = charge_after
-    return TurnPlan(
-        threat_assessment="", resources_summary="", sequences_considered=[],
-        selected_strategy="", action_sequence=actions, charge_start=starting_charge,
-        charge_after_plan=max(0, charge), expected_cards_broken=seq.get("cards_broken", 0),
-        plan_reasoning="",
-    )
-
-
-def _assert_all_sequences_valid(setup, player_id: str, sequences: list):
-    """No enumerated sequence may be rejected by the live validator."""
-    validator = TurnPlanValidator(setup.engine)
-    starting_charge = setup.game_state.players[player_id].charge
-    for i, seq in enumerate(sequences):
-        plan = _seq_to_plan(seq, starting_charge)
-        errors = validator.validate(plan, setup.game_state, player_id, starting_charge)
-        assert not errors, (
-            f"Sequence {i} ({seq['raw_string']}) rejected by validator: "
-            f"{[e.message for e in errors]}"
-        )
 
 
 def _action_signature(seq: dict) -> list:
@@ -169,18 +110,6 @@ def test_tussle_unlocks_direct_attack():
         "After tussling away the only opponent toy, direct_attack must become "
         f"legal in the same line.\nGot: {signatures}"
     )
-
-
-@pytest.mark.parametrize("scenario", [
-    _turn1_surge_knight,
-    _tussle_then_direct,
-    _archer_scenario,
-])
-def test_all_enumerated_sequences_pass_validator(scenario):
-    setup, _ = scenario()
-    sequences = enumerate_sequences(setup.game_state, "player1")
-    assert sequences, "Enumerator should produce at least one sequence"
-    _assert_all_sequences_valid(setup, "player1", sequences)
 
 
 def test_enumeration_is_bounded_and_fast():

@@ -1,11 +1,12 @@
 """
-The turn planner treats TurnPlanValidator as ADVISORY for enumerated sequences.
+The turn planner trusts enumerated sequences at their real, engine-derived cost.
 
-Enumerated sequences are engine-legal by construction. TurnPlanValidator is a
-weaker heuristic with incomplete hardcoded card knowledge, so it false-rejects
-some engine-legal lines (e.g. Raggy's 0-cost tussles, Jumpscare returning a toy
-to hand). These tests pin that the planner keeps such sequences and plans
-normally — with exactly ONE LLM call (the strategic-selection request).
+Enumerated sequences are engine-legal by construction. These tests pin that the
+planner takes such sequences at face value rather than re-deriving costs from
+hand-written assumptions (e.g. "tussles always cost 2") that would be wrong for
+cards like Raggy (0-cost tussles) or Jumpscare (return-to-hand, not break). The
+planner plans normally — with exactly ONE LLM call (the strategic-selection
+request).
 
 Uses a stubbed selector, so it costs no API credits.
 """
@@ -38,8 +39,8 @@ def _enum_planner(stub):
     )
 
 
-def test_enum_keeps_validator_flagged_sequences_and_makes_one_call():
-    """Raggy's 0-cost attacks make the validator false-reject; enum must not fall back."""
+def test_enum_keeps_engine_derived_costs_and_makes_one_call():
+    """Raggy's 0-cost attacks must survive at their real cost, not a hand-written one."""
     setup, _ = create_game_with_cards(
         player1_in_play=["Raggy"],
         player2_in_play=["Gibbers"],
@@ -68,7 +69,7 @@ def test_enum_keeps_validator_flagged_sequences_and_makes_one_call():
 
 
 def test_enum_handles_jumpscare_toy_return_without_fallback():
-    """Jumpscare's return-to-hand isn't modeled by the validator; enum keeps the line."""
+    """Jumpscare's return-to-hand is a real engine effect; enum must keep the line."""
     setup, _ = create_game_with_cards(
         player1_hand=["Jumpscare"],
         player1_in_play=["Knight"],

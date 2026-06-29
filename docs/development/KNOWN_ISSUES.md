@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 15, 2026
+**Last Updated**: June 28, 2026
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -8,25 +8,46 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## 🔴 Active Issues
 
-### 1. AI card-metadata centralization pending
-
-- **Where**: card names are hardcoded across ~10 files under
-  `backend/src/game_engine/ai/` (e.g. `turn_planner.py` `_CHARGE_GAIN_ON_PLAY`,
-  `prompts/strategic_selector.py` restriction hints,
-  `validators/turn_plan_validator.py`, `quality_metrics.py`).
-- **Impact**: Adding or renaming a card with a CC-gain or target-requirement
-  effect requires editing several AI files by hand (see
-  `docs/development/ADDING_NEW_CARDS.md`, Step 3). Easy to miss one.
-- **Status**: Open — needs a single source of card metadata for the AI layer.
+(none)
 
 ---
 
 ## 🟡 Monitoring Issues
 
-
 ---
 
 ## ✅ Resolved
+
+### `TurnPlanValidator` — advisory-only relic of the pre-enum architecture
+
+- **Fixed**: June 28, 2026 (AI dead-code cleanup pass).
+- **What it was**: `TurnPlanValidator` (and its package, `ai/validators/`) ran
+  against every enumerated sequence each turn, but its result only fed a log
+  line and an admin-UI debug field — it never dropped a sequence or changed
+  the returned plan, since enumerated sequences are engine-legal by
+  construction. It also carried its own hardcoded, incomplete card knowledge
+  (e.g. assumed tussles always cost 2, wrong for Raggy's 0-cost tussles).
+- **Fix**: deleted `ai/validators/` entirely, the call sites in
+  `turn_planner.py`, the `sequence_disagreements`/`sequences_after_validation`
+  admin-UI fields, and the now-unbuildable `backend/scripts/run_v4_simulation.py`
+  (broken by the same architecture pruning, PR #342).
+
+### AI card-metadata centralization pending
+
+- **Fixed**: June 28, 2026 (AI dead-code cleanup pass).
+- **What it was**: the Charge-gain-on-play table (Surge +1, Rush +2, Cake +5)
+  was hand-copied into four places — `turn_planner.py` `_CHARGE_GAIN_ON_PLAY`,
+  `enumerator.py` (inline dict, already missing Cake — proof the copies
+  drift), `prompts/strategic_selector.py` (inline conditionals), and
+  `quality_metrics.py` (inline conditionals plus a separate hardcoded
+  action-card-name list). Adding or renaming a Charge-gain card required
+  editing several AI files by hand; easy to miss one.
+- **Fix**: added `game_engine/ai/card_metadata.py`, which derives
+  `CHARGE_GAIN_ON_PLAY` and `ACTION_CARD_NAMES` from `cards.csv` at import
+  time. `turn_planner.py`'s copy of the table was deleted outright (it only
+  fed the now-removed `TurnPlanValidator` advisory check — see below); the
+  other three sites now import the shared constants. Pinned by
+  `tests/test_card_metadata.py`.
 
 ### `AI_VERSION` vs `AI_PLANNER_MODE` — unfinished migration (confusing footgun)
 
