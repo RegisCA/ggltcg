@@ -5,33 +5,76 @@
  * the log is the first checkpoint when reconstructing the opponent's turn,
  * so it sits at the top of the board, always one glance away).
  *
- * Collapsed (default): a single line showing the latest event — or the
- * "Opponent is thinking" spinner while the AI acts — plus a new-event count.
- * Expanded: the full scrollable play-by-play, grouped by turn.
+ * Expanded (default — device review: "I'd pretty much always want it
+ * expanded"): the full scrollable play-by-play, grouped by turn and
+ * color-coded by actor. Collapsed: a single ticker line showing the latest
+ * event — or the "Opponent is thinking" spinner while the AI acts — plus a
+ * new-event count. The choice persists across games via localStorage.
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayByPlayEntry } from '../types/game';
 
+const LOG_COLLAPSED_STORAGE_KEY = 'ggltcg-log-collapsed';
+
+function loadCollapsedPreference(): boolean {
+  try {
+    return localStorage.getItem(LOG_COLLAPSED_STORAGE_KEY) === '1';
+  } catch {
+    return false; // e.g. storage blocked — fall back to expanded
+  }
+}
+
+/** Per-actor chip styling so the log scans at a glance: your actions blue,
+ *  the opponent's purple (matching the "thinking" indicator), system
+ *  messages neutral. */
+function actorStyle(isHuman: boolean | null): React.CSSProperties {
+  if (isHuman === true) return { borderLeft: '3px solid #60a5fa' }; // blue-400
+  if (isHuman === false) return { borderLeft: '3px solid #c084fc' }; // purple-400
+  return { borderLeft: '3px solid #6b7280' }; // gray-500 (system)
+}
+
+function actorChipClass(isHuman: boolean | null): string {
+  if (isHuman === true) return 'bg-blue-900';
+  if (isHuman === false) return 'bg-purple-950';
+  return 'bg-gray-700';
+}
+
 interface GameMessagesProps {
   messages: string[];
   isAIThinking?: boolean;
   isCompact?: boolean;  // Tighter type/spacing at phone widths
   playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
+  /** Display name of the local player, for per-actor color coding */
+  humanPlayerName?: string;
 }
 
 export function GameMessages({
   messages,
   isAIThinking = false,
   isCompact = false,
-  playByPlay = []
+  playByPlay = [],
+  humanPlayerName,
 }: GameMessagesProps) {
-  // Ticker: collapsed by default everywhere — the header line always shows
-  // the latest event, so nothing is lost until the player wants history
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsedState] = useState(loadCollapsedPreference);
   const [lastSeenCount, setLastSeenCount] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const setIsCollapsed = (value: boolean) => {
+    setIsCollapsedState(value);
+    try {
+      localStorage.setItem(LOG_COLLAPSED_STORAGE_KEY, value ? '1' : '0');
+    } catch {
+      // storage blocked — preference just won't persist
+    }
+  };
+
+  /** null = system/unattributed message */
+  const isHumanActor = (actor: string | undefined | null): boolean | null => {
+    if (!actor || !humanPlayerName) return null;
+    return actor === humanPlayerName;
+  };
 
   // Update last seen count when expanded
   useEffect(() => {
@@ -123,27 +166,23 @@ export function GameMessages({
         </svg>
       </button>
 
-      {/* Collapsible Content */}
+      {/* Collapsible Content — grows with the log up to a cap (a short log
+          shouldn't reserve a fixed panel height above the board), then the
+          inner container scrolls */}
       <AnimatePresence initial={false}>
         {!isCollapsed && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ 
-              height: isCompact ? '150px' : '350px',
-              opacity: 1 
-            }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
-            style={{
-              maxHeight: isCompact ? '150px' : '350px'
-            }}
           >
             <div
               ref={scrollContainerRef}
-              className="h-full"
-              style={{ 
+              style={{
                 overflowY: 'auto',
+                maxHeight: isCompact ? '150px' : '280px',
                 padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-md)'
               }}
             >
@@ -185,13 +224,15 @@ export function GameMessages({
                           <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : 'var(--spacing-component-xs)' }}>
                             {entries.map((entry, idx) => {
                               const entryKey = `${turn}-${idx}`;
-                              
+                              const isHuman = isHumanActor(entry.player);
+
                               return (
-                                <div 
+                                <div
                                   key={entryKey}
-                                  className="bg-blue-900 rounded overflow-hidden"
+                                  className={`${actorChipClass(isHuman)} rounded overflow-hidden`}
                                   style={{
-                                    padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)'
+                                    padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                                    ...actorStyle(isHuman),
                                   }}
                                 >
                                   <div className={isCompact ? 'text-xs' : 'text-sm'}>
@@ -205,19 +246,26 @@ export function GameMessages({
                       ));
                     })()
                   ) : (
-                    /* Fallback to simple messages if no play-by-play data */
-                    displayMessages.map((msg, idx) => (
-                      <div 
-                        key={`${idx}-${msg.substring(0, 20)}`} 
-                        className="bg-blue-900 rounded"
-                        style={{
-                          padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
-                          fontSize: isCompact ? '0.75rem' : '0.875rem'
-                        }}
-                      >
-                        {msg}
-                      </div>
-                    ))
+                    /* Fallback to simple messages if no play-by-play data.
+                       Attribute by the "Name: ..." prefix convention. */
+                    displayMessages.map((msg, idx) => {
+                      const isHuman = humanPlayerName && msg.startsWith(`${humanPlayerName}:`)
+                        ? true
+                        : msg.includes(':') ? false : null;
+                      return (
+                        <div
+                          key={`${idx}-${msg.substring(0, 20)}`}
+                          className={`${actorChipClass(isHuman)} rounded`}
+                          style={{
+                            padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                            fontSize: isCompact ? '0.75rem' : '0.875rem',
+                            ...actorStyle(isHuman),
+                          }}
+                        >
+                          {msg}
+                        </div>
+                      );
+                    })
                   )}
                   
                   {isAIThinking && (

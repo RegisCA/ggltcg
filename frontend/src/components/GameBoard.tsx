@@ -352,6 +352,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             isAIThinking={isAIThinking}
             isCompact={isPhone}
             playByPlay={gameState?.play_by_play}
+            humanPlayerName={humanPlayer.name}
           />
         </div>
         <LayoutGroup>
