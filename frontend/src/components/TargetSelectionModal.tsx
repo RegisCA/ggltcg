@@ -18,6 +18,9 @@ interface TargetSelectionModalProps {
   onCancel: () => void;
   alternativeCostOptions?: Card[]; // For Ballaber
   currentCharge?: number; // Current Charge to determine if Pay Charge option is affordable
+  /** Local player's ID: adds a "Yours"/"Theirs" tag per target. Border color
+   *  alone can't signal ownership when both sides share faction colors. */
+  humanPlayerId?: string;
 }
 
 export function TargetSelectionModal({
@@ -27,6 +30,7 @@ export function TargetSelectionModal({
   onCancel,
   alternativeCostOptions,
   currentCharge,
+  humanPlayerId,
 }: TargetSelectionModalProps) {
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [useAlternativeCost, setUseAlternativeCost] = useState(false);
@@ -339,12 +343,28 @@ export function TargetSelectionModal({
                   const handleClick = hasDirectAttackOption 
                     ? () => selectCardTarget(card.id)
                     : () => !isDisabled && toggleTarget(card.id);
+                  const isYours = card.controller === humanPlayerId;
                   return (
                     <div
                       key={card.id}
                       onClick={handleClick}
-                      className="flex justify-center"
+                      className="flex flex-col items-center"
+                      style={{ gap: 'var(--spacing-component-xs)' }}
                     >
+                      {/* Ownership tag: per-actor colors match the game log
+                          (you=blue, opponent=purple) */}
+                      {humanPlayerId && (
+                        <span
+                          className={`rounded-full text-xs font-semibold ${
+                            isYours
+                              ? 'bg-blue-900 text-blue-200'
+                              : 'bg-purple-950 text-purple-200'
+                          }`}
+                          style={{ padding: '1px var(--spacing-component-sm)' }}
+                        >
+                          {isYours ? 'Yours' : 'Theirs'}
+                        </span>
+                      )}
                       <CardDisplay
                         card={card}
                         size="medium"
