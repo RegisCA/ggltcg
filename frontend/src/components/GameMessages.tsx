@@ -59,6 +59,7 @@ export function GameMessages({
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsedState] = useState(loadCollapsedPreference);
   const [lastSeenCount, setLastSeenCount] = useState(0);
+  const [frozenHeight, setFrozenHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const setIsCollapsed = (value: boolean) => {
@@ -82,6 +83,21 @@ export function GameMessages({
       setLastSeenCount(messages.length);
     }
   }, [isCollapsed, messages.length]);
+
+  // Freeze the expanded log's height for the duration of the opponent's
+  // turn: entries stream in mid-turn (2s poll), and letting the panel
+  // re-fit per entry bounces the whole board below it. The held height
+  // releases when the turn ends — the one moment the board is changing
+  // anyway. New entries stay visible via the auto-scroll below.
+  useEffect(() => {
+    if (isAIThinking && !isCollapsed && scrollContainerRef.current) {
+      // isCompact dep: re-capture when crossing the phone breakpoint, whose
+      // max-height cap differs — a stale frozen height would fight it
+      setFrozenHeight(scrollContainerRef.current.offsetHeight);
+    } else {
+      setFrozenHeight(null);
+    }
+  }, [isAIThinking, isCollapsed, isCompact]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -182,6 +198,7 @@ export function GameMessages({
               ref={scrollContainerRef}
               style={{
                 overflowY: 'auto',
+                height: frozenHeight !== null ? `${frozenHeight}px` : undefined,
                 maxHeight: isCompact ? '150px' : '220px',
                 padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)'
               }}
