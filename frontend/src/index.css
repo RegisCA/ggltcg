@@ -174,6 +174,7 @@
     "divider    divider"
     "my-inplay  my-break"
     "hand       hand"
+    "actionbar  actionbar"
     "sidebar    sidebar";
 }
 
@@ -184,7 +185,8 @@
       "opp-inplay opp-break sidebar"
       "divider    divider   sidebar"
       "my-inplay  my-break  sidebar"
-      "hand       hand      hand";
+      "hand       hand      hand"
+      "actionbar  actionbar actionbar";
   }
 }
 
@@ -196,7 +198,8 @@
       "opp-inplay opp-break sidebar"
       "divider    divider   sidebar"
       "my-inplay  my-break  sidebar"
-      "hand       hand      sidebar";
+      "hand       hand      sidebar"
+      "actionbar  actionbar sidebar";
   }
 }
 

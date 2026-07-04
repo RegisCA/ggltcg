@@ -9,9 +9,14 @@ interface PlayerInfoBarProps {
   player: Player;
   isActive: boolean;
   isCompact?: boolean;  // Tighter type/spacing so two bars fit side by side at phone widths
+  /** Hide the Charge readout. The player's own Charge lives in the ActionBar
+   *  next to the hand (WP-2 #2) — the header copy was redundant and too far
+   *  from where play decisions happen. Keep true for the opponent, whose
+   *  charge has no closer home. */
+  showCharge?: boolean;
 }
 
-export function PlayerInfoBar({ player, isActive, isCompact = false }: PlayerInfoBarProps) {
+export function PlayerInfoBar({ player, isActive, isCompact = false, showCharge = true }: PlayerInfoBarProps) {
   // Use hand_count if available (for AI player), otherwise count hand array
   const handCount = player.hand_count ?? player.hand?.length ?? 0;
 
@@ -34,13 +39,17 @@ export function PlayerInfoBar({ player, isActive, isCompact = false }: PlayerInf
         <span className={`${isCompact ? 'text-xs' : 'text-sm'} text-gray-400`}>Hand</span>
       </div>
 
-      <span className={`${isCompact ? 'text-xs' : 'text-sm'} text-gray-400 flex-shrink-0`}>|</span>
+      {showCharge && (
+        <>
+          <span className={`${isCompact ? 'text-xs' : 'text-sm'} text-gray-400 flex-shrink-0`}>|</span>
 
-      {/* 3. Charge Count (Bigger Number, Smaller Label) */}
-      <div className="flex items-end leading-none flex-shrink-0" style={{ gap: 'var(--spacing-component-xs)' }}>
-        <span className={`${isCompact ? 'text-lg' : 'text-2xl'} font-bold`}>{player.charge}</span>
-        <span className={`${isCompact ? 'text-xs' : 'text-sm'} text-gray-400`}>Charge</span>
-      </div>
+          {/* 3. Charge Count (Bigger Number, Smaller Label) */}
+          <div className="flex items-end leading-none flex-shrink-0" style={{ gap: 'var(--spacing-component-xs)' }}>
+            <span className={`${isCompact ? 'text-lg' : 'text-2xl'} font-bold`}>{player.charge}</span>
+            <span className={`${isCompact ? 'text-xs' : 'text-sm'} text-gray-400`}>Charge</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
