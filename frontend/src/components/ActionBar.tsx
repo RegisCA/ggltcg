@@ -19,7 +19,12 @@ import type { ValidAction } from '../types/game';
 
 interface ActionBarProps {
   charge: number;
-  endTurnAction?: ValidAction;  // undefined when it's not the player's turn
+  /** All currently valid actions. The bar only renders End Turn, but takes
+   *  the full list so the inactivity timer resets on ANY action the player
+   *  takes (playing/tussling changes the list), matching the old
+   *  ActionPanel's behavior — the end_turn entry alone can stay
+   *  reference-identical across react-query refetches. */
+  validActions: ValidAction[];
   onAction: (action: ValidAction) => void;
   isProcessing: boolean;
   isCompact?: boolean;
@@ -27,13 +32,16 @@ interface ActionBarProps {
 
 export function ActionBar({
   charge,
-  endTurnAction,
+  validActions,
   onAction,
   isProcessing,
   isCompact = false,
 }: ActionBarProps) {
   const [shouldBlink, setShouldBlink] = useState(false);
   const [lastActionTime, setLastActionTime] = useState(Date.now());
+
+  // undefined when it's not the player's turn
+  const endTurnAction = validActions.find(a => a.action_type === 'end_turn');
 
   const canEndTurn = !!endTurnAction && !isProcessing;
 
@@ -56,12 +64,12 @@ export function ActionBar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleEndTurn]);
 
-  // Reset the inactivity timer whenever the available action changes
+  // Reset the inactivity timer whenever the valid-action list changes
   // (indicates an action was taken or the turn changed)
   useEffect(() => {
     setLastActionTime(Date.now());
     setShouldBlink(false);
-  }, [endTurnAction]);
+  }, [validActions]);
 
   // Inactivity reminders on the End Turn button (ported from ActionPanel)
   useEffect(() => {

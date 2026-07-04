@@ -409,7 +409,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           <div style={{ gridArea: 'actionbar' }}>
             <ActionBar
               charge={humanPlayer.charge}
-              endTurnAction={(validActionsData?.valid_actions || []).find(a => a.action_type === 'end_turn')}
+              validActions={validActionsData?.valid_actions || []}
               onAction={handleAction}
               isProcessing={isProcessing}
               isCompact={!isDesktop}
