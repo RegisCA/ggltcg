@@ -98,7 +98,10 @@ export function BreakZoneDisplay({
             ✕
           </button>
         </div>
-        <div className="flex flex-wrap overflow-y-auto" style={{ gap: 'var(--spacing-component-sm)' }}>
+        {/* flex-1 min-h-0 lets this flex item shrink below its content height
+            so overflow-y-auto engages inside Modal's max-h-[90vh] wrapper
+            (same pattern as TargetSelectionModal/ProfileEditModal) */}
+        <div className="flex flex-wrap flex-1 min-h-0 overflow-y-auto content-start" style={{ gap: 'var(--spacing-component-sm)' }}>
           {cardList.map((card) => (
             <CardDisplay key={card.id} card={card} size="small" disableDetailModal={true} />
           ))}
