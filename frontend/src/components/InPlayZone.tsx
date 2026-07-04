@@ -7,6 +7,7 @@
  */
 
 import { CardDisplay } from './CardDisplay';
+import { cardGridTemplateColumns } from '../utils/cardGridTracks';
 import type { Card } from '../types/game';
 
 interface InPlayZoneProps {
@@ -55,13 +56,12 @@ export function InPlayZone({
         </div>
       ) : (
         /* auto-fill grid: cards flex between their base width and max width
-           so names get the available space instead of truncating.
-           min(base, 100%) keeps the track from overflowing zones narrower
-           than the base card width (paired zones at phone widths). */
+           so names get the available space instead of truncating (track
+           sizing shared with HandZone — see utils/cardGridTracks). */
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(auto-fill, minmax(min(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-min-w)'}, 100%), 1fr))`,
+              gridTemplateColumns: cardGridTemplateColumns(size),
               gap: 'var(--spacing-component-xs)',
             }}
           >
