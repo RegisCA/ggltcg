@@ -70,7 +70,7 @@ export function BreakZoneDisplay({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(var(--spacing-card-small-w), 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--spacing-card-small-w), 100%), 1fr))',
             gap: 'var(--spacing-component-xs)',
           }}
         >
@@ -114,7 +114,7 @@ export function BreakZoneDisplay({
           className="flex-1 min-h-0 overflow-y-auto content-start"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(var(--spacing-card-small-w), 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--spacing-card-small-w), 100%), 1fr))',
             gap: 'var(--spacing-component-sm)',
           }}
         >

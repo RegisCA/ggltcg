@@ -21,49 +21,47 @@ interface InPlayZoneProps {
   enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
-export function InPlayZone({ 
-  cards, 
-  isHuman = false, 
-  selectedCard, 
-  onCardClick, 
+export function InPlayZone({
+  cards,
+  playerName,
+  isHuman = false,
+  selectedCard,
+  onCardClick,
   actionableCardIds = [],
   isPlayerTurn = false,
   size = 'medium',
   enableLayoutAnimation = false,
 }: InPlayZoneProps) {
   const cardList = cards || [];
-  
+
   // Zone height based on card size (from design system):
   // - small cards: 164px height + padding = ~170px
   // - medium cards: 225px height + padding = ~240px
   // - empty zone: collapses to minimal 80px
   const minHeight = cardList.length === 0 ? '80px' : (size === 'small' ? '170px' : '240px');
-  
+
   return (
-    <div className="bg-gray-800 rounded border border-gray-700 flex">
-      {/* Vertical Label */}
-      <div 
-        className="flex items-center justify-center bg-gray-900 rounded-l border-r border-gray-700"
-        style={{ paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}
-      >
-        <div className="text-xs text-gray-400 font-bold" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-          IN PLAY ({cardList.length})
-        </div>
+    <div className="bg-gray-800 rounded border border-gray-700" style={{ padding: 'var(--spacing-component-sm)' }}>
+      {/* Header names the owner: zones sit side by side (opponent | you),
+          so position alone no longer says whose board this is. Matches the
+          Break Zone header style (one zone-label language, WP-1 #6). */}
+      <div className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+        {playerName} - IN PLAY ({cardList.length})
       </div>
-      
-      {/* Cards Area */}
-      <div className="flex-1" style={{ padding: 'var(--spacing-component-sm)' }}>
-        {cardList.length === 0 ? (
-          <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            No cards in play
-          </div>
-        ) : (
-          /* auto-fill grid: cards flex between their base width and max width
-             so names get the available space instead of truncating */
+
+      {cardList.length === 0 ? (
+        <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          No cards in play
+        </div>
+      ) : (
+        /* auto-fill grid: cards flex between their base width and max width
+           so names get the available space instead of truncating.
+           min(base, 100%) keeps the track from overflowing zones narrower
+           than the base card width (paired zones at phone widths). */
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(auto-fill, minmax(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-w)'}, 1fr))`,
+              gridTemplateColumns: `repeat(auto-fill, minmax(min(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-w)'}, 100%), 1fr))`,
               gap: 'var(--spacing-component-xs)',
             }}
           >
@@ -89,8 +87,7 @@ export function InPlayZone({
               );
             })}
           </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
