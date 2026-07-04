@@ -19,7 +19,7 @@ import { PlayerInfoBar } from './PlayerInfoBar';
 import { InPlayZone } from './InPlayZone';
 import { HandZone } from './HandZone';
 import { BreakZoneDisplay } from './BreakZoneDisplay';
-import { ActionPanel } from './ActionPanel';
+import { ActionBar } from './ActionBar';
 import { TargetSelectionModal } from './TargetSelectionModal';
 import { GameMessages } from './GameMessages';
 
@@ -289,12 +289,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
                 </div>
               </div>
-              {/* Phone: Players side by side, compact so both fit */}
+              {/* Phone: Players side by side, compact so both fit.
+                  Own charge lives in the ActionBar at the hand (WP-2 #2). */}
               <div className="flex justify-between w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
                 <PlayerInfoBar
                   player={humanPlayer}
                   isActive={gameState.active_player_id === humanPlayerId}
                   isCompact={true}
+                  showCharge={false}
                 />
                 <PlayerInfoBar
                   player={otherPlayer}
@@ -305,11 +307,13 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             </>
           ) : (
             <>
-              {/* Desktop/Tablet: 3 columns (compact info bars on tablet) */}
+              {/* Desktop/Tablet: 3 columns (compact info bars on tablet).
+                  Own charge lives in the ActionBar at the hand (WP-2 #2). */}
               <PlayerInfoBar
                 player={humanPlayer}
                 isActive={gameState.active_player_id === humanPlayerId}
                 isCompact={!isDesktop}
+                showCharge={false}
               />
               <div className="text-center">
                 <div 
@@ -399,25 +403,26 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             />
           </div>
 
-          <div
-            className="flex flex-col"
-            style={{
-              gridArea: 'sidebar',
-              gap: isDesktop ? 'var(--spacing-component-sm)' : 'var(--spacing-component-xs)',
-            }}
-          >
+          {/* Charge + End Turn, docked at the hand where play decisions
+              happen. Replaces the ActionPanel sidebar list (WP-1 #1,
+              WP-2 #1-2): cards themselves are the play surface. */}
+          <div style={{ gridArea: 'actionbar' }}>
+            <ActionBar
+              charge={humanPlayer.charge}
+              validActions={validActionsData?.valid_actions || []}
+              onAction={handleAction}
+              isProcessing={isProcessing}
+              isCompact={!isDesktop}
+            />
+          </div>
+
+          {/* Sidebar is now the game log's alone */}
+          <div style={{ gridArea: 'sidebar' }}>
             <GameMessages
               messages={messages}
               isAIThinking={isAIThinking}
               isCompact={!isDesktop}
               playByPlay={gameState?.play_by_play}
-            />
-            <ActionPanel
-              validActions={validActionsData?.valid_actions || []}
-              onAction={handleAction}
-              isProcessing={isProcessing}
-              currentCharge={humanPlayer.charge}
-              isCompact={!isDesktop}
             />
           </div>
         </div>
