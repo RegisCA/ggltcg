@@ -238,6 +238,25 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     );
   }
 
+  // Which side each playable hand card can currently target, derived from
+  // the backend's target_options (no card knowledge lives in the frontend).
+  // Surfaces self-targetable effects before the target modal opens —
+  // observed play: Régis forgot Stomp could hit his own board (WP-2 #5).
+  const handTargetHints: Record<string, 'yours' | 'theirs' | 'either'> = {};
+  {
+    const ownIds = new Set(
+      [...humanPlayer.in_play, ...humanPlayer.break_zone, ...(humanPlayer.hand || [])].map((c) => c.id)
+    );
+    for (const action of validActionsData?.valid_actions || []) {
+      if (action.action_type !== 'play_card' || !action.card_id) continue;
+      const targets = (action.target_options || []).filter((id) => id !== 'direct_attack');
+      if (targets.length === 0) continue;
+      const hitsYours = targets.some((id) => ownIds.has(id));
+      const hitsTheirs = targets.some((id) => !ownIds.has(id));
+      handTargetHints[action.card_id] = hitsYours && hitsTheirs ? 'either' : hitsYours ? 'yours' : 'theirs';
+    }
+  }
+
   // Helper function to get available target cards
   const getAvailableTargets = (action: ValidAction): Card[] => {
     if (!action.target_options || action.target_options.length === 0) {
@@ -405,6 +424,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               selectedCard={selectedCard || undefined}
               onCardClick={handleHandCardClick}
               playableCardIds={playableCardIds}
+              targetHints={handTargetHints}
               isPlayerTurn={isHumanTurn}
               size={cardSize}
               isCompact={!isDesktop && isLandscape}

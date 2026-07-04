@@ -38,6 +38,9 @@ interface CardDisplayProps {
   enableLayoutAnimation?: boolean;
   /** Disable the mobile detail modal (e.g. when shown inside the modal itself) */
   disableDetailModal?: boolean;
+  /** Which side this card's effect can currently target (hand cards only).
+   *  Surfaces self-targetable effects before the target modal opens (WP-2 #5). */
+  targetHint?: 'yours' | 'theirs' | 'either';
 }
 
 export function CardDisplay({
@@ -54,6 +57,7 @@ export function CardDisplay({
   fluid = false,
   enableLayoutAnimation = false,
   disableDetailModal = false,
+  targetHint,
 }: CardDisplayProps) {
   const prefersReducedMotion = useReducedMotion();
   const { isMobile } = useResponsive();
@@ -353,6 +357,33 @@ export function CardDisplay({
             }}
           >
             {card.effect_text}
+          </div>
+        )}
+
+        {/* Targeting-side hint. "either" is the case players miss (WP-2 #5:
+            self-targeting was invisible until the target modal). Colors match
+            the yours=blue / theirs=purple language of the log and modal tags. */}
+        {targetHint && (
+          <div
+            className={`inline-block rounded-full font-semibold ${
+              targetHint === 'yours'
+                ? 'bg-blue-900 text-blue-200'
+                : targetHint === 'theirs'
+                  ? 'bg-purple-950 text-purple-200'
+                  : 'text-gray-100'
+            }`}
+            style={{
+              fontSize: size === 'small' ? '0.625rem' : '0.6875rem',
+              padding: '1px var(--spacing-component-sm)',
+              marginTop: 'var(--spacing-component-xs)',
+              position: 'relative',
+              zIndex: 1,
+              ...(targetHint === 'either'
+                ? { background: 'linear-gradient(90deg, rgb(30 58 138) 0%, rgb(59 7 100) 100%)' }
+                : {}),
+            }}
+          >
+            🎯 {targetHint === 'yours' ? 'your side' : targetHint === 'theirs' ? 'their side' : 'either side'}
           </div>
         )}
 
