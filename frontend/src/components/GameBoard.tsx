@@ -35,7 +35,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
   
   // Responsive layout detection
-  const { isDesktop, isMobile, isLandscape, isTablet, width, height } = useResponsive();
+  const { isDesktop, isMobile, isPhone, isLandscape, isTablet, width, height } = useResponsive();
   // Use small cards only for true mobile (<360px)
   // Use medium cards (with effect text) for tablet and desktop - readability is key
   const cardSize = isMobile ? 'small' : 'medium';
@@ -264,16 +264,17 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         </div>
       )}
         {/* Game Header - Player Info Bars */}
-        <div 
-          className={`sticky top-0 z-10 bg-game-bg border-b border-gray-700 ${isMobile ? 'flex flex-col' : 'grid grid-cols-3'} items-center`}
-          style={{ 
-            padding: 'var(--spacing-component-sm)', 
-            gap: isMobile ? 'var(--spacing-component-xs)' : 'var(--spacing-component-md)'
+        <div
+          className={`sticky top-0 z-10 bg-game-bg border-b border-gray-700 ${isPhone ? 'flex flex-col' : 'grid grid-cols-3'} items-center`}
+          style={{
+            padding: 'var(--spacing-component-sm)',
+            gap: isPhone ? 'var(--spacing-component-xs)' : 'var(--spacing-component-md)'
           }}
         >
-          {isMobile ? (
+          {isPhone ? (
             <>
-              {/* Mobile: Turn indicator first */}
+              {/* Phone: Turn indicator first, players stacked below —
+                  the 3-column header overlaps into unreadable text under 768px */}
               <div className="text-center">
                 <div 
                   className={`
@@ -288,24 +289,27 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                   {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
                 </div>
               </div>
-              {/* Mobile: Players side by side */}
+              {/* Phone: Players side by side, compact so both fit */}
               <div className="flex justify-between w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
                 <PlayerInfoBar
                   player={humanPlayer}
                   isActive={gameState.active_player_id === humanPlayerId}
+                  isCompact={true}
                 />
                 <PlayerInfoBar
                   player={otherPlayer}
                   isActive={gameState.active_player_id === otherPlayerId}
+                  isCompact={true}
                 />
               </div>
             </>
           ) : (
             <>
-              {/* Desktop/Tablet: 3 columns */}
+              {/* Desktop/Tablet: 3 columns (compact info bars on tablet) */}
               <PlayerInfoBar
                 player={humanPlayer}
                 isActive={gameState.active_player_id === humanPlayerId}
+                isCompact={!isDesktop}
               />
               <div className="text-center">
                 <div 
@@ -325,6 +329,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
                 <PlayerInfoBar
                   player={otherPlayer}
                   isActive={gameState.active_player_id === otherPlayerId}
+                  isCompact={!isDesktop}
                 />
               </div>
             </>
@@ -409,8 +414,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               />
             </div>
           </div>
-        ) : isMobile ? (
-          /* Mobile: Single-column stack for small screens */
+        ) : isPhone ? (
+          /* Phone: Single-column stack — the tablet sidebar layout doesn't fit under 768px */
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
             {/* Opponent's zones */}
             <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
