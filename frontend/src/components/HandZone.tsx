@@ -64,7 +64,7 @@ export function HandZone({
                 ? { gap: 'var(--spacing-component-xs)' }
                 : {
                     display: 'grid',
-                    gridTemplateColumns: `repeat(auto-fill, minmax(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-w)'}, 1fr))`,
+                    gridTemplateColumns: `repeat(auto-fill, minmax(min(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-w)'}, 100%), 1fr))`,
                     gap: 'var(--spacing-component-xs)',
                   }
             }

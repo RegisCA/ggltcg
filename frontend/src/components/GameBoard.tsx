@@ -340,10 +340,20 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           )}
         </div>
 
-        {/* Main Game Area — one JSX tree; per-device arrangement lives in the
-            .game-board-grid template areas (index.css). Only component density
-            props (isCompact) vary by breakpoint here. */}
+        {/* Main Game Area — one JSX tree; arrangement lives in the
+            .game-board-grid template areas (index.css). The log ticker sits
+            above the zones: it's the first checkpoint of the observed
+            post-opponent-turn reading path (WP-2 #4), then the paired boards
+            (opponent | you), hand, and action bar follow it in order. */}
         <div className="max-w-[1400px] mx-auto" style={{ marginTop: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)' }}>
+        <div style={{ marginBottom: isDesktop ? 'var(--spacing-component-sm)' : 'var(--spacing-component-xs)' }}>
+          <GameMessages
+            messages={messages}
+            isAIThinking={isAIThinking}
+            isCompact={isPhone}
+            playByPlay={gameState?.play_by_play}
+          />
+        </div>
         <LayoutGroup>
         <div className="game-board-grid">
           <div style={{ gridArea: 'opp-inplay' }}>
@@ -360,12 +370,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             <BreakZoneDisplay
               cards={otherPlayer.break_zone}
               playerName={otherPlayer.name}
-              isCompact={!isDesktop}
+              isCompact={isPhone}
               enableLayoutAnimation={true}
             />
           </div>
-
-          <div className="border-t-2 border-game-highlight" style={{ gridArea: 'divider' }}></div>
 
           <div style={{ gridArea: 'my-inplay' }}>
             <InPlayZone
@@ -385,7 +393,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             <BreakZoneDisplay
               cards={humanPlayer.break_zone}
               playerName={humanPlayer.name}
-              isCompact={!isDesktop}
+              isCompact={isPhone}
               enableLayoutAnimation={true}
             />
           </div>
@@ -427,15 +435,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             />
           </div>
 
-          {/* Sidebar is now the game log's alone */}
-          <div style={{ gridArea: 'sidebar' }}>
-            <GameMessages
-              messages={messages}
-              isAIThinking={isAIThinking}
-              isCompact={!isDesktop}
-              playByPlay={gameState?.play_by_play}
-            />
-          </div>
         </div>
         </LayoutGroup>
         </div>

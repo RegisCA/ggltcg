@@ -155,51 +155,29 @@
 
 /* Game Board layout grid
  *
- * One grid, one JSX tree in GameBoard.tsx — the arrangement per device class
- * lives entirely here as named template areas. Breakpoints match
- * useResponsive.ts (phone <768px, desktop >1024px): if you change one,
- * change the other.
+ * One grid, one JSX tree in GameBoard.tsx — the arrangement lives entirely
+ * here as named template areas.
  *
- * Phone (base): single column; sidebar (log + actions) below the hand.
- * Tablet (≥768px): sidebar on the right; hand spans full width below.
- * Desktop (>1024px): sidebar full height; break zones widen to match
- * in-play zones.
+ * Zones pair by type (opponent | you) following the observed post-opponent-
+ * turn reading path (UI_REFRESH_2026_06 WP-2 #4): log ticker (rendered above
+ * this grid) → opponent's board → own board → own hand. Both boards are
+ * visible side by side at every width; the old right-hand sidebar is gone
+ * (the log is a full-width ticker, actions live in the actionbar).
  */
 .game-board-grid {
   display: grid;
   gap: var(--spacing-component-xs);
-  grid-template-columns: minmax(0, 1fr) var(--width-break-zone-mobile);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
-    "opp-inplay opp-break"
-    "divider    divider"
-    "my-inplay  my-break"
+    "opp-inplay my-inplay"
+    "opp-break  my-break"
     "hand       hand"
-    "actionbar  actionbar"
-    "sidebar    sidebar";
-}
-
-@media (min-width: 768px) {
-  .game-board-grid {
-    grid-template-columns: minmax(0, 1fr) var(--width-break-zone-tablet) var(--width-sidebar-tablet);
-    grid-template-areas:
-      "opp-inplay opp-break sidebar"
-      "divider    divider   sidebar"
-      "my-inplay  my-break  sidebar"
-      "hand       hand      hand"
-      "actionbar  actionbar actionbar";
-  }
+    "actionbar  actionbar";
 }
 
 @media (min-width: 1025px) {
   .game-board-grid {
     gap: var(--spacing-component-sm);
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--width-sidebar-desktop);
-    grid-template-areas:
-      "opp-inplay opp-break sidebar"
-      "divider    divider   sidebar"
-      "my-inplay  my-break  sidebar"
-      "hand       hand      sidebar"
-      "actionbar  actionbar sidebar";
   }
 }
 
