@@ -169,6 +169,10 @@ export function CardDisplay({
           width: fluid ? '100%' : `${config.width}px`,
           maxWidth: fluid ? `${config.maxWidth}px` : undefined,
           height: `${config.height}px`,
+          // Backstop for the fixed height: content that outgrows the card
+          // (e.g. a future extra-long 2-line name plus a large stat block)
+          // clips at the border instead of spilling past it
+          overflow: 'hidden',
           padding: `${config.padding}px`,
           backgroundColor: 'var(--ui-card-bg)',
           border: `${borderWidth} solid ${effectiveBorderColor}`,
