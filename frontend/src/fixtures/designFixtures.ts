@@ -13,7 +13,7 @@
  * lazy-imported there, so it stays out of the main bundle for normal players.
  */
 
-import type { Card, CardType, GameState, Player, ValidAction, Zone } from '../types/game';
+import type { Card, CardType, GameState, PlayByPlayEntry, Player, ValidAction, Zone } from '../types/game';
 import type { ActionResponse, ValidActionsResponse } from '../types/api';
 
 export const FIXTURE_HUMAN_ID = 'fixture-you';
@@ -452,9 +452,65 @@ export const DESIGN_FIXTURES: DesignFixture[] = [
 
 const fixturesById = new Map(DESIGN_FIXTURES.map((f) => [f.id, f]));
 
+// ============================================================================
+// SCRIPTED OPPONENT-TURN LOG DRIP
+// ============================================================================
+
+/**
+ * While the opponent-turn fixture sits in its permanent "thinking" state,
+ * reveal these log entries one at a time over the 2s state poll — the live
+ * condition where entries land mid-AI-turn and the log must not resize the
+ * board around them. Log-only: the board state stays frozen, so the
+ * descriptions are written to not contradict the visible board. Also the
+ * staging ground for live opponent-turn playback (WP-1 #3, WP-2 #9).
+ */
+const OPPONENT_TURN_SCRIPT: PlayByPlayEntry[] = [
+  {
+    turn: 6,
+    player: 'Gemiknight',
+    action_type: 'activate_ability',
+    description: 'Belchaletta generated 2 Charge',
+    reasoning: 'Banking Charge before committing to an attack line.',
+  },
+  {
+    turn: 6,
+    player: 'Gemiknight',
+    action_type: 'tussle',
+    description: 'Ka tussled Knight — Knight survived (1 stamina left)',
+    reasoning: 'Trading into Knight now denies the follow-up swing next turn.',
+  },
+  {
+    turn: 6,
+    player: 'Gemiknight',
+    action_type: 'tussle',
+    description: 'Belchaletta tussled Drum — Drum survived',
+    reasoning: 'Pressuring both blockers keeps the board honest.',
+  },
+  {
+    turn: 6,
+    player: 'Gemiknight',
+    action_type: 'end_turn',
+    description: 'Ended turn',
+  },
+];
+
+const SCRIPT_REVEAL_MS = 4000;
+const scriptClocks = new Map<string, number>();
+
 export function getFixtureGameState(gameId: string): GameState {
   const fixture = fixturesById.get(gameId);
   if (!fixture) throw new Error(`Unknown design fixture: ${gameId}`);
+  if (gameId === 'fixture-opponent-turn') {
+    if (!scriptClocks.has(gameId)) scriptClocks.set(gameId, Date.now());
+    const elapsed = Date.now() - scriptClocks.get(gameId)!;
+    const revealed = Math.min(OPPONENT_TURN_SCRIPT.length, Math.floor(elapsed / SCRIPT_REVEAL_MS));
+    if (revealed > 0) {
+      return {
+        ...fixture.state,
+        play_by_play: [...(fixture.state.play_by_play ?? []), ...OPPONENT_TURN_SCRIPT.slice(0, revealed)],
+      };
+    }
+  }
   return fixture.state;
 }
 
