@@ -30,6 +30,10 @@ interface CardDisplayProps {
   isTussling?: boolean;
   isCopy?: boolean;  // Card created by Copy effect
   size?: 'small' | 'medium' | 'large';
+  /** Fill the parent grid track (up to a per-size max) instead of a fixed
+   *  width. Use inside auto-fill grid containers so card names get the
+   *  available space instead of truncating at the fixed width. */
+  fluid?: boolean;
   /** Enable layout animations for zone transitions (uses card.id as layoutId) */
   enableLayoutAnimation?: boolean;
   /** Disable the mobile detail modal (e.g. when shown inside the modal itself) */
@@ -47,6 +51,7 @@ export function CardDisplay({
   isTussling = false,
   isCopy = false,
   size = 'medium',
+  fluid = false,
   enableLayoutAnimation = false,
   disableDetailModal = false,
 }: CardDisplayProps) {
@@ -61,11 +66,13 @@ export function CardDisplay({
   const effectivelyDisabled = isDisabled || isUnplayable;
   const isToy = card.card_type === 'Toy';  // Match backend enum value
 
-  // Size configurations (px values from UX spec)
+  // Size configurations (px values from UX spec).
+  // width is the fixed (and fluid-minimum) size; maxWidth caps fluid growth
+  // so cards widen enough for full names without becoming comically wide.
   const sizeConfig = {
-    small: { width: 120, height: 164, padding: 8, fontSize: 'xs', statSize: 'xs' },
-    medium: { width: 165, height: 225, padding: 12, fontSize: 'sm', statSize: 'sm' },
-    large: { width: 330, height: 450, padding: 24, fontSize: 'base', statSize: 'lg' },
+    small: { width: 120, maxWidth: 175, height: 164, padding: 8, fontSize: 'xs', statSize: 'xs' },
+    medium: { width: 165, maxWidth: 250, height: 225, padding: 12, fontSize: 'sm', statSize: 'sm' },
+    large: { width: 330, maxWidth: 330, height: 450, padding: 24, fontSize: 'base', statSize: 'lg' },
   };
 
   const config = sizeConfig[size];
@@ -159,8 +166,13 @@ export function CardDisplay({
           ${effectivelyDisabled && !shouldEnableMobileDetail ? 'opacity-50 cursor-not-allowed' : ''}
         `}
         style={{
-          width: `${config.width}px`,
+          width: fluid ? '100%' : `${config.width}px`,
+          maxWidth: fluid ? `${config.maxWidth}px` : undefined,
           height: `${config.height}px`,
+          // Backstop for the fixed height: content that outgrows the card
+          // (e.g. a future extra-long 2-line name plus a large stat block)
+          // clips at the border instead of spilling past it
+          overflow: 'hidden',
           padding: `${config.padding}px`,
           backgroundColor: 'var(--ui-card-bg)',
           border: `${borderWidth} solid ${effectiveBorderColor}`,
@@ -254,9 +266,10 @@ export function CardDisplay({
             );
           })()}
 
-          {/* Card Name */}
-          <h3 
-            className="flex-1 font-bold truncate"
+          {/* Card Name — wraps to 2 lines before ellipsizing, so long names
+              stay identifiable even at small card widths (WP-1 #5) */}
+          <h3
+            className="flex-1 font-bold"
             style={{
               fontFamily: 'var(--font-body)',
               fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '0.875rem' : '1.25rem',
@@ -264,6 +277,11 @@ export function CardDisplay({
               fontWeight: 700,
               marginLeft: size === 'small' ? '6px' : size === 'medium' ? '8px' : '12px',
               marginRight: size === 'small' ? '6px' : size === 'medium' ? '8px' : '12px',
+              overflow: 'hidden',
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+              overflowWrap: 'anywhere',
             }}
           >
             {card.name}

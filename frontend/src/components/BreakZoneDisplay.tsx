@@ -65,12 +65,21 @@ export function BreakZoneDisplay({
           )}
         </div>
       ) : (
-        <div className="flex flex-wrap" style={{ gap: 'var(--spacing-component-xs)' }}>
+        /* auto-fill grid: cards flex between their base and max width so
+           names get the available space instead of truncating */
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(var(--spacing-card-small-w), 1fr))',
+            gap: 'var(--spacing-component-xs)',
+          }}
+        >
           {cardList.map((card) => (
             <CardDisplay
               key={card.id}
               card={card}
               size="small"
+              fluid={true}
               enableLayoutAnimation={enableLayoutAnimation}
             />
           ))}
@@ -101,9 +110,16 @@ export function BreakZoneDisplay({
         {/* flex-1 min-h-0 lets this flex item shrink below its content height
             so overflow-y-auto engages inside Modal's max-h-[90vh] wrapper
             (same pattern as TargetSelectionModal/ProfileEditModal) */}
-        <div className="flex flex-wrap flex-1 min-h-0 overflow-y-auto content-start" style={{ gap: 'var(--spacing-component-sm)' }}>
+        <div
+          className="flex-1 min-h-0 overflow-y-auto content-start"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(var(--spacing-card-small-w), 1fr))',
+            gap: 'var(--spacing-component-sm)',
+          }}
+        >
           {cardList.map((card) => (
-            <CardDisplay key={card.id} card={card} size="small" disableDetailModal={true} />
+            <CardDisplay key={card.id} card={card} size="small" fluid={true} disableDetailModal={true} />
           ))}
         </div>
       </Modal>
