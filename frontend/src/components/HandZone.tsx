@@ -4,6 +4,7 @@
  */
 
 import { CardDisplay } from './CardDisplay';
+import { cardGridTemplateColumns } from '../utils/cardGridTracks';
 import type { Card } from '../types/game';
 
 interface HandZoneProps {
@@ -64,7 +65,7 @@ export function HandZone({
                 ? { gap: 'var(--spacing-component-xs)' }
                 : {
                     display: 'grid',
-                    gridTemplateColumns: `repeat(auto-fill, minmax(min(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-min-w)'}, 100%), 1fr))`,
+                    gridTemplateColumns: cardGridTemplateColumns(size),
                     gap: 'var(--spacing-component-xs)',
                   }
             }

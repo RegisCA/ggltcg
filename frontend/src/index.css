@@ -58,6 +58,9 @@
   --spacing-card-small-h: 164px;
   --spacing-card-medium-w: 165px;
   --spacing-card-medium-min-w: 150px; /* Fluid-grid track minimum: lets two medium cards share a phone-width hand row */
+  --spacing-card-medium-squeeze-w: 140px; /* Floor a medium card may squeeze to so a pair still fits phone rows:
+     zone grids are ~290px at 375pt and ~305px at 390pt viewports, where two
+     150px tracks + gap (308px) miss by a hair (150px passed only >=393pt). */
   --spacing-card-medium-h: 225px;
   --spacing-card-large-w: 330px;
   --spacing-card-large-h: 450px;
