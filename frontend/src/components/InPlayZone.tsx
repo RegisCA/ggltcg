@@ -61,7 +61,7 @@ export function InPlayZone({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(auto-fill, minmax(min(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-w)'}, 100%), 1fr))`,
+              gridTemplateColumns: `repeat(auto-fill, minmax(min(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-min-w)'}, 100%), 1fr))`,
               gap: 'var(--spacing-component-xs)',
             }}
           >

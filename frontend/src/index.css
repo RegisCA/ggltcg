@@ -57,6 +57,7 @@
   --spacing-card-small-w: 120px;
   --spacing-card-small-h: 164px;
   --spacing-card-medium-w: 165px;
+  --spacing-card-medium-min-w: 150px; /* Fluid-grid track minimum: lets two medium cards share a phone-width hand row */
   --spacing-card-medium-h: 225px;
   --spacing-card-large-w: 330px;
   --spacing-card-large-h: 450px;

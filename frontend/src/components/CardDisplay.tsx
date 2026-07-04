@@ -69,10 +69,14 @@ export function CardDisplay({
   // Size configurations (px values from UX spec).
   // width is the fixed (and fluid-minimum) size; maxWidth caps fluid growth
   // so cards widen enough for full names without becoming comically wide.
+  // height is content-driven above a minimum: with no card art, fixed tall
+  // frames were mostly dead space and forced needless board scrolling.
+  // Cards sharing a grid row stretch to the row's tallest card, so rows
+  // stay visually even. Only 'large' (detail modal) keeps a fixed height.
   const sizeConfig = {
-    small: { width: 120, maxWidth: 175, height: 164, padding: 8, fontSize: 'xs', statSize: 'xs' },
-    medium: { width: 165, maxWidth: 250, height: 225, padding: 12, fontSize: 'sm', statSize: 'sm' },
-    large: { width: 330, maxWidth: 330, height: 450, padding: 24, fontSize: 'base', statSize: 'lg' },
+    small: { width: 120, maxWidth: 175, height: 'auto' as const, minHeight: 112, padding: 8, fontSize: 'xs', statSize: 'xs' },
+    medium: { width: 165, maxWidth: 250, height: 'auto' as const, minHeight: 150, padding: 12, fontSize: 'sm', statSize: 'sm' },
+    large: { width: 330, maxWidth: 330, height: 450, minHeight: 450, padding: 24, fontSize: 'base', statSize: 'lg' },
   };
 
   const config = sizeConfig[size];
@@ -168,7 +172,8 @@ export function CardDisplay({
         style={{
           width: fluid ? '100%' : `${config.width}px`,
           maxWidth: fluid ? `${config.maxWidth}px` : undefined,
-          height: `${config.height}px`,
+          height: typeof config.height === 'number' ? `${config.height}px` : config.height,
+          minHeight: `${config.minHeight}px`,
           // Backstop for the fixed height: content that outgrows the card
           // (e.g. a future extra-long 2-line name plus a large stat block)
           // clips at the border instead of spilling past it
