@@ -54,9 +54,20 @@ export function HandZone({
             No cards in hand
           </div>
         ) : (
-          <div 
-            className="flex flex-wrap"
-            style={{ gap: 'var(--spacing-component-xs)' }}
+          /* Compact mode keeps fixed-width cards in a horizontal scroll row;
+             otherwise an auto-fill grid lets cards widen (up to a max) so
+             names get the available space instead of truncating */
+          <div
+            className={isCompact ? 'flex flex-wrap' : ''}
+            style={
+              isCompact
+                ? { gap: 'var(--spacing-component-xs)' }
+                : {
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-w)'}, 1fr))`,
+                    gap: 'var(--spacing-component-xs)',
+                  }
+            }
           >
             {cardList.map((card) => {
               // Card is playable if it's in the playable list OR it's not the player's turn (don't dim during opponent's turn)
@@ -66,6 +77,7 @@ export function HandZone({
                   key={card.id}
                   card={card}
                   size={size}
+                  fluid={!isCompact}
                   isSelected={selectedCard === card.id}
                   isClickable={!!onCardClick}
                   isUnplayable={isPlayerTurn && !isPlayable}

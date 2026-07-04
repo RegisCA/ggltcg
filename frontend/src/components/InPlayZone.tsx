@@ -58,7 +58,15 @@ export function InPlayZone({
             No cards in play
           </div>
         ) : (
-          <div className="flex flex-wrap" style={{ gap: 'var(--spacing-component-xs)' }}>
+          /* auto-fill grid: cards flex between their base width and max width
+             so names get the available space instead of truncating */
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(auto-fill, minmax(${size === 'small' ? 'var(--spacing-card-small-w)' : 'var(--spacing-card-medium-w)'}, 1fr))`,
+              gap: 'var(--spacing-component-xs)',
+            }}
+          >
             {cardList.map((card) => {
               // Card is actionable if it's in the actionable list (can tussle or use ability)
               const isActionable = isPlayerTurn && actionableCardIds.includes(card.id);
@@ -71,6 +79,7 @@ export function InPlayZone({
                   key={card.id}
                   card={card}
                   size={size}
+                  fluid={true}
                   isSelected={selectedCard === card.id}
                   isClickable={isClickable}
                   isHighlighted={isActionable}
