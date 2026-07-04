@@ -238,6 +238,18 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
     );
   }
 
+  // Opponent-turn phases for the game log. The turn number stamps every
+  // play-by-play entry and turns belong to one player (strict parity), so
+  // an entry for the current turn means the opponent has started acting:
+  // "thinking" runs from turn start until their first entry (normally the
+  // plan announcement) lands — after that the streaming entries are the
+  // feedback and a spinner would be noise. Also covers the no-plan
+  // fallback, where an action entry arrives without a strategy.
+  const isOpponentTurn = !isHumanTurn && !gameState.is_game_over;
+  const isOpponentThinking =
+    isOpponentTurn &&
+    !(gameState.play_by_play || []).some((entry) => entry.turn === gameState.turn_number);
+
   // Which side each playable hand card can currently target, derived from
   // the backend's target_options (no card knowledge lives in the frontend).
   // Surfaces self-targetable effects before the target modal opens —
@@ -368,8 +380,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         <div style={{ marginBottom: isDesktop ? 'var(--spacing-component-sm)' : 'var(--spacing-component-xs)' }}>
           <GameMessages
             messages={messages}
-            isAIThinking={isAIThinking}
-            isOpponentTurn={!isHumanTurn && !gameState.is_game_over}
+            isOpponentTurn={isOpponentTurn}
+            isOpponentThinking={isOpponentThinking}
             isCompact={isPhone}
             playByPlay={gameState?.play_by_play}
             humanPlayerName={humanPlayer.name}

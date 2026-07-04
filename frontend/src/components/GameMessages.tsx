@@ -43,12 +43,15 @@ function actorChipClass(isHuman: boolean | null): string {
 
 interface GameMessagesProps {
   messages: string[];
-  isAIThinking?: boolean;
   /** True for the opponent's whole turn. The AI turn is a *sequence* of
-   *  /ai-turn requests, so isAIThinking (mutation pending) flickers off
-   *  between actions — thinking state and the height freeze key on this
-   *  instead, spanning the gaps. */
+   *  /ai-turn requests, so mutation-pending state flickers off between
+   *  actions — the height freeze keys on this instead, spanning the gaps. */
   isOpponentTurn?: boolean;
+  /** True only for the turn's thinking phase: from the opponent's turn
+   *  starting until their first entry (normally the plan announcement)
+   *  lands in the log. After that the streaming entries are the feedback —
+   *  the spinner would just be noise over the acting phase. */
+  isOpponentThinking?: boolean;
   isCompact?: boolean;  // Tighter type/spacing at phone widths
   playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
   /** Display name of the local player, for per-actor color coding */
@@ -57,8 +60,8 @@ interface GameMessagesProps {
 
 export function GameMessages({
   messages,
-  isAIThinking = false,
   isOpponentTurn = false,
+  isOpponentThinking = false,
   isCompact = false,
   playByPlay = [],
   humanPlayerName,
@@ -67,10 +70,6 @@ export function GameMessages({
   const [lastSeenCount, setLastSeenCount] = useState(0);
   const [frozenHeight, setFrozenHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  // The opponent is acting: either their turn is in progress (spans the
-  // gaps between the AI's per-action requests) or a request is pending.
-  const isOpponentActing = isOpponentTurn || isAIThinking;
 
   const setIsCollapsed = (value: boolean) => {
     setIsCollapsedState(value);
@@ -100,14 +99,14 @@ export function GameMessages({
   // releases when the turn ends — the one moment the board is changing
   // anyway. New entries stay visible via the auto-scroll below.
   useEffect(() => {
-    if (isOpponentActing && !isCollapsed && scrollContainerRef.current) {
+    if (isOpponentTurn && !isCollapsed && scrollContainerRef.current) {
       // isCompact dep: re-capture when crossing the phone breakpoint, whose
       // max-height cap differs — a stale frozen height would fight it
       setFrozenHeight(scrollContainerRef.current.offsetHeight);
     } else {
       setFrozenHeight(null);
     }
-  }, [isOpponentActing, isCollapsed, isCompact]);
+  }, [isOpponentTurn, isCollapsed, isCompact]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -152,7 +151,7 @@ export function GameMessages({
             </span>
           )}
           {isCollapsed && (
-            isOpponentActing ? (
+            isOpponentThinking ? (
               <span
                 className={`inline-flex items-center text-purple-300 ${isCompact ? 'text-xs' : 'text-sm'}`}
                 style={{ gap: 'var(--spacing-component-xs)', minWidth: 0 }}
@@ -213,7 +212,7 @@ export function GameMessages({
                 padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)'
               }}
             >
-              {displayMessages.length === 0 && !isOpponentActing ? (
+              {displayMessages.length === 0 && !isOpponentThinking ? (
                 <div className={`text-gray-500 italic ${isCompact ? 'text-xs' : 'text-sm'}`}>
                   No messages yet
                 </div>
@@ -318,7 +317,7 @@ export function GameMessages({
                     })
                   )}
                   
-                  {isOpponentActing && (
+                  {isOpponentThinking && (
                     <div
                       className="bg-purple-900 rounded inline-flex items-center"
                       style={{
