@@ -413,8 +413,19 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
           {/* Charge + End Turn, docked at the hand where play decisions
               happen. Replaces the ActionPanel sidebar list (WP-1 #1,
-              WP-2 #1-2): cards themselves are the play surface. */}
-          <div style={{ gridArea: 'actionbar' }}>
+              WP-2 #1-2): cards themselves are the play surface.
+              Sticky: this is the only place the player's own Charge is
+              shown, so it must never scroll out of view — in a real game
+              the board grows taller than the viewport. */}
+          <div
+            style={{
+              gridArea: 'actionbar',
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 20,
+              boxShadow: '0 -8px 16px -4px rgba(26, 26, 46, 0.9)',
+            }}
+          >
             <ActionBar
               charge={humanPlayer.charge}
               validActions={validActionsData?.valid_actions || []}
