@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useResponsive } from '../hooks/useResponsive';
 import type { PlayByPlayEntry } from '../types/game';
 
 interface GameMessagesProps {
@@ -22,21 +23,16 @@ export function GameMessages({
   isCompact = false,
   playByPlay = []
 }: GameMessagesProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isPhone } = useResponsive();
+  const [isCollapsed, setIsCollapsed] = useState(isPhone);
   const [lastSeenCount, setLastSeenCount] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Default to collapsed on mobile (<768px)
+  // Default to collapsed at phone widths (single source of breakpoint truth:
+  // useResponsive — this used to be a separate matchMedia listener)
   useEffect(() => {
-    const checkMobile = () => {
-      const isMobile = window.matchMedia('(max-width: 768px)').matches;
-      setIsCollapsed(isMobile);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    setIsCollapsed(isPhone);
+  }, [isPhone]);
 
   // Update last seen count when expanded
   useEffect(() => {

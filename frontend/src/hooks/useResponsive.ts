@@ -3,9 +3,15 @@
  * 
  * Provides responsive breakpoint detection for adaptive layouts.
  * Breakpoints optimized for card game readability:
- * - mobile (<360px): Very small screens, simplified layout
+ * - mobile (<360px): Very small screens, small cards without effect text
+ * - phone (<768px): Phones and portrait tablets — single-column layout,
+ *   stacked header (the 3-column header and sidebar layouts don't fit and
+ *   used to overlap into unreadable text: UI_REFRESH_2026_06 WP-1 #4)
  * - tablet (360-1024px): Most phones and tablets, readable card text
  * - desktop (>1024px): Full desktop layout
+ *
+ * This hook is the single source of truth for breakpoints — don't add
+ * per-component matchMedia listeners.
  * 
  * Uses visualViewport API when available for more accurate measurements
  * across different mobile browsers (especially iOS Chrome vs Safari).
@@ -14,11 +20,13 @@
 import { useState, useEffect } from 'react';
 
 // Breakpoint constants - adjust here to change all breakpoint logic
-const MOBILE_BREAKPOINT = 360;   // Below this: mobile layout (very small screens only)
+const MOBILE_BREAKPOINT = 360;   // Below this: small cards (very small screens only)
+const PHONE_BREAKPOINT = 768;    // Below this: single-column layout, stacked header
 const DESKTOP_BREAKPOINT = 1024; // Above this: desktop layout
 
 interface ResponsiveState {
   isMobile: boolean;      // < 360px width (very small screens)
+  isPhone: boolean;       // < 768px width (phones and portrait tablets)
   isTablet: boolean;      // 360-1024px width (most phones and tablets)
   isDesktop: boolean;     // > 1024px width
   isLandscape: boolean;   // width > height
@@ -57,6 +65,7 @@ export function useResponsive(): ResponsiveState {
     const { width, height } = getViewportDimensions();
     return {
       isMobile: width < MOBILE_BREAKPOINT,
+      isPhone: width < PHONE_BREAKPOINT,
       isTablet: width >= MOBILE_BREAKPOINT && width <= DESKTOP_BREAKPOINT,
       isDesktop: width > DESKTOP_BREAKPOINT,
       isLandscape: width > height,
@@ -70,6 +79,7 @@ export function useResponsive(): ResponsiveState {
       const { width, height } = getViewportDimensions();
       setState({
         isMobile: width < MOBILE_BREAKPOINT,
+        isPhone: width < PHONE_BREAKPOINT,
         isTablet: width >= MOBILE_BREAKPOINT && width <= DESKTOP_BREAKPOINT,
         isDesktop: width > DESKTOP_BREAKPOINT,
         isLandscape: width > height,
