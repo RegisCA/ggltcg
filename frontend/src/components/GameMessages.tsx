@@ -44,6 +44,11 @@ function actorChipClass(isHuman: boolean | null): string {
 interface GameMessagesProps {
   messages: string[];
   isAIThinking?: boolean;
+  /** True for the opponent's whole turn. The AI turn is a *sequence* of
+   *  /ai-turn requests, so isAIThinking (mutation pending) flickers off
+   *  between actions — thinking state and the height freeze key on this
+   *  instead, spanning the gaps. */
+  isOpponentTurn?: boolean;
   isCompact?: boolean;  // Tighter type/spacing at phone widths
   playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
   /** Display name of the local player, for per-actor color coding */
@@ -53,6 +58,7 @@ interface GameMessagesProps {
 export function GameMessages({
   messages,
   isAIThinking = false,
+  isOpponentTurn = false,
   isCompact = false,
   playByPlay = [],
   humanPlayerName,
@@ -61,6 +67,10 @@ export function GameMessages({
   const [lastSeenCount, setLastSeenCount] = useState(0);
   const [frozenHeight, setFrozenHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // The opponent is acting: either their turn is in progress (spans the
+  // gaps between the AI's per-action requests) or a request is pending.
+  const isOpponentActing = isOpponentTurn || isAIThinking;
 
   const setIsCollapsed = (value: boolean) => {
     setIsCollapsedState(value);
@@ -90,14 +100,14 @@ export function GameMessages({
   // releases when the turn ends — the one moment the board is changing
   // anyway. New entries stay visible via the auto-scroll below.
   useEffect(() => {
-    if (isAIThinking && !isCollapsed && scrollContainerRef.current) {
+    if (isOpponentActing && !isCollapsed && scrollContainerRef.current) {
       // isCompact dep: re-capture when crossing the phone breakpoint, whose
       // max-height cap differs — a stale frozen height would fight it
       setFrozenHeight(scrollContainerRef.current.offsetHeight);
     } else {
       setFrozenHeight(null);
     }
-  }, [isAIThinking, isCollapsed, isCompact]);
+  }, [isOpponentActing, isCollapsed, isCompact]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -142,7 +152,7 @@ export function GameMessages({
             </span>
           )}
           {isCollapsed && (
-            isAIThinking ? (
+            isOpponentActing ? (
               <span
                 className={`inline-flex items-center text-purple-300 ${isCompact ? 'text-xs' : 'text-sm'}`}
                 style={{ gap: 'var(--spacing-component-xs)', minWidth: 0 }}
@@ -203,7 +213,7 @@ export function GameMessages({
                 padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)'
               }}
             >
-              {displayMessages.length === 0 && !isAIThinking ? (
+              {displayMessages.length === 0 && !isOpponentActing ? (
                 <div className={`text-gray-500 italic ${isCompact ? 'text-xs' : 'text-sm'}`}>
                   No messages yet
                 </div>
@@ -243,6 +253,28 @@ export function GameMessages({
                             {entries.map((entry, idx) => {
                               const entryKey = `${turn}-${idx}`;
                               const isHuman = isHumanActor(entry.player);
+
+                              // The AI's once-per-turn plan announcement
+                              // (backend action_type "strategy") reads as
+                              // commentary, not an action: brighter purple,
+                              // italic, 💭 — mirrors the recap's plan block
+                              if (entry.action_type === 'strategy') {
+                                return (
+                                  <div
+                                    key={entryKey}
+                                    className="bg-purple-900 rounded overflow-hidden"
+                                    style={{
+                                      padding: isCompact ? '2px 6px' : '2px 8px',
+                                      borderLeft: '3px solid #c084fc',
+                                    }}
+                                  >
+                                    <div className={`text-purple-100 ${isCompact ? 'text-xs' : 'text-sm'}`}>
+                                      <span className="font-semibold not-italic">💭 {entry.player}:</span>{' '}
+                                      <span className="italic">{entry.description}</span>
+                                    </div>
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <div
@@ -286,8 +318,8 @@ export function GameMessages({
                     })
                   )}
                   
-                  {isAIThinking && (
-                    <div 
+                  {isOpponentActing && (
+                    <div
                       className="bg-purple-900 rounded inline-flex items-center"
                       style={{
                         padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',

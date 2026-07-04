@@ -369,6 +369,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           <GameMessages
             messages={messages}
             isAIThinking={isAIThinking}
+            isOpponentTurn={!isHumanTurn && !gameState.is_game_over}
             isCompact={isPhone}
             playByPlay={gameState?.play_by_play}
             humanPlayerName={humanPlayer.name}

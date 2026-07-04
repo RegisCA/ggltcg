@@ -423,16 +423,11 @@ function buildOpponentTurn(): DesignFixture {
       winner: null,
       is_game_over: false,
       play_by_play: [
+        // Turn 6 entries arrive via OPPONENT_TURN_SCRIPT (strategy first,
+        // then actions), matching the backend's live ordering
         { turn: 5, player: 'You', action_type: 'play_card', description: 'Played Drum (Cost: 1)' },
         { turn: 5, player: 'You', action_type: 'tussle', description: 'Knight tussled Gibbers — Gibbers broken' },
         { turn: 5, player: 'You', action_type: 'end_turn', description: 'Ended turn' },
-        {
-          turn: 6,
-          player: 'Gemiknight',
-          action_type: 'play_card',
-          description: 'Played Belchaletta (Cost: 1)',
-          reasoning: 'Belchaletta generates 2 Charge every turn, funding a Ka-backed attack next turn.',
-        },
       ],
     },
     validActions: [],
@@ -468,23 +463,33 @@ const OPPONENT_TURN_SCRIPT: PlayByPlayEntry[] = [
   {
     turn: 6,
     player: 'Gemiknight',
+    action_type: 'strategy',
+    description:
+      'Bank Charge with Belchaletta, then trade Ka into Knight to blunt the counter-attack and pressure Drum with what remains.',
+  },
+  {
+    turn: 6,
+    player: 'Gemiknight',
+    action_type: 'play_card',
+    description: 'Played Belchaletta (Cost: 1)',
+  },
+  {
+    turn: 6,
+    player: 'Gemiknight',
     action_type: 'activate_ability',
     description: 'Belchaletta generated 2 Charge',
-    reasoning: 'Banking Charge before committing to an attack line.',
   },
   {
     turn: 6,
     player: 'Gemiknight',
     action_type: 'tussle',
     description: 'Ka tussled Knight — Knight survived (1 stamina left)',
-    reasoning: 'Trading into Knight now denies the follow-up swing next turn.',
   },
   {
     turn: 6,
     player: 'Gemiknight',
     action_type: 'tussle',
     description: 'Belchaletta tussled Drum — Drum survived',
-    reasoning: 'Pressuring both blockers keeps the board honest.',
   },
   {
     turn: 6,

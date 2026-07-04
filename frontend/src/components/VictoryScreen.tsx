@@ -258,6 +258,9 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                     <div className="content-spacing">
                       {actions
                         .filter(entry => {
+                          // The live plan announcement duplicates the "📋 Plan"
+                          // block above (both come from the same turn plan)
+                          if (entry.action_type === 'strategy') return false;
                           // Filter out generic "ended their turn" messages
                           const desc = entry.description.toLowerCase();
                           return !(desc.includes('ended their turn') || desc.includes('ended turn'));
