@@ -15,6 +15,8 @@ interface HandZoneProps {
   size?: 'small' | 'medium';  // Responsive card size (matches CardDisplay)
   isCompact?: boolean;  // Compact mode for landscape tablets - scrollable horizontal
   enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
+  /** Per-card targeting side (card ID → side), shown as a hint tag (WP-2 #5) */
+  targetHints?: Record<string, 'yours' | 'theirs' | 'either'>;
 }
 
 export function HandZone({ 
@@ -26,6 +28,7 @@ export function HandZone({
   size = 'medium',
   isCompact = false,
   enableLayoutAnimation = false,
+  targetHints = {},
 }: HandZoneProps) {
   const cardList = cards || [];
   
@@ -83,6 +86,7 @@ export function HandZone({
                   isUnplayable={isPlayerTurn && !isPlayable}
                   onClick={onCardClick ? () => onCardClick(card.id) : undefined}
                   enableLayoutAnimation={enableLayoutAnimation}
+                  targetHint={targetHints[card.id]}
                 />
               );
             })}
