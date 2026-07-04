@@ -130,9 +130,16 @@ export async function activateAbility(
 
 export async function aiTakeTurn(gameId: string, aiPlayerId: string): Promise<ActionResponse> {
   if (isDesignFixture(gameId)) {
-    // Never resolves: keeps the "opponent is thinking" state on screen so the
-    // opponent-turn fixture can be reviewed as a stable layout state.
-    return new Promise<ActionResponse>(() => {});
+    // Stays pending long enough to keep the "opponent is thinking" state on
+    // screen as a stable, reviewable layout state — but settles eventually so
+    // react-query's MutationCache can GC the mutation (a never-resolving
+    // promise would accumulate orphaned pending mutations across fixture
+    // switches, since gcTime only starts on settle).
+    const FIXTURE_THINKING_MS = 10 * 60 * 1000;
+    const response = await fixtureActionResponse();
+    return new Promise<ActionResponse>((resolve) => {
+      setTimeout(() => resolve(response), FIXTURE_THINKING_MS);
+    });
   }
   const response = await apiClient.post<ActionResponse>(
     `/games/${gameId}/ai-turn`,
