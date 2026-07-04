@@ -31,9 +31,11 @@ export function BreakZoneDisplay({
   const [isListOpen, setIsListOpen] = useState(false);
 
   const minHeight = isCompact ? '180px' : '200px';
-  // Compact mode only has room for one card; the newest break is the one
-  // players look for first when reconstructing what just happened.
-  const newestCard = cardList[cardList.length - 1];
+  // Newest break first everywhere: it's the card players look for when
+  // reconstructing what just happened (e.g. two breaks in one opponent turn
+  // used to require the log or the modal to identify).
+  const newestFirst = [...cardList].reverse();
+  const newestCard = newestFirst[0];
   const hiddenCount = cardList.length - 1;
 
   return (
@@ -74,7 +76,7 @@ export function BreakZoneDisplay({
             gap: 'var(--spacing-component-xs)',
           }}
         >
-          {cardList.map((card) => (
+          {newestFirst.map((card) => (
             <CardDisplay
               key={card.id}
               card={card}
@@ -118,7 +120,7 @@ export function BreakZoneDisplay({
             gap: 'var(--spacing-component-sm)',
           }}
         >
-          {cardList.map((card) => (
+          {newestFirst.map((card) => (
             <CardDisplay key={card.id} card={card} size="small" fluid={true} disableDetailModal={true} />
           ))}
         </div>

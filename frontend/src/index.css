@@ -158,21 +158,25 @@
  * One grid, one JSX tree in GameBoard.tsx — the arrangement lives entirely
  * here as named template areas.
  *
- * Zones pair by type (opponent | you) following the observed post-opponent-
+ * Zones pair by type (you | opponent) following the observed post-opponent-
  * turn reading path (UI_REFRESH_2026_06 WP-2 #4): log ticker (rendered above
  * this grid) → opponent's board → own board → own hand. Both boards are
  * visible side by side at every width; the old right-hand sidebar is gone
  * (the log is a full-width ticker, actions live in the actionbar).
+ *
+ * Your side is the LEFT column, matching the header (your name/hand count
+ * are top-left, the opponent's top-right) — device review found the
+ * opposite order disorienting.
  */
 .game-board-grid {
   display: grid;
   gap: var(--spacing-component-xs);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
-    "opp-inplay my-inplay"
-    "opp-break  my-break"
-    "hand       hand"
-    "actionbar  actionbar";
+    "my-inplay opp-inplay"
+    "my-break  opp-break"
+    "hand      hand"
+    "actionbar actionbar";
 }
 
 @media (min-width: 1025px) {
