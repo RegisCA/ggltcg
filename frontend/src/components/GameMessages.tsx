@@ -182,8 +182,8 @@ export function GameMessages({
               ref={scrollContainerRef}
               style={{
                 overflowY: 'auto',
-                maxHeight: isCompact ? '150px' : '280px',
-                padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-md)'
+                maxHeight: isCompact ? '150px' : '220px',
+                padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)'
               }}
             >
               {displayMessages.length === 0 && !isAIThinking ? (
@@ -191,7 +191,7 @@ export function GameMessages({
                   No messages yet
                 </div>
               ) : (
-                <div className={isCompact ? 'space-y-1' : 'space-y-2'}>
+                <div className="space-y-1">
                   {/* If we have play-by-play data with reasoning, use it */}
                   {playByPlay.length > 0 ? (
                     (() => {
@@ -206,22 +206,23 @@ export function GameMessages({
                         groupedByTurn[entry.turn].push(entry);
                       });
                       
-                      return Object.entries(groupedByTurn).map(([turn, entries], turnIdx) => (
+                      return Object.entries(groupedByTurn).map(([turn, entries]) => (
                         <div key={`turn-${turn}`}>
-                          {/* Turn separator */}
-                          {turnIdx > 0 && (
-                            <div 
-                              className="border-t border-gray-700"
-                              style={{ 
-                                marginTop: 'var(--spacing-component-xs)', 
-                                marginBottom: 'var(--spacing-component-xs)',
-                                paddingTop: isCompact ? '4px' : 'var(--spacing-component-xs)'
-                              }}
-                            />
-                          )}
-                          
+                          {/* Turn label doubles as the group separator —
+                              scanning for "what happened on turn N" was the
+                              log's main job in observed play (WP-2 #4) */}
+                          <div
+                            className="flex items-center text-gray-500"
+                            style={{ gap: 'var(--spacing-component-xs)', margin: '4px 0 2px' }}
+                          >
+                            <span className="text-[10px] font-bold uppercase tracking-wider flex-shrink-0">
+                              Turn {turn}
+                            </span>
+                            <div className="border-t border-gray-700 flex-1" />
+                          </div>
+
                           {/* Turn entries */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: isCompact ? '4px' : 'var(--spacing-component-xs)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                             {entries.map((entry, idx) => {
                               const entryKey = `${turn}-${idx}`;
                               const isHuman = isHumanActor(entry.player);
@@ -231,7 +232,7 @@ export function GameMessages({
                                   key={entryKey}
                                   className={`${actorChipClass(isHuman)} rounded overflow-hidden`}
                                   style={{
-                                    padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                                    padding: isCompact ? '2px 6px' : '2px 8px',
                                     ...actorStyle(isHuman),
                                   }}
                                 >
@@ -257,7 +258,7 @@ export function GameMessages({
                           key={`${idx}-${msg.substring(0, 20)}`}
                           className={`${actorChipClass(isHuman)} rounded`}
                           style={{
-                            padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
+                            padding: isCompact ? '2px 6px' : '2px 8px',
                             fontSize: isCompact ? '0.75rem' : '0.875rem',
                             ...actorStyle(isHuman),
                           }}
