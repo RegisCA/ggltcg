@@ -406,7 +406,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               playableCardIds={playableCardIds}
               isPlayerTurn={isHumanTurn}
               size={cardSize}
-              isCompact={isPhone || (!isDesktop && isLandscape)}
+              isCompact={!isDesktop && isLandscape}
               enableLayoutAnimation={true}
             />
           </div>
