@@ -336,136 +336,57 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           )}
         </div>
 
-        {/* Main Game Area - Responsive Layout */}
+        {/* Main Game Area — one JSX tree; per-device arrangement lives in the
+            .game-board-grid template areas (index.css). Only component density
+            props (isCompact) vary by breakpoint here. */}
         <div className="max-w-[1400px] mx-auto" style={{ marginTop: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-sm)' }}>
         <LayoutGroup>
-        {isDesktop ? (
-          /* Desktop: Left side = game zones stacked, Right side = messages + actions */
-          <div className="grid" style={{ gap: 'var(--spacing-component-sm)', gridTemplateColumns: '1fr 350px' }}>
-            {/* Left Side - All Game Zones */}
-            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
-              {/* Opponent's Zones - Side by Side */}
-              <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
-                <InPlayZone
-                  cards={otherPlayer.in_play}
-                  playerName={otherPlayer.name}
-                  isHuman={false}
-                  size={cardSize}
-                  enableLayoutAnimation={true}
-                />
-                <BreakZoneDisplay
-                  cards={otherPlayer.break_zone}
-                  playerName={otherPlayer.name}
-                  enableLayoutAnimation={true}
-                />
-              </div>
-
-              {/* Divider */}
-              <div className="border-t-2 border-game-highlight"></div>
-
-              {/* My Zones - Side by Side */}
-              <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
-                <InPlayZone
-                  cards={humanPlayer.in_play}
-                  playerName={humanPlayer.name}
-                  isHuman={true}
-                  selectedCard={selectedCard || undefined}
-                  onCardClick={handleInPlayCardClick}
-                  actionableCardIds={actionableInPlayCardIds}
-                  isPlayerTurn={isHumanTurn}
-                  size={cardSize}
-                  enableLayoutAnimation={true}
-                />
-                <BreakZoneDisplay
-                  cards={humanPlayer.break_zone}
-                  playerName={humanPlayer.name}
-                  enableLayoutAnimation={true}
-                />
-              </div>
-
-              {/* My Hand - Full Width Below My Zones */}
-              <HandZone
-                cards={humanPlayer.hand || []}
-                selectedCard={selectedCard || undefined}
-                onCardClick={handleHandCardClick}
-                playableCardIds={playableCardIds}
-                isPlayerTurn={isHumanTurn}
-                size={cardSize}
-                isCompact={false}
-                enableLayoutAnimation={true}
-              />
-            </div>
-
-            {/* Right Side - Messages + Actions (Full Height) */}
-            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
-              {/* Messages Area */}
-              <GameMessages
-                messages={messages}
-                isAIThinking={isAIThinking}
-                playByPlay={gameState?.play_by_play}
-              />
-
-              {/* Actions Panel */}
-              <ActionPanel
-                validActions={validActionsData?.valid_actions || []}
-                onAction={handleAction}
-                isProcessing={isProcessing}
-                currentCharge={humanPlayer.charge}
-              />
-            </div>
+        <div className="game-board-grid">
+          <div style={{ gridArea: 'opp-inplay' }}>
+            <InPlayZone
+              cards={otherPlayer.in_play}
+              playerName={otherPlayer.name}
+              isHuman={false}
+              size={cardSize}
+              enableLayoutAnimation={true}
+            />
           </div>
-        ) : isPhone ? (
-          /* Phone: Single-column stack — the tablet sidebar layout doesn't fit under 768px */
-          <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
-            {/* Opponent's zones */}
-            <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
-              <div className="flex-1" style={{ minWidth: 0 }}>
-                <InPlayZone
-                  cards={otherPlayer.in_play}
-                  playerName={otherPlayer.name}
-                  isHuman={false}
-                  size={cardSize}
-                  enableLayoutAnimation={true}
-                />
-              </div>
-              <div style={{ width: 'var(--width-break-zone-mobile)', flexShrink: 0 }}>
-                <BreakZoneDisplay
-                  cards={otherPlayer.break_zone}
-                  playerName={otherPlayer.name}
-                  isCompact={true}
-                  enableLayoutAnimation={true}
-                />
-              </div>
-            </div>
-            
-            <div className="border-t-2 border-game-highlight"></div>
-            
-            {/* Human's zones */}
-            <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
-              <div className="flex-1" style={{ minWidth: 0 }}>
-                <InPlayZone
-                  cards={humanPlayer.in_play}
-                  playerName={humanPlayer.name}
-                  isHuman={true}
-                  selectedCard={selectedCard || undefined}
-                  onCardClick={handleInPlayCardClick}
-                  actionableCardIds={actionableInPlayCardIds}
-                  isPlayerTurn={isHumanTurn}
-                  size={cardSize}
-                  enableLayoutAnimation={true}
-                />
-              </div>
-              <div style={{ width: 'var(--width-break-zone-mobile)', flexShrink: 0 }}>
-                <BreakZoneDisplay
-                  cards={humanPlayer.break_zone}
-                  playerName={humanPlayer.name}
-                  isCompact={true}
-                  enableLayoutAnimation={true}
-                />
-              </div>
-            </div>
-            
-            {/* Human Hand */}
+
+          <div style={{ gridArea: 'opp-break' }}>
+            <BreakZoneDisplay
+              cards={otherPlayer.break_zone}
+              playerName={otherPlayer.name}
+              isCompact={!isDesktop}
+              enableLayoutAnimation={true}
+            />
+          </div>
+
+          <div className="border-t-2 border-game-highlight" style={{ gridArea: 'divider' }}></div>
+
+          <div style={{ gridArea: 'my-inplay' }}>
+            <InPlayZone
+              cards={humanPlayer.in_play}
+              playerName={humanPlayer.name}
+              isHuman={true}
+              selectedCard={selectedCard || undefined}
+              onCardClick={handleInPlayCardClick}
+              actionableCardIds={actionableInPlayCardIds}
+              isPlayerTurn={isHumanTurn}
+              size={cardSize}
+              enableLayoutAnimation={true}
+            />
+          </div>
+
+          <div style={{ gridArea: 'my-break' }}>
+            <BreakZoneDisplay
+              cards={humanPlayer.break_zone}
+              playerName={humanPlayer.name}
+              isCompact={!isDesktop}
+              enableLayoutAnimation={true}
+            />
+          </div>
+
+          <div style={{ gridArea: 'hand' }}>
             <HandZone
               cards={humanPlayer.hand || []}
               selectedCard={selectedCard || undefined}
@@ -473,118 +394,33 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
               playableCardIds={playableCardIds}
               isPlayerTurn={isHumanTurn}
               size={cardSize}
-              isCompact={true}
+              isCompact={isPhone || (!isDesktop && isLandscape)}
               enableLayoutAnimation={true}
             />
-            
-            {/* Messages */}
+          </div>
+
+          <div
+            className="flex flex-col"
+            style={{
+              gridArea: 'sidebar',
+              gap: isDesktop ? 'var(--spacing-component-sm)' : 'var(--spacing-component-xs)',
+            }}
+          >
             <GameMessages
               messages={messages}
               isAIThinking={isAIThinking}
-              isCompact={true}
+              isCompact={!isDesktop}
               playByPlay={gameState?.play_by_play}
             />
-            
-            {/* Actions Panel */}
             <ActionPanel
               validActions={validActionsData?.valid_actions || []}
               onAction={handleAction}
               isProcessing={isProcessing}
               currentCharge={humanPlayer.charge}
-              isCompact={true}
+              isCompact={!isDesktop}
             />
           </div>
-        ) : (
-          /* Tablet: 2-column layout */
-          <>
-          <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: '1fr var(--width-sidebar-tablet)' }}>
-            {/* Left Column - Game Zones (In Play + Break stacked) */}
-            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
-              {/* Opponent's zones */}
-              <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
-                <div className="flex-1">
-                  <InPlayZone
-                    cards={otherPlayer.in_play}
-                    playerName={otherPlayer.name}
-                    isHuman={false}
-                    size={cardSize}
-                    enableLayoutAnimation={true}
-                  />
-                </div>
-                <div style={{ width: '200px' }}>
-                  <BreakZoneDisplay
-                    cards={otherPlayer.break_zone}
-                    playerName={otherPlayer.name}
-                    isCompact={true}
-                    enableLayoutAnimation={true}
-                  />
-                </div>
-              </div>
-              
-              <div className="border-t-2 border-game-highlight"></div>
-              
-              {/* Human's zones */}
-              <div className="flex" style={{ gap: 'var(--spacing-component-xs)' }}>
-                <div className="flex-1">
-                  <InPlayZone
-                    cards={humanPlayer.in_play}
-                    playerName={humanPlayer.name}
-                    isHuman={true}
-                    selectedCard={selectedCard || undefined}
-                    onCardClick={handleInPlayCardClick}
-                    actionableCardIds={actionableInPlayCardIds}
-                    isPlayerTurn={isHumanTurn}
-                    size={cardSize}
-                    enableLayoutAnimation={true}
-                  />
-                </div>
-                <div style={{ width: '200px' }}>
-                  <BreakZoneDisplay
-                    cards={humanPlayer.break_zone}
-                    playerName={humanPlayer.name}
-                    isCompact={true}
-                    enableLayoutAnimation={true}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Messages + Actions */}
-            <div className="flex flex-col" style={{ gap: 'var(--spacing-component-xs)' }}>
-              {/* Messages Area - Compact & Collapsible */}
-              <GameMessages
-                messages={messages}
-                isAIThinking={isAIThinking}
-                isCompact={true}
-                playByPlay={gameState?.play_by_play}
-              />
-
-              {/* Actions Panel */}
-              <ActionPanel
-                validActions={validActionsData?.valid_actions || []}
-                onAction={handleAction}
-                isProcessing={isProcessing}
-                currentCharge={humanPlayer.charge}
-                isCompact={true}
-              />
-            </div>
-          </div>
-
-          {/* Human Hand - Full Width at Bottom (Tablet/Mobile only) */}
-          <div style={{ marginTop: 'var(--spacing-component-xs)' }}>
-            <HandZone
-              cards={humanPlayer.hand || []}
-              selectedCard={selectedCard || undefined}
-              onCardClick={handleHandCardClick}
-              playableCardIds={playableCardIds}
-              isPlayerTurn={isHumanTurn}
-              size={cardSize}
-              isCompact={isTablet && isLandscape}
-              enableLayoutAnimation={true}
-            />
-          </div>
-          </>
-        )}
+        </div>
         </LayoutGroup>
         </div>
 
