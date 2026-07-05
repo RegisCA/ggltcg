@@ -9,8 +9,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { CardDisplay } from './CardDisplay';
-import { crayonForColor, costNumeralColor, materialFor } from '../theme/crayon';
-import type { Card, ValidAction } from '../types/game';
+import type { Card, ValidAction, Zone } from '../types/game';
 
 interface TargetSelectionModalProps {
   action: ValidAction;
@@ -19,23 +18,14 @@ interface TargetSelectionModalProps {
   onCancel: () => void;
   alternativeCostOptions?: Card[]; // For Ballaber
   currentCharge?: number; // Current Charge to determine if Pay Charge option is affordable
-  /** Local player's ID: targets render in owner material and carry a
-   *  player-name tag (§7.4) — material + name separate yours/theirs even when
-   *  both decks share a card. */
-  humanPlayerId?: string;
-  humanPlayerName?: string;
-  opponentName?: string;
 }
 
-/** Inline stat line for a Toy target ("6 SPD · 4 STR · 1/3 STA"), or null. */
-function statLine(card: Card): string | null {
-  if (card.card_type !== 'Toy') return null;
-  const sta =
-    card.current_stamina != null && card.current_stamina !== card.stamina
-      ? `${card.current_stamina}/${card.stamina}`
-      : `${card.stamina ?? '-'}`;
-  return `${card.speed ?? '-'} SPD · ${card.strength ?? '-'} STR · ${sta} STA`;
-}
+// Targets are grouped by their current zone (In play / Break zone / Hand): the
+// card's material already says who owns it, so the zone is the context the
+// player needs — e.g. a fix targets the break zone. Full cards (not minimal
+// chips) so the effect text is readable when deciding what to fix.
+const ZONE_ORDER: Zone[] = ['InPlay', 'Break', 'Hand'];
+const ZONE_LABEL: Record<Zone, string> = { InPlay: 'In play', Break: 'Break zone', Hand: 'Hand' };
 
 const PANEL_STYLE: React.CSSProperties = {
   background: '#241E17',
@@ -53,9 +43,6 @@ export function TargetSelectionModal({
   onCancel,
   alternativeCostOptions,
   currentCharge,
-  humanPlayerId,
-  humanPlayerName,
-  opponentName,
 }: TargetSelectionModalProps) {
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [useAlternativeCost, setUseAlternativeCost] = useState(false);
@@ -331,67 +318,45 @@ export function TargetSelectionModal({
             </div>
           )}
 
-          {/* Target Selection (for other cards) */}
+          {/* Target selection — grouped by the card's current zone. Owner is
+              read from the card material (paper/ink); the zone is the extra
+              context. Full cards so the effect text is readable. */}
           {!useAlternativeCost && availableTargets.length > 0 && (
-            <div>
-              {/* Prompt + count live in the header now; direct-attack keeps its
-                  own "or select a card" line above this grid. */}
-              <div
-                className="grid grid-cols-2"
-                style={{ gap: '9px' }}
-              >
-                {availableTargets.map((card) => {
-                  const isSelected = selectedTargets.includes(card.id);
-                  const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
-                  const clickable = !isDisabled || hasDirectAttackOption;
-                  // For tussle with direct attack option, use single-select behavior
-                  const handleClick = hasDirectAttackOption
-                    ? () => selectCardTarget(card.id)
-                    : () => !isDisabled && toggleTarget(card.id);
-                  // Material + name tag from OWNER (§1/§7.4), not controller.
-                  const own = card.owner === humanPlayerId;
-                  const crayon = crayonForColor(card.primary_color);
-                  const material = materialFor(own);
-                  const stats = statLine(card);
-                  const tagName = own ? (humanPlayerName || 'You') : (opponentName || 'Opponent');
-                  return (
-                    <div
-                      key={card.id}
-                      onClick={clickable ? handleClick : undefined}
-                      style={{
-                        position: 'relative',
-                        background: material.surface,
-                        color: material.text,
-                        border: `2px solid ${crayon}`,
-                        borderRadius: '6px',
-                        padding: '7px 8px',
-                        outline: isSelected ? '3px solid var(--gold)' : undefined,
-                        outlineOffset: isSelected ? '2px' : undefined,
-                        cursor: clickable ? 'pointer' : 'not-allowed',
-                        opacity: clickable ? 1 : 0.5,
-                      }}
-                    >
-                      {isSelected && (
-                        <div style={{ position: 'absolute', top: '-9px', right: '-9px', width: '20px', height: '20px', background: 'var(--gold)', color: 'var(--desk-bottom)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '11px' }}>✓</div>
-                      )}
-                      {humanPlayerId && (
-                        <div style={{ display: 'inline-block', background: own ? 'var(--you)' : 'var(--them)', color: own ? '#1A2536' : '#241A33', fontSize: '8px', fontWeight: 900, letterSpacing: '.06em', borderRadius: '3px', padding: '1px 5px', marginBottom: '5px' }}>
-                          {tagName}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {ZONE_ORDER.filter((z) => availableTargets.some((c) => c.zone === z)).map((zone) => (
+                <div key={zone}>
+                  <div style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: '2px' }}>
+                    {ZONE_LABEL[zone]}
+                  </div>
+                  {/* padding leaves room for the selected ✓ badge (which sits
+                      proud of the card corner) so it isn't clipped by the scroll
+                      edge or covered by the neighbouring card. */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px 10px 4px' }}>
+                    {availableTargets.filter((c) => c.zone === zone).map((card) => {
+                      const isSelected = selectedTargets.includes(card.id);
+                      const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
+                      const clickable = !isDisabled || hasDirectAttackOption;
+                      const handleClick = hasDirectAttackOption
+                        ? () => selectCardTarget(card.id)
+                        : () => !isDisabled && toggleTarget(card.id);
+                      return (
+                        <div key={card.id} style={{ position: 'relative', zIndex: isSelected ? 2 : 1, display: 'flex', justifyContent: 'center' }}>
+                          <CardDisplay
+                            card={card}
+                            size="medium"
+                            fluid
+                            isSelected={isSelected}
+                            isClickable={clickable}
+                            isDisabled={isDisabled && !hasDirectAttackOption}
+                            onClick={clickable ? handleClick : undefined}
+                            disableDetailModal
+                          />
                         </div>
-                      )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: '18px', height: '18px', background: crayon, color: costNumeralColor(crayon, own), borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '11px', flexShrink: 0 }}>
-                          {card.effective_cost ?? card.cost}
-                        </div>
-                        <span style={{ fontFamily: 'var(--font-card-name)', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</span>
-                      </div>
-                      {stats && (
-                        <div style={{ fontSize: '9.5px', color: material.textFaint, marginTop: '4px', fontWeight: 700 }}>{stats}</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

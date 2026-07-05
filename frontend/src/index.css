@@ -242,6 +242,18 @@
   min-width: 0;
 }
 
+/* Turn-bar label (§7.2): left-aligned on phones (matches the 6a mockup), but on
+ * desktop the End Turn button is far right and a left label leaves a big gap —
+ * center it there. */
+.turn-bar-label {
+  flex: 1;
+}
+@media (min-width: 1025px) {
+  .turn-bar-label {
+    text-align: center;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

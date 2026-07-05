@@ -59,7 +59,16 @@ export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
 
   return (
     <>
-      <div style={SLOT_STYLE}>
+      {/* The whole slat is the click target (not just the tiny "view" label) —
+          it's a small, non-obvious tap otherwise. */}
+      <div
+        onClick={() => setIsListOpen(true)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsListOpen(true); } }}
+        role="button"
+        tabIndex={0}
+        aria-label={`View ${cardList.length} broken card${cardList.length > 1 ? 's' : ''} for ${playerName}`}
+        style={{ ...SLOT_STYLE, cursor: 'pointer' }}
+      >
         <span style={LABEL_STYLE}>BREAK</span>
         <span
           style={{
@@ -75,13 +84,9 @@ export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
           {newest.name}
           {hidden > 0 && <span style={{ color: 'rgba(237,232,222,.45)' }}> +{hidden}</span>}
         </span>
-        <button
-          onClick={() => setIsListOpen(true)}
-          style={{ marginLeft: 'auto', fontSize: '9px', color: 'rgba(237,232,222,.4)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '2px 4px' }}
-          aria-label={`View all ${cardList.length} broken card${cardList.length > 1 ? 's' : ''} for ${playerName}`}
-        >
+        <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'rgba(237,232,222,.4)', flexShrink: 0 }} aria-hidden="true">
           view
-        </button>
+        </span>
       </div>
 
       <Modal isOpen={isListOpen} onClose={() => setIsListOpen(false)} title={`${playerName} break zone`}>
@@ -96,16 +101,18 @@ export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
             ✕
           </button>
         </div>
+        {/* Medium cards so the effect text is readable — you need to know what
+            a broken card does to decide whether to fix it. */}
         <div
           className="flex-1 min-h-0 overflow-y-auto content-start"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--spacing-card-small-w), 100%), 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--spacing-card-medium-min-w), 100%), 1fr))',
             gap: 'var(--spacing-component-sm)',
           }}
         >
           {newestFirst.map((card) => (
-            <CardDisplay key={card.id} card={card} size="small" fluid={true} disableDetailModal={true} />
+            <CardDisplay key={card.id} card={card} size="medium" fluid={true} disableDetailModal={true} />
           ))}
         </div>
       </Modal>

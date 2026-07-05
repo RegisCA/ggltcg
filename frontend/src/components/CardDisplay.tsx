@@ -235,7 +235,22 @@ export function CardDisplay({
               </span>
             )}
           </div>
-          {canAct && <div style={{ marginLeft: 'auto', fontSize: '11px', lineHeight: 1 }} title="Ready to act">⚡</div>}
+          {canAct ? (
+            <div style={{ marginLeft: 'auto', fontSize: '11px', lineHeight: 1 }} title="Ready to act">⚡</div>
+          ) : card.is_broken ? (
+            // Corner tag, not a stamp over the body — the effect text must stay
+            // readable so players can decide which broken card to fix.
+            <span
+              style={{
+                marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-start',
+                fontSize: '8px', fontWeight: 900, letterSpacing: '.06em',
+                color: material.danger, border: `1px solid ${material.danger}`,
+                borderRadius: '3px', padding: '1px 4px',
+              }}
+            >
+              BROKEN
+            </span>
+          ) : null}
         </div>
 
         {/* Body: Toy → stat rail + effect; Action → effect full width */}
@@ -289,19 +304,6 @@ export function CardDisplay({
           </div>
         )}
 
-        {/* Broken stamp — keeps owner material, rotated danger stamp (§6). */}
-        {card.is_broken && (
-          <div
-            style={{
-              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-8deg)',
-              fontSize: size === 'small' ? '9px' : '11px', fontWeight: 900, letterSpacing: '.08em',
-              color: material.danger, border: `1.5px solid ${material.danger}`, borderRadius: '3px',
-              padding: '2px 6px', background: isOwn ? 'rgba(239,231,214,.7)' : 'rgba(23,18,9,.6)', zIndex: 2,
-            }}
-          >
-            BROKEN
-          </div>
-        )}
       </motion.div>
 
       {shouldEnableMobileDetail && (

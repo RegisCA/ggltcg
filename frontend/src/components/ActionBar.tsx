@@ -101,7 +101,7 @@ export function ActionBar({
     >
       {isYourTurn ? (
         <>
-          <span style={{ color: 'var(--gold)', fontWeight: 900, fontSize: '13px', paddingLeft: '4px' }}>
+          <span className="turn-bar-label" style={{ color: 'var(--gold)', fontWeight: 900, fontSize: '13px', paddingLeft: '4px' }}>
             Your Turn · Turn {turnNumber}
           </span>
           <button
