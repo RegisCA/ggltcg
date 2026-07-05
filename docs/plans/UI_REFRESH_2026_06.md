@@ -3,7 +3,7 @@
 **Created**: June 30, 2026
 **Updated**: July 4, 2026 — WP-3/WP-4 replaced with the harness-based approach (Claude Code session)
 **Source**: Solo AI-vs-AI playtest (Claude playing via Chrome, live production site) + responsive-width check
-**Status**: WP-1 ✅ · WP-2 ✅ · WP-3 ✅ (design harness, PR #353) · WP-4 Phase 0 ✅ (PRs #354-#355) · **Phase 2 ✅ complete 2026-07-04** (PRs #356-#369, device-tested) · Phase 3 (design language + screen sweep) is next — see the seeded plan at the end of WP-4
+**Status**: WP-1 ✅ · WP-2 ✅ · WP-3 ✅ (design harness, PR #353) · WP-4 Phase 0 ✅ (PRs #354-#355) · **Phase 2 ✅ complete 2026-07-04** (PRs #356-#369, device-tested) · **Phase 3 in progress** — items 1-2 ✅ (log copy #370, victory badges #371, merged 2026-07-04); items 3-6 (typography/iconography, Story-Mode tone, screen sweep) pending the parallel Claude Design system session — see the seeded plan at the end of WP-4
 
 **Context**: Repo is post-audit and stable. Card art was deliberately dropped (physical
 game only) — the redesign is function-first, no illustration budget. An earlier pass
@@ -369,25 +369,52 @@ session should read both, `git fetch`, and start Phase 3 below. All work
 so far: PRs #353-#369, all bot-authored, harness-verified at 390/768/1280,
 final batch device-tested by Régis.
 
-## Phase 3 — design language + whole-experience sweep (next session)
+## Phase 3 — design language + whole-experience sweep (in progress)
 
 Phase 2 fixed *what's on screen and where*; Phase 3 is *how it reads and
 feels*. Layout/gameplay are settled — do not reopen them. Suggested
-sequencing (small→large so the language exists before the screens use it):
+sequencing (small→large so the language exists before the screens use it).
 
-1. **Log copy pass (backend `description` strings).** The log is now the
-   most-watched surface in the game (ticker + live playback), so its
-   language earns polish first. Today's copy is engine-flavored:
-   "Spent 2 Charge for Block to tussle Violin". Rules vocabulary to keep
-   (tussle, Charge, break, fix — they're the game's real terms); the fix
-   is sentence *shape*, e.g. "Block tussled Violin (2 Charge)". One
-   backend PR, all `add_play_by_play` call sites; harness drip + a real
-   game to review. Also bound/review Gemini's `selected_strategy` length
-   prompt-side if live play shows long plan chips (see open items above).
-2. **Player-facing badge copy (WP-2 #11).** VictoryScreen: keep the
-   "AI version" signal Régis wants ("enum" → something like an AI
-   nickname/version label), move "Fallback" behind a debug view or
-   reword to player language ("improvised" tone). Small PR.
+**Progress:** items 1-2 done (copy polish, #370/#371). Items 3-6 are the
+design-language core (typography, iconography, Story-Mode tone, screen
+sweep) and are **parked pending the parallel Claude Design system session** —
+they should inherit that system rather than invent one here. Resume at item 3
+once the design language lands.
+
+1. **Log copy pass (backend `description` strings).** ✅ **DONE — PR #370
+   (merged 2026-07-04).** All `add_play_by_play` call sites reshaped to
+   subject-verb-object with cost in trailing parens ("Block tussled Violin
+   (2 Charge)", "Played Drop, broke Knight (2 Charge)", "Archer used its
+   ability on Knight"); rules vocabulary (tussle/Charge/break/fix) kept;
+   "Ended turn" + victory line already clean, untouched. The tussle string
+   was duplicated (human route inline vs AI executor) — extracted
+   `build_tussle_description` so the two can't drift (the drift class behind
+   WP-2 #11's stale badge). All harness fixture play-by-play (play-card +
+   tussle drip) aligned to the real backend output. Coverage:
+   `test_play_by_play_copy.py` (executor + helper) **plus route-level
+   assertions in `test_route_coverage_audit.py`** that pin the copy through
+   the real FastAPI handlers — the #369 lesson (fixtures can't validate
+   backend strings, HTTP route tests can). 405 backend tests pass; front
+   tsc+lint clean. Review follow-up (Sonnet, commit `de11f8e`): caught five
+   tussle fixture lines still in a legacy `— X broken` shape the backend
+   never emits, and removed a redundant target-label branch in
+   `execute_tussle` (its success `message` is read by no caller, so it now
+   mirrors `description`). Subjective chip-width read is the post-deploy
+   real-game check (Vercel previews use prod backend, so a backend copy
+   change can't be previewed pre-merge). `selected_strategy` length bound
+   still deferred until live plan chips are seen to run long.
+2. **Player-facing badge copy (WP-2 #11).** ✅ **DONE — PR #371 (merged
+   2026-07-04).** `enum` badge → player-facing AI nickname "🤖 Mastermind"
+   (nickname style chosen by Régis; one-line swap in `PLANNER_NICKNAMES`);
+   the "changed persona = changed architecture" signal is preserved and the
+   raw `enum` stays in the admin viewer via the untouched `plannerModeLabel`
+   (new `plannerDisplayName` remaps only the player surface). "⚠️ Fallback"
+   → "✨ Improvised" (reword-to-player-language chosen over hide-behind-debug),
+   and the raw `fallback_reason` dropped from the player view (still in admin).
+   Frontend-only; tsc+lint clean. Visual review needs a completed AI game —
+   `/design.html` doesn't mount VictoryScreen yet (see harness gap below),
+   so eyeball on the next real game or a follow-up that adds the victory
+   fixture.
 3. **Typography + iconography.** Currently Lato everywhere + ad-hoc emoji
    (⚡🎯💭📋) that accumulated PR by PR — they work, but they're three
    different visual voices. Decide once: lean into the toybox emoji voice
