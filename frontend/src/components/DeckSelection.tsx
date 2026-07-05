@@ -1,6 +1,15 @@
 /**
  * Deck Selection Component
- * Allows players to select 6 unique cards for their deck
+ *
+ * Allows players to select 6 unique cards for their deck. Restyled to the
+ * Paper & Ink language (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md) — the last
+ * surface with its own bespoke card styling (WP-1 #6 tail). Reuses CardDisplay
+ * (§4) for every card instead of hand-rolled markup, Gochi Hand zone headers
+ * (§5 zone-header pattern) and the board's gold/purple button language (§7.2).
+ *
+ * This screen lives outside a game (no LocalPlayerContext provider), so
+ * CardDisplay's material default applies: cards render as the player's own
+ * (cream paper) material — see useLocalPlayerId's documented "own" default.
  */
 
 import { useState, useEffect } from 'react';
@@ -18,17 +27,27 @@ interface DeckSelectionProps {
   onBack?: () => void;  // Optional back button handler
   hiddenMode?: boolean;  // When true, cards are face-down and only random selection works
   defaultPlayerName?: string;  // Override the default player name (for AI player)
+  /** Test/preview seam: when provided, skips the getAllCards() fetch and
+   *  renders this card pool instead. Production callers never pass this —
+   *  used by the /design.html harness fixture. */
+  cardsOverride?: CardDataResponse[];
 }
 
 type SortOption = 'cost-asc' | 'cost-desc' | 'name-asc' | 'name-desc' | 'status';
 
-export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defaultPlayerName }: DeckSelectionProps) {
+// A medium Toy's stat rail dominates its height (~131px) regardless of effect
+// length; Actions have no rail. Sharing one minHeight across the Toys/Actions
+// grids equalizes them the same way TargetSelectionModal does across its
+// per-zone grids (grid-auto-rows:1fr only equalizes within one grid).
+const MIXED_CARD_MIN_HEIGHT = 134;
+
+export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defaultPlayerName, cardsOverride }: DeckSelectionProps) {
   const { user } = useAuth();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('cost-asc');
   const [isRandomizing, setIsRandomizing] = useState(false);
-  const [cards, setCards] = useState<CardDataResponse[]>([]);
-  const [isLoadingCards, setIsLoadingCards] = useState(true);
+  const [cards, setCards] = useState<CardDataResponse[]>(cardsOverride ?? []);
+  const [isLoadingCards, setIsLoadingCards] = useState(!cardsOverride);
   const [favoriteDecks, setFavoriteDecks] = useState<string[][]>([[], [], []]);
   const [savingSlot, setSavingSlot] = useState<number | null>(null);
 
@@ -37,12 +56,14 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
 
   // Load cards and favorite decks from backend on mount
   useEffect(() => {
+    if (cardsOverride) return; // preview harness supplies cards directly
+
     const loadData = async () => {
       try {
         // Load all cards
         const cardData = await getAllCards();
         setCards(cardData);
-        
+
         // Load favorite decks if user is authenticated and not in hidden mode
         if (user?.google_id && !hiddenMode) {
           try {
@@ -69,7 +90,7 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
     };
 
     loadData();
-  }, [user, hiddenMode]);
+  }, [user, hiddenMode, cardsOverride]);
 
   const toggleCard = (cardName: string) => {
     if (selectedCards.includes(cardName)) {
@@ -114,12 +135,12 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
         deck: selectedCards
       });
       console.log('Save response:', response.data);
-      
+
       // Update local state
       const newDecks = [...(favoriteDecks || [[], [], []])];
       newDecks[slotIndex] = [...selectedCards];
       setFavoriteDecks(newDecks);
-      
+
       alert(`Deck saved to slot ${slotIndex + 1}!`);
     } catch (error) {
       console.error('Failed to save favorite deck:', error);
@@ -171,73 +192,168 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
   const actionCards = sortCards(cards.filter(c => c.speed === null || c.speed === undefined));
 
   // Convert CardDataResponse to Card for display using factory
-  const createCardForDisplay = (cardData: CardDataResponse): Card => 
+  const createCardForDisplay = (cardData: CardDataResponse): Card =>
     createCardFromApiData(cardData, 'preview');
 
   if (isLoadingCards) {
     return (
-      <div className="min-h-screen bg-game-bg flex items-center justify-center">
-        <div className="text-2xl">Loading cards...</div>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))', color: 'var(--ink-text)' }}
+      >
+        <div style={{ fontSize: '20px', fontWeight: 700 }}>Loading cards...</div>
       </div>
     );
   }
 
+  const renderCardGrid = (cardList: CardDataResponse[]) => (
+    <div
+      style={{
+        display: 'grid',
+        gap: 'var(--spacing-component-xs)',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+        gridAutoRows: '1fr',
+      }}
+    >
+      {cardList.map((cardData) => {
+        const isSelected = selectedCards.includes(cardData.name);
+        const card = createCardForDisplay(cardData);
+        const isDisabled = hiddenMode || (!isSelected && selectedCards.length >= 6);
+
+        if (hiddenMode) {
+          return (
+            <div key={cardData.name} style={{ display: 'flex', justifyContent: 'center' }}>
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '165px',
+                  aspectRatio: '165 / 225',
+                  borderRadius: '6px',
+                  border: `2.5px solid ${isSelected ? 'var(--gold)' : 'rgba(237,232,222,.25)'}`,
+                  background: 'var(--ink)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: isSelected ? '0 4px 10px rgba(242,193,78,.25)' : 'none',
+                  padding: 'var(--spacing-component-md)',
+                }}
+              >
+                <img
+                  src="/ggltcg-logo.svg"
+                  alt="Hidden card"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: isSelected ? 0.7 : 0.4 }}
+                />
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={cardData.name}
+            onClick={() => !isDisabled && toggleCard(cardData.name)}
+            style={{ display: 'flex', justifyContent: 'center' }}
+          >
+            <CardDisplay
+              card={card}
+              size="medium"
+              fluid
+              minHeight={MIXED_CARD_MIN_HEIGHT}
+              isSelected={isSelected}
+              isClickable={!isDisabled}
+              isDisabled={isDisabled}
+              disableDetailModal
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-game-bg">
+    <div
+      className="min-h-screen"
+      style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))', color: 'var(--ink-text)' }}
+    >
       {/* Sticky Header */}
-      <div 
-        className="sticky top-0 z-10 bg-game-bg border-b border-gray-700"
-        style={{ padding: 'var(--spacing-component-md)' }}
+      <div
+        className="sticky top-0 z-10"
+        style={{
+          background: 'var(--desk-top)',
+          borderBottom: '1px solid rgba(237,232,222,.15)',
+          padding: 'var(--spacing-component-md)',
+        }}
       >
         <div className="max-w-7xl mx-auto">
           {/* Title and Card Count */}
-          <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+          <div
+            className="flex flex-wrap justify-between items-center"
+            style={{ marginBottom: 'var(--spacing-component-sm)', gap: 'var(--spacing-component-sm)' }}
+          >
             <div className="flex items-center" style={{ gap: 'var(--spacing-component-md)' }}>
               {onBack && (
                 <button
                   onClick={onBack}
-                  className="text-gray-400 hover:text-game-highlight transition-colors flex items-center"
-                  style={{ gap: 'var(--spacing-component-xs)' }}
+                  className="flex items-center transition-colors"
+                  style={{ gap: 'var(--spacing-component-xs)', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '13px' }}
                 >
                   <span>←</span> Back
                 </button>
               )}
-              <h1 className="text-3xl font-bold">
+              <h1 style={{ fontFamily: 'var(--font-card-name)', fontSize: '28px', lineHeight: 1 }}>
                 {playerName}
               </h1>
             </div>
 
-            <p className="text-xl font-semibold text-game-highlight">
+            <p style={{ fontWeight: 900, fontSize: '14px', letterSpacing: '.02em', color: 'var(--gold)' }}>
               Choose 6 unique cards ({selectedCards.length}/6 selected)
             </p>
-            
+
             <button
               onClick={handleConfirm}
               disabled={selectedCards.length !== 6}
-              className={`rounded text-xl font-bold transition-all ${
-                selectedCards.length === 6
-                  ? 'bg-game-highlight hover:bg-red-600 cursor-pointer'
-                  : 'bg-gray-600 cursor-not-allowed opacity-50'
-              }`}
-              style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
+              style={{
+                fontWeight: 900,
+                fontSize: '14px',
+                borderRadius: '6px',
+                border: 'none',
+                padding: 'var(--spacing-component-sm) var(--spacing-component-xl)',
+                background: selectedCards.length === 6 ? 'var(--gold)' : 'rgba(237,232,222,.15)',
+                color: selectedCards.length === 6 ? 'var(--desk-bottom)' : 'var(--ink-faint)',
+                boxShadow: selectedCards.length === 6 ? '0 3px 0 rgba(0,0,0,.5)' : 'none',
+                cursor: selectedCards.length === 6 ? 'pointer' : 'not-allowed',
+              }}
             >
               Confirm Deck {selectedCards.length === 6 ? '✓' : `(${selectedCards.length}/6)`}
             </button>
           </div>
 
           {/* Controls Row */}
-          <div 
-            className="flex items-center justify-between"
+          <div
+            className="flex flex-wrap items-center justify-between"
             style={{ gap: 'var(--spacing-component-md)' }}
           >
             {/* Sort Dropdown */}
             <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
-              <label htmlFor="sort-select" className="font-semibold">Sort by:</label>
+              <label
+                htmlFor="sort-select"
+                style={{ fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-muted)' }}
+              >
+                Sort by:
+              </label>
               <select
                 id="sort-select"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="bg-gray-800 border border-gray-700 rounded px-3 py-1 cursor-pointer"
+                style={{
+                  background: 'var(--bar)',
+                  border: '1px solid rgba(237,232,222,.25)',
+                  borderRadius: '6px',
+                  color: 'var(--ink-text)',
+                  padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                }}
               >
                 <option value="cost-asc">Cost (Low to High)</option>
                 <option value="cost-desc">Cost (High to Low)</option>
@@ -248,7 +364,7 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
+            <div className="flex flex-wrap items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
               {/* Favorite Deck Slots - Only show for authenticated users not in hidden mode */}
               {user?.google_id && !hiddenMode && Array.isArray(favoriteDecks) && (
                 <>
@@ -256,33 +372,43 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
                     const deck = favoriteDecks?.[slotIndex] || [];
                     const hasCard = Array.isArray(deck) && deck.length === 6;
                     const isSaving = savingSlot === slotIndex;
-                    
+
                     return (
                       <div key={slotIndex} className="flex flex-col items-center" style={{ gap: '4px' }}>
                         <button
                           onClick={() => loadFavoriteDeck(slotIndex)}
                           disabled={!hasCard}
-                          className={`rounded font-bold transition-all ${
-                            hasCard
-                              ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-                              : 'bg-gray-700 cursor-not-allowed opacity-50'
-                          }`}
-                          style={{ padding: '6px 12px', fontSize: '14px' }}
+                          style={{
+                            borderRadius: '6px',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                            padding: '6px 12px',
+                            border: '1px solid rgba(126,166,224,.35)',
+                            background: hasCard ? 'rgba(126,166,224,.15)' : 'rgba(237,232,222,.05)',
+                            color: hasCard ? 'var(--you)' : 'var(--ink-faint)',
+                            cursor: hasCard ? 'pointer' : 'not-allowed',
+                            opacity: hasCard ? 1 : 0.6,
+                          }}
                           title={hasCard ? `Load: ${deck.join(', ')}` : 'Empty slot'}
                         >
-                          📁 Deck {slotIndex + 1}
+                          Deck {slotIndex + 1}
                         </button>
                         <button
                           onClick={() => saveFavoriteDeck(slotIndex)}
                           disabled={selectedCards.length !== 6 || isSaving}
-                          className={`rounded font-bold transition-all text-xs ${
-                            selectedCards.length === 6 && !isSaving
-                              ? 'bg-green-600 hover:bg-green-700 cursor-pointer'
-                              : 'bg-gray-700 cursor-not-allowed opacity-50'
-                          }`}
-                          style={{ padding: '4px 8px' }}
+                          style={{
+                            borderRadius: '6px',
+                            fontWeight: 700,
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            border: '1px solid rgba(237,232,222,.2)',
+                            background: selectedCards.length === 6 && !isSaving ? 'rgba(237,232,222,.1)' : 'transparent',
+                            color: selectedCards.length === 6 && !isSaving ? 'var(--ink-text)' : 'var(--ink-faint)',
+                            cursor: selectedCards.length === 6 && !isSaving ? 'pointer' : 'not-allowed',
+                            opacity: selectedCards.length === 6 && !isSaving ? 1 : 0.6,
+                          }}
                         >
-                          {isSaving ? 'Saving...' : '💾 Save'}
+                          {isSaving ? 'Saving...' : 'Save'}
                         </button>
                       </div>
                     );
@@ -293,14 +419,20 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
               <button
                 onClick={handleRandomize}
                 disabled={isRandomizing}
-                className={`rounded font-bold transition-all whitespace-nowrap ${
-                  isRandomizing
-                    ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                    : 'bg-purple-600 hover:bg-purple-700 cursor-pointer'
-                }`}
-                style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
+                style={{
+                  borderRadius: '6px',
+                  fontWeight: 900,
+                  fontSize: '13px',
+                  whiteSpace: 'nowrap',
+                  padding: 'var(--spacing-component-sm) var(--spacing-component-lg)',
+                  border: 'none',
+                  background: isRandomizing ? 'rgba(237,232,222,.15)' : 'var(--gold)',
+                  color: isRandomizing ? 'var(--ink-faint)' : 'var(--desk-bottom)',
+                  boxShadow: isRandomizing ? 'none' : '0 3px 0 rgba(0,0,0,.5)',
+                  cursor: isRandomizing ? 'not-allowed' : 'pointer',
+                }}
               >
-                {isRandomizing ? 'Randomizing...' : '🎲 Random Deck'}
+                {isRandomizing ? 'Randomizing...' : 'Random Deck'}
               </button>
             </div>
           </div>
@@ -308,121 +440,66 @@ export function DeckSelection({ onDeckSelected, onBack, hiddenMode = false, defa
       </div>
 
       {/* Scrollable Content - Split Layout */}
-      <div 
-        className="max-w-7xl mx-auto"
-        style={{ padding: 'var(--spacing-component-md)' }}
-      >
-        <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-lg)' }}>
+      <div className="max-w-7xl mx-auto" style={{ padding: 'var(--spacing-component-md)' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: 'var(--spacing-component-lg)',
+          }}
+        >
           {/* Toys Column */}
           <div>
-            <h2 
-              className="text-2xl font-bold text-red-400 mb-4 sticky"
-              style={{ top: 'calc(140px)', backgroundColor: 'var(--color-bg)', paddingTop: 'var(--spacing-component-xs)', paddingBottom: 'var(--spacing-component-xs)', zIndex: 5 }}
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 5,
+                background: 'var(--desk-top)',
+                paddingTop: 'var(--spacing-component-xs)',
+                paddingBottom: 'var(--spacing-component-xs)',
+                marginBottom: 'var(--spacing-component-xs)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
             >
-              🎭 Toys ({toyCards.filter(c => selectedCards.includes(c.name)).length}/{toyCards.length})
-            </h2>
-            <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
-              {toyCards.map((cardData) => {
-                const isSelected = selectedCards.includes(cardData.name);
-                const card = createCardForDisplay(cardData);
-                const isDisabled = hiddenMode || (!isSelected && selectedCards.length >= 6);
-                
-                if (hiddenMode) {
-                  return (
-                    <div
-                      key={cardData.name}
-                      style={{ display: 'flex', justifyContent: 'center' }}
-                    >
-                      <div
-                        className={`
-                          w-[165px] h-[225px] rounded border-2 flex items-center justify-center
-                          ${isSelected ? 'border-yellow-400 bg-gray-600 shadow-lg shadow-yellow-400/30' : 'border-gray-600 bg-gray-700'}
-                        `}
-                        style={{ padding: 'var(--spacing-component-md)' }}
-                      >
-                        <img 
-                          src="/ggltcg-logo.svg" 
-                          alt="Hidden card" 
-                          className={`w-full h-full object-contain ${isSelected ? 'opacity-70' : 'opacity-40'}`}
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div
-                    key={cardData.name}
-                    onClick={() => !isDisabled && toggleCard(cardData.name)}
-                    style={{ display: 'flex', justifyContent: 'center' }}
-                  >
-                    <CardDisplay
-                      card={card}
-                      size="medium"
-                      isSelected={isSelected}
-                      isClickable={!isDisabled}
-                      isDisabled={isDisabled}
-                    />
-                  </div>
-                );
-              })}
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--gold)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-card-name)', fontSize: '20px' }}>
+                Toys
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-faint)' }}>
+                {toyCards.filter(c => selectedCards.includes(c.name)).length}/{toyCards.length}
+              </span>
             </div>
+            {renderCardGrid(toyCards)}
           </div>
 
           {/* Actions Column */}
           <div>
-            <h2 
-              className="text-2xl font-bold text-purple-400 mb-4 sticky"
-              style={{ top: 'calc(140px)', backgroundColor: 'var(--color-bg)', paddingTop: 'var(--spacing-component-xs)', paddingBottom: 'var(--spacing-component-xs)', zIndex: 5 }}
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 5,
+                background: 'var(--desk-top)',
+                paddingTop: 'var(--spacing-component-xs)',
+                paddingBottom: 'var(--spacing-component-xs)',
+                marginBottom: 'var(--spacing-component-xs)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
             >
-              ⚡ Actions ({actionCards.filter(c => selectedCards.includes(c.name)).length}/{actionCards.length})
-            </h2>
-            <div className="grid" style={{ gap: 'var(--spacing-component-xs)', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))' }}>
-              {actionCards.map((cardData) => {
-                const isSelected = selectedCards.includes(cardData.name);
-                const card = createCardForDisplay(cardData);
-                const isDisabled = hiddenMode || (!isSelected && selectedCards.length >= 6);
-                
-                if (hiddenMode) {
-                  return (
-                    <div
-                      key={cardData.name}
-                      style={{ display: 'flex', justifyContent: 'center' }}
-                    >
-                      <div
-                        className={`
-                          w-[165px] h-[225px] rounded border-2 flex items-center justify-center
-                          ${isSelected ? 'border-yellow-400 bg-gray-600 shadow-lg shadow-yellow-400/30' : 'border-gray-600 bg-gray-700'}
-                        `}
-                        style={{ padding: 'var(--spacing-component-md)' }}
-                      >
-                        <img 
-                          src="/ggltcg-logo.svg" 
-                          alt="Hidden card" 
-                          className={`w-full h-full object-contain ${isSelected ? 'opacity-70' : 'opacity-40'}`}
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div
-                    key={cardData.name}
-                    onClick={() => !isDisabled && toggleCard(cardData.name)}
-                    style={{ display: 'flex', justifyContent: 'center' }}
-                  >
-                    <CardDisplay
-                      card={card}
-                      size="medium"
-                      isSelected={isSelected}
-                      isClickable={!isDisabled}
-                      isDisabled={isDisabled}
-                    />
-                  </div>
-                );
-              })}
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--them)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-card-name)', fontSize: '20px' }}>
+                Actions
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-faint)' }}>
+                {actionCards.filter(c => selectedCards.includes(c.name)).length}/{actionCards.length}
+              </span>
             </div>
+            {renderCardGrid(actionCards)}
           </div>
         </div>
       </div>

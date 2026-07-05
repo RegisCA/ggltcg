@@ -14,7 +14,7 @@
  */
 
 import type { Card, CardType, GameState, PlayByPlayEntry, Player, ValidAction, Zone } from '../types/game';
-import type { ActionResponse, ValidActionsResponse } from '../types/api';
+import type { ActionResponse, CardDataResponse, ValidActionsResponse } from '../types/api';
 
 export const FIXTURE_HUMAN_ID = 'fixture-you';
 export const FIXTURE_AI_ID = 'fixture-opponent';
@@ -136,6 +136,25 @@ function makePlayer(
     direct_attacks_this_turn: 0,
   };
 }
+
+// ============================================================================
+// DECK-SELECTION CARD POOL (for the /design.html#deck-selection fixture)
+// ============================================================================
+
+/** The full DEFS catalog reshaped as the getAllCards() response shape, so the
+ *  DeckSelection preview (see DesignPreview.tsx) can render the real screen
+ *  against the same card data as the board fixtures — no backend involved. */
+export const DECK_SELECTION_CARD_POOL: CardDataResponse[] = Object.entries(DEFS).map(([name, def]) => ({
+  name,
+  card_type: def.card_type,
+  cost: def.cost,
+  effect: def.effect_text,
+  speed: def.speed,
+  strength: def.strength,
+  stamina: def.stamina,
+  primary_color: def.primary_color,
+  accent_color: def.accent_color,
+}));
 
 // ============================================================================
 // FIXTURES
