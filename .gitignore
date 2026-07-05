@@ -64,6 +64,11 @@ logs/
 # (root, backend/, frontend/) — they're committed project context, not local-only.
 CLAUDE.md
 
+# Claude Code: per-user settings and transient agent worktrees stay local.
+# launch.json (preview config) and skills/ ARE tracked — shared project config.
+.claude/settings.local.json
+.claude/worktrees/
+
 # Temp files
 *.tsv
 
