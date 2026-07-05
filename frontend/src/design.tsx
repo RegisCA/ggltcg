@@ -10,6 +10,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DesignPreview } from './pages/DesignPreview';
+import { AuthProvider } from './contexts/AuthContext';
 import { gameKeys } from './hooks/useGame';
 import { DESIGN_FIXTURES, FIXTURE_HUMAN_ID } from './fixtures/designFixtures';
 import './index.css';
@@ -39,7 +40,12 @@ for (const fixture of DESIGN_FIXTURES) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <DesignPreview />
+      {/* AuthProvider is required by DeckSelection's useAuth() (deck-selection
+          fixture) — localStorage-only, no network calls, so it's harmless for
+          the GameBoard fixtures too. */}
+      <AuthProvider>
+        <DesignPreview />
+      </AuthProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );
