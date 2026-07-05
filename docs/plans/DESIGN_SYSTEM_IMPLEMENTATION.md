@@ -72,17 +72,20 @@ a Sonnet agent can build any component purely from tokens + helpers.
 **Exit check**: harness renders unchanged (tokens additive), crayon unit test green,
 `tsc`+lint clean, 6-card fixtures verified at all three widths.
 
-## Phase H — Harness reference states (Opus or first Sonnet, 1 PR) — `feat/ui-harness-references`
+## Phase H — Visual reference captures (Opus, ✅ done) — `feat/ui-paper-ink-refs`
 
-**Dependency**: needs the mockup source. Drop `GGLTCG Direction Boards.dc.html` where it
-can be read (e.g. `docs/plans/wireframes/`); I port **6a / 6b / 3c** into `/design.html`
-as static, deep-linkable reference panes (`/design.html#ref-6a`) so every subsequent
-Sonnet agent diffs its live component against the target on the same screen. If the file
-can't be produced, fall back to building the references from the written spec.
+**Reality check:** the mockup (`GGLTCG Direction Boards.html`) turned out to be a Claude
+Design **canvas export** — a compressed, self-extracting bundle of ~1300 absolutely-
+positioned divs. It renders in a browser but its markup can't be cleanly ported into the
+responsive React harness, so the original "build 6a/6b/3c into `/design.html`" plan was
+dropped. Instead the three directions were captured as reference screenshots in
+`docs/plans/wireframes/refs/` (+ a README mapping each and flagging the §7.4 tag override).
+The **written spec stays the precise source of truth**; the live GameBoard in `/design.html`
+stays the verification surface. Every component brief points at both.
 
-Also stubs the **later-phase harness gap**: deep-linkable fixtures for VictoryScreen
-(needs a canned `aiLogs` payload), lobby, and deck-select — so Phase 3 screens keep the
-phone-preview-before-merge loop. These can be added lazily when each screen phase starts.
+**Deferred to when each screen phase starts** (the later-phase harness gap): deep-linkable
+fixtures for VictoryScreen (needs a canned `aiLogs` payload), lobby, and deck-select — so
+Phase 3 screens keep the phone-preview-before-merge loop. Add lazily, same fixture pattern.
 
 ---
 
