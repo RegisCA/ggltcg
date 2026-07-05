@@ -14,13 +14,24 @@
 import { useEffect, useState } from 'react';
 import { GameBoard } from '../components/GameBoard';
 import { DeckSelection } from '../components/DeckSelection';
+import { VictoryScreen } from '../components/VictoryScreen';
 import { useResponsive } from '../hooks/useResponsive';
-import { DECK_SELECTION_CARD_POOL, DESIGN_FIXTURES, FIXTURE_AI_ID, FIXTURE_HUMAN_ID } from '../fixtures/designFixtures';
+import {
+  DECK_SELECTION_CARD_POOL,
+  DESIGN_FIXTURES,
+  FIXTURE_AI_ID,
+  FIXTURE_HUMAN_ID,
+  VICTORY_FIXTURE,
+  DEFEAT_FIXTURE,
+  VICTORY_AI_LOGS_FIXTURE,
+} from '../fixtures/designFixtures';
 
 // Non-GameBoard screens get their own fixture ids (no `fixture-` game state
 // behind them) — routed separately from the GameState-backed board fixtures.
 const SCREEN_FIXTURES = [
   { id: 'deck-selection', label: 'Deck selection', description: 'DeckSelection screen: full card pool, no backend.' },
+  { id: 'victory', label: 'Victory', description: 'VictoryScreen: you win, full recap with AI plans/reasoning.' },
+  { id: 'defeat', label: 'Defeat', description: 'VictoryScreen: opponent wins, same recap content.' },
 ];
 
 type RouteMatch = { kind: 'board'; id: string } | { kind: 'screen'; id: string };
@@ -113,6 +124,10 @@ export function DesignPreview() {
           onBack={() => {}}
           defaultPlayerName="You"
         />
+      ) : route.kind === 'screen' && route.id === 'victory' ? (
+        <VictoryScreen key="victory" gameState={VICTORY_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} />
+      ) : route.kind === 'screen' && route.id === 'defeat' ? (
+        <VictoryScreen key="defeat" gameState={DEFEAT_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} />
       ) : (
         // key remounts the board on fixture switch so no UI state leaks across
         <GameBoard

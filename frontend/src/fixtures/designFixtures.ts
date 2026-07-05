@@ -454,6 +454,132 @@ function buildOpponentTurn(): DesignFixture {
 }
 
 // ============================================================================
+// VICTORY-SCREEN FIXTURE (for /design.html#victory and #defeat)
+// ============================================================================
+// VictoryScreen merges play_by_play (on the GameState it's handed) with
+// ai_decision_logs fetched from the backend (see aiLogsOverride seam on the
+// component). Both pieces need to agree: a few turns of a finished game, one
+// of them the AI's turn with a plan + an "Improvised" fallback, so the
+// recap's badges (persona nickname, Improvised) render with real content.
+
+import type { AILogData } from '../api/statsService';
+
+const VICTORY_PLAY_BY_PLAY: PlayByPlayEntry[] = [
+  { turn: 1, player: 'Regis', action_type: 'play_card', description: 'Played Knight (1 Charge)' },
+  { turn: 1, player: 'Regis', action_type: 'end_turn', description: 'Ended turn' },
+  {
+    turn: 2,
+    player: 'Gemiknight',
+    action_type: 'strategy',
+    description: 'Establish board presence with Ka, then look for a favorable trade next turn.',
+  },
+  { turn: 2, player: 'Gemiknight', action_type: 'play_card', description: 'Played Ka (2 Charge)' },
+  { turn: 2, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
+  { turn: 3, player: 'Regis', action_type: 'play_card', description: 'Played Drum (1 Charge)' },
+  {
+    turn: 3,
+    player: 'Regis',
+    action_type: 'tussle',
+    description: 'Knight tussled Ka (2 Charge)',
+    reasoning: undefined,
+  },
+  { turn: 3, player: 'Regis', action_type: 'end_turn', description: 'Ended turn' },
+  {
+    turn: 4,
+    player: 'Gemiknight',
+    action_type: 'strategy',
+    description: 'Ka is fragile after the last trade — hold it back and build Charge with Gibbers instead.',
+  },
+  { turn: 4, player: 'Gemiknight', action_type: 'play_card', description: 'Played Gibbers (1 Charge)' },
+  {
+    turn: 4,
+    player: 'Gemiknight',
+    action_type: 'tussle',
+    description: 'Ka tussled Drum (2 Charge)',
+    reasoning: "Drum's buff is compounding — trading it away now is worth losing Ka's stamina cushion.",
+    ai_endpoint: 'gemini-2.5-flash',
+  },
+  { turn: 4, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
+  { turn: 5, player: 'Regis', action_type: 'play_card', description: 'Played Ballaber (3 Charge)' },
+  { turn: 5, player: 'Regis', action_type: 'tussle', description: 'Ballaber tussled Gibbers (2 Charge)' },
+  { turn: 5, player: 'Regis', action_type: 'end_turn', description: 'Ended turn' },
+  {
+    turn: 6,
+    player: 'Gemiknight',
+    action_type: 'strategy',
+    description: 'Break Ballaber with Drop to clear the board, then swing with Ka for a direct attack.',
+  },
+  { turn: 6, player: 'Gemiknight', action_type: 'play_card', description: 'Played Drop targeting Ballaber (2 Charge)' },
+  {
+    turn: 6,
+    player: 'Gemiknight',
+    action_type: 'tussle',
+    description: 'Ka direct attacked (2 Charge)',
+    reasoning: 'The planned Drop target broke before Ka could safely swing — redirected the attack to chip your last card instead.',
+    ai_endpoint: 'gemini-2.5-flash',
+  },
+  { turn: 6, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
+  { turn: 7, player: 'Regis', action_type: 'play_card', description: 'Played Wake targeting Knight' },
+  { turn: 7, player: 'Regis', action_type: 'tussle', description: 'Knight tussled Ka (2 Charge)' },
+  { turn: 7, player: 'Regis', action_type: 'end_turn', description: 'Ended turn' },
+];
+
+const VICTORY_AI_LOGS: AILogData[] = [
+  {
+    turn_number: 2,
+    player_id: FIXTURE_AI_ID,
+    ai_version: null,
+    turn_plan: { strategy: 'Establish board presence with Ka, then look for a favorable trade next turn.', planner: 'enum' },
+    plan_execution_status: 'complete',
+    fallback_reason: null,
+  },
+  {
+    turn_number: 4,
+    player_id: FIXTURE_AI_ID,
+    ai_version: null,
+    turn_plan: { strategy: 'Ka is fragile after the last trade — hold it back and build Charge with Gibbers instead.', planner: 'enum' },
+    plan_execution_status: 'complete',
+    fallback_reason: null,
+  },
+  {
+    turn_number: 6,
+    player_id: FIXTURE_AI_ID,
+    ai_version: null,
+    turn_plan: { strategy: 'Break Ballaber with Drop to clear the board, then swing with Ka for a direct attack.', planner: 'enum' },
+    plan_execution_status: 'fallback',
+    fallback_reason: 'Planned Drop target (Ballaber) was already broken by the time Ka acted; redirected to a direct attack.',
+  },
+];
+
+function buildVictoryFixture(winnerId: string, winnerName: string): DesignFixture {
+  const gameId = winnerId === FIXTURE_HUMAN_ID ? 'fixture-victory' : 'fixture-defeat';
+  return {
+    id: gameId,
+    label: winnerId === FIXTURE_HUMAN_ID ? 'Victory' : 'Defeat',
+    description: `Game over: ${winnerName} wins. Recap with AI plans, an Improvised badge, and reasoning.`,
+    state: {
+      game_id: gameId,
+      turn_number: 7,
+      phase: 'Main',
+      active_player_id: FIXTURE_HUMAN_ID,
+      first_player_id: FIXTURE_HUMAN_ID,
+      players: {
+        [FIXTURE_HUMAN_ID]: makePlayer(FIXTURE_HUMAN_ID, 'Regis', 1, { hand_count: 0, in_play: [], break_zone: [] }),
+        [FIXTURE_AI_ID]: makePlayer(FIXTURE_AI_ID, 'Gemiknight', 0, { hand_count: 0, in_play: [], break_zone: [] }),
+      },
+      winner: winnerId,
+      is_game_over: true,
+      play_by_play: VICTORY_PLAY_BY_PLAY,
+    },
+    validActions: [],
+  };
+}
+
+export const VICTORY_FIXTURE = buildVictoryFixture(FIXTURE_HUMAN_ID, 'Regis');
+export const DEFEAT_FIXTURE = buildVictoryFixture(FIXTURE_AI_ID, 'Gemiknight');
+export const VICTORY_AI_LOGS_FIXTURE = VICTORY_AI_LOGS;
+
+// ============================================================================
 // REGISTRY + LOOKUP API (consumed by gameService and DesignPreview)
 // ============================================================================
 
