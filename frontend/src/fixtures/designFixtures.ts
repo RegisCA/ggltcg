@@ -244,13 +244,13 @@ function buildMidgame(): DesignFixture {
     makeCard('Jumpscare', 'fx2-ob2', FIXTURE_AI_ID, 'Break'),
   ];
 
+  // 6 cards total per player: you = 2 in play + 1 broken + 3 in hand.
   const hand = [
     makeCard('Wake', 'fx2-h1', FIXTURE_HUMAN_ID, 'Hand'),
     makeCard('Drop', 'fx2-h2', FIXTURE_HUMAN_ID, 'Hand'),
     makeCard('Ballaber', 'fx2-h3', FIXTURE_HUMAN_ID, 'Hand'),
-    makeCard('Surge', 'fx2-h4', FIXTURE_HUMAN_ID, 'Hand'),
   ];
-  const [wake, drop, ballaber, surge] = hand;
+  const [wake, drop, ballaber] = hand;
 
   return {
     id: 'fixture-midgame',
@@ -270,7 +270,7 @@ function buildMidgame(): DesignFixture {
           break_zone: [umbruhBroken],
         }),
         [FIXTURE_AI_ID]: makePlayer(FIXTURE_AI_ID, 'Gemiknight', 1, {
-          hand_count: 3,
+          hand_count: 2, // 2 in play + 2 broken + 2 in hand = 6
           in_play: [ka, gibbers],
           break_zone: opponentBroken,
         }),
@@ -281,7 +281,7 @@ function buildMidgame(): DesignFixture {
         { turn: 4, player: 'Gemiknight', action_type: 'play_card', description: 'Played Ka (2 Charge)' },
         { turn: 4, player: 'Gemiknight', action_type: 'tussle', description: 'Ka tussled Umbruh (2 Charge)' },
         { turn: 4, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
-        { turn: 5, player: 'You', action_type: 'draw', description: 'Drew Surge' },
+        { turn: 5, player: 'You', action_type: 'draw', description: 'Drew Wake' },
       ],
     },
     validActions: [
@@ -300,7 +300,6 @@ function buildMidgame(): DesignFixture {
         alternative_cost_available: true,
         alternative_cost_options: [knight.id, drum.id],
       }),
-      playAction(surge),
       tussleAction(knight, ka),
       tussleAction(knight, gibbers),
       tussleAction(drum, ka),
@@ -317,33 +316,36 @@ function buildBreakZonePileup(): DesignFixture {
   const beary = makeCard('Beary', 'fx3-p1', FIXTURE_HUMAN_ID, 'InPlay', { current_stamina: 2 });
   const sockSorcerer = makeCard('Sock Sorcerer', 'fx3-o1', FIXTURE_AI_ID, 'InPlay');
 
+  // 6 cards per player. You: 1 in play + 3 broken + 2 in hand.
   const humanBreak = [
     makeCard('Umbruh', 'fx3-b1', FIXTURE_HUMAN_ID, 'Break'),
     makeCard('Knight', 'fx3-b2', FIXTURE_HUMAN_ID, 'Break'),
     makeCard('Violin', 'fx3-b3', FIXTURE_HUMAN_ID, 'Break'),
-    makeCard('Surge', 'fx3-b4', FIXTURE_HUMAN_ID, 'Break'),
-    makeCard('Hind Leg Kicker', 'fx3-b5', FIXTURE_HUMAN_ID, 'Break'),
   ];
+  // Opponent at 5-of-6 broken: one break away from defeat (previews the score
+  // chip near its win threshold) and a full break-zone render on the ink side.
   const opponentBreak = [
     makeCard('Ka', 'fx3-ob1', FIXTURE_AI_ID, 'Break'),
     makeCard('Gibbers', 'fx3-ob2', FIXTURE_AI_ID, 'Break'),
     makeCard('Drop', 'fx3-ob3', FIXTURE_AI_ID, 'Break'),
+    makeCard('Paper Plane', 'fx3-ob4', FIXTURE_AI_ID, 'Break'),
+    makeCard('Jumpscare', 'fx3-ob5', FIXTURE_AI_ID, 'Break'),
   ];
 
   const hand = [
     makeCard('Wake', 'fx3-h1', FIXTURE_HUMAN_ID, 'Hand'),
     makeCard('Sun', 'fx3-h2', FIXTURE_HUMAN_ID, 'Hand'),
-    makeCard('Toynado', 'fx3-h3', FIXTURE_HUMAN_ID, 'Hand'),
   ];
-  const [wake, sun, toynado] = hand;
+  const [wake, sun] = hand;
 
-  // Only Toy cards can be fixed back into play
-  const fixableIds = [humanBreak[0].id, humanBreak[1].id, humanBreak[2].id, humanBreak[4].id];
+  // All three of your broken cards are Toys, so all are fixable back into play.
+  const fixableIds = humanBreak.map((c) => c.id);
 
   return {
     id: 'fixture-breakzones',
     label: 'Break-zone pileup',
-    description: 'Turn 9, your turn: 5 broken cards vs 3 — the stacking-bug state. Wake/Sun target the break zone.',
+    description:
+      'Turn 9, your turn: opponent at 5-of-6 broken (near defeat) vs your 3. Populous break zones on both sides; Wake/Sun fix your broken toys.',
     state: {
       game_id: 'fixture-breakzones',
       turn_number: 9,
@@ -357,7 +359,7 @@ function buildBreakZonePileup(): DesignFixture {
           break_zone: humanBreak,
         }),
         [FIXTURE_AI_ID]: makePlayer(FIXTURE_AI_ID, 'Gemiknight', 2, {
-          hand_count: 2,
+          hand_count: 0, // 1 in play + 5 broken + 0 in hand = 6
           in_play: [sockSorcerer],
           break_zone: opponentBreak,
         }),
@@ -367,14 +369,13 @@ function buildBreakZonePileup(): DesignFixture {
       play_by_play: [
         { turn: 8, player: 'Gemiknight', action_type: 'tussle', description: 'Sock Sorcerer tussled Violin (2 Charge)' },
         { turn: 8, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
-        { turn: 9, player: 'You', action_type: 'draw', description: 'Drew Toynado' },
+        { turn: 9, player: 'You', action_type: 'draw', description: 'Drew Sun' },
       ],
     },
     validActions: [
       END_TURN,
       playAction(wake, { target_options: fixableIds, min_targets: 1, max_targets: 1 }),
       playAction(sun, { target_options: fixableIds, min_targets: 1, max_targets: 2 }),
-      playAction(toynado),
       tussleAction(beary, sockSorcerer),
     ],
   };
@@ -390,12 +391,11 @@ function buildOpponentTurn(): DesignFixture {
   const ka = makeCard('Ka', 'fx4-o1', FIXTURE_AI_ID, 'InPlay', { current_stamina: 1 });
   const belchaletta = makeCard('Belchaletta', 'fx4-o2', FIXTURE_AI_ID, 'InPlay');
 
+  // 6 cards total: you = 2 in play + 1 broken + 3 in hand.
   const hand = [
     makeCard('Wake', 'fx4-h1', FIXTURE_HUMAN_ID, 'Hand'),
     makeCard('Drop', 'fx4-h2', FIXTURE_HUMAN_ID, 'Hand'),
     makeCard('Ballaber', 'fx4-h3', FIXTURE_HUMAN_ID, 'Hand'),
-    makeCard('Surge', 'fx4-h4', FIXTURE_HUMAN_ID, 'Hand'),
-    makeCard('VeryVeryAppleJuice', 'fx4-h5', FIXTURE_HUMAN_ID, 'Hand'),
   ];
 
   return {
