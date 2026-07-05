@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { CardDisplay } from './CardDisplay';
+import { crayonForColor, costNumeralColor, materialFor } from '../theme/crayon';
 import type { Card, ValidAction } from '../types/game';
 
 interface TargetSelectionModalProps {
@@ -18,10 +19,32 @@ interface TargetSelectionModalProps {
   onCancel: () => void;
   alternativeCostOptions?: Card[]; // For Ballaber
   currentCharge?: number; // Current Charge to determine if Pay Charge option is affordable
-  /** Local player's ID: adds a "Yours"/"Theirs" tag per target. Border color
-   *  alone can't signal ownership when both sides share faction colors. */
+  /** Local player's ID: targets render in owner material and carry a
+   *  player-name tag (§7.4) — material + name separate yours/theirs even when
+   *  both decks share a card. */
   humanPlayerId?: string;
+  humanPlayerName?: string;
+  opponentName?: string;
 }
+
+/** Inline stat line for a Toy target ("6 SPD · 4 STR · 1/3 STA"), or null. */
+function statLine(card: Card): string | null {
+  if (card.card_type !== 'Toy') return null;
+  const sta =
+    card.current_stamina != null && card.current_stamina !== card.stamina
+      ? `${card.current_stamina}/${card.stamina}`
+      : `${card.stamina ?? '-'}`;
+  return `${card.speed ?? '-'} SPD · ${card.strength ?? '-'} STR · ${sta} STA`;
+}
+
+const PANEL_STYLE: React.CSSProperties = {
+  background: '#241E17',
+  border: '1.5px solid rgba(242,193,78,.4)',
+  borderRadius: '14px',
+  padding: '14px',
+  maxWidth: '460px',
+  color: 'var(--ink-text)',
+};
 
 export function TargetSelectionModal({
   action,
@@ -31,6 +54,8 @@ export function TargetSelectionModal({
   alternativeCostOptions,
   currentCharge,
   humanPlayerId,
+  humanPlayerName,
+  opponentName,
 }: TargetSelectionModalProps) {
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [useAlternativeCost, setUseAlternativeCost] = useState(false);
@@ -140,9 +165,22 @@ export function TargetSelectionModal({
     return selectedTargets.length >= minTargets && selectedTargets.length <= maxTargets;
   };
 
-  const modalTitle = action.action_type === 'tussle' 
-    ? `Tussle with ${action.card_name}` 
+  const modalTitle = action.action_type === 'tussle'
+    ? `Tussle with ${action.card_name}`
     : `Playing ${action.card_name}`;
+
+  // Confirm names the action + target (§7.4). The frontend doesn't carry the
+  // effect verb (e.g. "Break"), so plays read "Play X → Target".
+  const selectedNames = selectedTargets
+    .map((id) => availableTargets.find((c) => c.id === id)?.name)
+    .filter((n): n is string => !!n);
+  const confirmLabel = useDirectAttack
+    ? 'Direct Attack'
+    : useAlternativeCost
+      ? `Play ${action.card_name ?? 'card'}`
+      : action.action_type === 'tussle'
+        ? (selectedNames.length ? `Attack ${selectedNames.join(', ')}` : 'Attack')
+        : (selectedNames.length ? `Play ${action.card_name} → ${selectedNames.join(', ')}` : `Play ${action.card_name ?? 'card'}`);
 
   return (
     <Modal
@@ -151,47 +189,31 @@ export function TargetSelectionModal({
       title={modalTitle}
       closeOnBackdropClick={false}
       closeOnEscape={true}
+      panelStyle={PANEL_STYLE}
     >
       <div className="flex flex-col" style={{ maxHeight: '70vh' }}>
-        {/* Action Description */}
-        <div className="flex-shrink-0" style={{ marginBottom: 'var(--spacing-component-md)' }}>
-          {action.action_type !== 'tussle' && action.cost_charge !== undefined && (
-            <p className="text-base text-gray-300" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
-              Cost: {action.cost_charge} Charge
-            </p>
-          )}
-          <p className="text-base text-gray-100" style={{ marginBottom: 'var(--spacing-component-md)' }}>
-            {action.description}
-          </p>
-          <div className="flex" style={{ gap: 'var(--spacing-component-sm)' }}>
-            <button
-              onClick={onCancel}
-              className="rounded-lg bg-gray-600 hover:bg-gray-700 font-bold transition-all text-white focus:ring-2 focus:ring-yellow-400"
-              style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={!canConfirm()}
-              className={`
-                rounded-lg font-bold transition-all text-white focus:ring-2 focus:ring-yellow-400
-                ${canConfirm()
-                  ? action.action_type === 'tussle' 
-                    ? 'bg-red-600 hover:bg-red-700 cursor-pointer'
-                    : 'bg-game-highlight hover:bg-red-600 cursor-pointer'
-                  : 'bg-gray-600 cursor-not-allowed opacity-50'
-                }
-              `}
-              style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-xl)' }}
-            >
-              {action.action_type === 'tussle' ? 'Attack!' : 'Confirm'}
-            </button>
+        {/* Header (§7.4): action name + charge cost */}
+        <div className="flex-shrink-0" style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ fontFamily: 'var(--font-card-name)', fontSize: '20px', lineHeight: 1, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {action.card_name}
+            </span>
+            {action.cost_charge !== undefined && (
+              <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>costs {action.cost_charge} ⚡</span>
+            )}
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--ink-muted)' }}>
+            {hasAlternativeCost
+              ? `Play ${action.card_name}.`
+              : `${maxTargets > 1 ? `Choose up to ${maxTargets} targets` : 'Choose a target'}${minTargets === 0 ? ' (optional)' : ''}.`}
+            {selectedTargets.length > 0 && (
+              <span style={{ color: 'var(--gold)' }}> ({selectedTargets.length}/{maxTargets})</span>
+            )}
           </div>
         </div>
 
         {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
           {/* Direct Attack option for tussle actions (Paper Plane, etc.) */}
           {hasDirectAttackOption && (
             <div style={{ marginBottom: 'var(--spacing-component-md)' }}>
@@ -312,66 +334,60 @@ export function TargetSelectionModal({
           {/* Target Selection (for other cards) */}
           {!useAlternativeCost && availableTargets.length > 0 && (
             <div>
-              {/* Only show header if not already shown by direct attack section */}
-              {!hasDirectAttackOption && (
-                <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-                  {maxTargets > 1
-                    ? `Select up to ${maxTargets} targets`
-                    : 'Select a target '
-                  }
-                  {minTargets === 0 && ' (optional)'}
-                  {selectedTargets.length > 0 && (
-                    <span className="text-yellow-400" style={{ marginLeft: 'var(--spacing-component-xs)' }}>
-                      ({selectedTargets.length}/{maxTargets} selected)
-                    </span>
-                  )}
-                </h3>
-              )}
-              {/* Add padding to accommodate card hover scale effect */}
-              <div 
-                className="grid grid-cols-2" 
-                style={{ 
-                  gap: 'var(--spacing-component-md)', 
-                  padding: 'var(--spacing-component-sm)',
-                  paddingBottom: 'var(--spacing-component-lg)'
-                }}
+              {/* Prompt + count live in the header now; direct-attack keeps its
+                  own "or select a card" line above this grid. */}
+              <div
+                className="grid grid-cols-2"
+                style={{ gap: '9px' }}
               >
                 {availableTargets.map((card) => {
                   const isSelected = selectedTargets.includes(card.id);
                   const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
+                  const clickable = !isDisabled || hasDirectAttackOption;
                   // For tussle with direct attack option, use single-select behavior
-                  const handleClick = hasDirectAttackOption 
+                  const handleClick = hasDirectAttackOption
                     ? () => selectCardTarget(card.id)
                     : () => !isDisabled && toggleTarget(card.id);
-                  const isYours = card.controller === humanPlayerId;
+                  // Material + name tag from OWNER (§1/§7.4), not controller.
+                  const own = card.owner === humanPlayerId;
+                  const crayon = crayonForColor(card.primary_color);
+                  const material = materialFor(own);
+                  const stats = statLine(card);
+                  const tagName = own ? (humanPlayerName || 'You') : (opponentName || 'Opponent');
                   return (
                     <div
                       key={card.id}
-                      onClick={handleClick}
-                      className="flex flex-col items-center"
-                      style={{ gap: 'var(--spacing-component-xs)' }}
+                      onClick={clickable ? handleClick : undefined}
+                      style={{
+                        position: 'relative',
+                        background: material.surface,
+                        color: material.text,
+                        border: `2px solid ${crayon}`,
+                        borderRadius: '6px',
+                        padding: '7px 8px',
+                        outline: isSelected ? '3px solid var(--gold)' : undefined,
+                        outlineOffset: isSelected ? '2px' : undefined,
+                        cursor: clickable ? 'pointer' : 'not-allowed',
+                        opacity: clickable ? 1 : 0.5,
+                      }}
                     >
-                      {/* Ownership tag: per-actor colors match the game log
-                          (you=blue, opponent=purple) */}
-                      {humanPlayerId && (
-                        <span
-                          className={`rounded-full text-xs font-semibold ${
-                            isYours
-                              ? 'bg-blue-900 text-blue-200'
-                              : 'bg-purple-950 text-purple-200'
-                          }`}
-                          style={{ padding: '1px var(--spacing-component-sm)' }}
-                        >
-                          {isYours ? 'Yours' : 'Theirs'}
-                        </span>
+                      {isSelected && (
+                        <div style={{ position: 'absolute', top: '-9px', right: '-9px', width: '20px', height: '20px', background: 'var(--gold)', color: 'var(--desk-bottom)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '11px' }}>✓</div>
                       )}
-                      <CardDisplay
-                        card={card}
-                        size="medium"
-                        isSelected={isSelected}
-                        isClickable={!isDisabled || hasDirectAttackOption}
-                        isDisabled={isDisabled && !hasDirectAttackOption}
-                      />
+                      {humanPlayerId && (
+                        <div style={{ display: 'inline-block', background: own ? 'var(--you)' : 'var(--them)', color: own ? '#1A2536' : '#241A33', fontSize: '8px', fontWeight: 900, letterSpacing: '.06em', borderRadius: '3px', padding: '1px 5px', marginBottom: '5px' }}>
+                          {tagName}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '18px', height: '18px', background: crayon, color: costNumeralColor(crayon, own), borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '11px', flexShrink: 0 }}>
+                          {card.effective_cost ?? card.cost}
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-card-name)', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</span>
+                      </div>
+                      {stats && (
+                        <div style={{ fontSize: '9.5px', color: material.textFaint, marginTop: '4px', fontWeight: 700 }}>{stats}</div>
+                      )}
                     </div>
                   );
                 })}
@@ -380,10 +396,27 @@ export function TargetSelectionModal({
           )}
 
           {!useAlternativeCost && availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
-            <div className="text-center text-gray-400">
+            <div style={{ textAlign: 'center', color: 'var(--ink-muted)', fontSize: '11.5px' }}>
               No targets available, but you can still play this card.
             </div>
           )}
+        </div>
+
+        {/* Cancel / named-confirm (§7.4) */}
+        <div className="flex-shrink-0" style={{ display: 'flex', gap: '9px', marginTop: '14px' }}>
+          <button
+            onClick={onCancel}
+            style={{ flex: 1, textAlign: 'center', border: '1.5px solid rgba(237,232,222,.3)', color: 'rgba(237,232,222,.7)', fontWeight: 700, fontSize: '12px', padding: '10px 0', borderRadius: '6px', background: 'none', cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!canConfirm()}
+            style={{ flex: 2, textAlign: 'center', background: 'var(--gold)', color: '#211a13', fontWeight: 900, fontSize: '13px', padding: '10px 0', borderRadius: '6px', boxShadow: '0 3px 0 rgba(0,0,0,.5)', border: 'none', cursor: canConfirm() ? 'pointer' : 'not-allowed', opacity: canConfirm() ? 1 : 0.5 }}
+          >
+            {confirmLabel}
+          </button>
         </div>
       </div>
     </Modal>

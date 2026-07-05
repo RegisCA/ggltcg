@@ -1,15 +1,16 @@
 /**
- * GameMessages Component
+ * GameMessages — the log strip (Paper & Ink §5.2).
  *
- * The game log as a collapsible ticker strip (UI_REFRESH_2026_06 WP-2 #4:
- * the log is the first checkpoint when reconstructing the opponent's turn,
- * so it sits at the top of the board, always one glance away).
+ * A paper surface sitting under the score chips (WP-2 #4: the log is the first
+ * checkpoint when reconstructing the opponent's turn). Collapsed: a single
+ * paper one-liner — TURN N · actor tick · latest event (or the "Opponent is
+ * thinking" spinner) · ▾ log. Expanded (default, device-validated): the full
+ * play-by-play on paper, grouped by turn, each entry ticked by actor
+ * (you = blue, opponent = purple, system = neutral). Choice persists via
+ * localStorage. All the opponent-turn behaviour (thinking spinner, streamed
+ * entries, held height so the board doesn't bounce) is unchanged.
  *
- * Expanded (default — device review: "I'd pretty much always want it
- * expanded"): the full scrollable play-by-play, grouped by turn and
- * color-coded by actor. Collapsed: a single ticker line showing the latest
- * event — or the "Opponent is thinking" spinner while the AI acts — plus a
- * new-event count. The choice persists across games via localStorage.
+ * Strip + tick values from the signed-off mockup (6a log).
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -22,40 +23,47 @@ function loadCollapsedPreference(): boolean {
   try {
     return localStorage.getItem(LOG_COLLAPSED_STORAGE_KEY) === '1';
   } catch {
-    return false; // e.g. storage blocked — fall back to expanded
+    return false; // storage blocked — default expanded
   }
 }
 
-/** Per-actor chip styling so the log scans at a glance: your actions blue,
- *  the opponent's purple (matching the "thinking" indicator), system
- *  messages neutral. */
-function actorStyle(isHuman: boolean | null): React.CSSProperties {
-  if (isHuman === true) return { borderLeft: '3px solid #60a5fa' }; // blue-400
-  if (isHuman === false) return { borderLeft: '3px solid #c084fc' }; // purple-400
-  return { borderLeft: '3px solid #6b7280' }; // gray-500 (system)
+/** Actor tick color (you = blue, opponent = purple, system = neutral). */
+function tickColor(isHuman: boolean | null): string {
+  if (isHuman === true) return 'var(--you)';
+  if (isHuman === false) return 'var(--them)';
+  return 'var(--paper-faint)';
 }
 
-function actorChipClass(isHuman: boolean | null): string {
-  if (isHuman === true) return 'bg-blue-900';
-  if (isHuman === false) return 'bg-purple-950';
-  return 'bg-gray-700';
+/** Subtle on-paper tint behind an entry, matching its actor tick. */
+function entryTint(isHuman: boolean | null): string {
+  if (isHuman === true) return 'rgba(126,166,224,.12)';
+  if (isHuman === false) return 'rgba(180,142,222,.12)';
+  return 'rgba(0,0,0,.04)';
 }
 
 interface GameMessagesProps {
   messages: string[];
-  /** True for the opponent's whole turn. The AI turn is a *sequence* of
-   *  /ai-turn requests, so mutation-pending state flickers off between
-   *  actions — the height freeze keys on this instead, spanning the gaps. */
   isOpponentTurn?: boolean;
-  /** True only for the turn's thinking phase: from the opponent's turn
-   *  starting until their first entry (normally the plan announcement)
-   *  lands in the log. After that the streaming entries are the feedback —
-   *  the spinner would just be noise over the acting phase. */
   isOpponentThinking?: boolean;
-  isCompact?: boolean;  // Tighter type/spacing at phone widths
-  playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
-  /** Display name of the local player, for per-actor color coding */
+  isCompact?: boolean;
+  playByPlay?: PlayByPlayEntry[];
   humanPlayerName?: string;
+}
+
+function Spinner({ size = 13 }: { size?: number }) {
+  return (
+    <svg
+      style={{ width: `${size}px`, height: `${size}px`, flexShrink: 0 }}
+      className="animate-spin"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    </svg>
+  );
 }
 
 export function GameMessages({
@@ -79,111 +87,102 @@ export function GameMessages({
     }
   };
 
-  /** null = system/unattributed message */
   const isHumanActor = (actor: string | undefined | null): boolean | null => {
     if (!actor || !humanPlayerName) return null;
     return actor === humanPlayerName;
   };
 
-  // Update last seen count when expanded
   useEffect(() => {
-    if (!isCollapsed) {
-      setLastSeenCount(messages.length);
-    }
+    if (!isCollapsed) setLastSeenCount(messages.length);
   }, [isCollapsed, messages.length]);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (!isCollapsed && scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [playByPlay.length, messages.length, isCollapsed]);
 
-  // In compact mode, show fewer messages by default
   const displayMessages = isCompact ? messages.slice(-5) : messages;
   const messageCount = messages.length;
   const newEventCount = Math.max(0, messageCount - lastSeenCount);
   const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+  const latestEntry = playByPlay.length > 0 ? playByPlay[playByPlay.length - 1] : null;
 
   return (
-    <div className="bg-gray-800 rounded border border-gray-700 overflow-hidden">
-      {/* Header - Always visible, clickable to toggle. When collapsed it IS
-          the ticker: latest event (or the AI-thinking spinner) inline. */}
+    <div
+      style={{
+        background: 'var(--paper)',
+        color: 'var(--paper-ink-text)',
+        borderRadius: '4px',
+        boxShadow: '0 2px 0 rgba(0,0,0,.35)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Collapsed = the ticker one-liner; also the expand/collapse control. */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        aria-label={isCollapsed ? "Expand game log" : "Collapse game log"}
-        className="w-full flex items-center justify-between bg-gray-900 hover:bg-gray-800 transition-colors"
+        aria-label={isCollapsed ? 'Expand game log' : 'Collapse game log'}
         style={{
-          padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-sm) var(--spacing-component-md)',
-          borderBottom: !isCollapsed ? '1px solid rgb(55 65 81)' : 'none',
-          gap: 'var(--spacing-component-sm)'
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 10px',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          fontSize: '11px',
+          color: 'var(--paper-ink-text)',
+          borderBottom: isCollapsed ? 'none' : '1px solid rgba(46,41,33,.12)',
         }}
       >
-        <div className="flex items-center" style={{ gap: 'var(--spacing-component-xs)', minWidth: 0 }}>
-          <span className={`text-gray-400 font-medium flex-shrink-0 ${isCompact ? 'text-xs' : 'text-sm'}`}>
-            Game Log
+        {latestEntry && (
+          <span style={{ fontWeight: 900, fontSize: '9px', letterSpacing: '.08em', color: 'var(--paper-faint)', flexShrink: 0 }}>
+            TURN {latestEntry.turn}
           </span>
-          {isCollapsed && newEventCount > 0 && (
-            <span
-              className="rounded-full bg-amber-900 text-amber-300 font-semibold flex-shrink-0"
-              style={{
-                padding: '2px var(--spacing-component-xs)',
-                fontSize: isCompact ? '10px' : '0.75rem'
-              }}
-            >
-              {newEventCount} new
+        )}
+
+        {isCollapsed ? (
+          isOpponentThinking ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--them)', minWidth: 0 }}>
+              <Spinner size={12} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Opponent is thinking…</span>
             </span>
-          )}
-          {isCollapsed && (
-            isOpponentThinking ? (
-              <span
-                className={`inline-flex items-center text-purple-300 ${isCompact ? 'text-xs' : 'text-sm'}`}
-                style={{ gap: 'var(--spacing-component-xs)', minWidth: 0 }}
-              >
-                <svg
-                  style={{ width: isCompact ? '12px' : '14px', height: isCompact ? '12px' : '14px', flexShrink: 0 }}
-                  className="animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                <span className="truncate">Opponent is thinking...</span>
+          ) : (
+            <>
+              <span style={{ width: '3px', height: '14px', borderRadius: '2px', background: tickColor(isHumanActor(latestEntry?.player)), flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                {latestEntry ? (
+                  <>
+                    <b>{latestEntry.player}</b> {latestEntry.description}
+                  </>
+                ) : (
+                  latestMessage || 'No events yet'
+                )}
               </span>
-            ) : latestMessage && (
-              <span className={`text-gray-300 truncate ${isCompact ? 'text-xs' : 'text-sm'}`}>
-                {latestMessage}
-              </span>
-            )
-          )}
-        </div>
-        <svg
-          aria-hidden="true"
-          className="text-gray-400 flex-shrink-0 transition-transform duration-200"
-          style={{
-            width: isCompact ? '12px' : '16px',
-            height: isCompact ? '12px' : '16px',
-            transform: isCollapsed ? 'none' : 'rotate(180deg)'
-          }}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-        </svg>
+            </>
+          )
+        ) : (
+          <span style={{ fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', fontSize: '9px', color: 'var(--paper-faint)' }}>
+            Game log
+          </span>
+        )}
+
+        {isCollapsed && newEventCount > 0 && (
+          <span style={{ flexShrink: 0, borderRadius: '999px', background: 'var(--gold)', color: 'var(--desk-bottom)', fontWeight: 700, fontSize: '9px', padding: '1px 6px' }}>
+            {newEventCount} new
+          </span>
+        )}
+
+        <span style={{ marginLeft: 'auto', color: 'var(--paper-faint)', fontSize: '9px', flexShrink: 0 }}>
+          {isCollapsed ? '▾ log' : '▴ log'}
+        </span>
       </button>
 
-      {/* Collapsible Content — grows with the log up to a cap (a short log
-          shouldn't reserve a fixed panel height above the board), then the
-          inner container scrolls. During the opponent's turn the panel
-          holds the full cap height instead: entries stream in mid-turn
-          (2s poll), and per-entry re-fits would bounce the board below —
-          the fixed slot keeps the board still AND gives the plan + actions
-          the cap's room (a height frozen at its turn-start measurement
-          could confine the whole playback to a few lines). It re-fits when
-          the turn ends — the one moment the board is changing anyway. */}
+      {/* Expanded — grows with the log up to a cap, then scrolls. During the
+          opponent's turn it holds the cap height so streamed entries don't
+          bounce the board. Re-fits when your turn starts. */}
       <AnimatePresence initial={false}>
         {!isCollapsed && (
           <motion.div
@@ -191,7 +190,7 @@ export function GameMessages({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            style={{ overflow: 'hidden' }}
           >
             <div
               ref={scrollContainerRef}
@@ -199,84 +198,56 @@ export function GameMessages({
                 overflowY: 'auto',
                 height: isOpponentTurn ? (isCompact ? '150px' : '220px') : undefined,
                 maxHeight: isCompact ? '150px' : '220px',
-                padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)'
+                padding: '6px 8px',
               }}
             >
               {displayMessages.length === 0 && !isOpponentThinking ? (
-                <div className={`text-gray-500 italic ${isCompact ? 'text-xs' : 'text-sm'}`}>
-                  No messages yet
-                </div>
+                <div style={{ color: 'var(--paper-faint)', fontStyle: 'italic', fontSize: '11px' }}>No events yet</div>
               ) : (
-                <div className="space-y-1">
-                  {/* If we have play-by-play data with reasoning, use it */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {playByPlay.length > 0 ? (
                     (() => {
-                      // Group entries by turn for visual separation
                       const entriesToShow = isCompact ? playByPlay.slice(-5) : playByPlay;
                       const groupedByTurn: Record<number, typeof entriesToShow> = {};
-                      
-                      entriesToShow.forEach(entry => {
-                        if (!groupedByTurn[entry.turn]) {
-                          groupedByTurn[entry.turn] = [];
-                        }
-                        groupedByTurn[entry.turn].push(entry);
+                      entriesToShow.forEach((entry) => {
+                        (groupedByTurn[entry.turn] ||= []).push(entry);
                       });
-                      
+
                       return Object.entries(groupedByTurn).map(([turn, entries]) => (
                         <div key={`turn-${turn}`}>
-                          {/* Turn label doubles as the group separator —
-                              scanning for "what happened on turn N" was the
-                              log's main job in observed play (WP-2 #4) */}
-                          <div
-                            className="flex items-center text-gray-500"
-                            style={{ gap: 'var(--spacing-component-xs)', margin: '4px 0 2px' }}
-                          >
-                            <span className="text-[10px] font-bold uppercase tracking-wider flex-shrink-0">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 2px' }}>
+                            <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--paper-faint)', flexShrink: 0 }}>
                               Turn {turn}
                             </span>
-                            <div className="border-t border-gray-700 flex-1" />
+                            <div style={{ borderTop: '1px solid rgba(46,41,33,.12)', flex: 1 }} />
                           </div>
 
-                          {/* Turn entries */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                             {entries.map((entry, idx) => {
-                              const entryKey = `${turn}-${idx}`;
                               const isHuman = isHumanActor(entry.player);
-
-                              // The AI's once-per-turn plan announcement
-                              // (backend action_type "strategy") reads as
-                              // commentary, not an action: brighter purple,
-                              // italic, 💭 — mirrors the recap's plan block
-                              if (entry.action_type === 'strategy') {
-                                return (
-                                  <div
-                                    key={entryKey}
-                                    className="bg-purple-900 rounded overflow-hidden"
-                                    style={{
-                                      padding: isCompact ? '2px 6px' : '2px 8px',
-                                      borderLeft: '3px solid #c084fc',
-                                    }}
-                                  >
-                                    <div className={`text-purple-100 ${isCompact ? 'text-xs' : 'text-sm'}`}>
-                                      <span className="font-semibold not-italic">💭 {entry.player}:</span>{' '}
-                                      <span className="italic">{entry.description}</span>
-                                    </div>
-                                  </div>
-                                );
-                              }
-
+                              const isStrategy = entry.action_type === 'strategy';
                               return (
                                 <div
-                                  key={entryKey}
-                                  className={`${actorChipClass(isHuman)} rounded overflow-hidden`}
+                                  key={`${turn}-${idx}`}
                                   style={{
-                                    padding: isCompact ? '2px 6px' : '2px 8px',
-                                    ...actorStyle(isHuman),
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    borderLeft: `3px solid ${tickColor(isHuman)}`,
+                                    background: isStrategy ? 'rgba(180,142,222,.16)' : entryTint(isHuman),
+                                    fontSize: isCompact ? '11px' : '12px',
+                                    lineHeight: 1.35,
                                   }}
                                 >
-                                  <div className={isCompact ? 'text-xs' : 'text-sm'}>
-                                    <span className="font-semibold">{entry.player}:</span> {entry.description}
-                                  </div>
+                                  {isStrategy ? (
+                                    <>
+                                      <span style={{ fontWeight: 700 }}>💭 {entry.player}:</span>{' '}
+                                      <span style={{ fontStyle: 'italic', color: 'var(--paper-muted)' }}>{entry.description}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span style={{ fontWeight: 700 }}>{entry.player}:</span> {entry.description}
+                                    </>
+                                  )}
                                 </div>
                               );
                             })}
@@ -285,20 +256,17 @@ export function GameMessages({
                       ));
                     })()
                   ) : (
-                    /* Fallback to simple messages if no play-by-play data.
-                       Attribute by the "Name: ..." prefix convention. */
                     displayMessages.map((msg, idx) => {
-                      const isHuman = humanPlayerName && msg.startsWith(`${humanPlayerName}:`)
-                        ? true
-                        : msg.includes(':') ? false : null;
+                      const isHuman = humanPlayerName && msg.startsWith(`${humanPlayerName}:`) ? true : msg.includes(':') ? false : null;
                       return (
                         <div
                           key={`${idx}-${msg.substring(0, 20)}`}
-                          className={`${actorChipClass(isHuman)} rounded`}
                           style={{
-                            padding: isCompact ? '2px 6px' : '2px 8px',
-                            fontSize: isCompact ? '0.75rem' : '0.875rem',
-                            ...actorStyle(isHuman),
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            borderLeft: `3px solid ${tickColor(isHuman)}`,
+                            background: entryTint(isHuman),
+                            fontSize: isCompact ? '11px' : '12px',
                           }}
                         >
                           {msg}
@@ -306,40 +274,23 @@ export function GameMessages({
                       );
                     })
                   )}
-                  
+
                   {isOpponentThinking && (
                     <div
-                      className="bg-purple-900 rounded inline-flex items-center"
                       style={{
-                        padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
-                        gap: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
-                        fontSize: isCompact ? '0.75rem' : '0.875rem'
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(180,142,222,.16)',
+                        color: 'var(--them)',
+                        fontSize: isCompact ? '11px' : '12px',
+                        alignSelf: 'flex-start',
                       }}
                     >
-                      <svg 
-                        style={{ 
-                          width: isCompact ? '12px' : '14px', 
-                          height: isCompact ? '12px' : '14px', 
-                          flexShrink: 0 
-                        }}
-                        className="animate-spin text-purple-300" 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        fill="none" 
-                        viewBox="0 0 24 24"
-                      >
-                        <circle 
-                          className="opacity-25" 
-                          cx="12" cy="12" r="10" 
-                          stroke="currentColor" 
-                          strokeWidth="4"
-                        />
-                        <path 
-                          className="opacity-75" 
-                          fill="currentColor" 
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      <span>{isCompact ? 'Opponent thinking...' : 'Opponent is thinking...'}</span>
+                      <Spinner size={13} />
+                      <span>{isCompact ? 'Opponent thinking…' : 'Opponent is thinking…'}</span>
                     </div>
                   )}
                 </div>

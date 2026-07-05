@@ -293,88 +293,28 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   return (
     <LocalPlayerProvider value={humanPlayerId}>
-    <div className="min-h-screen bg-game-bg">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))' }}>
       {/* Debug viewport indicator - toggle DEBUG_VIEWPORT to show */}
       {DEBUG_VIEWPORT && (
         <div className="fixed top-0 left-0 bg-black/80 text-white text-xs px-2 py-1 z-50 font-mono">
           {width}×{height} | {isMobile ? 'MOBILE' : isTablet ? 'TABLET' : 'DESKTOP'} | {isLandscape ? 'LAND' : 'PORT'}
         </div>
       )}
-        {/* Game Header - Player Info Bars */}
+        {/* Score chips (§7.1) — both players, you left / opponent right.
+            The turn concept lives only in the bottom turn bar (§3), so the old
+            green turn banner and the redundant own-charge line are gone. */}
         <div
-          className={`sticky top-0 z-10 bg-game-bg border-b border-gray-700 ${isPhone ? 'flex flex-col' : 'grid grid-cols-3'} items-center`}
+          className="sticky top-0 z-10"
           style={{
-            padding: 'var(--spacing-component-sm)',
-            gap: isPhone ? 'var(--spacing-component-xs)' : 'var(--spacing-component-md)'
+            display: 'flex',
+            alignItems: 'stretch',
+            gap: '8px',
+            padding: '14px 12px 8px',
+            background: 'var(--desk-top)',
           }}
         >
-          {isPhone ? (
-            <>
-              {/* Phone: Turn indicator first, players stacked below —
-                  the 3-column header overlaps into unreadable text under 768px */}
-              <div className="text-center">
-                <div 
-                  className={`
-                    text-base font-bold rounded-lg transition-all duration-300
-                    ${isHumanTurn 
-                      ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
-                      : 'bg-gray-700 text-gray-300'
-                    }
-                  `}
-                  style={{ padding: '4px var(--spacing-component-sm)' }}
-                >
-                  {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
-                </div>
-              </div>
-              {/* Phone: Players side by side, compact so both fit.
-                  Own charge lives in the ActionBar at the hand (WP-2 #2). */}
-              <div className="flex justify-between w-full" style={{ gap: 'var(--spacing-component-xs)' }}>
-                <PlayerInfoBar
-                  player={humanPlayer}
-                  isActive={gameState.active_player_id === humanPlayerId}
-                  isCompact={true}
-                  showCharge={false}
-                />
-                <PlayerInfoBar
-                  player={otherPlayer}
-                  isActive={gameState.active_player_id === otherPlayerId}
-                  isCompact={true}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Desktop/Tablet: 3 columns (compact info bars on tablet).
-                  Own charge lives in the ActionBar at the hand (WP-2 #2). */}
-              <PlayerInfoBar
-                player={humanPlayer}
-                isActive={gameState.active_player_id === humanPlayerId}
-                isCompact={!isDesktop}
-                showCharge={false}
-              />
-              <div className="text-center">
-                <div 
-                  className={`
-                    text-lg font-bold rounded-lg transition-all duration-300
-                    ${isHumanTurn 
-                      ? 'bg-green-600 text-white shadow-lg shadow-green-600/50' 
-                      : 'bg-gray-700 text-gray-300'
-                    }
-                  `}
-                  style={{ padding: '4px var(--spacing-component-md)' }}
-                >
-                  {isHumanTurn ? 'Your Turn' : "Opponent's Turn"} • Turn {gameState.turn_number}
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <PlayerInfoBar
-                  player={otherPlayer}
-                  isActive={gameState.active_player_id === otherPlayerId}
-                  isCompact={!isDesktop}
-                />
-              </div>
-            </>
-          )}
+          <PlayerInfoBar player={humanPlayer} />
+          <PlayerInfoBar player={otherPlayer} />
         </div>
 
         {/* Main Game Area — one JSX tree; arrangement lives in the
@@ -409,8 +349,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             <BreakZoneDisplay
               cards={otherPlayer.break_zone}
               playerName={otherPlayer.name}
-              isCompact={isPhone}
-              enableLayoutAnimation={true}
             />
           </div>
 
@@ -432,8 +370,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             <BreakZoneDisplay
               cards={humanPlayer.break_zone}
               playerName={humanPlayer.name}
-              isCompact={isPhone}
-              enableLayoutAnimation={true}
             />
           </div>
 
@@ -451,27 +387,25 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             />
           </div>
 
-          {/* Charge + End Turn, docked at the hand where play decisions
-              happen. Replaces the ActionPanel sidebar list (WP-1 #1,
-              WP-2 #1-2): cards themselves are the play surface.
-              Sticky: this is the only place the player's own Charge is
-              shown, so it must never scroll out of view — in a real game
-              the board grows taller than the viewport. */}
+          {/* Turn bar (§7.2) — the single turn control, sticky at the viewport
+              bottom so End Turn stays in thumb reach in a taller-than-viewport
+              board. Gold when it's your turn, passive purple when it isn't. */}
           <div
             style={{
               gridArea: 'actionbar',
               position: 'sticky',
               bottom: 0,
               zIndex: 20,
-              boxShadow: '0 -8px 16px -4px rgba(26, 26, 46, 0.9)',
+              boxShadow: '0 -8px 16px -4px rgba(0, 0, 0, 0.5)',
             }}
           >
             <ActionBar
-              charge={humanPlayer.charge}
               validActions={validActionsData?.valid_actions || []}
               onAction={handleAction}
               isProcessing={isProcessing}
-              isCompact={!isDesktop}
+              isYourTurn={isHumanTurn}
+              turnNumber={gameState.turn_number}
+              opponentName={otherPlayer.name}
             />
           </div>
 
@@ -488,6 +422,8 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           onCancel={handleCancelTargetSelection}
           currentCharge={humanPlayer.charge}
           humanPlayerId={humanPlayerId}
+          humanPlayerName={humanPlayer.name}
+          opponentName={otherPlayer.name}
           alternativeCostOptions={
             pendingAction.alternative_cost_available
               ? [...humanPlayer.in_play, ...(humanPlayer.hand || [])]
