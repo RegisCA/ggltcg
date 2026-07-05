@@ -673,3 +673,109 @@ def test_get_game_state_hides_opponent_hand_and_applies_stat_buffs():
         f"got {ka_state['strength']} (base {ka_base_strength})"
     )
     assert ka_state["base_strength"] == ka_base_strength, "base_strength should remain unbuffed"
+
+
+def test_ai_turn_route_announces_plan_strategy_once_per_turn():
+    """POST /ai-turn: the once-per-turn 'strategy' play-by-play entry (live
+    opponent-turn playback, PR #369).
+
+    The fake AI mirrors production reality: by the time the route reads
+    get_last_decision_info(), select_action has already advanced the plan's
+    current_action index past 0 (llm_player._advance_plan runs before
+    returning). The original implementation guarded the announcement with
+    `current_action == 0` and never fired — this test pins the behavior:
+    the strategy lands exactly once across the turn's requests, before the
+    first action entry.
+    """
+    import api.routes_actions as routes_actions
+    from api.app import app
+
+    surge = _load_card("Surge")
+    surge.owner = "player1"
+    surge.controller = "player1"
+    surge.zone = Zone.HAND
+
+    player1 = Player(player_id="player1", name="Player 1", charge=2, hand=[surge], in_play=[])
+    player2 = Player(player_id="player2", name="Player 2", charge=2, hand=[], in_play=[])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=1,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    class _FakeAIPlayer:
+        """Request 1 plays Surge, request 2 ends the turn — both report the
+        same turn plan with current_action already advanced (as the real
+        LLMPlayer does)."""
+
+        def __init__(self):
+            self.requests = 0
+
+        def select_action(self, game_state, player_id, valid_actions, game_engine=None):
+            self.requests += 1
+            wanted = "play_card" if self.requests == 1 else "end_turn"
+            for i, action in enumerate(valid_actions):
+                if action.action_type == wanted and (wanted == "end_turn" or action.card_id == surge.id):
+                    return (i, f"[plan] fake step {self.requests}")
+            raise AssertionError(f"expected a {wanted} action in valid_actions")
+
+        def get_action_details(self, selected_action):
+            if selected_action.action_type == "end_turn":
+                return {"action_type": "end_turn"}
+            return {"action_type": "play_card", "card_id": selected_action.card_id, "target_ids": None}
+
+        def get_endpoint_name(self):
+            return "FakeAI"
+
+        def get_last_decision_info(self):
+            return {
+                "model_name": "fake",
+                "prompts_version": "fake",
+                "action_number": self.requests,
+                "reasoning": "fake",
+                "prompt": "",
+                "response": "",
+                "plan": {
+                    "planner": "enum",
+                    "strategy": "Play Surge for Charge, then end the turn.",
+                    "total_actions": 2,
+                    # Mirrors llm_player: _advance_plan runs before
+                    # select_action returns, so this is never 0 here
+                    "current_action": self.requests,
+                },
+            }
+
+    fake_ai = _FakeAIPlayer()
+    original_get_ai_player = routes_actions.get_ai_player
+    routes_actions.get_ai_player = lambda: fake_ai
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        r1 = client.post(f"/games/{game_state.game_id}/ai-turn", params={"player_id": "player1"})
+        r2 = client.post(f"/games/{game_state.game_id}/ai-turn", params={"player_id": "player1"})
+    finally:
+        routes_actions.get_ai_player = original_get_ai_player
+        service.use_database = original_use_database
+
+    assert r1.status_code == 200, r1.text
+    assert r2.status_code == 200, r2.text
+
+    strategy_entries = [e for e in game_state.play_by_play if e.get("action_type") == "strategy"]
+    assert len(strategy_entries) == 1, (
+        f"Expected exactly one strategy announcement for the turn, got "
+        f"{len(strategy_entries)}: {game_state.play_by_play}"
+    )
+    assert strategy_entries[0]["description"] == "Play Surge for Charge, then end the turn."
+    assert strategy_entries[0]["turn"] == 1
+
+    entry_types = [e.get("action_type") for e in game_state.play_by_play]
+    assert entry_types.index("strategy") < entry_types.index("play_card"), (
+        f"Strategy should be announced before the first action entry: {entry_types}"
+    )

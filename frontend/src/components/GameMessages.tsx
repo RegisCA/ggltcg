@@ -68,7 +68,6 @@ export function GameMessages({
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsedState] = useState(loadCollapsedPreference);
   const [lastSeenCount, setLastSeenCount] = useState(0);
-  const [frozenHeight, setFrozenHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const setIsCollapsed = (value: boolean) => {
@@ -92,21 +91,6 @@ export function GameMessages({
       setLastSeenCount(messages.length);
     }
   }, [isCollapsed, messages.length]);
-
-  // Freeze the expanded log's height for the duration of the opponent's
-  // turn: entries stream in mid-turn (2s poll), and letting the panel
-  // re-fit per entry bounces the whole board below it. The held height
-  // releases when the turn ends — the one moment the board is changing
-  // anyway. New entries stay visible via the auto-scroll below.
-  useEffect(() => {
-    if (isOpponentTurn && !isCollapsed && scrollContainerRef.current) {
-      // isCompact dep: re-capture when crossing the phone breakpoint, whose
-      // max-height cap differs — a stale frozen height would fight it
-      setFrozenHeight(scrollContainerRef.current.offsetHeight);
-    } else {
-      setFrozenHeight(null);
-    }
-  }, [isOpponentTurn, isCollapsed, isCompact]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -193,7 +177,13 @@ export function GameMessages({
 
       {/* Collapsible Content — grows with the log up to a cap (a short log
           shouldn't reserve a fixed panel height above the board), then the
-          inner container scrolls */}
+          inner container scrolls. During the opponent's turn the panel
+          holds the full cap height instead: entries stream in mid-turn
+          (2s poll), and per-entry re-fits would bounce the board below —
+          the fixed slot keeps the board still AND gives the plan + actions
+          the cap's room (a height frozen at its turn-start measurement
+          could confine the whole playback to a few lines). It re-fits when
+          the turn ends — the one moment the board is changing anyway. */}
       <AnimatePresence initial={false}>
         {!isCollapsed && (
           <motion.div
@@ -207,7 +197,7 @@ export function GameMessages({
               ref={scrollContainerRef}
               style={{
                 overflowY: 'auto',
-                height: frozenHeight !== null ? `${frozenHeight}px` : undefined,
+                height: isOpponentTurn ? (isCompact ? '150px' : '220px') : undefined,
                 maxHeight: isCompact ? '150px' : '220px',
                 padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)'
               }}

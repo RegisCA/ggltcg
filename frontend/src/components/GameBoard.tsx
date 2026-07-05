@@ -245,8 +245,12 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   // plan announcement) lands — after that the streaming entries are the
   // feedback and a spinner would be noise. Also covers the no-plan
   // fallback, where an action entry arrives without a strategy.
+  // AI games only: a human opponent in a lobby game may deliberate for
+  // minutes, and "thinking" with a spinner would misread as processing —
+  // their turn still gets the held log height and streamed entries.
   const isOpponentTurn = !isHumanTurn && !gameState.is_game_over;
   const isOpponentThinking =
+    !!aiPlayerId &&
     isOpponentTurn &&
     !(gameState.play_by_play || []).some((entry) => entry.turn === gameState.turn_number);
 
