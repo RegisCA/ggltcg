@@ -13,6 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import { GameBoard } from '../components/GameBoard';
+import type { ChargeVisibilityVariant } from '../components/PlayerInfoBar';
 import { DeckSelection } from '../components/DeckSelection';
 import { VictoryScreen } from '../components/VictoryScreen';
 import { LobbyHome } from '../components/LobbyHome';
@@ -69,8 +70,37 @@ const SCREEN_FIXTURES = [
 
 type RouteMatch = { kind: 'board'; id: string } | { kind: 'screen'; id: string };
 
-function routeFromHash(): RouteMatch {
+// Charge-visibility design-review switcher (2026-07 prototype). Deep-linkable
+// via /design.html#<fixture>?charge=b (also accepts &charge=b after the
+// fixture's own query, and the full variant names). Never consulted outside
+// the harness — GameBoard/PlayerInfoBar default to 'current' on their own.
+const CHARGE_VARIANT_ALIASES: Record<string, ChargeVisibilityVariant> = {
+  current: 'current',
+  a: 'chargePops',
+  chargepops: 'chargePops',
+  b: 'activeHighlight',
+  activehighlight: 'activeHighlight',
+  c: 'both',
+  both: 'both',
+};
+const CHARGE_VARIANT_OPTIONS: { value: ChargeVisibilityVariant; label: string; shortcode: string }[] = [
+  { value: 'current', label: 'Current (baseline)', shortcode: 'current' },
+  { value: 'chargePops', label: 'A · Charge pops', shortcode: 'a' },
+  { value: 'activeHighlight', label: 'B · Active highlight', shortcode: 'b' },
+  { value: 'both', label: 'C · Both combined', shortcode: 'c' },
+];
+
+function chargeVariantFromLocation(): ChargeVisibilityVariant {
   const hash = window.location.hash.replace(/^#/, '');
+  const queryPart = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : window.location.search.replace(/^\?/, '');
+  const params = new URLSearchParams(queryPart);
+  const raw = params.get('charge')?.toLowerCase();
+  if (raw && CHARGE_VARIANT_ALIASES[raw]) return CHARGE_VARIANT_ALIASES[raw];
+  return 'current';
+}
+
+function routeFromHash(): RouteMatch {
+  const hash = window.location.hash.replace(/^#/, '').split('?')[0];
   const screen = SCREEN_FIXTURES.find((f) => f.id === hash);
   if (screen) return { kind: 'screen', id: screen.id };
   const board = DESIGN_FIXTURES.find((f) => f.id === `fixture-${hash}` || f.id === hash);
@@ -79,6 +109,7 @@ function routeFromHash(): RouteMatch {
 
 export function DesignPreview() {
   const [route, setRoute] = useState<RouteMatch>(routeFromHash);
+  const [chargeVariant, setChargeVariant] = useState<ChargeVisibilityVariant>(chargeVariantFromLocation);
   const { width, height, isMobile, isTablet } = useResponsive();
   const { user, login, logout } = useAuth();
 
@@ -103,15 +134,28 @@ export function DesignPreview() {
   // Keep the URL hash in sync so a specific fixture can be linked directly
   // (e.g. open /design.html#midgame or /design.html#deck-selection on a phone).
   useEffect(() => {
-    const onHashChange = () => setRoute(routeFromHash());
+    const onHashChange = () => {
+      setRoute(routeFromHash());
+      setChargeVariant(chargeVariantFromLocation());
+    };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
+  const buildHash = (next: RouteMatch, variant: ChargeVisibilityVariant) => {
+    const base = next.kind === 'screen' ? next.id : next.id.replace(/^fixture-/, '');
+    const opt = CHARGE_VARIANT_OPTIONS.find((o) => o.value === variant);
+    return variant !== 'current' && opt ? `${base}?charge=${opt.shortcode}` : base;
+  };
+
   const selectRoute = (next: RouteMatch) => {
     setRoute(next);
-    const hash = next.kind === 'screen' ? next.id : next.id.replace(/^fixture-/, '');
-    window.history.replaceState(null, '', `#${hash}`);
+    window.history.replaceState(null, '', `#${buildHash(next, chargeVariant)}`);
+  };
+
+  const selectChargeVariant = (variant: ChargeVisibilityVariant) => {
+    setChargeVariant(variant);
+    window.history.replaceState(null, '', `#${buildHash(route, variant)}`);
   };
 
   const boardFixture = DESIGN_FIXTURES.find((f) => f.id === route.id) ?? DESIGN_FIXTURES[0];
@@ -166,6 +210,28 @@ export function DesignPreview() {
         <p className="text-xs text-gray-400" style={{ marginTop: '2px' }}>
           {activeDescription} Actions are display-only.
         </p>
+        {route.kind === 'board' && (
+          <div
+            className="flex flex-wrap items-center"
+            style={{ gap: 'var(--spacing-component-xs)', marginTop: 'var(--spacing-component-xs)' }}
+          >
+            <span className="text-xs text-purple-300/70 whitespace-nowrap">⚡ charge visibility:</span>
+            {CHARGE_VARIANT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => selectChargeVariant(opt.value)}
+                className={`text-xs rounded border transition-colors ${
+                  chargeVariant === opt.value
+                    ? 'bg-amber-600 border-amber-300 text-white font-bold'
+                    : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
+                }`}
+                style={{ padding: '2px var(--spacing-component-xs)' }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {route.kind === 'screen' && route.id === 'deck-selection' ? (
@@ -276,6 +342,7 @@ export function DesignPreview() {
           humanPlayerId={FIXTURE_HUMAN_ID}
           aiPlayerId={FIXTURE_AI_ID}
           onGameEnd={() => {}}
+          chargeVariant={chargeVariant}
         />
       )}
     </div>
