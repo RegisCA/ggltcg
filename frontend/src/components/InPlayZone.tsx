@@ -6,9 +6,17 @@
  * Cards that have available actions show a subtle glow when hovered.
  */
 
+import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CardDisplay } from './CardDisplay';
 import { cardGridTemplateColumns } from '../utils/cardGridTracks';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import type { Card } from '../types/game';
+
+// How long the arrival ring stays mounted (matches the animation duration
+// below). Kept as a constant so the timeout and the framer transition can't
+// drift apart.
+const ARRIVAL_DURATION_MS = 800;
 
 interface InPlayZoneProps {
   cards: Card[];
@@ -34,6 +42,37 @@ export function InPlayZone({
   enableLayoutAnimation = false,
 }: InPlayZoneProps) {
   const cardList = cards || [];
+  const prefersReducedMotion = useReducedMotion();
+
+  // Track newly-arrived card IDs: present now but not in the previous
+  // render's set. Skip on first mount so a mid-game board doesn't flash
+  // every card that happens to already be in play.
+  const previousIdsRef = useRef<Set<string> | null>(null);
+  const [arrivedIds, setArrivedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set(cardList.map((c) => c.id));
+
+    if (previousIdsRef.current === null) {
+      // First render — establish the baseline, no arrivals.
+      previousIdsRef.current = currentIds;
+      return;
+    }
+
+    const previousIds = previousIdsRef.current;
+    const newlyArrived = new Set<string>();
+    currentIds.forEach((id) => {
+      if (!previousIds.has(id)) newlyArrived.add(id);
+    });
+    previousIdsRef.current = currentIds;
+
+    if (prefersReducedMotion || newlyArrived.size === 0) return;
+
+    setArrivedIds(newlyArrived);
+    const timer = setTimeout(() => setArrivedIds(new Set()), ARRIVAL_DURATION_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardList.map((c) => c.id).join(','), prefersReducedMotion]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -70,18 +109,45 @@ export function InPlayZone({
               // Non-actionable cards are still visible but not clickable
               const isClickable = isHuman && !!onCardClick && isActionable;
               
+              const isArriving = arrivedIds.has(card.id);
+
               return (
-                <CardDisplay
-                  key={card.id}
-                  card={card}
-                  size={size}
-                  fluid={true}
-                  isSelected={selectedCard === card.id}
-                  isClickable={isClickable}
-                  isHighlighted={isActionable}
-                  onClick={isClickable ? () => onCardClick(card.id) : undefined}
-                  enableLayoutAnimation={enableLayoutAnimation}
-                />
+                <div key={card.id} style={{ position: 'relative' }}>
+                  <CardDisplay
+                    card={card}
+                    size={size}
+                    fluid={true}
+                    isSelected={selectedCard === card.id}
+                    isClickable={isClickable}
+                    isHighlighted={isActionable}
+                    onClick={isClickable ? () => onCardClick(card.id) : undefined}
+                    enableLayoutAnimation={enableLayoutAnimation}
+                  />
+                  {/* Arrival emphasis: a card newly present in this zone (vs. the
+                      previous render) gets a brief gold ring so it reads as "just
+                      entered play" during opponent-turn polling, instead of just
+                      popping in silently. Overlay only — no layout impact, no
+                      pointer interception (§ arrival emphasis). */}
+                  <AnimatePresence>
+                    {isArriving && (
+                      <motion.div
+                        key="arrival-flash"
+                        data-testid="arrival-flash"
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: '8px',
+                          border: '2px solid var(--gold)',
+                          pointerEvents: 'none',
+                        }}
+                        initial={{ opacity: 0.9, scale: 1.04 }}
+                        animate={{ opacity: 0, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: ARRIVAL_DURATION_MS / 1000 }}
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
               );
             })}
           </div>
