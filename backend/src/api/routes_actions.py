@@ -21,7 +21,7 @@ from api.game_service import get_game_service
 from api.stats_service import get_stats_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
-from game_engine.validation import ActionValidator, ActionExecutor, build_tussle_description
+from game_engine.validation import ActionValidator, ActionExecutor, build_tussle_description, card_label
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,12 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
     try:
         # Calculate cost before tussle
         cost = engine.calculate_tussle_cost(attacker, player)
-        
+
+        # Ownership labels must be captured pre-tussle: a broken card's
+        # controller is reset to its owner during resolution.
+        attacker_label = card_label(attacker, game_state)
+        defender_label = card_label(defender, game_state) if defender else None
+
         success, broken_from_hand = engine.initiate_tussle(attacker, defender, player)
         
         if not success:
@@ -187,7 +192,7 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         
         # Log to play-by-play with cost BEFORE victory check (so action appears first)
         description = build_tussle_description(
-            cost, attacker.name, defender=defender, broken_from_hand=broken_from_hand
+            cost, attacker_label, defender_label=defender_label, broken_from_hand=broken_from_hand
         )
         game_state.add_play_by_play(
             player_name=player.name,

@@ -9,6 +9,7 @@ from game_engine.validation.action_executor import (
     ActionExecutor,
     ExecutionResult,
     build_tussle_description,
+    card_label,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     'ActionExecutor',
     'ExecutionResult',
     'build_tussle_description',
+    'card_label',
 ]
