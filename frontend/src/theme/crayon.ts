@@ -51,6 +51,30 @@ const KNOWN_COLOR_CRAYON: Record<string, CrayonName> = {
 
 const DEFAULT_CRAYON: CrayonName = 'red';
 
+/**
+ * Cost-box numeral color (§4: "cost numeral in the face color"). The cost box is
+ * filled with the identity crayon; the numeral reads as cut out of the face.
+ * On paper that's always the cream face. On ink a dark numeral vanishes against a
+ * dark crayon, so light crayons (orange/sky) keep the dark face color and dark
+ * crayons (red/purple/…) flip to the light ink text — matching the mockup
+ * (Ka red → light, Gibbers orange → dark).
+ */
+export function costNumeralColor(crayonHex: string, isOwn: boolean): string {
+  if (isOwn) return 'var(--paper)';
+  return relativeLuminance(crayonHex) > 0.3 ? 'var(--desk-bottom)' : 'var(--ink-text)';
+}
+
+/** WCAG relative luminance (0 dark – 1 light) of a hex color. */
+function relativeLuminance(hex: string): number {
+  const rgb = parseHex(hex);
+  if (!rgb) return 0;
+  const [r, g, b] = rgb.map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
 function parseHex(hex: string): [number, number, number] | null {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return null;
@@ -132,7 +156,11 @@ const INK_MATERIAL: Omit<CardMaterial, 'isOwn'> = {
   danger: 'var(--danger)',
 };
 
-export function materialForOwner(cardOwner: string, localPlayerId: string): CardMaterial {
-  const isOwn = cardOwner === localPlayerId;
+/** Material from an already-resolved ownership boolean (cream paper if own, ink if not). */
+export function materialFor(isOwn: boolean): CardMaterial {
   return { isOwn, ...(isOwn ? PAPER_MATERIAL : INK_MATERIAL) };
+}
+
+export function materialForOwner(cardOwner: string, localPlayerId: string): CardMaterial {
+  return materialFor(cardOwner === localPlayerId);
 }

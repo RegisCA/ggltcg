@@ -22,6 +22,7 @@ import { BreakZoneDisplay } from './BreakZoneDisplay';
 import { ActionBar } from './ActionBar';
 import { TargetSelectionModal } from './TargetSelectionModal';
 import { GameMessages } from './GameMessages';
+import { LocalPlayerProvider } from '../contexts/LocalPlayerContext';
 
 interface GameBoardProps {
   gameId: string;
@@ -291,6 +292,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   };
 
   return (
+    <LocalPlayerProvider value={humanPlayerId}>
     <div className="min-h-screen bg-game-bg">
       {/* Debug viewport indicator - toggle DEBUG_VIEWPORT to show */}
       {DEBUG_VIEWPORT && (
@@ -494,5 +496,6 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
         />
       )}
     </div>
+    </LocalPlayerProvider>
   );
 }
