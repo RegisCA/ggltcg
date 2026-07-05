@@ -335,7 +335,7 @@ function GameApp() {
     return (
       <>
         <UserMenu />
-        <VictoryScreen gameState={gameState} onPlayAgain={handlePlayAgain} />
+        <VictoryScreen gameState={gameState} onPlayAgain={handlePlayAgain} localPlayerId={playerIds?.human} />
       </>
     );
   }
