@@ -20,10 +20,26 @@ from game_engine.rules.effects.action_effects import FixEffect, CopyEffect, Twis
 logger = logging.getLogger(__name__)
 
 
+def card_label(card: Card, game_state: GameState) -> str:
+    """
+    Card name for the play-by-play, annotated with the owner's name when the
+    card is under the other player's control (Twist): "Ka (Régis's)".
+
+    Controller diverges from owner only while a card is in play — breaking or
+    returning a card resets controller to owner — so capture labels BEFORE
+    executing the action, while the pre-action control state is still visible.
+    """
+    if card.owner and card.controller and card.owner != card.controller:
+        owner = game_state.players.get(card.owner)
+        if owner:
+            return f"{card.name} ({owner.name}'s)"
+    return card.name
+
+
 def build_tussle_description(
     cost: int,
-    attacker_name: str,
-    defender: Optional[Card] = None,
+    attacker_label: str,
+    defender_label: Optional[str] = None,
     broken_from_hand: Optional[str] = None,
 ) -> str:
     """
@@ -31,15 +47,16 @@ def build_tussle_description(
     voice: "Attacker tussled Defender (N Charge)".
 
     Shared by the human tussle route and the AI executor so the two copies
-    can't drift. Keeps the rules vocabulary ("tussle", "Charge").
+    can't drift. Keeps the rules vocabulary ("tussle", "Charge"). Labels are
+    pre-captured via card_label so stolen cards read "Ka (Régis's)".
     """
-    if defender:
-        target = f" {defender.name}"
+    if defender_label:
+        target = f" {defender_label}"
     elif broken_from_hand:
         target = f" {broken_from_hand} from hand"
     else:
         target = " directly"
-    return f"{attacker_name} tussled{target} ({cost} Charge)"
+    return f"{attacker_label} tussled{target} ({cost} Charge)"
 
 
 @dataclass
@@ -130,6 +147,10 @@ class ActionExecutor:
         if kwargs.get("target"):
             logger.info(f"Playing {card.name} with target: {kwargs['target'].name} (ID: {target_card_id})")
         
+        # Ownership labels must be captured pre-play: breaking a target resets
+        # its controller to its owner, hiding that it was a stolen card.
+        target_labels = self._capture_target_labels(kwargs)
+
         # Execute the play
         success = False
         if kwargs.get("alternative_cost_paid"):
@@ -151,10 +172,10 @@ class ActionExecutor:
         self.engine.check_state_based_actions()
         
         # Build description
-        description = self._build_play_card_description(card, cost, kwargs)
-        
+        description = self._build_play_card_description(card, cost, kwargs, target_labels)
+
         # Build target info for response message
-        target_info = self._build_target_info(card, kwargs)
+        target_info = self._build_target_info(card, kwargs, target_labels)
         
         # Check for victory
         winner = self.game_state.check_victory()
@@ -223,7 +244,12 @@ class ActionExecutor:
         
         # Calculate cost before tussle
         cost = self.engine.calculate_tussle_cost(attacker, player)
-        
+
+        # Ownership labels must be captured pre-tussle: a broken card's
+        # controller is reset to its owner during resolution.
+        attacker_label = card_label(attacker, self.game_state)
+        defender_label = card_label(defender, self.game_state) if defender else None
+
         # Execute tussle
         success, broken_from_hand = self.engine.initiate_tussle(attacker, defender, player)
         
@@ -243,7 +269,7 @@ class ActionExecutor:
         # `success` on the happy path, so there's no second target-label
         # branch to keep in sync with the helper.
         description = build_tussle_description(
-            cost, attacker.name, defender=defender, broken_from_hand=broken_from_hand
+            cost, attacker_label, defender_label=defender_label, broken_from_hand=broken_from_hand
         )
 
         # Check for victory
@@ -412,11 +438,24 @@ class ActionExecutor:
         
         return True
     
+    def _capture_target_labels(self, kwargs: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Snapshot ownership-annotated names (card_label) for the play's targets,
+        keyed by card ID. Must run before the effect resolves — see card_label.
+        """
+        targets: List[Card] = []
+        if kwargs.get("target"):
+            targets.append(kwargs["target"])
+        if kwargs.get("targets"):
+            targets.extend(kwargs["targets"])
+        return {t.id: card_label(t, self.game_state) for t in targets}
+
     def _build_play_card_description(
         self,
         card: Card,
         cost: int,
-        kwargs: Dict[str, Any]
+        kwargs: Dict[str, Any],
+        target_labels: Optional[Dict[str, str]] = None
     ) -> str:
         """
         Build a concise description of playing a card.
@@ -425,23 +464,28 @@ class ActionExecutor:
         Effect descriptions are removed as they're redundant - players can
         see the card's effect on the card itself.
         """
+        labels = target_labels or {}
+
+        def name_of(t: Card) -> str:
+            return labels.get(t.id, t.name)
+
         # Effect clause — the meaningful part for Action cards, in the log's
         # subject-verb-object voice (", broke Knight"). Appended before the
         # trailing cost so the line reads "Played Drop, broke Knight (2 Charge)".
         effect_clause = ""
         if card.is_action():
             if card.has_effect_type(BreakTargetEffect) and kwargs.get("target"):
-                effect_clause = f", broke {kwargs['target'].name}"
+                effect_clause = f", broke {name_of(kwargs['target'])}"
             elif card.has_effect_type(BreakTargetEffect) and kwargs.get("targets"):
-                effect_clause = f", broke {', '.join(t.name for t in kwargs['targets'])}"
+                effect_clause = f", broke {', '.join(name_of(t) for t in kwargs['targets'])}"
             elif card.has_effect_type(FixEffect) and kwargs.get("target"):
-                effect_clause = f", fixed {kwargs['target'].name}"
+                effect_clause = f", fixed {name_of(kwargs['target'])}"
             elif card.has_effect_type(FixEffect) and kwargs.get("targets"):
-                effect_clause = f", fixed {', '.join(t.name for t in kwargs['targets'])}"
+                effect_clause = f", fixed {', '.join(name_of(t) for t in kwargs['targets'])}"
             elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
-                effect_clause = f", copied {kwargs['target'].name}"
+                effect_clause = f", copied {name_of(kwargs['target'])}"
             elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
-                effect_clause = f", took control of {kwargs['target'].name}"
+                effect_clause = f", took control of {name_of(kwargs['target'])}"
 
         # Alternative-cost plays (e.g. Ballaber) pay by breaking a card, not
         # Charge — the cost note goes in the trailing parens instead.
@@ -455,23 +499,29 @@ class ActionExecutor:
     def _build_target_info(
         self,
         card: Card,
-        kwargs: Dict[str, Any]
+        kwargs: Dict[str, Any],
+        target_labels: Optional[Dict[str, str]] = None
     ) -> str:
         """
         Build target info string for response message.
-        
+
         Returns:
             str: Target info like " (fixed Knight)" or ""
         """
+        labels = target_labels or {}
+
+        def name_of(t: Card) -> str:
+            return labels.get(t.id, t.name)
+
         if card.has_effect_type(FixEffect) and kwargs.get("target"):
-            return f" (fixed {kwargs['target'].name})"
+            return f" (fixed {name_of(kwargs['target'])})"
         elif card.has_effect_type(FixEffect) and kwargs.get("targets"):
-            target_names = [t.name for t in kwargs["targets"]]
+            target_names = [name_of(t) for t in kwargs["targets"]]
             return f" (fixed {', '.join(target_names)})"
         elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
-            return f" (copied {kwargs['target'].name})"
+            return f" (copied {name_of(kwargs['target'])})"
         elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
-            return f" (took control of {kwargs['target'].name})"
+            return f" (took control of {name_of(kwargs['target'])})"
         return ""
     
     def _validate_effect_targets(
