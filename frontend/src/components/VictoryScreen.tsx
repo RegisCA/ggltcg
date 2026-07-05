@@ -15,7 +15,7 @@ interface VictoryScreenProps {
 
 // Import shared type from statsService
 import type { AILogData } from '../api/statsService';
-import { plannerModeLabel } from '../utils/plannerMode';
+import { plannerModeLabel, plannerDisplayName } from '../utils/plannerMode';
 
 export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
   const winnerPlayer = gameState.players[gameState.winner || ''];
@@ -201,6 +201,7 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                 const firstAction = actions[0];
                 const isAI = firstAction.reasoning !== undefined || aiLog !== undefined;
                 const plannerMode = plannerModeLabel(aiLog?.turn_plan?.planner, aiLog?.ai_version);
+                const plannerNickname = plannerDisplayName(aiLog?.turn_plan?.planner, aiLog?.ai_version);
                 const hasPlan = !!aiLog?.turn_plan;
                 const isFallback = aiLog?.plan_execution_status === 'fallback';
                 
@@ -221,18 +222,21 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                       <span className="font-bold text-white text-base sm:text-lg">
                         {firstAction.player}
                       </span>
-                      {/* Planner Mode Badge */}
+                      {/* AI persona badge — player-facing nickname (raw planner
+                          value stays in the admin data viewer) */}
                       {aiLog && (
                         <span className={`text-xs font-semibold rounded ${
                           plannerMode !== 'per-action' ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-200'
-                        }`} style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }} title="Planner mode">
-                          {plannerMode}
+                        }`} style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }} title="AI opponent">
+                          🤖 {plannerNickname}
                         </span>
                       )}
-                      {/* Fallback Badge */}
+                      {/* Improvised badge — the AI's plan didn't pan out and it
+                          adapted mid-turn. Player-facing wording; the raw
+                          fallback_reason stays in the admin data viewer. */}
                       {isFallback && (
-                        <span className="bg-yellow-600 text-white text-xs font-semibold rounded" style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}>
-                          ⚠️ Fallback
+                        <span className="bg-yellow-600 text-white text-xs font-semibold rounded" style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }} title="The AI adapted its plan mid-turn">
+                          ✨ Improvised
                         </span>
                       )}
                     </div>
@@ -246,11 +250,6 @@ export function VictoryScreen({ gameState, onPlayAgain }: VictoryScreenProps) {
                         <p className="text-purple-100 text-sm leading-relaxed" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
                           {aiLog.turn_plan.strategy}
                         </p>
-                        {isFallback && aiLog.fallback_reason && (
-                          <div className="bg-yellow-900 bg-opacity-30 border-t border-yellow-700 rounded" style={{ marginTop: 'var(--spacing-component-xs)', paddingTop: 'var(--spacing-component-xs)' }}>
-                            <span className="text-yellow-300 text-xs">⚠️ {aiLog.fallback_reason}</span>
-                          </div>
-                        )}
                       </div>
                     )}
                     
