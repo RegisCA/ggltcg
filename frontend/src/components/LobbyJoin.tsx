@@ -61,19 +61,20 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && gameCode.trim() && !isJoining) {
-      handleJoin();
-    }
-  };
-
   const handleGameCodeChange = (value: string) => {
     // Only allow alphanumeric characters, max 6
     const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     setGameCode(cleaned);
   };
 
-  const canJoin = !!gameCode.trim() && !isJoining;
+  // Codes are always exactly 6 alphanumerics — don't enable Join until then.
+  const canJoin = gameCode.trim().length === 6 && !isJoining;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && canJoin) {
+      handleJoin();
+    }
+  };
 
   return (
     <div
