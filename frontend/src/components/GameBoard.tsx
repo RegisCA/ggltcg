@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LayoutGroup } from 'framer-motion';
 import type { ValidAction, GameState, Card } from '../types/game';
 import { useGameState, useValidActions } from '../hooks/useGame';
+import { usePacedGameState } from '../hooks/usePacedGameState';
 import { useGameMessages } from '../hooks/useGameMessages';
 import { useGameFlow } from '../hooks/useGameFlow';
 import { useGameActions } from '../hooks/useGameActions';
@@ -45,9 +46,20 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const DEBUG_VIEWPORT = false;
 
   // Fetch game state with polling
-  const { data: gameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
+  const { data: fetchedGameState, isLoading, error } = useGameState(gameId, humanPlayerId, {
     refetchInterval: 2000,
   });
+
+  // Pace *rendered* opponent-turn snapshots so fast/plan-cached AI actions
+  // (and human-vs-human actions that collapse into one poll) still land
+  // visibly instead of flashing past. Own-turn and game-over states are
+  // untouched (pass-through). Everything downstream — including
+  // useGameFlow below, which reads `gameState.active_player_id` to decide
+  // when to fire the next AI action — consumes this paced state. That is
+  // intentional: it acts as natural backpressure, since the next AI
+  // request only fires once the previous action has actually been
+  // presented to the viewer, not as soon as the server responds.
+  const gameState = usePacedGameState(fetchedGameState, humanPlayerId);
 
   // Game messages management
   const { messages, addMessage } = useGameMessages(gameState, {
