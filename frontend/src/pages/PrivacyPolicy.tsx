@@ -12,13 +12,13 @@ interface PrivacyPolicyProps {
 
 export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
+    <div className="min-h-screen bg-panel text-gray-100">
       {/* Header */}
-      <header className="bg-gray-800 border-b-4 border-game-highlight" style={{ padding: 'var(--spacing-component-lg)' }}>
+      <header className="bg-panel border-b-4 border-gold" style={{ padding: 'var(--spacing-component-lg)' }}>
         <div className="container mx-auto" style={{ padding: '0 var(--spacing-component-md)' }}>
           <button
             onClick={onBack}
-            className="text-2xl font-bold text-game-highlight hover:text-red-400 transition-colors"
+            className="text-2xl font-bold text-gold hover:opacity-80 transition-colors"
           >
             ← Back to GGLTCG
           </button>
@@ -27,7 +27,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
 
       {/* Content */}
       <main className="container mx-auto max-w-4xl" style={{ padding: 'var(--spacing-component-xl) var(--spacing-component-md)' }}>
-        <h1 className="text-4xl font-bold text-game-highlight" style={{ marginBottom: 'var(--spacing-component-xl)' }}>Privacy Policy</h1>
+        <h1 className="text-4xl font-bold text-gold" style={{ marginBottom: 'var(--spacing-component-xl)' }}>Privacy Policy</h1>
         
         <div className="text-gray-300 leading-relaxed" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-component-xl)' }}>
           <section>
@@ -106,7 +106,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
               See our{' '}
               <button
                 onClick={() => window.open('https://github.com/RegisCA/ggltcg', '_blank')}
-                className="text-game-highlight hover:underline"
+                className="text-gold hover:underline"
               >
                 Terms of Service
               </button>
@@ -126,7 +126,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
                   href="https://policies.google.com/privacy" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-game-highlight hover:underline"
+                  className="text-gold hover:underline"
                 >
                   Google Privacy Policy
                 </a>
@@ -136,7 +136,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
                   href="https://vercel.com/legal/privacy-policy" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-game-highlight hover:underline"
+                  className="text-gold hover:underline"
                 >
                   Vercel Privacy Policy
                 </a>)
@@ -146,7 +146,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
                   href="https://render.com/privacy" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-game-highlight hover:underline"
+                  className="text-gold hover:underline"
                 >
                   Render Privacy Policy
                 </a>)
@@ -166,7 +166,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
             <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               To exercise these rights, please contact us at: <a 
                 href="mailto:regiseloi+ggltcg@me.com" 
-                className="text-game-highlight hover:underline"
+                className="text-gold hover:underline"
               >
                 regiseloi+ggltcg@me.com
               </a>
@@ -213,7 +213,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
             <p style={{ marginBottom: 'var(--spacing-component-xs)' }}>
               <strong>Email:</strong> <a 
                 href="mailto:regiseloi+ggltcg@me.com" 
-                className="text-game-highlight hover:underline"
+                className="text-gold hover:underline"
               >
                 regiseloi+ggltcg@me.com
               </a>
@@ -223,7 +223,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
                 href="https://github.com/RegisCA/ggltcg" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-game-highlight hover:underline"
+                className="text-gold hover:underline"
               >
                 GitHub Repository
               </a>
@@ -235,7 +235,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
         <div className="border-t-2 border-gray-700" style={{ marginTop: 'calc(var(--spacing-component-xl) * 1.5)', paddingTop: 'var(--spacing-component-xl)' }}>
           <button
             onClick={onBack}
-            className="inline-block bg-game-highlight hover:bg-red-600 text-white font-bold rounded-lg transition-all"
+            className="inline-block bg-gold hover:opacity-90 text-desk font-bold rounded-lg transition-all"
             style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
           >
             Return to Game

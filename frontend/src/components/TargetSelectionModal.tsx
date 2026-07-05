@@ -283,7 +283,7 @@ export function TargetSelectionModal({
                 </div>
               </button>
               {availableTargets.length > 0 && (
-                <p className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                <p className="text-sm" style={{ color: "var(--ink-muted)", marginBottom: 'var(--spacing-component-sm)' }}>
                   Or select a card to tussle:
                 </p>
               )}

@@ -19,35 +19,15 @@
  * Or CSS: font-weight: 400, font-weight: 700
  */
 @theme {
-  /* Legacy colors (keep for backward compatibility) */
-  --color-game-bg: #1a1a2e;
-  --color-game-card: #16213e;
-  --color-game-accent: #0f3460;
-  --color-game-highlight: #e94560;
-  
-  /* GGLTCG Design System Colors */
-  --color-ggltcg-black: #1A1A1A;
-  --color-ggltcg-cream: #F5F0E8;
-  --color-ggltcg-gray: #8B8680;
-  --color-ggltcg-red: #C74444;
-  --color-ggltcg-blue: #5B7FA8;
-  --color-ggltcg-purple: #8B5FA8;
-  --color-ggltcg-brown: #8B6F47;
-  --color-ggltcg-ui-dark-bg: #1A1F3A;
-  --color-ggltcg-ui-card-bg: #2A3556;
-  --color-ggltcg-ui-highlight: #4A7BFF;
-  --color-ggltcg-ui-toy-badge: #4A7BFF;
-  --color-ggltcg-ui-action-badge: #C850FF;
-  
-  /* Semantic Text Colors (WCAG AA Compliant) */
-  --color-text-primary: #FFFFFF;      /* Main text on dark (21:1) */
-  --color-text-secondary: #D1D5DB;    /* Softer text, gray-300 (9.7:1) */
-  --color-text-muted: #9CA3AF;        /* Subtle text, gray-400 (5.8:1) */
-  --color-text-inverse: #1A1A1A;      /* Text on light backgrounds */
-  --color-text-error: #FCA5A5;        /* Error messages, red-300 (6.2:1) */
-  --color-text-success: #86EFAC;      /* Success messages, green-300 (10.1:1) */
-  --color-text-warning: #FCD34D;      /* Warning messages, yellow-300 (11.8:1) */
-  
+  /* Paper & Ink class-tokens — the few colors consumed via Tailwind classes
+     (text-gold, bg-desk, bg-panel, border-gold). Everything else lives in
+     :root below and is consumed via var() in inline styles (Tailwind v4
+     prunes unreferenced @theme vars, so only class-consumed colors go here).
+     Values mirror :root --gold / --desk-bottom / the settled panel color. */
+  --color-gold: #F2C14E;
+  --color-desk: #211a13;
+  --color-panel: #241E17;
+
   /* Font Family - Single font with weight variations */
   --font-family: 'Lato', 'Arial', sans-serif;
   

@@ -109,7 +109,7 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="modal-padding bg-gray-900 rounded-lg border-2 border-game-highlight shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="modal-padding bg-panel rounded-lg border border-gold shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
         style={panelStyle}
       >
         <div id={titleId} className="sr-only">
