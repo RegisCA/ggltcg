@@ -150,7 +150,11 @@ graph TD
 - **React Query** (@tanstack/react-query) for server state management
 - **Axios** for HTTP client
 - **TailwindCSS 4.1** for styling
-- Dark theme UI with responsive design
+- **"Paper & Ink" design system** — hand-drawn, crayon-accented card game
+  aesthetic with a token-based theme (`frontend/src/index.css`), responsive
+  at phone/tablet/desktop widths
+- **Design-preview harness** (`/design.html`) — every screen renders against
+  canned fixtures with no backend, for fast visual iteration
 - **Deployed on Vercel** (free tier)
 
 ## Game Rules
