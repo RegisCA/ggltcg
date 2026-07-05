@@ -9,6 +9,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { DesignPreview } from './pages/DesignPreview';
 import { AuthProvider } from './contexts/AuthContext';
 import { gameKeys } from './hooks/useGame';
@@ -40,12 +41,17 @@ for (const fixture of DESIGN_FIXTURES) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      {/* AuthProvider is required by DeckSelection's useAuth() (deck-selection
-          fixture) — localStorage-only, no network calls, so it's harmless for
-          the GameBoard fixtures too. */}
-      <AuthProvider>
-        <DesignPreview />
-      </AuthProvider>
+      {/* GoogleOAuthProvider: GoogleLogin (rendered by the #login fixture)
+          throws without it. The client id may be empty in the harness — the
+          button just won't produce a working sign-in, which is fine offline. */}
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+        {/* AuthProvider is required by DeckSelection's useAuth() (deck-selection
+            fixture) — localStorage-only, no network calls, so it's harmless for
+            the GameBoard fixtures too. */}
+        <AuthProvider>
+          <DesignPreview />
+        </AuthProvider>
+      </GoogleOAuthProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );

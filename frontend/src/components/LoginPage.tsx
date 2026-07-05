@@ -1,8 +1,13 @@
 /**
  * Login page with Google OAuth integration.
- * 
+ *
  * Provides Google Sign-In button, game branding, and authentication flow.
- * Enhanced with game description to help new players understand what they're signing up for.
+ * Restyled to Paper & Ink (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md) — no
+ * mockup exists for this screen, so this applies the established language:
+ * desk gradient background, Gochi Hand title, dark panel, gold accents.
+ *
+ * Decorative emoji removed per §8 (🎯⚡🤖📖); none of these are content-bearing
+ * state badges (same call as VictoryScreen/LobbyHome).
  */
 
 import React, { useState } from 'react';
@@ -18,9 +23,9 @@ interface LoginPageProps {
   onShowTermsOfService?: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ 
-  onShowPrivacyPolicy, 
-  onShowTermsOfService 
+const LoginPage: React.FC<LoginPageProps> = ({
+  onShowPrivacyPolicy,
+  onShowTermsOfService,
 }) => {
   const { login } = useAuth();
   const [error, setError] = React.useState<string | null>(null);
@@ -59,82 +64,137 @@ const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-game-bg" style={{ padding: 'var(--spacing-component-md)' }}>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center"
+      style={{
+        padding: 'var(--spacing-component-md)',
+        background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))',
+        color: 'var(--ink-text)',
+      }}
+    >
       <div className="max-w-lg w-full">
         {/* Hero Section */}
         <div className="text-center" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
-          <h1 
-            className="text-6xl sm:text-7xl font-bold text-game-highlight"
-            style={{ 
+          <h1
+            style={{
+              fontFamily: 'var(--font-card-name)',
+              fontSize: 'clamp(48px, 10vw, 72px)',
+              lineHeight: 1,
+              color: 'var(--ink-text)',
               marginBottom: 'var(--spacing-component-sm)',
-              fontWeight: 700,
-              textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
             }}
           >
             GGLTCG
           </h1>
-          <p className="text-xl text-gray-300">Googooland Trading Card Game</p>
+          <p style={{ fontSize: 'clamp(16px, 3vw, 20px)', fontWeight: 700, color: 'var(--ink-muted)' }}>
+            Googooland Trading Card Game
+          </p>
         </div>
 
         {/* Game Description Card */}
-        <div 
-          className="bg-game-card rounded-lg border border-gray-700"
-          style={{ padding: 'var(--spacing-component-lg)', marginBottom: 'var(--spacing-component-lg)' }}
+        <div
+          style={{
+            padding: 'var(--spacing-component-lg)',
+            marginBottom: 'var(--spacing-component-lg)',
+            background: '#241E17',
+            borderRadius: '8px',
+            border: '1px solid rgba(242,193,78,.25)',
+            boxShadow: '0 8px 24px rgba(0,0,0,.4)',
+          }}
         >
-          <h2 
-            className="text-2xl font-bold text-white text-center"
-            style={{ marginBottom: 'var(--spacing-component-md)' }}
+          <h2
+            className="text-center"
+            style={{
+              fontFamily: 'var(--font-card-name)',
+              fontSize: '26px',
+              color: 'var(--ink-text)',
+              marginBottom: 'var(--spacing-component-md)',
+            }}
           >
             A Tactical Card Game
           </h2>
-          
-          <div className="text-gray-300 text-center" style={{ marginBottom: 'var(--spacing-component-lg)', lineHeight: '1.6' }}>
+
+          <div
+            className="text-center"
+            style={{ marginBottom: 'var(--spacing-component-lg)', lineHeight: '1.6', color: 'var(--ink-muted)' }}
+          >
             <p style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-              Build a 6-card deck from over 20 unique cards. 
-              Play <span className="text-blue-400 font-semibold">Toys</span> and <span className="text-purple-400 font-semibold">Actions</span> to outmaneuver your opponent.
+              Build a 6-card deck from over 20 unique cards.
+              Play <span style={{ color: 'var(--you)', fontWeight: 700 }}>Toys</span> and{' '}
+              <span style={{ color: 'var(--them)', fontWeight: 700 }}>Actions</span> to outmaneuver your opponent.
             </p>
             <p>
-              Win <span className="text-game-highlight font-semibold">Tussles</span> and 
+              Win <span style={{ color: 'var(--gold)', fontWeight: 700 }}>Tussles</span> and
               break all their cards to claim victory!
             </p>
           </div>
 
           {/* Feature Pills */}
-          <div className="flex flex-wrap justify-center" style={{ gap: 'var(--spacing-component-xs)', marginBottom: 'var(--spacing-component-lg)' }}>
-            <span className="bg-purple-600/30 text-purple-300 text-sm rounded-full" style={{ padding: '4px 12px' }}>
-              🎯 No Random Draws
-            </span>
-            <span className="bg-blue-600/30 text-blue-300 text-sm rounded-full" style={{ padding: '4px 12px' }}>
-              ⚡ Quick 1-5 min Games
-            </span>
-            <span className="bg-green-600/30 text-green-300 text-sm rounded-full" style={{ padding: '4px 12px' }}>
-              🤖 Play vs AI or Friends
-            </span>
+          <div
+            className="flex flex-wrap justify-center"
+            style={{ gap: 'var(--spacing-component-xs)', marginBottom: 'var(--spacing-component-lg)' }}
+          >
+            {['No Random Draws', 'Quick 1-5 min Games', 'Play vs AI or Friends'].map((label) => (
+              <span
+                key={label}
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  padding: '4px 12px',
+                  borderRadius: '999px',
+                  background: 'rgba(237,232,222,.08)',
+                  border: '1px solid rgba(237,232,222,.15)',
+                  color: 'var(--ink-muted)',
+                }}
+              >
+                {label}
+              </span>
+            ))}
           </div>
 
           {/* How to Play Button */}
           <div className="text-center" style={{ marginBottom: 'var(--spacing-component-md)' }}>
             <button
               onClick={() => setShowHowToPlay(true)}
-              className="text-blue-400 hover:text-blue-300 hover:underline font-medium"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 700,
+                color: 'var(--you)',
+                textDecoration: 'underline',
+              }}
             >
-              📖 Learn How to Play
+              Learn How to Play
             </button>
           </div>
 
           {/* Sign In Section */}
-          <div 
-            className="border-t border-gray-600"
-            style={{ paddingTop: 'var(--spacing-component-lg)' }}
+          <div
+            style={{
+              paddingTop: 'var(--spacing-component-lg)',
+              borderTop: '1px solid rgba(237,232,222,.15)',
+            }}
           >
-            <p className="text-center text-gray-400 text-sm" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+            <p
+              className="text-center"
+              style={{ marginBottom: 'var(--spacing-component-md)', fontSize: '13px', color: 'var(--ink-faint)' }}
+            >
               Sign in to track your stats and play online
             </p>
 
             {error && (
-              <div 
-                className="bg-red-900/50 border border-red-500 text-red-300 rounded text-sm text-center"
-                style={{ marginBottom: 'var(--spacing-component-md)', padding: 'var(--spacing-component-sm)' }}
+              <div
+                className="text-center"
+                style={{
+                  marginBottom: 'var(--spacing-component-md)',
+                  padding: 'var(--spacing-component-sm)',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  background: 'rgba(224,113,107,.12)',
+                  border: '1px solid var(--danger)',
+                  color: 'var(--danger)',
+                }}
               >
                 {error}
               </div>
@@ -153,7 +213,10 @@ const LoginPage: React.FC<LoginPageProps> = ({
             </div>
 
             {isLoading && (
-              <div className="text-center text-gray-400 text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+              <div
+                className="text-center"
+                style={{ marginTop: 'var(--spacing-component-sm)', fontSize: '13px', color: 'var(--ink-faint)' }}
+              >
                 <p>Signing in...</p>
               </div>
             )}
@@ -167,7 +230,10 @@ const LoginPage: React.FC<LoginPageProps> = ({
           onShowPrivacyPolicy={onShowPrivacyPolicy}
           onShowTermsOfService={onShowTermsOfService}
         />
-        <p className="text-center text-xs text-gray-500" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+        <p
+          className="text-center"
+          style={{ marginTop: 'var(--spacing-component-xs)', fontSize: '11px', color: 'var(--ink-faint)' }}
+        >
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>

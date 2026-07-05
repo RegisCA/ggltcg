@@ -14,7 +14,7 @@
  */
 
 import type { Card, CardType, GameState, PlayByPlayEntry, Player, ValidAction, Zone } from '../types/game';
-import type { ActionResponse, CardDataResponse, ValidActionsResponse } from '../types/api';
+import type { ActionResponse, CardDataResponse, LeaderboardEntry, ValidActionsResponse } from '../types/api';
 
 export const FIXTURE_HUMAN_ID = 'fixture-you';
 export const FIXTURE_AI_ID = 'fixture-opponent';
@@ -592,6 +592,39 @@ export const LOBBY_FIXTURE_GAME_ID = 'fixture-lobby-game';
 export const LOBBY_FIXTURE_GAME_CODE = '9P47XA';
 export const LOBBY_FIXTURE_PLAYER_ID = 'fixture-lobby-player';
 
+// ============================================================================
+// LEADERBOARD FIXTURE (for /design.html#leaderboard)
+// ============================================================================
+// Leaderboard fetches getLeaderboard() on mount; the harness supplies this
+// canned top-10 via the entriesOverride seam (see Leaderboard.tsx) instead of
+// hitting the network. Includes the "viewing player" (rank 4, Régis) so the
+// viewer-relative --you highlighting has something real to show.
+
+export const LEADERBOARD_VIEWER_ID = 'fixture-leaderboard-viewer';
+
+export const LEADERBOARD_FIXTURE_ENTRIES: LeaderboardEntry[] = [
+  { rank: 1, player_id: 'fixture-lb-1', display_name: 'Gemiknight', games_played: 42, games_won: 39, win_rate: 92.9 },
+  { rank: 2, player_id: 'fixture-lb-2', display_name: 'Ballaber Bandit', games_played: 30, games_won: 24, win_rate: 80.0 },
+  { rank: 3, player_id: 'fixture-lb-3', display_name: 'Sock Sorceress', games_played: 25, games_won: 18, win_rate: 72.0 },
+  { rank: 4, player_id: LEADERBOARD_VIEWER_ID, display_name: 'Régis', games_played: 20, games_won: 14, win_rate: 70.0 },
+  { rank: 5, player_id: 'fixture-lb-5', display_name: 'Ka-Boom', games_played: 18, games_won: 11, win_rate: 61.1 },
+  { rank: 6, player_id: 'fixture-lb-6', display_name: 'Umbruh Enjoyer', games_played: 15, games_won: 8, win_rate: 53.3 },
+  { rank: 7, player_id: 'fixture-lb-7', display_name: 'Drum Major', games_played: 14, games_won: 7, win_rate: 50.0 },
+  { rank: 8, player_id: 'fixture-lb-8', display_name: 'Paper Planer', games_played: 12, games_won: 5, win_rate: 41.7 },
+  { rank: 9, player_id: 'fixture-lb-9', display_name: 'Gibbers Gambit', games_played: 10, games_won: 3, win_rate: 30.0 },
+  { rank: 10, player_id: 'fixture-lb-10', display_name: 'Toynado Tom', games_played: 9, games_won: 2, win_rate: 22.2 },
+];
+
+// ============================================================================
+// USER-MENU FIXTURE (for /design.html#user-menu)
+// ============================================================================
+
+export const USER_MENU_FIXTURE_USER = {
+  google_id: 'fixture-user-google-id',
+  first_name: 'Régis',
+  display_name: 'Régis',
+  custom_display_name: null,
+};
 
 // ============================================================================
 // REGISTRY + LOOKUP API (consumed by gameService and DesignPreview)

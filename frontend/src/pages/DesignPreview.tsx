@@ -19,7 +19,13 @@ import { LobbyHome } from '../components/LobbyHome';
 import { LobbyCreate } from '../components/LobbyCreate';
 import { LobbyJoin } from '../components/LobbyJoin';
 import { LobbyWaiting } from '../components/LobbyWaiting';
+import LoginPage from '../components/LoginPage';
+import { Leaderboard } from '../components/Leaderboard';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { UserMenu } from '../components/UserMenu';
 import { useResponsive } from '../hooks/useResponsive';
+import { useAuth } from '../contexts/AuthContext';
+import { LocalPlayerProvider } from '../contexts/LocalPlayerContext';
 import {
   DECK_SELECTION_CARD_POOL,
   DESIGN_FIXTURES,
@@ -30,6 +36,9 @@ import {
   VICTORY_AI_LOGS_FIXTURE,
   LOBBY_FIXTURE_GAME_ID,
   LOBBY_FIXTURE_GAME_CODE,
+  LEADERBOARD_FIXTURE_ENTRIES,
+  LEADERBOARD_VIEWER_ID,
+  USER_MENU_FIXTURE_USER,
 } from '../fixtures/designFixtures';
 
 // Non-GameBoard screens get their own fixture ids (no `fixture-` game state
@@ -42,6 +51,10 @@ const SCREEN_FIXTURES = [
   { id: 'lobby-create', label: 'Lobby: Create', description: 'LobbyCreate screen: create-game form, no backend.' },
   { id: 'lobby-join', label: 'Lobby: Join', description: 'LobbyJoin screen: join-game code entry, no backend.' },
   { id: 'lobby-waiting', label: 'Lobby: Waiting', description: 'LobbyWaiting screen: waiting room with both players present, polling disabled.' },
+  { id: 'login', label: 'Login', description: 'LoginPage: signed-out entry screen, no backend.' },
+  { id: 'leaderboard', label: 'Leaderboard', description: 'Leaderboard: canned top-10 standings via entriesOverride, no backend fetch.' },
+  { id: 'loading', label: 'Loading', description: 'LoadingScreen: representative loading phase.' },
+  { id: 'user-menu', label: 'User menu', description: 'UserMenu over the desk background, canned signed-in user.' },
 ];
 
 type RouteMatch = { kind: 'board'; id: string } | { kind: 'screen'; id: string };
@@ -57,6 +70,25 @@ function routeFromHash(): RouteMatch {
 export function DesignPreview() {
   const [route, setRoute] = useState<RouteMatch>(routeFromHash);
   const { width, height, isMobile, isTablet } = useResponsive();
+  const { user, login, logout } = useAuth();
+
+  // UserMenu reads its user from AuthContext (no override prop on the
+  // component itself) — the harness logs in a canned fixture user with a
+  // never-expiring fake JWT so #user-menu can render the real component
+  // against the real context. No network call: login() only sets local
+  // state + localStorage. Signed out again on route change so other screens
+  // (e.g. #login) aren't affected by a lingering session.
+  useEffect(() => {
+    if (route.kind === 'screen' && route.id === 'user-menu') {
+      if (!user) {
+        const fakeJwt = `fixture.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.sig`;
+        login(fakeJwt, USER_MENU_FIXTURE_USER);
+      }
+    } else if (user?.google_id === USER_MENU_FIXTURE_USER.google_id) {
+      logout();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route]);
 
   // Keep the URL hash in sync so a specific fixture can be linked directly
   // (e.g. open /design.html#midgame or /design.html#deck-selection on a phone).
@@ -164,6 +196,22 @@ export function DesignPreview() {
           initialPhaseOverride="waiting-for-decks"
           currentPlayerReadyOverride={true}
         />
+      ) : route.kind === 'screen' && route.id === 'login' ? (
+        <LoginPage key="login" onShowPrivacyPolicy={() => {}} onShowTermsOfService={() => {}} />
+      ) : route.kind === 'screen' && route.id === 'leaderboard' ? (
+        <LocalPlayerProvider key="leaderboard" value={LEADERBOARD_VIEWER_ID}>
+          <Leaderboard entriesOverride={LEADERBOARD_FIXTURE_ENTRIES} onClose={() => {}} />
+        </LocalPlayerProvider>
+      ) : route.kind === 'screen' && route.id === 'loading' ? (
+        <LoadingScreen key="loading" onReady={() => {}} />
+      ) : route.kind === 'screen' && route.id === 'user-menu' ? (
+        <div
+          key="user-menu"
+          className="min-h-screen"
+          style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))' }}
+        >
+          <UserMenu />
+        </div>
       ) : (
         // key remounts the board on fixture switch so no UI state leaks across
         <GameBoard
