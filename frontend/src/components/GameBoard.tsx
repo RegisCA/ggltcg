@@ -316,8 +316,14 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
             background: 'var(--desk-top)',
           }}
         >
-          <PlayerInfoBar player={humanPlayer} />
-          <PlayerInfoBar player={otherPlayer} />
+          <PlayerInfoBar
+            player={humanPlayer}
+            isActivePlayer={gameState.active_player_id === humanPlayerId}
+          />
+          <PlayerInfoBar
+            player={otherPlayer}
+            isActivePlayer={gameState.active_player_id === otherPlayerId}
+          />
         </div>
 
         {/* Main Game Area — one JSX tree; arrangement lives in the
