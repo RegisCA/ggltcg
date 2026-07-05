@@ -5,9 +5,8 @@
  * Used across LoginPage, LobbyHome, and LoadingScreen.
  *
  * Restyled to Paper & Ink tokens (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md) —
- * last legacy `ui/` piece these screens pull in. The `variant` prop is now a
- * no-op kept for API compatibility (both consumers render on the dark desk
- * background, so there is no longer a light/dark split); ink text tokens
+ * last legacy `ui/` piece these screens pull in. Both consumers render on the
+ * dark desk background, so there is no light/dark split; ink text tokens
  * cover both cases.
  */
 
@@ -16,8 +15,6 @@ import React from 'react';
 interface FooterProps {
   onShowPrivacyPolicy?: () => void;
   onShowTermsOfService?: () => void;
-  /** @deprecated retained for API compatibility; both variants now render with ink tokens. */
-  variant?: 'light' | 'dark';
   /** Show the tagline above links */
   showTagline?: boolean;
   /** Additional className for container */

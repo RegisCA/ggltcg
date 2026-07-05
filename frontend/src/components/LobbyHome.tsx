@@ -60,7 +60,7 @@ function ModeCard({
       style={{
         borderRadius: '8px',
         border: `2px solid ${isGold ? 'var(--gold)' : isHovered ? 'rgba(242,193,78,.45)' : 'rgba(237,232,222,.15)'}`,
-        background: isGold ? 'rgba(242,193,78,.12)' : '#241E17',
+        background: isGold ? 'rgba(242,193,78,.12)' : 'var(--color-panel)',
         padding: 'var(--spacing-component-lg)',
         cursor: 'pointer',
         boxShadow: isHovered ? '0 4px 14px rgba(0,0,0,.35)' : 'none',
@@ -238,7 +238,6 @@ export function LobbyHome({
 
         {/* Footer */}
         <Footer
-          variant="light"
           showTagline={true}
           onShowPrivacyPolicy={onShowPrivacyPolicy}
           onShowTermsOfService={onShowTermsOfService}

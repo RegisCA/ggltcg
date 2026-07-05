@@ -96,7 +96,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
           style={{
             padding: 'var(--spacing-component-lg)',
             marginBottom: 'var(--spacing-component-lg)',
-            background: '#241E17',
+            background: 'var(--color-panel)',
             borderRadius: '8px',
             border: '1px solid rgba(242,193,78,.25)',
             boxShadow: '0 8px 24px rgba(0,0,0,.4)',
@@ -225,7 +225,6 @@ const LoginPage: React.FC<LoginPageProps> = ({
 
         {/* Footer */}
         <Footer
-          variant="light"
           showTagline={false}
           onShowPrivacyPolicy={onShowPrivacyPolicy}
           onShowTermsOfService={onShowTermsOfService}

@@ -43,7 +43,7 @@ function targetGroup(card: Card, localId: string | null, opp: string): { order: 
 }
 
 const PANEL_STYLE: React.CSSProperties = {
-  background: '#241E17',
+  background: 'var(--color-panel)',
   border: '1.5px solid rgba(242,193,78,.4)',
   borderRadius: '14px',
   padding: '14px',
@@ -256,9 +256,9 @@ export function TargetSelectionModal({
                   marginBottom: 'var(--spacing-component-sm)',
                   borderWidth: useDirectAttack ? '3px' : '2px',
                   borderStyle: 'solid',
-                  borderColor: useDirectAttack ? '#FFD700' : 'transparent',
-                  boxShadow: useDirectAttack 
-                    ? '0 0 12px rgba(255, 215, 0, 0.9), 0 0 24px rgba(255, 215, 0, 0.5)' 
+                  borderColor: useDirectAttack ? 'var(--gold)' : 'transparent',
+                  boxShadow: useDirectAttack
+                    ? '0 0 12px rgba(242, 193, 78, 0.9), 0 0 24px rgba(242, 193, 78, 0.5)'
                     : 'none',
                 }}
                 className={`

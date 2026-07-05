@@ -134,7 +134,7 @@ export function ActionBar({
               animation: 'pulse 1.6s ease-in-out infinite',
             }}
           />
-          <span style={{ color: 'var(--them)', fontWeight: 900, fontSize: '13px' }}>
+          <span className="turn-bar-label" style={{ color: 'var(--them)', fontWeight: 900, fontSize: '13px' }}>
             {opponentName}'s Turn · Turn {turnNumber}
           </span>
           <span style={{ marginLeft: 'auto', color: 'rgba(237,232,222,.35)', fontSize: '11px' }}>waiting…</span>

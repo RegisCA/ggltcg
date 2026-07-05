@@ -63,7 +63,7 @@ export function PlayersStatusCard({ player1, player2 }: PlayersStatusCardProps) 
   return (
     <div
       style={{
-        background: '#241E17',
+        background: 'var(--color-panel)',
         borderRadius: '8px',
         border: '1px solid rgba(242,193,78,.25)',
         padding: 'var(--spacing-component-xl)',
