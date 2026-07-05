@@ -50,6 +50,13 @@ const PANEL_STYLE: React.CSSProperties = {
   color: 'var(--ink-text)',
 };
 
+// When a target set mixes Toys and Actions across zone groups, give every card
+// this shared min-height so Actions (no stat rail) match the Toy height — the
+// per-group grids can't equalize across groups on their own. A medium Toy is
+// rail-dominated (the 3 stat boxes sit beside the effect, so it's ~131px tall
+// regardless of effect length); this sits just above that.
+const MIXED_CARD_MIN_HEIGHT = 134;
+
 export function TargetSelectionModal({
   action,
   availableTargets,
@@ -60,6 +67,9 @@ export function TargetSelectionModal({
   opponentName,
 }: TargetSelectionModalProps) {
   const localId = useLocalPlayerId();
+  // Equal card heights only matter when a Toy is present (Toys are the tall
+  // ones); an all-Action target set stays content-height.
+  const targetCardMinHeight = availableTargets.some((c) => c.card_type === 'Toy') ? MIXED_CARD_MIN_HEIGHT : undefined;
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [useAlternativeCost, setUseAlternativeCost] = useState(false);
   const [alternativeCostCard, setAlternativeCostCard] = useState<string | null>(null);
@@ -322,6 +332,7 @@ export function TargetSelectionModal({
                                       card={card}
                                       size="medium"
                                       fluid
+                                      minHeight={filteredAlternativeCostOptions.some((c) => c.card_type === 'Toy') ? MIXED_CARD_MIN_HEIGHT : undefined}
                                       isSelected={isSelected}
                                       isClickable
                                       onClick={() => selectAlternativeCostCard(card.id)}
@@ -381,6 +392,7 @@ export function TargetSelectionModal({
                             card={card}
                             size="medium"
                             fluid
+                            minHeight={targetCardMinHeight}
                             isSelected={isSelected}
                             isClickable={clickable}
                             isDisabled={isDisabled && !hasDirectAttackOption}

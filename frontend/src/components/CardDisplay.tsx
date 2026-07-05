@@ -46,6 +46,10 @@ interface CardDisplayProps {
   /** Which side this card's effect can currently target (hand cards only).
    *  Surfaces self-targetable effects before the target modal opens (WP-2 #5). */
   targetHint?: 'yours' | 'theirs' | 'either';
+  /** Override the size's default min-height (px). Used to keep Toy and Action
+   *  cards the same height when they're split across separate grids (e.g. the
+   *  zone-grouped target modal), where grid-auto-rows can't equalize them. */
+  minHeight?: number;
 }
 
 // Size configs. width is the fixed (and fluid-minimum) size; maxWidth caps
@@ -80,6 +84,7 @@ export function CardDisplay({
   enableLayoutAnimation = false,
   disableDetailModal = false,
   targetHint,
+  minHeight,
 }: CardDisplayProps) {
   const prefersReducedMotion = useReducedMotion();
   const { isMobile } = useResponsive();
@@ -168,7 +173,7 @@ export function CardDisplay({
         style={{
           width: fluid ? '100%' : `${cfg.width}px`,
           maxWidth: fluid ? `${cfg.maxWidth}px` : undefined,
-          minHeight: `${cfg.minHeight}px`,
+          minHeight: `${minHeight ?? cfg.minHeight}px`,
           padding: cfg.padding,
           position: 'relative',
           display: 'flex',
