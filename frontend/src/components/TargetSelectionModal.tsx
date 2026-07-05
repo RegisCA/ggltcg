@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { CardDisplay } from './CardDisplay';
 import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
+import { useCardSelection } from '../hooks/useCardSelection';
 import type { Card, ValidAction } from '../types/game';
 
 interface TargetSelectionModalProps {
@@ -70,13 +71,20 @@ export function TargetSelectionModal({
   // Equal card heights only matter when a Toy is present (Toys are the tall
   // ones); an all-Action target set stays content-height.
   const targetCardMinHeight = availableTargets.some((c) => c.card_type === 'Toy') ? MIXED_CARD_MIN_HEIGHT : undefined;
-  const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
-  const [useAlternativeCost, setUseAlternativeCost] = useState(false);
-  const [alternativeCostCard, setAlternativeCostCard] = useState<string | null>(null);
-  const [useDirectAttack, setUseDirectAttack] = useState(false);
-
   const maxTargets = action.max_targets || 1;
   const minTargets = action.min_targets || 1;
+  // Direct-attack/tussle target picking and the standard multi-target grid
+  // share this selection: at most one card, replace-on-click when
+  // maxTargets===1 (or when a direct-attack option exists — that path always
+  // behaves as single-select), toggle-with-cap otherwise.
+  const targetSelection = useCardSelection(
+    action.action_type === 'tussle' && action.target_options?.includes('direct_attack') ? 1 : maxTargets
+  );
+  const selectedTargets = targetSelection.selected;
+  const altCostSelection = useCardSelection(1);
+  const [useAlternativeCost, setUseAlternativeCost] = useState(false);
+  const alternativeCostCard = altCostSelection.selected[0] ?? null;
+  const [useDirectAttack, setUseDirectAttack] = useState(false);
   // Filter alternative cost options: must be in Play or Hand zone, and not Ballaber itself
   const filteredAlternativeCostOptions = (alternativeCostOptions || []).filter(
     (card) => card.id !== action.card_id && (card.zone === 'Hand' || card.zone === 'InPlay')
@@ -97,8 +105,8 @@ export function TargetSelectionModal({
 
   // Reset state when action changes
   useEffect(() => {
-    setSelectedTargets([]);
-    setAlternativeCostCard(null);
+    targetSelection.clear();
+    altCostSelection.clear();
     setUseDirectAttack(false);
     // If alternative cost is available but no cards to break AND can afford Charge, auto-select "Pay Charge"
     if (hasAlternativeCost && !hasCardsToBreak && canAffordCharge) {
@@ -106,41 +114,53 @@ export function TargetSelectionModal({
     } else {
       setUseAlternativeCost(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [action.card_id, hasAlternativeCost, hasCardsToBreak, canAffordCharge]);
 
+  // Toggle/replace a target card, using the shared selection primitive.
   const toggleTarget = (cardId: string) => {
-    if (selectedTargets.includes(cardId)) {
-      setSelectedTargets(selectedTargets.filter((id) => id !== cardId));
-    } else if (selectedTargets.length < maxTargets) {
-      setSelectedTargets([...selectedTargets, cardId]);
-      setUseDirectAttack(false); // Clear direct attack if selecting a card target
-    }
+    targetSelection.select(cardId);
+    setUseDirectAttack(false); // Clear direct attack if selecting a card target
   };
 
   // Select direct attack option (for Paper Plane and similar cards)
   const selectDirectAttack = () => {
     setUseDirectAttack(true);
-    setSelectedTargets([]); // Clear card targets when selecting direct attack
+    targetSelection.clear(); // Clear card targets when selecting direct attack
   };
 
-  // Select a card target (clears direct attack selection)
+  // Select a card target (clears direct attack selection) — used by the
+  // direct-attack/tussle path, which is always single-select (replace-on-click).
   const selectCardTarget = (cardId: string) => {
-    setSelectedTargets([cardId]);
+    targetSelection.select(cardId);
     setUseDirectAttack(false);
   };
 
   // Only allow one card to be selected for alternative cost
   const selectAlternativeCostCard = (cardId: string) => {
-    setAlternativeCostCard(cardId);
+    altCostSelection.select(cardId);
     setUseAlternativeCost(true);
-    setSelectedTargets([]); // Clear normal targets if switching to alt cost
+    targetSelection.clear(); // Clear normal targets if switching to alt cost
   };
 
   // Select to pay Charge instead of breaking a card
   const selectPayCharge = () => {
     setUseAlternativeCost(true);
-    setAlternativeCostCard(null);
-    setSelectedTargets([]);
+    altCostSelection.clear();
+    targetSelection.clear();
+  };
+
+  // Clear all selections — used on Cancel/close so re-opening the modal (or
+  // reusing this instance for a new action) never shows a stale selection.
+  const clearAllSelections = () => {
+    targetSelection.clear();
+    altCostSelection.clear();
+    setUseDirectAttack(false);
+  };
+
+  const handleCancel = () => {
+    clearAllSelections();
+    onCancel();
   };
 
   const handleConfirm = () => {
@@ -198,7 +218,7 @@ export function TargetSelectionModal({
   return (
     <Modal
       isOpen={true}
-      onClose={onCancel}
+      onClose={handleCancel}
       title={modalTitle}
       closeOnBackdropClick={false}
       closeOnEscape={true}
@@ -381,7 +401,10 @@ export function TargetSelectionModal({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px 10px 4px' }}>
                     {grp.cards.map((card) => {
                       const isSelected = selectedTargets.includes(card.id);
-                      const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
+                      // Single-select (maxTargets===1, incl. the direct-attack
+                      // path) never disables other cards — clicking one just
+                      // replaces the selection.
+                      const isDisabled = targetSelection.isDisabled(card.id);
                       const clickable = !isDisabled || hasDirectAttackOption;
                       const handleClick = hasDirectAttackOption
                         ? () => selectCardTarget(card.id)
@@ -419,7 +442,7 @@ export function TargetSelectionModal({
         {/* Cancel / named-confirm (§7.4) */}
         <div className="flex-shrink-0" style={{ display: 'flex', gap: '9px', marginTop: '14px' }}>
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             style={{ flex: 1, textAlign: 'center', border: '1.5px solid rgba(237,232,222,.3)', color: 'rgba(237,232,222,.7)', fontWeight: 700, fontSize: '12px', padding: '10px 0', borderRadius: '6px', background: 'none', cursor: 'pointer' }}
           >
             Cancel

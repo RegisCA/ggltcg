@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: July 5, 2026 (added target-modal single-select inconsistency)
+**Last Updated**: July 5, 2026 (target-modal single-select inconsistency resolved)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -8,10 +8,24 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## 🔴 Active Issues
 
+---
+
+## 🟡 Monitoring Issues
+
+---
+
+## ✅ Resolved
+
 ### Target-selection modal: single-select requires deselect-first, inconsistent with alt-cost / direct-attack
 
-- **Found**: July 5, 2026 (Régis, during Paper & Ink board review). **Not yet fixed.**
-- **What it is**: in `TargetSelectionModal.tsx`, when a card effect targets **one**
+- **Found**: July 5, 2026 (Régis, during Paper & Ink board review).
+- **Fixed**: July 5, 2026 — all three handlers now delegate to a single
+  `useCardSelection(maxTargets)` hook (`frontend/src/hooks/useCardSelection.ts`):
+  replace-on-click when `maxTargets === 1`, toggle-up-to-max otherwise. Cancel/
+  close clears all selections. Pinned by 8 Vitest + React Testing Library
+  interaction tests (`frontend/src/components/__tests__/TargetSelectionModal.test.tsx`),
+  the repo's first frontend tests; `npm test` now runs in CI.
+- **What it was**: in `TargetSelectionModal.tsx`, when a card effect targets **one**
   card (`maxTargets === 1`, the common case — Drop, Wake, tussle, etc.), the target
   grid uses `toggleTarget()`: clicking the already-selected card deselects it, but
   clicking a *different* card does **nothing** (the `else if (selectedTargets.length
@@ -22,28 +36,8 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
   single-select behavior. Three handlers, three-ish semantics; the standard target
   grid is the odd one out. Toggle-then-add is only correct for multi-target (Sun,
   `maxTargets === 2`).
-- **Code**: `frontend/src/components/TargetSelectionModal.tsx` —
-  `toggleTarget` (~L111, the culprit), `selectCardTarget` (~L127, replace),
-  `selectAlternativeCostCard` (~L133, replace).
-- **Pre-existing**: predates the Paper & Ink redesign; the redesign preserved the
+- **Pre-existing**: predated the Paper & Ink redesign; the redesign preserved the
   interaction logic untouched and carried the inconsistency forward.
-- **Severity**: Low (functional, minor friction). **Effort**: Low.
-- **Recommended fix (fixes the class, not just this bug)**: consolidate all three
-  into **one** selection primitive parameterized by `maxTargets` — replace when
-  `maxTargets === 1`, toggle-up-to-max otherwise — used by every path. Then pin it
-  with a **component interaction test** (requires adding a frontend test runner —
-  Vitest + React Testing Library; none exists today). The same test would have
-  caught the round-4 "Cancel leaves the card selected" bug. This is the frontend
-  version of the drifted-duplicate pattern this doc documents repeatedly on the
-  backend (AI card-metadata / CC-gain tables): derive/define once, reuse, test once.
-
----
-
-## 🟡 Monitoring Issues
-
----
-
-## ✅ Resolved
 
 ### `ARCHITECTURE.md` / `EFFECT_SYSTEM_ARCHITECTURE.md` — described a pre-CSV effect system that no longer exists
 
