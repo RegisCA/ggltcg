@@ -98,6 +98,43 @@ describe('usePacedGameState', () => {
     expect(result.current).toBe(s3);
   });
 
+  it('presents an opponent snapshot immediately when the interval already elapsed since the last present', () => {
+    const s0 = makeGameState({ active_player_id: AI_ID, turn_number: 1 });
+    const { result, rerender } = renderHook(
+      ({ gs }) => usePacedGameState(gs, HUMAN_ID, { minIntervalMs: 800 }),
+      { initialProps: { gs: s0 } }
+    );
+    expect(result.current).toBe(s0);
+
+    // Let more than the interval pass with nothing queued (normal polling
+    // spacing), then deliver a new opponent snapshot: no added latency.
+    act(() => { vi.advanceTimersByTime(900); });
+    const s1 = makeGameState({ active_player_id: AI_ID, turn_number: 1, players: { ...s0.players, [AI_ID]: { ...s0.players[AI_ID], charge: 1 } } });
+    rerender({ gs: s1 });
+    expect(result.current).toBe(s1);
+  });
+
+  it('waits only the remaining interval for a snapshot arriving mid-interval', () => {
+    const s0 = makeGameState({ active_player_id: AI_ID, turn_number: 1 });
+    const { result, rerender } = renderHook(
+      ({ gs }) => usePacedGameState(gs, HUMAN_ID, { minIntervalMs: 800 }),
+      { initialProps: { gs: s0 } }
+    );
+
+    // Snapshot arrives 200ms after the last present: it should wait the
+    // remaining 600ms, not a fresh 800ms.
+    act(() => { vi.advanceTimersByTime(200); });
+    const s1 = makeGameState({ active_player_id: AI_ID, turn_number: 1, players: { ...s0.players, [AI_ID]: { ...s0.players[AI_ID], charge: 1 } } });
+    rerender({ gs: s1 });
+    expect(result.current).toBe(s0);
+
+    act(() => { vi.advanceTimersByTime(599); });
+    expect(result.current).toBe(s0);
+
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(result.current).toBe(s1);
+  });
+
   it('ignores duplicate snapshots without resetting the pacing timer', () => {
     const s0 = makeGameState({ active_player_id: AI_ID, turn_number: 1 });
     const { result, rerender } = renderHook(

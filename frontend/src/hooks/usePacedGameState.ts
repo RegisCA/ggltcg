@@ -15,8 +15,11 @@
  *   presented immediately and the queue is flushed. Game-over snapshots
  *   also flush immediately (never delay the victory screen). The very
  *   first snapshot (no presented state yet) is also pass-through.
- * - Paced: on the opponent's turn, snapshots are queued and released no
- *   sooner than `minIntervalMs` apart.
+ * - Paced: on the opponent's turn, snapshots are queued and released with
+ *   at least `minIntervalMs` *between presents* — a snapshot arriving after
+ *   the interval has already elapsed since the last present shows
+ *   immediately; only snapshots that bunch up faster than the interval are
+ *   actually delayed (by the remaining time, not the full interval).
  * - Turn-handoff flush: if a still-queued snapshot turns out to no longer
  *   be the opponent's turn (viewer's turn now, or game over), we don't
  *   silently drop the intermediate snapshots the viewer hasn't seen yet.
@@ -64,6 +67,12 @@ export function usePacedGameState(
   const queueRef = useRef<GameState[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presentedRef = useRef<GameState | undefined>(undefined);
+  // When the current presented state was shown. Pacing is "at least
+  // minIntervalMs between presents", not "wait minIntervalMs before each
+  // release": polling already spaces most opponent actions out, and a
+  // snapshot arriving after the interval has naturally elapsed must not eat
+  // a full extra delay.
+  const lastPresentAtRef = useRef(0);
 
   const clearTimer = () => {
     if (timerRef.current !== null) {
@@ -74,8 +83,14 @@ export function usePacedGameState(
 
   const present = (state: GameState) => {
     presentedRef.current = state;
+    lastPresentAtRef.current = Date.now();
     setPresented(state);
   };
+
+  // Remaining wait until the next normal-pace release is allowed: the
+  // interval minus time already elapsed since the last present, floored at 0.
+  const remainingPaceDelay = () =>
+    Math.max(0, minIntervalMs - (Date.now() - lastPresentAtRef.current));
 
   // Schedules the next release from the queue at `delayMs`. Recurses via
   // setTimeout (not setInterval) so each release re-evaluates mode/queue
@@ -122,7 +137,9 @@ export function usePacedGameState(
     // opponent's turn, drain the remaining queue quickly instead of at the
     // normal pace.
     const handoffPending = rest.some((s) => isPassThrough(s, viewerPlayerId));
-    scheduleRelease(handoffPending ? HANDOFF_FLUSH_INTERVAL_MS : minIntervalMs);
+    // Handoff drain stays fixed; normal pace is elapsed-aware (though right
+    // after a present, remainingPaceDelay() === minIntervalMs anyway).
+    scheduleRelease(handoffPending ? HANDOFF_FLUSH_INTERVAL_MS : remainingPaceDelay());
   };
 
   useEffect(() => {
@@ -177,7 +194,16 @@ export function usePacedGameState(
     }
 
     if (timerRef.current === null) {
-      scheduleRelease(minIntervalMs);
+      // Elapsed-aware pacing: if the interval has already passed since the
+      // last present (the common case — polling delivers actions ~1-2s
+      // apart), release synchronously with no added latency; otherwise wait
+      // only the remainder.
+      const delay = remainingPaceDelay();
+      if (delay === 0) {
+        releaseNext();
+      } else {
+        scheduleRelease(delay);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, viewerPlayerId, minIntervalMs]);
