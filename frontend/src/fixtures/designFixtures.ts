@@ -661,6 +661,15 @@ export const USER_MENU_FIXTURE_USER = {
 };
 
 // ============================================================================
+// CARD-DETAIL FIXTURE (for /design.html#card-detail)
+// ============================================================================
+
+// Archer has the longest effect text in DEFS — good stress test for the
+// enlarged card's effect-text sizing. Owned by the human fixture player so
+// the card renders on paper material by default.
+export const CARD_DETAIL_FIXTURE_CARD: Card = makeCard('Archer', 'fixture-card-detail-1', FIXTURE_HUMAN_ID, 'Hand');
+
+// ============================================================================
 // REGISTRY + LOOKUP API (consumed by gameService and DesignPreview)
 // ============================================================================
 
