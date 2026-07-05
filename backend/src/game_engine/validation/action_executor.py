@@ -238,23 +238,20 @@ class ActionExecutor:
         # Check state-based actions
         self.engine.check_state_based_actions()
         
-        # Build description
+        # Build description. The response message mirrors it — every caller
+        # (routes /tussle, the AI enumerator) reads only `description` and
+        # `success` on the happy path, so there's no second target-label
+        # branch to keep in sync with the helper.
         description = build_tussle_description(
             cost, attacker.name, defender=defender, broken_from_hand=broken_from_hand
         )
-        if defender:
-            target_desc = defender.name
-        elif broken_from_hand:
-            target_desc = f"{broken_from_hand} (from hand)"
-        else:
-            target_desc = "opponent directly"
 
         # Check for victory
         winner = self.game_state.check_victory()
 
         return ExecutionResult(
             success=True,
-            message=f"Tussle: {attacker.name} vs {target_desc}",
+            message=description,
             description=description,
             cost=cost,
             winner=winner

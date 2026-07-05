@@ -279,7 +279,7 @@ function buildMidgame(): DesignFixture {
       is_game_over: false,
       play_by_play: [
         { turn: 4, player: 'Gemiknight', action_type: 'play_card', description: 'Played Ka (2 Charge)' },
-        { turn: 4, player: 'Gemiknight', action_type: 'tussle', description: 'Ka tussled Umbruh — Umbruh broken' },
+        { turn: 4, player: 'Gemiknight', action_type: 'tussle', description: 'Ka tussled Umbruh (2 Charge)' },
         { turn: 4, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
         { turn: 5, player: 'You', action_type: 'draw', description: 'Drew Surge' },
       ],
@@ -365,7 +365,7 @@ function buildBreakZonePileup(): DesignFixture {
       winner: null,
       is_game_over: false,
       play_by_play: [
-        { turn: 8, player: 'Gemiknight', action_type: 'tussle', description: 'Sock Sorcerer tussled Violin — Violin broken' },
+        { turn: 8, player: 'Gemiknight', action_type: 'tussle', description: 'Sock Sorcerer tussled Violin (2 Charge)' },
         { turn: 8, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
         { turn: 9, player: 'You', action_type: 'draw', description: 'Drew Toynado' },
       ],
@@ -426,7 +426,7 @@ function buildOpponentTurn(): DesignFixture {
         // Turn 6 entries arrive via OPPONENT_TURN_SCRIPT (strategy first,
         // then actions), matching the backend's live ordering
         { turn: 5, player: 'You', action_type: 'play_card', description: 'Played Drum (1 Charge)' },
-        { turn: 5, player: 'You', action_type: 'tussle', description: 'Knight tussled Gibbers — Gibbers broken' },
+        { turn: 5, player: 'You', action_type: 'tussle', description: 'Knight tussled Gibbers (2 Charge)' },
         { turn: 5, player: 'You', action_type: 'end_turn', description: 'Ended turn' },
       ],
     },
@@ -483,13 +483,13 @@ const OPPONENT_TURN_SCRIPT: PlayByPlayEntry[] = [
     turn: 6,
     player: 'Gemiknight',
     action_type: 'tussle',
-    description: 'Ka tussled Knight — Knight survived (1 stamina left)',
+    description: 'Ka tussled Knight (2 Charge)',
   },
   {
     turn: 6,
     player: 'Gemiknight',
     action_type: 'tussle',
-    description: 'Belchaletta tussled Drum — Drum survived',
+    description: 'Belchaletta tussled Drum (2 Charge)',
   },
   {
     turn: 6,
