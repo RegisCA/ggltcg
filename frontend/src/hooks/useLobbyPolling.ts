@@ -26,6 +26,10 @@ interface UseLobbyPollingOptions {
   gameCode: string;
   initialOtherPlayerName: string | null;
   onGameReady?: () => void;
+  /** Test/preview seam: when true, skips all getLobbyStatus() polling.
+   *  Production callers never pass this — used by the /design.html harness
+   *  fixtures so a canned lobby state doesn't hit the network. */
+  disablePolling?: boolean;
 }
 
 interface UseLobbyPollingReturn {
@@ -37,7 +41,7 @@ interface UseLobbyPollingReturn {
 }
 
 export function useLobbyPolling(options: UseLobbyPollingOptions): UseLobbyPollingReturn {
-  const { gameCode, initialOtherPlayerName, onGameReady } = options;
+  const { gameCode, initialOtherPlayerName, onGameReady, disablePolling = false } = options;
 
   const [state, setState] = useState<LobbyState>({
     phase: initialOtherPlayerName ? 'deck-selection' : 'waiting-for-player',
@@ -47,6 +51,7 @@ export function useLobbyPolling(options: UseLobbyPollingOptions): UseLobbyPollin
 
   // Poll for lobby status when waiting for player 2 or waiting for deck submissions
   useEffect(() => {
+    if (disablePolling) return;
     if (state.phase !== 'waiting-for-player' && state.phase !== 'waiting-for-decks') {
       return;
     }
@@ -78,10 +83,11 @@ export function useLobbyPolling(options: UseLobbyPollingOptions): UseLobbyPollin
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(pollInterval);
-  }, [gameCode, state.phase]);
+  }, [gameCode, state.phase, disablePolling]);
 
   // When both players ready and status is 'starting', poll for game state
   useEffect(() => {
+    if (disablePolling) return;
     if (state.phase !== 'starting') {
       return;
     }
@@ -100,7 +106,7 @@ export function useLobbyPolling(options: UseLobbyPollingOptions): UseLobbyPollin
     }, 1000); // Poll more frequently when starting
 
     return () => clearInterval(pollInterval);
-  }, [state.phase, gameCode, onGameReady]);
+  }, [state.phase, gameCode, onGameReady, disablePolling]);
 
   const setPhase = useCallback((phase: LobbyPhase) => {
     setState(prev => ({ ...prev, phase }));

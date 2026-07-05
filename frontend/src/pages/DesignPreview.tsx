@@ -15,6 +15,10 @@ import { useEffect, useState } from 'react';
 import { GameBoard } from '../components/GameBoard';
 import { DeckSelection } from '../components/DeckSelection';
 import { VictoryScreen } from '../components/VictoryScreen';
+import { LobbyHome } from '../components/LobbyHome';
+import { LobbyCreate } from '../components/LobbyCreate';
+import { LobbyJoin } from '../components/LobbyJoin';
+import { LobbyWaiting } from '../components/LobbyWaiting';
 import { useResponsive } from '../hooks/useResponsive';
 import {
   DECK_SELECTION_CARD_POOL,
@@ -24,6 +28,8 @@ import {
   VICTORY_FIXTURE,
   DEFEAT_FIXTURE,
   VICTORY_AI_LOGS_FIXTURE,
+  LOBBY_FIXTURE_GAME_ID,
+  LOBBY_FIXTURE_GAME_CODE,
 } from '../fixtures/designFixtures';
 
 // Non-GameBoard screens get their own fixture ids (no `fixture-` game state
@@ -32,6 +38,10 @@ const SCREEN_FIXTURES = [
   { id: 'deck-selection', label: 'Deck selection', description: 'DeckSelection screen: full card pool, no backend.' },
   { id: 'victory', label: 'Victory', description: 'VictoryScreen: you win, full recap with AI plans/reasoning.' },
   { id: 'defeat', label: 'Defeat', description: 'VictoryScreen: opponent wins, same recap content.' },
+  { id: 'lobby-home', label: 'Lobby: Home', description: 'LobbyHome screen: mode picker, no backend.' },
+  { id: 'lobby-create', label: 'Lobby: Create', description: 'LobbyCreate screen: create-game form, no backend.' },
+  { id: 'lobby-join', label: 'Lobby: Join', description: 'LobbyJoin screen: join-game code entry, no backend.' },
+  { id: 'lobby-waiting', label: 'Lobby: Waiting', description: 'LobbyWaiting screen: waiting room with both players present, polling disabled.' },
 ];
 
 type RouteMatch = { kind: 'board'; id: string } | { kind: 'screen'; id: string };
@@ -128,6 +138,32 @@ export function DesignPreview() {
         <VictoryScreen key="victory" gameState={VICTORY_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} localPlayerId={FIXTURE_HUMAN_ID} />
       ) : route.kind === 'screen' && route.id === 'defeat' ? (
         <VictoryScreen key="defeat" gameState={DEFEAT_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} localPlayerId={FIXTURE_HUMAN_ID} />
+      ) : route.kind === 'screen' && route.id === 'lobby-home' ? (
+        <LobbyHome
+          key="lobby-home"
+          onCreateLobby={() => {}}
+          onJoinLobby={() => {}}
+          onPlayVsAI={() => {}}
+          onQuickPlay={() => {}}
+        />
+      ) : route.kind === 'screen' && route.id === 'lobby-create' ? (
+        <LobbyCreate key="lobby-create" onLobbyCreated={() => {}} onBack={() => {}} />
+      ) : route.kind === 'screen' && route.id === 'lobby-join' ? (
+        <LobbyJoin key="lobby-join" onLobbyJoined={() => {}} onBack={() => {}} />
+      ) : route.kind === 'screen' && route.id === 'lobby-waiting' ? (
+        <LobbyWaiting
+          key="lobby-waiting"
+          gameId={LOBBY_FIXTURE_GAME_ID}
+          gameCode={LOBBY_FIXTURE_GAME_CODE}
+          actualPlayerId="fixture-you"
+          currentPlayerId="player1"
+          currentPlayerName="You"
+          otherPlayerName="Gemiknight"
+          onGameStarted={() => {}}
+          onBack={() => {}}
+          initialPhaseOverride="waiting-for-decks"
+          currentPlayerReadyOverride={true}
+        />
       ) : (
         // key remounts the board on fixture switch so no UI state leaks across
         <GameBoard

@@ -1,11 +1,13 @@
 /**
  * Lobby Join Component
- * Join an existing game lobby using a game code
+ *
+ * Join an existing game lobby using a game code. Restyled to the Paper & Ink
+ * language: desk gradient, Gochi Hand title, dark panel form with a mono
+ * code-entry field, gold primary button (§7.2 idiom).
  */
 
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/Button';
 import { joinLobby } from '../api/gameService';
 
 interface LobbyJoinProps {
@@ -44,9 +46,9 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
     setError(null);
 
     try {
-      const response = await joinLobby(cleanCode, { 
+      const response = await joinLobby(cleanCode, {
         player2_id: playerId,
-        player2_name: playerName 
+        player2_name: playerName,
       });
       onLobbyJoined(response.game_id, response.game_code, response.player1_name, response.player1_id);
     } catch (err: unknown) {
@@ -71,31 +73,83 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
     setGameCode(cleaned);
   };
 
+  const canJoin = !!gameCode.trim() && !isJoining;
+
   return (
-    <div className="min-h-screen bg-game-bg flex items-center justify-center" style={{ padding: 'var(--spacing-component-md)' }}>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        padding: 'var(--spacing-component-md)',
+        background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))',
+        color: 'var(--ink-text)',
+      }}
+    >
       <div className="max-w-md w-full">
         {/* Back Button */}
         <div style={{ marginBottom: 'var(--spacing-component-xl)' }}>
-          <Button variant="ghost" size="md" onClick={onBack}>
-            ← Back to Main Menu
-          </Button>
+          <button
+            onClick={onBack}
+            className="flex items-center transition-colors"
+            style={{
+              gap: 'var(--spacing-component-xs)',
+              color: 'var(--ink-muted)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px',
+            }}
+          >
+            <span>←</span> Back to Main Menu
+          </button>
         </div>
 
         {/* Title */}
         <div className="text-center" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
-          <h1 className="text-5xl font-bold text-game-highlight" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Join Game</h1>
-          <p className="text-xl text-gray-200 font-semibold">Enter a game code to join as <span className="text-game-highlight">{playerName}</span></p>
+          <h1
+            style={{
+              fontFamily: 'var(--font-card-name)',
+              fontSize: 'clamp(36px, 7vw, 48px)',
+              lineHeight: 1,
+              marginBottom: 'var(--spacing-component-sm)',
+              color: 'var(--ink-text)',
+            }}
+          >
+            Join Game
+          </h1>
+          <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+            Enter a game code to join as <span style={{ color: 'var(--you)' }}>{playerName}</span>
+          </p>
         </div>
 
         {/* Form */}
-        <div className="modal-padding bg-gray-800 rounded-lg border-2 border-gray-600">
+        <div
+          style={{
+            background: '#241E17',
+            borderRadius: '8px',
+            border: '1px solid rgba(242,193,78,.25)',
+            padding: 'var(--spacing-component-xl)',
+          }}
+        >
           <div className="content-spacing">
             {/* Game Code Input */}
             <div>
-              <label className="block text-sm font-semibold text-gray-300" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+              <label
+                htmlFor="game-code-input"
+                style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.08em',
+                  color: 'var(--ink-muted)',
+                  marginBottom: 'var(--spacing-component-xs)',
+                }}
+              >
                 Game Code
               </label>
               <input
+                id="game-code-input"
                 type="text"
                 value={gameCode}
                 onChange={(e) => handleGameCodeChange(e.target.value)}
@@ -104,21 +158,40 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
                 maxLength={6}
                 disabled={isJoining}
                 autoFocus
-                className={`
-                  w-full rounded bg-gray-700 border-2 text-2xl font-mono text-center tracking-widest
-                  focus:outline-none focus:border-game-highlight transition-colors uppercase
-                  ${isJoining ? 'opacity-50 cursor-not-allowed' : 'border-gray-600'}
-                `}
-                style={{ padding: 'var(--spacing-component-md) var(--spacing-component-md)' }}
+                className="w-full uppercase"
+                style={{
+                  borderRadius: '6px',
+                  background: 'var(--bar, rgba(237,232,222,.06))',
+                  border: '1px solid rgba(237,232,222,.25)',
+                  fontFamily: 'monospace',
+                  fontSize: '26px',
+                  fontWeight: 900,
+                  textAlign: 'center',
+                  letterSpacing: '.25em',
+                  color: 'var(--ink-text)',
+                  padding: 'var(--spacing-component-md)',
+                  opacity: isJoining ? 0.5 : 1,
+                  cursor: isJoining ? 'not-allowed' : 'text',
+                }}
               />
-              <p className="text-xs text-gray-400 text-center" style={{ marginTop: '4px' }}>
+              <p style={{ fontSize: '11px', color: 'var(--ink-faint)', textAlign: 'center', marginTop: '4px' }}>
                 Example: 9P47XA
               </p>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-900/30 border-2 border-red-500 rounded text-red-200 text-sm" style={{ padding: 'var(--spacing-component-sm)' }}>
+              <div
+                style={{
+                  background: 'rgba(224,113,107,.12)',
+                  border: '1px solid var(--danger)',
+                  borderRadius: '6px',
+                  color: 'var(--danger)',
+                  padding: 'var(--spacing-component-sm)',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}
+              >
                 {error}
               </div>
             )}
@@ -126,32 +199,41 @@ export function LobbyJoin({ onLobbyJoined, onBack }: LobbyJoinProps) {
             {/* Join Button */}
             <button
               onClick={handleJoin}
-              disabled={!gameCode.trim() || isJoining}
-              className={`
-                w-full rounded-lg font-bold text-xl transition-all
-                ${!gameCode.trim() || isJoining
-                  ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                  : 'bg-game-highlight hover:bg-red-600 cursor-pointer'
-                }
-              `}
-              style={{ padding: 'var(--spacing-component-md) 0' }}
+              disabled={!canJoin}
+              style={{
+                width: '100%',
+                borderRadius: '6px',
+                border: 'none',
+                fontWeight: 900,
+                fontSize: '18px',
+                padding: 'var(--spacing-component-md) 0',
+                background: canJoin ? 'var(--gold)' : 'rgba(237,232,222,.15)',
+                color: canJoin ? 'var(--desk-bottom)' : 'var(--ink-faint)',
+                boxShadow: canJoin ? '0 3px 0 rgba(0,0,0,.5)' : 'none',
+                cursor: canJoin ? 'pointer' : 'not-allowed',
+              }}
             >
-              {isJoining ? 'Joining Game...' : 'Join Game 🔗'}
+              {isJoining ? 'Joining Game...' : 'Join Game'}
             </button>
           </div>
         </div>
 
         {/* Info Box */}
-        <div className="bg-purple-900/20 border-2 border-purple-500/50 rounded-lg" style={{ marginTop: 'var(--spacing-component-lg)', padding: 'var(--spacing-component-md)' }}>
-          <div className="flex items-start" style={{ gap: 'var(--spacing-component-sm)' }}>
-            <div className="text-2xl">💡</div>
-            <div className="text-sm text-gray-300">
-              <p className="font-semibold" style={{ marginBottom: '4px' }}>Need a game code?</p>
-              <p className="text-gray-400">
-                Ask your friend to create a game and share the 6-character code with you.
-              </p>
-            </div>
-          </div>
+        <div
+          style={{
+            background: 'rgba(180,142,222,.08)',
+            border: '1px solid rgba(180,142,222,.3)',
+            borderRadius: '8px',
+            marginTop: 'var(--spacing-component-lg)',
+            padding: 'var(--spacing-component-md)',
+          }}
+        >
+          <p style={{ fontWeight: 900, fontSize: '13px', color: 'var(--them)', marginBottom: '4px' }}>
+            Need a game code?
+          </p>
+          <p style={{ fontSize: '13px', color: 'var(--ink-muted)' }}>
+            Ask your friend to create a game and share the 6-character code with you.
+          </p>
         </div>
       </div>
     </div>

@@ -1,8 +1,9 @@
 /**
  * GameCodeDisplay Component
- * 
+ *
  * Displays a game code with copy-to-clipboard functionality.
- * Shows visual feedback when code is copied.
+ * Shows visual feedback when code is copied. Paper & Ink: mono/gold code,
+ * text-only copy feedback (no clipboard emoji).
  */
 
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
@@ -29,34 +30,59 @@ export function GameCodeDisplay({
     copyToClipboard(code);
   };
 
-  const sizeClasses = size === 'large' 
-    ? 'text-6xl tracking-widest' 
-    : 'text-2xl tracking-widest';
-
-  const feedbackText = size === 'large'
-    ? (copied ? '✅ Copied to clipboard!' : '📋 Click to copy')
-    : (copied ? '✓' : '📋');
+  const codeFontSize = size === 'large' ? 'clamp(32px, 8vw, 48px)' : '20px';
+  const feedbackText = copied ? 'Copied to clipboard!' : 'Click to copy';
 
   return (
     <div className="text-center">
       {showLabel && (
-        <div className="text-lg text-gray-300 font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+        <div
+          style={{
+            fontSize: '13px',
+            fontWeight: 700,
+            color: 'var(--ink-muted)',
+            marginBottom: 'var(--spacing-component-sm)',
+          }}
+        >
           {label}
         </div>
       )}
       <button
         onClick={handleClick}
-        className={`
-          font-mono font-bold text-game-highlight 
-          hover:text-red-400 transition-colors
-          ${sizeClasses}
-        `}
         title="Click to copy"
+        style={{
+          fontFamily: 'monospace',
+          fontWeight: 900,
+          letterSpacing: '.15em',
+          fontSize: codeFontSize,
+          color: 'var(--gold)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+        }}
       >
-        {code} {size === 'small' && feedbackText}
+        {code}
       </button>
       {size === 'large' && (
-        <div className="text-lg text-gray-300 font-semibold" style={{ marginTop: 'var(--spacing-component-sm)' }}>
+        <div
+          style={{
+            fontSize: '13px',
+            fontWeight: 700,
+            color: copied ? 'var(--you)' : 'var(--ink-muted)',
+            marginTop: 'var(--spacing-component-sm)',
+          }}
+        >
+          {feedbackText}
+        </div>
+      )}
+      {size === 'small' && (
+        <div
+          style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: copied ? 'var(--you)' : 'var(--ink-faint)',
+          }}
+        >
           {feedbackText}
         </div>
       )}
