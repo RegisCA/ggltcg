@@ -102,6 +102,42 @@ without proving them. Internalize these:
 
 ---
 
+## 3.5 PREREQUISITE before any Phase 3 screen — consolidate selection + stand up frontend tests
+
+Decided with Régis (2026-07-05). Do this **first**, as one focused PR.
+
+**Why:** the target modal has three near-duplicate selection handlers
+(`toggleTarget` / `selectCardTarget` / `selectAlternativeCostCard`) that behave
+differently (single-select toggles-with-deselect-first in the grid, but replaces in
+the alt-cost and direct-attack paths) — see the Active Issue in
+`docs/development/KNOWN_ISSUES.md`. This is a *behavioral* inconsistency that
+visual/harness review structurally can't catch, so it kept landing on Régis (this
+and the round-4 "Cancel leaves the card selected" bug are the same class). The
+frontend has **no test runner at all** (flagged in Phase F), so nothing pins
+interaction behavior.
+
+**Do both, together:**
+1. **One selection primitive.** Replace the three handlers with a single function/
+   hook parameterized by `maxTargets`: **replace** the selection when
+   `maxTargets === 1`, **toggle up to max** otherwise. Use it for the target grid,
+   the direct-attack path, and the alt-cost break list.
+2. **Frontend test runner + interaction tests.** Add **Vitest + React Testing
+   Library** (`npm test`), wire it into `ci.yml` (currently frontend = lint + tsc +
+   build only), and write component interaction tests that pin: single-select
+   replaces on clicking a different card; multi-select toggles up to max; **Cancel/
+   close clears the selection** (round-4 bug); disabled cards aren't clickable;
+   keyboard (Enter/Space/Esc). These tests would have caught both bugs before Régis.
+
+**Sequencing / PR boundary (important):** the modal being consolidated + tested
+lives on the **unmerged** board branch `feat/ui-card-anatomy` (#374). So 1+2 can
+only be a clean standalone PR **after #374 merges to `main`** — off `main` today
+you'd be refactoring the *old* modal and hit conflicts. Order:
+**#374 board merges → this 1+2 PR off `main` → Phase 3 screens.** (The test-runner
+infra alone could be a tiny separate PR anytime, but keep 1+2 together per Régis.)
+This also establishes the test runner that later Phase 3 screens should use.
+
+---
+
 ## 4. Phase 3 plan — screens
 
 These screens have **no Paper & Ink mockup** (6a/6b/3c only cover the board +
