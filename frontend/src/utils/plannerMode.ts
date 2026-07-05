@@ -10,3 +10,19 @@ export function plannerModeLabel(planner?: string | null, aiVersion?: number | n
   if (aiVersion !== null && aiVersion !== undefined && aiVersion >= 3) return 'single';
   return 'per-action';
 }
+
+/**
+ * Player-facing nickname for the AI, shown on the victory screen. The raw
+ * planner values ("enum", "dual", ...) are developer terminology; players see
+ * a friendly persona instead, while keeping the "the AI changed" signal Régis
+ * wants (a different persona means a different architecture). The admin data
+ * viewer keeps using {@link plannerModeLabel} for the raw technical value.
+ */
+const PLANNER_NICKNAMES: Record<string, string> = {
+  enum: 'Mastermind',
+};
+
+export function plannerDisplayName(planner?: string | null, aiVersion?: number | null): string {
+  const raw = plannerModeLabel(planner, aiVersion);
+  return PLANNER_NICKNAMES[raw] ?? raw;
+}
