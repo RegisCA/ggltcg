@@ -20,6 +20,28 @@ from game_engine.rules.effects.action_effects import FixEffect, CopyEffect, Twis
 logger = logging.getLogger(__name__)
 
 
+def build_tussle_description(
+    cost: int,
+    attacker_name: str,
+    defender: Optional[Card] = None,
+    broken_from_hand: Optional[str] = None,
+) -> str:
+    """
+    Build the play-by-play line for a tussle, in the log's subject-verb-object
+    voice: "Attacker tussled Defender (N Charge)".
+
+    Shared by the human tussle route and the AI executor so the two copies
+    can't drift. Keeps the rules vocabulary ("tussle", "Charge").
+    """
+    if defender:
+        target = f" {defender.name}"
+    elif broken_from_hand:
+        target = f" {broken_from_hand} from hand"
+    else:
+        target = " directly"
+    return f"{attacker_name} tussled{target} ({cost} Charge)"
+
+
 @dataclass
 class ExecutionResult:
     """Result of executing an action."""
@@ -216,21 +238,20 @@ class ActionExecutor:
         # Check state-based actions
         self.engine.check_state_based_actions()
         
-        # Build description
-        if defender:
-            target_desc = defender.name
-        elif broken_from_hand:
-            target_desc = f"{broken_from_hand} (from hand)"
-        else:
-            target_desc = "opponent directly"
-        description = f"Spent {cost} Charge for {attacker.name} to tussle {target_desc}"
-        
+        # Build description. The response message mirrors it — every caller
+        # (routes /tussle, the AI enumerator) reads only `description` and
+        # `success` on the happy path, so there's no second target-label
+        # branch to keep in sync with the helper.
+        description = build_tussle_description(
+            cost, attacker.name, defender=defender, broken_from_hand=broken_from_hand
+        )
+
         # Check for victory
         winner = self.game_state.check_victory()
-        
+
         return ExecutionResult(
             success=True,
-            message=f"Tussle: {attacker.name} vs {target_desc}",
+            message=description,
             description=description,
             cost=cost,
             winner=winner
@@ -404,39 +425,32 @@ class ActionExecutor:
         Effect descriptions are removed as they're redundant - players can
         see the card's effect on the card itself.
         """
-        # Base description
-        if kwargs.get("alternative_cost_paid"):
-            description = f"Played {card.name} by breaking {kwargs['alternative_cost_card']}"
-        else:
-            description = f"Spent {cost} Charge to play {card.name}"
-        
-        # Add target-specific details for Action cards (the meaningful part)
+        # Effect clause — the meaningful part for Action cards, in the log's
+        # subject-verb-object voice (", broke Knight"). Appended before the
+        # trailing cost so the line reads "Played Drop, broke Knight (2 Charge)".
+        effect_clause = ""
         if card.is_action():
             if card.has_effect_type(BreakTargetEffect) and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Broke {target_card.name}"
+                effect_clause = f", broke {kwargs['target'].name}"
             elif card.has_effect_type(BreakTargetEffect) and kwargs.get("targets"):
-                target_names = [t.name for t in kwargs["targets"]]
-                description += f". Broke {', '.join(target_names)}"
+                effect_clause = f", broke {', '.join(t.name for t in kwargs['targets'])}"
             elif card.has_effect_type(FixEffect) and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Fixed {target_card.name}"
+                effect_clause = f", fixed {kwargs['target'].name}"
             elif card.has_effect_type(FixEffect) and kwargs.get("targets"):
-                target_names = [t.name for t in kwargs["targets"]]
-                description += f". Fixed {', '.join(target_names)}"
+                effect_clause = f", fixed {', '.join(t.name for t in kwargs['targets'])}"
             elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Copied {target_card.name}"
+                effect_clause = f", copied {kwargs['target'].name}"
             elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
-                target_card = kwargs["target"]
-                description += f". Took control of {target_card.name}"
-        
-        # For cards with alternative cost (e.g., Ballaber)
-        if card.has_effect_type(BallaberCostEffect) and kwargs.get("alternative_cost_paid"):
-            alt_card = kwargs["alternative_cost_card"]
-            description += f". Broke {alt_card} for alternative cost"
-        
-        return description
+                effect_clause = f", took control of {kwargs['target'].name}"
+
+        # Alternative-cost plays (e.g. Ballaber) pay by breaking a card, not
+        # Charge — the cost note goes in the trailing parens instead.
+        if kwargs.get("alternative_cost_paid"):
+            cost_note = f"broke {kwargs['alternative_cost_card']} for cost"
+        else:
+            cost_note = f"{cost} Charge"
+
+        return f"Played {card.name}{effect_clause} ({cost_note})"
     
     def _build_target_info(
         self,
