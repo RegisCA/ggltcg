@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { plannerModeLabel } from '../utils/plannerMode';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface SummaryStats {
   users: { total: number };
@@ -893,45 +893,50 @@ const AdminDataViewer: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white" style={{ padding: 'var(--spacing-component-lg)' }}>
+    <div className="min-h-screen bg-desk text-[var(--ink-text)]" style={{ padding: 'var(--spacing-component-lg)' }}>
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold" style={{ marginBottom: 'var(--spacing-component-lg)' }}>GGLTCG Admin Data Viewer</h1>
+        <h1
+          className="text-3xl text-[var(--gold)]"
+          style={{ marginBottom: 'var(--spacing-component-lg)', fontFamily: 'var(--font-card-name)' }}
+        >
+          GGLTCG Admin Data Viewer
+        </h1>
 
         {/* Summary Stats */}
         {summary && (
           <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-lg)' }}>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
-              <h3 className="text-gray-400 text-xs" style={{ marginBottom: '4px' }}>Total Users</h3>
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)' }}>
+              <h3 className="text-[var(--ink-faint)] text-xs" style={{ marginBottom: '4px' }}>Total Users</h3>
               <p className="text-2xl font-bold">{summary.users.total}</p>
             </div>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
-              <h3 className="text-gray-400 text-xs" style={{ marginBottom: '4px' }}>Games</h3>
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)' }}>
+              <h3 className="text-[var(--ink-faint)] text-xs" style={{ marginBottom: '4px' }}>Games</h3>
               <p className="text-2xl font-bold">{summary.games.total}</p>
-              <p className="text-xs text-gray-400" style={{ marginTop: '4px' }}>
+              <p className="text-xs text-[var(--ink-faint)]" style={{ marginTop: '4px' }}>
                 {summary.games.active} active · {summary.games.completed} completed
               </p>
             </div>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
-              <h3 className="text-gray-400 text-xs" style={{ marginBottom: '4px' }}>AI Logs</h3>
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)' }}>
+              <h3 className="text-[var(--ink-faint)] text-xs" style={{ marginBottom: '4px' }}>AI Logs</h3>
               <p className="text-2xl font-bold">{summary.ai_logs.total}</p>
-              <p className="text-xs text-gray-400" style={{ marginTop: '4px' }}>
+              <p className="text-xs text-[var(--ink-faint)]" style={{ marginTop: '4px' }}>
                 {summary.ai_logs.recent_1h} in last hour
               </p>
             </div>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
-              <h3 className="text-gray-400 text-xs" style={{ marginBottom: '4px' }}>Playbacks</h3>
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)' }}>
+              <h3 className="text-[var(--ink-faint)] text-xs" style={{ marginBottom: '4px' }}>Playbacks</h3>
               <p className="text-2xl font-bold">{summary.playbacks.total}</p>
             </div>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-700" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-lg)' }}>
+        <div className="flex border-b border-white/10" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-lg)' }}>
           <button
             className={`px-4 py-2 font-semibold ${
               activeTab === 'summary'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--ink-text)]'
             }`}
             onClick={() => setActiveTab('summary')}
           >
@@ -940,8 +945,8 @@ const AdminDataViewer: React.FC = () => {
           <button
             className={`px-4 py-2 font-semibold ${
               activeTab === 'ai-logs'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--ink-text)]'
             }`}
             onClick={() => setActiveTab('ai-logs')}
           >
@@ -950,8 +955,8 @@ const AdminDataViewer: React.FC = () => {
           <button
             className={`px-4 py-2 font-semibold ${
               activeTab === 'games'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--ink-text)]'
             }`}
             onClick={() => setActiveTab('games')}
           >
@@ -960,8 +965,8 @@ const AdminDataViewer: React.FC = () => {
           <button
             className={`px-4 py-2 font-semibold ${
               activeTab === 'playbacks'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--ink-text)]'
             }`}
             onClick={() => setActiveTab('playbacks')}
           >
@@ -970,8 +975,8 @@ const AdminDataViewer: React.FC = () => {
           <button
             className={`px-4 py-2 font-semibold ${
               activeTab === 'users'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--ink-text)]'
             }`}
             onClick={() => setActiveTab('users')}
           >
@@ -980,8 +985,8 @@ const AdminDataViewer: React.FC = () => {
           <button
             className={`px-4 py-2 font-semibold ${
               activeTab === 'simulation'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]'
+                : 'text-[var(--ink-faint)] hover:text-[var(--ink-text)]'
             }`}
             onClick={() => setActiveTab('simulation')}
           >
@@ -991,19 +996,19 @@ const AdminDataViewer: React.FC = () => {
 
         {/* Content */}
         {activeTab === 'summary' && (
-          <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
-            <h2 className="text-2xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>Database Overview</h2>
-            <p className="text-gray-400" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+          <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
+            <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-md)' }}>Database Overview</h2>
+            <p className="text-[var(--ink-faint)]" style={{ marginBottom: 'var(--spacing-component-md)' }}>
               Use the tabs above to view AI decision logs, game data, and playback recordings.
             </p>
             <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
               <div>
                 <h3 className="font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Recent Activity (Last 24h)</h3>
-                <p className="text-gray-400">{summary?.games.recent_24h || 0} games started</p>
+                <p className="text-[var(--ink-faint)]">{summary?.games.recent_24h || 0} games started</p>
               </div>
               <div>
                 <h3 className="font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>AI Activity (Last Hour)</h3>
-                <p className="text-gray-400">{summary?.ai_logs.recent_1h || 0} AI decisions logged</p>
+                <p className="text-[var(--ink-faint)]">{summary?.ai_logs.recent_1h || 0} AI decisions logged</p>
               </div>
             </div>
           </div>
@@ -1011,24 +1016,24 @@ const AdminDataViewer: React.FC = () => {
 
         {activeTab === 'ai-logs' && (
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
               {aiLogsGameIdFilter ? (
                 <div className="flex justify-between items-center">
                   <p className="text-sm">
                     <span className="text-purple-400 font-semibold">Filtered by Game: </span>
-                    <span className="text-gray-300 font-mono">{aiLogsGameIdFilter}</span>
-                    <span className="text-gray-400"> ({aiLogsData?.count || 0} logs)</span>
+                    <span className="text-[var(--ink-muted)] font-mono">{aiLogsGameIdFilter}</span>
+                    <span className="text-[var(--ink-faint)]"> ({aiLogsData?.count || 0} logs)</span>
                   </p>
                   <button
                     onClick={clearAILogsFilter}
-                    className="bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                    className="bg-white/10 hover:bg-white/15 text-[var(--ink-text)] rounded text-sm"
                     style={{ padding: '4px var(--spacing-component-sm)' }}
                   >
                     Clear Filter
                   </button>
                 </div>
               ) : (
-                <p className="text-gray-400 text-sm">
+                <p className="text-[var(--ink-faint)] text-sm">
                   Showing {aiLogsData?.count || 0} most recent AI decisions (planner turns grouped)
                 </p>
               )}
@@ -1050,7 +1055,7 @@ const AdminDataViewer: React.FC = () => {
                 const planningResponseText = turnGroup.turn_plan?.planning_response as string | undefined;
 
                 return (
-                  <div key={turnGroup.key} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
+                  <div key={turnGroup.key} className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)' }}>
                     {/* Compact Turn Header */}
                     <div
                       className="flex justify-between items-center cursor-pointer"
@@ -1059,8 +1064,8 @@ const AdminDataViewer: React.FC = () => {
                       <div className="flex items-center flex-wrap" style={{ gap: 'var(--spacing-component-sm)' }}>
                         <span className="text-xs rounded bg-purple-600" style={{ padding: '2px var(--spacing-component-xs)' }} title="Planner">{plannerModeLabel(turnGroup.planner, turnGroup.ai_version)}</span>
                         <span className="font-semibold">Turn {turnGroup.turn_number}</span>
-                        <span className="text-gray-400 text-sm">Game: {turnGroup.game_id.substring(0, 8)}...</span>
-                        <span className="text-gray-500 text-sm">{turnGroup.model_name}</span>
+                        <span className="text-[var(--ink-faint)] text-sm">Game: {turnGroup.game_id.substring(0, 8)}...</span>
+                        <span className="text-[var(--ink-faint)] text-sm">{turnGroup.model_name}</span>
                         {planCompleted ? (
                           <span className="text-xs rounded bg-green-600" style={{ padding: '2px var(--spacing-component-xs)' }}>
                             ✓ {completedActions} actions
@@ -1075,7 +1080,7 @@ const AdminDataViewer: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                      <span className="text-[var(--ink-faint)]">{isExpanded ? '▼' : '▶'}</span>
                     </div>
                     
                     {/* Expanded Turn Details */}
@@ -1083,7 +1088,7 @@ const AdminDataViewer: React.FC = () => {
                       <div style={{ marginTop: 'var(--spacing-component-md)' }}>
                         <div className="flex justify-end" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
                           <button
-                            className="bg-gray-700 hover:bg-gray-600 text-white rounded text-xs"
+                            className="bg-white/10 hover:bg-white/15 text-[var(--ink-text)] rounded text-xs"
                             style={{ padding: '4px var(--spacing-component-sm)' }}
                             onClick={async (e) => {
                               e.preventDefault();
@@ -1098,29 +1103,29 @@ const AdminDataViewer: React.FC = () => {
                         </div>
 
                         {/* Symptoms (turn) */}
-                        <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
-                          <span className="text-gray-500">Symptoms (turn): </span>
-                          <span className="text-gray-300">{formatCountsInline(turnSymptomCounts)}</span>
-                          <span className="text-gray-500"> · total {totalCount(turnSymptomCounts)}</span>
+                        <div className="bg-black/20 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                          <span className="text-[var(--ink-faint)]">Symptoms (turn): </span>
+                          <span className="text-[var(--ink-muted)]">{formatCountsInline(turnSymptomCounts)}</span>
+                          <span className="text-[var(--ink-faint)]"> · total {totalCount(turnSymptomCounts)}</span>
                         </div>
 
                         {/* Strategy */}
-                        <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                        <div className="bg-black/20 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
                           <span className="text-purple-400 font-semibold">Strategy: </span>
-                          <span className="text-gray-300">{turnGroup.turn_plan.strategy}</span>
+                          <span className="text-[var(--ink-muted)]">{turnGroup.turn_plan.strategy}</span>
                         </div>
                         
                         {/* Turn Metrics */}
                         <div className="flex flex-wrap text-sm" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-sm)' }}>
-                          <span><span className="text-gray-500">Charge:</span> {turnGroup.turn_plan.charge_start} → {turnGroup.turn_plan.charge_after_plan}</span>
-                          <span><span className="text-gray-500">Target:</span> Break {turnGroup.turn_plan.expected_cards_broken} cards</span>
+                          <span><span className="text-[var(--ink-faint)]">Charge:</span> {turnGroup.turn_plan.charge_start} → {turnGroup.turn_plan.charge_after_plan}</span>
+                          <span><span className="text-[var(--ink-faint)]">Target:</span> Break {turnGroup.turn_plan.expected_cards_broken} cards</span>
                         </div>
 
                         {/* Enumerator/selection diagnostics (if available) */}
                         {!!enumDebug && (
-                          <div className="bg-gray-900 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
-                            <span className="text-gray-500">Planner diagnostics: </span>
-                            <span className="text-gray-300">
+                          <div className="bg-black/20 rounded text-sm" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                            <span className="text-[var(--ink-faint)]">Planner diagnostics: </span>
+                            <span className="text-[var(--ink-muted)]">
                               sequences generated: {(enumDebug?.sequences_generated as number | undefined) ?? 'N/A'}
                               {' · '}selection index: {(enumDebug?.selection_index_used as number | undefined) ?? 'N/A'}
                               {' · '}parse_error: {String((enumDebug?.selection_parse_error as boolean | undefined) ?? false)}
@@ -1151,7 +1156,7 @@ const AdminDataViewer: React.FC = () => {
                         {/* Planned Action Sequence (from first log with action_sequence) */}
                         {!!turnGroup.turn_plan.action_sequence && turnGroup.turn_plan.action_sequence.length > 0 && (
                           <div className="text-sm" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-                            <span className="text-gray-500">Planned actions:</span>
+                            <span className="text-[var(--ink-faint)]">Planned actions:</span>
                             <ol className="list-decimal list-inside" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                               {turnGroup.turn_plan.action_sequence.map((action, idx) => {
                                 // Find execution log entry for this action
@@ -1165,20 +1170,20 @@ const AdminDataViewer: React.FC = () => {
                                 const notAttempted = !execLog; // No log entry means never attempted
                                 
                                 return (
-                                  <li key={idx} className={notAttempted ? "text-gray-500" : "text-gray-300"}>
+                                  <li key={idx} className={notAttempted ? "text-[var(--ink-faint)]" : "text-[var(--ink-muted)]"}>
                                     {/* Execution status indicator */}
                                     {isSuccess && <span className="text-green-400">✅ </span>}
                                     {isMatchedButNotExecuted && <span className="text-yellow-600">⚠️ </span>}
                                     {(isExecutionFailed || isMatchFailed) && <span className="text-red-400">❌ </span>}
                                     {isLLMFallback && <span className="text-yellow-400">⚠️ </span>}
-                                    {notAttempted && <span className="text-gray-600">⊘ </span>}
+                                    {notAttempted && <span className="text-[var(--ink-faint)]">⊘ </span>}
                                     
                                     <span className="text-blue-400">{action.action_type}</span>
                                     {action.card_name && <span> {action.card_name}</span>}
                                     {action.target_names && action.target_names.length > 0 && (
-                                      <span className="text-gray-400"> → {action.target_names.join(', ')}</span>
+                                      <span className="text-[var(--ink-faint)]"> → {action.target_names.join(', ')}</span>
                                     )}
-                                    <span className="text-gray-500"> ({action.charge_cost} Charge)</span>
+                                    <span className="text-[var(--ink-faint)]"> ({action.charge_cost} Charge)</span>
                                     
                                     {/* Matched but not executed */}
                                     {isMatchedButNotExecuted && (
@@ -1189,7 +1194,7 @@ const AdminDataViewer: React.FC = () => {
                                     
                                     {/* Not attempted indicator */}
                                     {notAttempted && (
-                                      <span className="text-gray-600 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
+                                      <span className="text-[var(--ink-faint)] text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
                                         Plan execution stopped before this action
                                       </span>
                                     )}
@@ -1206,7 +1211,7 @@ const AdminDataViewer: React.FC = () => {
                                         action.reasoning is always the literal sentinel
                                         below, so skip rendering it. */}
                                     {action.reasoning && action.reasoning !== 'No reasoning provided' && !notAttempted && (
-                                      <span className="text-gray-500 text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
+                                      <span className="text-[var(--ink-faint)] text-xs block" style={{ marginLeft: 'var(--spacing-component-lg)' }}>
                                         {action.reasoning}
                                       </span>
                                     )}
@@ -1220,10 +1225,10 @@ const AdminDataViewer: React.FC = () => {
                         {/* Planning Prompt (collapsible) */}
                         {typeof planningPromptText === 'string' && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                            <summary className="text-[var(--ink-faint)] cursor-pointer hover:text-[var(--ink-muted)]">
                               View planning prompt ({planningPromptText.length} chars)
                             </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                            <pre className="bg-black/20 rounded overflow-x-auto text-xs text-[var(--ink-faint)] whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {planningPromptText}
                             </pre>
                           </details>
@@ -1232,10 +1237,10 @@ const AdminDataViewer: React.FC = () => {
                         {/* Planning Response (TurnPlan JSON - collapsible) */}
                         {typeof planningResponseText === 'string' && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                            <summary className="text-[var(--ink-faint)] cursor-pointer hover:text-[var(--ink-muted)]">
                               View planning response ({planningResponseText.length} chars)
                             </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                            <pre className="bg-black/20 rounded overflow-x-auto text-xs text-[var(--ink-faint)] whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {planningResponseText}
                             </pre>
                           </details>
@@ -1244,12 +1249,12 @@ const AdminDataViewer: React.FC = () => {
                         {/* Executed actions (from logs - fallback if no action_sequence) */}
                         {(!turnGroup.turn_plan.action_sequence || turnGroup.turn_plan.action_sequence.length === 0) && (
                           <div className="text-sm">
-                            <span className="text-gray-500">Actions executed:</span>
+                            <span className="text-[var(--ink-faint)]">Actions executed:</span>
                             <ol className="list-decimal list-inside" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                               {turnGroup.logs
                                 .sort((a, b) => (a.turn_plan?.current_action || 0) - (b.turn_plan?.current_action || 0))
                                 .map((log) => (
-                                  <li key={log.id} className="text-gray-300">
+                                  <li key={log.id} className="text-[var(--ink-muted)]">
                                     {log.reasoning || `Action #${log.turn_plan?.current_action || '?'}`}
                                     {log.plan_execution_status === 'fallback' && (
                                       <span className="text-yellow-400 text-xs" style={{ marginLeft: 'var(--spacing-component-xs)' }}>(fallback)</span>
@@ -1266,20 +1271,20 @@ const AdminDataViewer: React.FC = () => {
                             no separate sequence-generation LLM request). */}
                         {hasSelectionArtifacts && turnGroup.turn_plan.selection_prompt && normalizeText(turnGroup.turn_plan.selection_prompt) !== normalizeText(turnGroup.turn_plan.planning_prompt) && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                            <summary className="text-[var(--ink-faint)] cursor-pointer hover:text-[var(--ink-muted)]">
                               View strategic selection prompt ({turnGroup.turn_plan.selection_prompt.length} chars)
                             </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                            <pre className="bg-black/20 rounded overflow-x-auto text-xs text-[var(--ink-faint)] whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {turnGroup.turn_plan.selection_prompt}
                             </pre>
                           </details>
                         )}
                         {hasSelectionArtifacts && turnGroup.turn_plan.selection_response && normalizeText(turnGroup.turn_plan.selection_response) !== normalizeText(turnGroup.turn_plan.planning_response) && (
                           <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                            <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                            <summary className="text-[var(--ink-faint)] cursor-pointer hover:text-[var(--ink-muted)]">
                               View strategic selection response ({turnGroup.turn_plan.selection_response.length} chars)
                             </summary>
-                            <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-400 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
+                            <pre className="bg-black/20 rounded overflow-x-auto text-xs text-[var(--ink-faint)] whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)', maxHeight: '300px', overflow: 'auto' }}>
                               {turnGroup.turn_plan.selection_response}
                             </pre>
                           </details>
@@ -1293,16 +1298,16 @@ const AdminDataViewer: React.FC = () => {
               // V2 Individual Log (unchanged display)
               const log = item;
               return (
-                <div key={log.id} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
+                <div key={log.id} className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)' }}>
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center flex-wrap" style={{ gap: 'var(--spacing-component-sm)' }}>
-                        <span className="text-xs rounded bg-gray-600" style={{ padding: '2px var(--spacing-component-xs)' }}>v2</span>
+                        <span className="text-xs rounded bg-white/10" style={{ padding: '2px var(--spacing-component-xs)' }}>v2</span>
                         <span className="font-semibold">Turn {log.turn_number}</span>
-                        <span className="text-gray-400 text-sm">Game: {log.game_id.substring(0, 8)}...</span>
-                        <span className="text-gray-500 text-sm">{log.model_name}</span>
+                        <span className="text-[var(--ink-faint)] text-sm">Game: {log.game_id.substring(0, 8)}...</span>
+                        <span className="text-[var(--ink-faint)] text-sm">{log.model_name}</span>
                       </div>
-                      <p className="text-sm text-gray-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                      <p className="text-sm text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                         {formatDate(log.created_at)}
                       </p>
                     </div>
@@ -1319,14 +1324,14 @@ const AdminDataViewer: React.FC = () => {
                     <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-md)' }}>
                       {log.reasoning && (
                         <div>
-                          <span className="text-gray-500 text-sm">Reasoning: </span>
-                          <span className="text-gray-300 text-sm">{log.reasoning}</span>
+                          <span className="text-[var(--ink-faint)] text-sm">Reasoning: </span>
+                          <span className="text-[var(--ink-muted)] text-sm">{log.reasoning}</span>
                         </div>
                       )}
                       {log.prompt && (
                         <div>
                           <h4 className="font-semibold text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Prompt:</h4>
-                          <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-300 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', maxHeight: '200px', overflow: 'auto' }}>
+                          <pre className="bg-black/20 rounded overflow-x-auto text-xs text-[var(--ink-muted)] whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)', maxHeight: '200px', overflow: 'auto' }}>
                             {log.prompt}
                           </pre>
                         </div>
@@ -1334,7 +1339,7 @@ const AdminDataViewer: React.FC = () => {
                       {log.response && (
                         <div>
                           <h4 className="font-semibold text-sm" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Response:</h4>
-                          <pre className="bg-gray-900 rounded overflow-x-auto text-xs text-gray-300 whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)' }}>
+                          <pre className="bg-black/20 rounded overflow-x-auto text-xs text-[var(--ink-muted)] whitespace-pre-wrap" style={{ padding: 'var(--spacing-component-sm)' }}>
                             {log.response}
                           </pre>
                         </div>
@@ -1349,13 +1354,13 @@ const AdminDataViewer: React.FC = () => {
 
         {activeTab === 'games' && (
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
-              <p className="text-gray-400 text-sm">
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
+              <p className="text-[var(--ink-faint)] text-sm">
                 Showing {gamesData?.count || 0} most recent games
               </p>
             </div>
             {gamesData?.games.map((game: Game) => (
-              <div key={game.id} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
+              <div key={game.id} className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-xl font-semibold">
@@ -1363,19 +1368,19 @@ const AdminDataViewer: React.FC = () => {
                       <span className={`text-xs rounded ${
                         game.status === 'active' ? 'bg-green-600' :
                         game.status === 'completed' ? 'bg-blue-600' :
-                        'bg-gray-600'
+                        'bg-white/10'
                       }`} style={{ marginLeft: 'var(--spacing-component-sm)', padding: '4px var(--spacing-component-xs)' }}>
                         {game.status}
                       </span>
                     </h3>
-                    <p className="text-sm text-gray-400 font-mono" style={{ marginTop: '4px' }}>
+                    <p className="text-sm text-[var(--ink-faint)] font-mono" style={{ marginTop: '4px' }}>
                       Game ID: {game.id}
                       {game.game_code && ` · Code: ${game.game_code}`}
                     </p>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-[var(--ink-faint)]">
                       Turn {game.turn_number} · {game.phase} Phase
                     </p>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-[var(--ink-faint)]">
                       Created: {formatDate(game.created_at)} · Updated: {formatDate(game.updated_at)}
                     </p>
                     {game.winner_id && (
@@ -1392,8 +1397,8 @@ const AdminDataViewer: React.FC = () => {
 
         {activeTab === 'playbacks' && (
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
-              <p className="text-gray-400 text-sm">
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
+              <p className="text-[var(--ink-faint)] text-sm">
                 Showing {playbacksData?.count || 0} most recent completed games
               </p>
             </div>
@@ -1402,22 +1407,22 @@ const AdminDataViewer: React.FC = () => {
                 <div className="flex" style={{ gap: 'var(--spacing-component-sm)' }}>
                   <button
                     onClick={() => setSelectedPlayback(null)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded"
+                    className="bg-blue-600 hover:bg-blue-700 text-[var(--ink-text)] rounded"
                     style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
                   >
                     ← Back to Playbacks List
                   </button>
                   <button
                     onClick={() => viewAILogsForGame(selectedPlayback.game_id)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white rounded"
+                    className="bg-purple-600 hover:bg-purple-700 text-[var(--ink-text)] rounded"
                     style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
                   >
                     View AI Logs for this Game →
                   </button>
                 </div>
-                <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
+                <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
                   {/* Header - Player vs Player */}
-                  <h2 className="text-2xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-md)' }}>
                     {selectedPlayback.player1_name} vs {selectedPlayback.player2_name}
                   </h2>
 
@@ -1433,7 +1438,7 @@ const AdminDataViewer: React.FC = () => {
                   </div>
                   
                   {/* Game ID and Timestamp - Discrete */}
-                  <div className="text-sm text-gray-500" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
+                  <div className="text-sm text-[var(--ink-faint)]" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
                     (Game ID: {selectedPlayback.game_id}, Completed: {formatDate(selectedPlayback.completed_at || '')})
                   </div>
 
@@ -1469,31 +1474,31 @@ const AdminDataViewer: React.FC = () => {
 
                     return (
                       <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
-                        <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Metrics</h3>
-                        <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-md)' }}>
-                          <div className="text-sm text-gray-300" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-                            <span className="text-gray-500">Avg Charge end (active turns): </span>
+                        <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-xs)' }}>Metrics</h3>
+                        <div className="bg-black/20 rounded" style={{ padding: 'var(--spacing-component-md)' }}>
+                          <div className="text-sm text-[var(--ink-muted)]" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                            <span className="text-[var(--ink-faint)]">Avg Charge end (active turns): </span>
                             <span className="text-green-400">{selectedPlayback.player1_name}</span>
-                            <span className="text-gray-300"> {chargeAverages.p1_avg !== null ? chargeAverages.p1_avg.toFixed(2) : '—'} </span>
-                            <span className="text-gray-500">({chargeAverages.p1_samples} turns)</span>
-                            <span className="text-gray-600"> · </span>
+                            <span className="text-[var(--ink-muted)]"> {chargeAverages.p1_avg !== null ? chargeAverages.p1_avg.toFixed(2) : '—'} </span>
+                            <span className="text-[var(--ink-faint)]">({chargeAverages.p1_samples} turns)</span>
+                            <span className="text-[var(--ink-faint)]"> · </span>
                             <span className="text-blue-400">{selectedPlayback.player2_name}</span>
-                            <span className="text-gray-300"> {chargeAverages.p2_avg !== null ? chargeAverages.p2_avg.toFixed(2) : '—'} </span>
-                            <span className="text-gray-500">({chargeAverages.p2_samples} turns)</span>
+                            <span className="text-[var(--ink-muted)]"> {chargeAverages.p2_avg !== null ? chargeAverages.p2_avg.toFixed(2) : '—'} </span>
+                            <span className="text-[var(--ink-faint)]">({chargeAverages.p2_samples} turns)</span>
                           </div>
 
-                          <div className="text-sm text-gray-300">
-                            <span className="text-gray-500">Symptoms (game): </span>
+                          <div className="text-sm text-[var(--ink-muted)]">
+                            <span className="text-[var(--ink-faint)]">Symptoms (game): </span>
                             <span>{formatCountsInline(totals)}</span>
-                            <span className="text-gray-500"> · total {totalCount(totals)}</span>
+                            <span className="text-[var(--ink-faint)]"> · total {totalCount(totals)}</span>
                           </div>
 
                           {turnsWithSymptoms.length > 0 && (
                             <details className="text-sm" style={{ marginTop: 'var(--spacing-component-sm)' }}>
-                              <summary className="text-gray-500 cursor-pointer hover:text-gray-300">
+                              <summary className="text-[var(--ink-faint)] cursor-pointer hover:text-[var(--ink-muted)]">
                                 View symptoms by turn ({turnsWithSymptoms.length} turns)
                               </summary>
-                              <div className="text-xs text-gray-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                              <div className="text-xs text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                                 {turnsWithSymptoms.map(x => (
                                   <div key={x.turn}>
                                     Turn {x.turn}: {formatCountsInline(x.counts)} (total {x.total})
@@ -1509,12 +1514,12 @@ const AdminDataViewer: React.FC = () => {
 
                   {/* Starting Decks - Table Format */}
                   <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
-                    <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>Starting Decks</h3>
-                    <div className="bg-gray-900 rounded overflow-hidden">
+                    <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-xs)' }}>Starting Decks</h3>
+                    <div className="bg-black/20 rounded overflow-hidden">
                       <table className="w-full text-sm">
                         <tbody>
-                          <tr className="border-b border-gray-700">
-                            <td className="px-4 py-3 font-semibold bg-gray-950 whitespace-nowrap">
+                          <tr className="border-b border-white/10">
+                            <td className="px-4 py-3 font-semibold bg-black/30 whitespace-nowrap">
                               {selectedPlayback.player1_name}
                               {selectedPlayback.first_player_id === selectedPlayback.player1_id && (
                                 <span className="text-xs text-yellow-400" style={{ marginLeft: 'var(--spacing-component-xs)' }}>(**first**)</span>
@@ -1527,7 +1532,7 @@ const AdminDataViewer: React.FC = () => {
                             ))}
                           </tr>
                           <tr>
-                            <td className="px-4 py-3 font-semibold bg-gray-950 whitespace-nowrap">
+                            <td className="px-4 py-3 font-semibold bg-black/30 whitespace-nowrap">
                               {selectedPlayback.player2_name}
                               {selectedPlayback.first_player_id === selectedPlayback.player2_id && (
                                 <span className="text-xs text-yellow-400" style={{ marginLeft: 'var(--spacing-component-xs)' }}>(**first**)</span>
@@ -1547,19 +1552,19 @@ const AdminDataViewer: React.FC = () => {
                   {/* Charge Tracking with Actions - Compact timeline view like Simulation */}
                   {selectedPlayback.charge_tracking && selectedPlayback.charge_tracking.length > 0 && (
                     <div style={{ marginBottom: 'var(--spacing-component-lg)' }}>
-                      <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Turn-by-Turn Summary</h3>
-                      <div className="bg-gray-900 rounded overflow-x-auto">
+                      <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-sm)' }}>Turn-by-Turn Summary</h3>
+                      <div className="bg-black/20 rounded overflow-x-auto">
                         <table className="w-full text-sm border-collapse">
-                          <thead className="bg-gray-950">
+                          <thead className="bg-black/30">
                             <tr>
-                              <th className="px-3 py-2 text-center border-b border-gray-700 w-16">Turn</th>
-                              <th className="px-3 py-2 text-center text-green-400 border-b border-gray-700 w-24">
+                              <th className="px-3 py-2 text-center border-b border-white/10 w-16">Turn</th>
+                              <th className="px-3 py-2 text-center text-green-400 border-b border-white/10 w-24">
                                 {selectedPlayback.player1_name.length > 8 ? 'P1' : selectedPlayback.player1_name} Charge
                               </th>
-                              <th className="px-3 py-2 text-center text-blue-400 border-b border-gray-700 w-24">
+                              <th className="px-3 py-2 text-center text-blue-400 border-b border-white/10 w-24">
                                 {selectedPlayback.player2_name.length > 8 ? 'P2' : selectedPlayback.player2_name} Charge
                               </th>
-                              <th className="px-3 py-2 text-left border-b border-gray-700">Actions</th>
+                              <th className="px-3 py-2 text-left border-b border-white/10">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1588,13 +1593,13 @@ const AdminDataViewer: React.FC = () => {
                               
                               // Format Charge: simple start-spent→end format
                               const formatCharge = (data: TurnCharge | undefined, isActive: boolean): React.ReactNode => {
-                                if (!data) return <span className="text-gray-600">—</span>;
+                                if (!data) return <span className="text-[var(--ink-faint)]">—</span>;
                                 return (
                                   <span className={`font-mono ${isActive ? '' : 'opacity-60'}`}>
                                     {data.charge_start}
                                     {data.charge_gained > 0 && <span className="text-yellow-400">+{data.charge_gained}</span>}
                                     {data.charge_spent > 0 && <span className="text-red-400">-{data.charge_spent}</span>}
-                                    <span className="text-gray-500">→</span>
+                                    <span className="text-[var(--ink-faint)]">→</span>
                                     <span className="font-bold">{data.charge_end}</span>
                                   </span>
                                 );
@@ -1609,7 +1614,7 @@ const AdminDataViewer: React.FC = () => {
                                 const visibleActions = turnActions.filter(a => a.action_type !== 'end_turn');
                                 
                                 return (
-                                  <tr key={turn} className="border-t border-gray-800 hover:bg-gray-850">
+                                  <tr key={turn} className="border-t border-white/10 hover:bg-white/5">
                                     <td className="px-3 py-2 text-center font-bold">{turn}</td>
                                     <td className={`px-3 py-2 text-center ${isP1Turn ? 'bg-green-900/20' : ''}`}>
                                       {formatCharge(data.p1, isP1Turn)}
@@ -1620,13 +1625,13 @@ const AdminDataViewer: React.FC = () => {
                                     <td className="px-3 py-2 text-left text-xs">
                                       {visibleActions.slice(0, 8).map((a, i) => (
                                         <React.Fragment key={i}>
-                                          {i > 0 && <span className="text-gray-600">, </span>}
+                                          {i > 0 && <span className="text-[var(--ink-faint)]">, </span>}
                                           <span className={a.player === selectedPlayback.player1_name ? 'text-green-400' : 'text-blue-400'}>
                                             {a.description}
                                           </span>
                                         </React.Fragment>
                                       ))}
-                                      {visibleActions.length > 8 && <span className="text-gray-500"> +{visibleActions.length - 8} more</span>}
+                                      {visibleActions.length > 8 && <span className="text-[var(--ink-faint)]"> +{visibleActions.length - 8} more</span>}
                                     </td>
                                   </tr>
                                 );
@@ -1641,8 +1646,8 @@ const AdminDataViewer: React.FC = () => {
                               const p2Gained = selectedPlayback.charge_tracking!.filter(charge => charge.player_id === p2Id).reduce((sum, charge) => sum + charge.charge_gained, 0);
                               const p2Spent = selectedPlayback.charge_tracking!.filter(charge => charge.player_id === p2Id).reduce((sum, charge) => sum + charge.charge_spent, 0);
                               return (
-                                <tr className="border-t border-gray-700 bg-gray-900/50">
-                                  <td className="px-3 py-2 text-center text-xs text-gray-400">Total</td>
+                                <tr className="border-t border-white/10 bg-black/20/50">
+                                  <td className="px-3 py-2 text-center text-xs text-[var(--ink-faint)]">Total</td>
                                   <td className="px-3 py-2 text-center text-green-400 text-xs">
                                     <span className="text-yellow-400">+{p1Gained}</span>
                                     <span className="text-red-400">·{p1Spent}</span>
@@ -1663,10 +1668,10 @@ const AdminDataViewer: React.FC = () => {
 
                   {/* Play-by-Play */}
                   <div>
-                    <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Play-by-Play</h3>
-                    <div className="bg-gray-900 rounded overflow-hidden">
+                    <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-sm)' }}>Play-by-Play</h3>
+                    <div className="bg-black/20 rounded overflow-hidden">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-950">
+                        <thead className="bg-black/30">
                           <tr>
                             <th className="px-4 py-2 text-left">Turn</th>
                             <th className="px-4 py-2 text-left">Player</th>
@@ -1676,7 +1681,7 @@ const AdminDataViewer: React.FC = () => {
                         </thead>
                         <tbody>
                           {selectedPlayback.play_by_play.map((entry, index) => (
-                            <tr key={index} className="border-t border-gray-800">
+                            <tr key={index} className="border-t border-white/10">
                               <td className="px-4 py-2">{entry.turn}</td>
                               <td className="px-4 py-2">{entry.player}</td>
                               <td className="px-4 py-2">{entry.action_type}</td>
@@ -1691,14 +1696,14 @@ const AdminDataViewer: React.FC = () => {
               </div>
             ) : (
               playbacksData?.games.map((playback: GamePlayback) => (
-                <div key={playback.id} className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
+                <div key={playback.id} className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
                   <h3 className="text-xl font-semibold">
                     {playback.player1_name} vs {playback.player2_name}
                   </h3>
-                  <p className="text-sm text-gray-400 font-mono" style={{ marginTop: '4px' }}>
+                  <p className="text-sm text-[var(--ink-faint)] font-mono" style={{ marginTop: '4px' }}>
                     Game ID: {playback.game_id}
                   </p>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-[var(--ink-faint)]">
                     {playback.turn_count} turns · {formatDuration(playback.created_at, playback.completed_at)}
                   </p>
                   {playback.winner_id && (
@@ -1706,7 +1711,7 @@ const AdminDataViewer: React.FC = () => {
                       Winner: {playback.winner_id === playback.player1_id ? playback.player1_name : playback.player2_name}
                     </p>
                   )}
-                  <p className="text-sm text-gray-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                  <p className="text-sm text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                     Completed: {playback.completed_at ? formatDate(playback.completed_at) : 'In progress'}
                   </p>
                   <button
@@ -1724,14 +1729,14 @@ const AdminDataViewer: React.FC = () => {
 
         {activeTab === 'users' && (
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
-            <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
-              <p className="text-gray-400 text-sm">
+            <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-md)' }}>
+              <p className="text-[var(--ink-faint)] text-sm">
                 Showing {usersData?.count || 0} registered users
               </p>
             </div>
-            <div className="bg-gray-800 rounded-lg overflow-hidden">
+            <div className="bg-panel rounded-lg overflow-hidden border border-white/10">
               <table className="w-full text-sm">
-                <thead className="bg-gray-950">
+                <thead className="bg-black/30">
                   <tr>
                     <th className="px-4 py-3 text-left">Display Name</th>
                     <th className="px-4 py-3 text-left">First Name</th>
@@ -1749,25 +1754,25 @@ const AdminDataViewer: React.FC = () => {
                 </thead>
                 <tbody>
                   {usersData?.users.map((user: User) => (
-                    <tr key={user.google_id} className="border-t border-gray-700 hover:bg-gray-750">
+                    <tr key={user.google_id} className="border-t border-white/10 hover:bg-white/5">
                       <td className="px-4 py-3 font-semibold">{user.display_name}</td>
-                      <td className="px-4 py-3 text-gray-400">{user.first_name}</td>
+                      <td className="px-4 py-3 text-[var(--ink-faint)]">{user.first_name}</td>
                       <td className="px-4 py-3 text-right">{user.games_played}</td>
                       <td className="px-4 py-3 text-right">{user.games_won}</td>
                       <td className="px-4 py-3 text-right">
                         {user.games_played > 0 ? (
-                          <span className={user.win_rate >= 50 ? 'text-green-400' : 'text-gray-300'}>
+                          <span className={user.win_rate >= 50 ? 'text-green-400' : 'text-[var(--ink-muted)]'}>
                             {user.win_rate.toFixed(1)}%
                           </span>
                         ) : (
-                          <span className="text-gray-500">-</span>
+                          <span className="text-[var(--ink-faint)]">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {user.games_played > 0 && user.avg_turns ? (
                           <span className="text-orange-400">{user.avg_turns.toFixed(1)}</span>
                         ) : (
-                          <span className="text-gray-500">-</span>
+                          <span className="text-[var(--ink-faint)]">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -1779,37 +1784,37 @@ const AdminDataViewer: React.FC = () => {
                             }
                           </span>
                         ) : (
-                          <span className="text-gray-500">-</span>
+                          <span className="text-[var(--ink-faint)]">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-300">
+                      <td className="px-4 py-3 text-xs text-[var(--ink-muted)]">
                         {user.favorite_decks?.[0]?.length > 0 ? user.favorite_decks[0].join(', ') : '-'}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-300">
+                      <td className="px-4 py-3 text-xs text-[var(--ink-muted)]">
                         {user.favorite_decks?.[1]?.length > 0 ? user.favorite_decks[1].join(', ') : '-'}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-300">
+                      <td className="px-4 py-3 text-xs text-[var(--ink-muted)]">
                         {user.favorite_decks?.[2]?.length > 0 ? user.favorite_decks[2].join(', ') : '-'}
                       </td>
                       <td className="px-4 py-3">
                         {user.last_game_at ? (
                           <div>
-                            <div className="text-gray-300">{formatRelativeTime(user.last_game_at)}</div>
+                            <div className="text-[var(--ink-muted)]">{formatRelativeTime(user.last_game_at)}</div>
                             {user.last_game_status && (
                               <div className={`text-xs ${
                                 user.last_game_status === 'completed' ? 'text-blue-400' :
                                 user.last_game_status === 'active' ? 'text-green-400' :
-                                'text-gray-500'
+                                'text-[var(--ink-faint)]'
                               }`}>
                                 {user.last_game_status}
                               </div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-gray-500">Never</span>
+                          <span className="text-[var(--ink-faint)]">Never</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">{formatRelativeTime(user.created_at)}</td>
+                      <td className="px-4 py-3 text-[var(--ink-faint)] text-xs">{formatRelativeTime(user.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1822,8 +1827,8 @@ const AdminDataViewer: React.FC = () => {
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-lg)' }}>
             {/* Configuration Panel */}
             {!selectedSimulation && (
-              <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
-                <h2 className="text-2xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+              <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
+                <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-md)' }}>
                   New Simulation
                 </h2>
                 
@@ -1839,16 +1844,16 @@ const AdminDataViewer: React.FC = () => {
                         className={`cursor-pointer rounded-lg border-2 transition-colors ${
                           selectedDecks.includes(deck.name)
                             ? 'border-blue-500 bg-blue-900/30'
-                            : 'border-gray-600 bg-gray-900 hover:border-gray-500'
+                            : 'border-white/15 bg-black/20 hover:border-white/20'
                         }`}
                         style={{ padding: 'var(--spacing-component-md)' }}
                         onClick={() => toggleDeckSelection(deck.name)}
                       >
                         <div className="font-semibold">{deck.name}</div>
-                        <div className="text-xs text-gray-400" style={{ marginTop: '4px' }}>
+                        <div className="text-xs text-[var(--ink-faint)]" style={{ marginTop: '4px' }}>
                           {deck.description}
                         </div>
-                        <div className="text-xs text-gray-500" style={{ marginTop: '4px' }}>
+                        <div className="text-xs text-[var(--ink-faint)]" style={{ marginTop: '4px' }}>
                           {deck.cards.join(', ')}
                         </div>
                       </div>
@@ -1865,7 +1870,7 @@ const AdminDataViewer: React.FC = () => {
                     <select
                       value={player1Model}
                       onChange={e => setPlayer1Model(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-600 rounded text-white"
+                      className="w-full bg-black/20 border border-white/15 rounded text-[var(--ink-text)]"
                       style={{ padding: 'var(--spacing-component-sm)' }}
                     >
                       {supportedModels?.map(model => (
@@ -1880,7 +1885,7 @@ const AdminDataViewer: React.FC = () => {
                     <select
                       value={player2Model}
                       onChange={e => setPlayer2Model(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-600 rounded text-white"
+                      className="w-full bg-black/20 border border-white/15 rounded text-[var(--ink-text)]"
                       style={{ padding: 'var(--spacing-component-sm)' }}
                     >
                       {supportedModels?.map(model => (
@@ -1914,10 +1919,10 @@ const AdminDataViewer: React.FC = () => {
                       <div className="text-sm" style={{ marginTop: '4px' }}>
                         {numDecks >= 1 && (
                           <>
-                            <span className="text-gray-400">
+                            <span className="text-[var(--ink-faint)]">
                               {numMatchups} matchups ({numDecks}² = mirrors + both directions) × {iterationsPerMatchup} games ={' '}
                             </span>
-                            <span className={`font-semibold ${exceedsLimit ? 'text-red-400' : 'text-white'}`}>
+                            <span className={`font-semibold ${exceedsLimit ? 'text-red-400' : 'text-[var(--ink-text)]'}`}>
                               {totalGames} total games
                             </span>
                             {exceedsLimit && (
@@ -1945,7 +1950,7 @@ const AdminDataViewer: React.FC = () => {
                       disabled={isDisabled}
                       className={`w-full rounded font-semibold ${
                         isDisabled
-                          ? 'bg-gray-600 cursor-not-allowed'
+                          ? 'bg-white/10 cursor-not-allowed'
                           : 'bg-green-600 hover:bg-green-700'
                       }`}
                       style={{ padding: 'var(--spacing-component-md)' }}
@@ -1966,13 +1971,13 @@ const AdminDataViewer: React.FC = () => {
                         {runProgress.completed} / {runProgress.total} games
                       </span>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div className="w-full bg-white/10 rounded-full h-3">
                       <div 
                         className="bg-blue-500 h-3 rounded-full transition-all duration-300"
                         style={{ width: `${runProgress.total > 0 ? (runProgress.completed / runProgress.total * 100) : 0}%` }}
                       />
                     </div>
-                    <div className="text-xs text-gray-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                    <div className="text-xs text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
                       {runProgress.total > 0 ? Math.round(runProgress.completed / runProgress.total * 100) : 0}% complete 
                       {activeRunId && <span> (Run #{activeRunId})</span>}
                     </div>
@@ -1986,54 +1991,54 @@ const AdminDataViewer: React.FC = () => {
               <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
                 <button
                   onClick={() => setSelectedSimulation(null)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded"
+                  className="bg-blue-600 hover:bg-blue-700 text-[var(--ink-text)] rounded"
                   style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-md)', alignSelf: 'flex-start' }}
                 >
                   ← Back to Configuration
                 </button>
                 
-                <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
-                  <h2 className="text-2xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+                <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-md)' }}>
                     Simulation Results
                     <span className={`text-sm rounded ${
                       selectedSimulation.status === 'completed' ? 'bg-green-600' :
                       selectedSimulation.status === 'running' ? 'bg-yellow-600' :
                       selectedSimulation.status === 'failed' ? 'bg-red-600' :
-                      'bg-gray-600'
+                      'bg-white/10'
                     }`} style={{ marginLeft: 'var(--spacing-component-sm)', padding: '4px var(--spacing-component-xs)' }}>
                       {selectedSimulation.status}
                     </span>
                   </h2>
                   
                   {/* Config Summary */}
-                  <div className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                  <div className="text-sm text-[var(--ink-faint)]" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
                     <div>Decks: {selectedSimulation.config.deck_names.join(', ')}</div>
-                    <div className="bg-gray-900/50 rounded p-2 mt-2">
-                      <div className="font-semibold text-white mb-1">Model Assignment:</div>
+                    <div className="bg-black/20/50 rounded p-2 mt-2">
+                      <div className="font-semibold text-[var(--ink-text)] mb-1">Model Assignment:</div>
                       <div className="flex gap-4">
                         <span><span className="text-green-400">Player 1 / Deck 1:</span> {selectedSimulation.config.player1_model}</span>
                         <span><span className="text-blue-400">Player 2 / Deck 2:</span> {selectedSimulation.config.player2_model}</span>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">Note: Player 1 always goes first (receives 2 Charge on turn 1 instead of 4)</div>
+                      <div className="text-xs text-[var(--ink-faint)] mt-1">Note: Player 1 always goes first (receives 2 Charge on turn 1 instead of 4)</div>
                     </div>
                     <div style={{ marginTop: '8px' }}>Games: {selectedSimulation.completed_games}/{selectedSimulation.total_games}</div>
                     {selectedSimulation.aggregate && (
-                      <div className="bg-gray-900/50 rounded p-2 mt-2">
-                        <div className="text-xs text-gray-300">
-                          <span className="text-gray-500">Avg Charge end (active turns): </span>
+                      <div className="bg-black/20/50 rounded p-2 mt-2">
+                        <div className="text-xs text-[var(--ink-muted)]">
+                          <span className="text-[var(--ink-faint)]">Avg Charge end (active turns): </span>
                           <span className="text-green-400">P1</span>
-                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p1_charge_end_active, 2)} </span>
-                          <span className="text-gray-600">·</span>
+                          <span className="text-[var(--ink-muted)]"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p1_charge_end_active, 2)} </span>
+                          <span className="text-[var(--ink-faint)]">·</span>
                           <span className="text-blue-400"> P2</span>
-                          <span className="text-gray-300"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p2_charge_end_active, 2)}</span>
+                          <span className="text-[var(--ink-muted)]"> {formatMaybeNumber(selectedSimulation.aggregate.avg_p2_charge_end_active, 2)}</span>
                         </div>
-                        <div className="text-xs text-gray-300" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                          <span className="text-gray-500">Avg turns: </span>
+                        <div className="text-xs text-[var(--ink-muted)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                          <span className="text-[var(--ink-faint)]">Avg turns: </span>
                           <span className="text-orange-400">{formatMaybeNumber(selectedSimulation.aggregate.avg_turns, 1)}</span>
-                          <span className="text-gray-600"> · </span>
-                          <span className="text-gray-500">Turn-limit hits (T{selectedSimulation.aggregate.max_turns}): </span>
-                          <span className="text-gray-300">{selectedSimulation.aggregate.turn_limit_hits}/{selectedSimulation.completed_games}</span>
-                          <span className="text-gray-500"> ({selectedSimulation.aggregate.turn_limit_hit_pct}%)</span>
+                          <span className="text-[var(--ink-faint)]"> · </span>
+                          <span className="text-[var(--ink-faint)]">Turn-limit hits (T{selectedSimulation.aggregate.max_turns}): </span>
+                          <span className="text-[var(--ink-muted)]">{selectedSimulation.aggregate.turn_limit_hits}/{selectedSimulation.completed_games}</span>
+                          <span className="text-[var(--ink-faint)]"> ({selectedSimulation.aggregate.turn_limit_hit_pct}%)</span>
                         </div>
                       </div>
                     )}
@@ -2043,9 +2048,9 @@ const AdminDataViewer: React.FC = () => {
                   </div>
 
                   {/* Matchup Results Matrix */}
-                  <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                  <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-sm)' }}>
                     Matchup Results Matrix
-                    <span className="text-sm font-normal text-gray-400 ml-2">(Row Deck as P1 vs Column Deck as P2)</span>
+                    <span className="text-sm font-normal text-[var(--ink-faint)] ml-2">(Row Deck as P1 vs Column Deck as P2)</span>
                   </h3>
                   {(() => {
                     // Build matrix data from matchup_stats
@@ -2063,19 +2068,19 @@ const AdminDataViewer: React.FC = () => {
                     const getWinRateColor = (winRate: number) => {
                       if (winRate >= 0.7) return 'bg-green-600';
                       if (winRate >= 0.55) return 'bg-green-800';
-                      if (winRate > 0.45) return 'bg-gray-700';
+                      if (winRate > 0.45) return 'bg-white/10';
                       if (winRate > 0.3) return 'bg-red-900';
                       return 'bg-red-700';
                     };
 
                     return (
-                      <div className="bg-gray-900 rounded overflow-hidden" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                      <div className="bg-black/20 rounded overflow-hidden" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
                         <table className="w-full text-sm">
-                          <thead className="bg-gray-950">
+                          <thead className="bg-black/30">
                             <tr>
-                              <th className="px-3 py-2 text-left border-r border-gray-700">
+                              <th className="px-3 py-2 text-left border-r border-white/10">
                                 <span className="text-green-400">P1 (Row)</span>
-                                <span className="text-gray-500"> \ </span>
+                                <span className="text-[var(--ink-faint)]"> \ </span>
                                 <span className="text-blue-400">P2 (Col)</span>
                               </th>
                               {deckNames.map(deck => (
@@ -2087,15 +2092,15 @@ const AdminDataViewer: React.FC = () => {
                           </thead>
                           <tbody>
                             {deckNames.map(rowDeck => (
-                              <tr key={rowDeck} className="border-t border-gray-800">
-                                <td className="px-3 py-2 font-medium text-green-400 border-r border-gray-700">{rowDeck}</td>
+                              <tr key={rowDeck} className="border-t border-white/10">
+                                <td className="px-3 py-2 font-medium text-green-400 border-r border-white/10">{rowDeck}</td>
                                 {deckNames.map(colDeck => {
                                   const stats = matchupMap.get(`${rowDeck}_vs_${colDeck}`);
                                   const isMirror = rowDeck === colDeck;
                                   
                                   if (!stats) {
                                     return (
-                                      <td key={colDeck} className={`px-3 py-2 text-center ${isMirror ? 'bg-gray-800' : ''} text-gray-600`}>
+                                      <td key={colDeck} className={`px-3 py-2 text-center ${isMirror ? 'bg-panel' : ''} text-[var(--ink-faint)]`}>
                                         {isMirror ? '—' : 'N/A'}
                                       </td>
                                     );
@@ -2115,10 +2120,10 @@ const AdminDataViewer: React.FC = () => {
                             ))}
                           </tbody>
                         </table>
-                        <div className="px-4 py-2 text-xs text-gray-400 border-t border-gray-800">
+                        <div className="px-4 py-2 text-xs text-[var(--ink-faint)] border-t border-white/10">
                           <span className="inline-block w-4 h-3 bg-green-600 mr-1"></span>≥70%
                           <span className="inline-block w-4 h-3 bg-green-800 mx-1 ml-3"></span>55-69%
-                          <span className="inline-block w-4 h-3 bg-gray-700 mx-1 ml-3"></span>45-55%
+                          <span className="inline-block w-4 h-3 bg-white/10 mx-1 ml-3"></span>45-55%
                           <span className="inline-block w-4 h-3 bg-red-900 mx-1 ml-3"></span>31-44%
                           <span className="inline-block w-4 h-3 bg-red-700 mx-1 ml-3"></span>≤30%
                         </div>
@@ -2127,13 +2132,13 @@ const AdminDataViewer: React.FC = () => {
                   })()}
 
                   {/* Individual Games */}
-                  <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
+                  <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-sm)' }}>
                     Individual Games
-                    <span className="text-sm font-normal text-gray-400 ml-2">(click to view details)</span>
+                    <span className="text-sm font-normal text-[var(--ink-faint)] ml-2">(click to view details)</span>
                   </h3>
-                  <div className="bg-gray-900 rounded overflow-hidden max-h-[600px] overflow-y-auto">
+                  <div className="bg-black/20 rounded overflow-hidden max-h-[600px] overflow-y-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-950 sticky top-0 z-10">
+                      <thead className="bg-black/30 sticky top-0 z-10">
                         <tr>
                           <th className="px-4 py-2 text-left">#</th>
                           <th className="px-4 py-2 text-left">Matchup</th>
@@ -2149,7 +2154,7 @@ const AdminDataViewer: React.FC = () => {
                         {selectedSimulation.games.map(game => (
                           <React.Fragment key={game.game_number}>
                             <tr 
-                              className={`border-t border-gray-800 cursor-pointer hover:bg-gray-800 ${selectedGameDetail?.game_number === game.game_number ? 'bg-gray-700' : ''}`}
+                              className={`border-t border-white/10 cursor-pointer hover:bg-panel ${selectedGameDetail?.game_number === game.game_number ? 'bg-white/10' : ''}`}
                               onClick={() => {
                                 if (selectedGameDetail?.game_number === game.game_number) {
                                   setSelectedGameDetail(null);
@@ -2160,16 +2165,16 @@ const AdminDataViewer: React.FC = () => {
                             >
                               <td className="px-4 py-2">
                                 {game.game_number}
-                                <span className="ml-2 text-gray-500">{selectedGameDetail?.game_number === game.game_number ? '▼' : '▶'}</span>
+                                <span className="ml-2 text-[var(--ink-faint)]">{selectedGameDetail?.game_number === game.game_number ? '▼' : '▶'}</span>
                               </td>
                               <td className="px-4 py-2">
                                 <span className="text-green-400">{game.deck1_name}</span>
-                                <span className="text-gray-500"> vs </span>
+                                <span className="text-[var(--ink-faint)]"> vs </span>
                                 <span className="text-blue-400">{game.deck2_name}</span>
                               </td>
                               <td className="px-4 py-2 text-center">
                                 {game.outcome === 'draw' ? (
-                                  <span className="text-gray-400">Draw</span>
+                                  <span className="text-[var(--ink-faint)]">Draw</span>
                                 ) : (
                                   <span className={game.outcome === 'player1_win' ? 'text-green-400' : 'text-blue-400'}>
                                     {game.winner_deck} wins
@@ -2178,12 +2183,12 @@ const AdminDataViewer: React.FC = () => {
                               </td>
                               <td className="px-4 py-2 text-center text-green-400">{game.p1_charge_spent}</td>
                               <td className="px-4 py-2 text-center text-blue-400">{game.p2_charge_spent}</td>
-                              <td className="px-4 py-2 text-center text-gray-300">
+                              <td className="px-4 py-2 text-center text-[var(--ink-muted)]">
                                 <span className="text-green-400">P1</span>
-                                <span className="text-gray-300"> {formatMaybeNumber(game.p1_avg_charge_end_active, 2)}</span>
-                                <span className="text-gray-600"> · </span>
+                                <span className="text-[var(--ink-muted)]"> {formatMaybeNumber(game.p1_avg_charge_end_active, 2)}</span>
+                                <span className="text-[var(--ink-faint)]"> · </span>
                                 <span className="text-blue-400">P2</span>
-                                <span className="text-gray-300"> {formatMaybeNumber(game.p2_avg_charge_end_active, 2)}</span>
+                                <span className="text-[var(--ink-muted)]"> {formatMaybeNumber(game.p2_avg_charge_end_active, 2)}</span>
                               </td>
                               <td className="px-4 py-2 text-center text-orange-400">
                                 {game.turn_count}
@@ -2201,9 +2206,9 @@ const AdminDataViewer: React.FC = () => {
                             {selectedGameDetail?.game_number === game.game_number && (
                               <tr>
                                 <td colSpan={8} className="p-0">
-                                  <div className="bg-gray-800 border-l-4 border-blue-500 p-4">
+                                  <div className="bg-panel border-l-4 border-blue-500 p-4">
                                     {loadingGameDetail ? (
-                                      <div className="text-center text-gray-400 py-4">Loading game details...</div>
+                                      <div className="text-center text-[var(--ink-faint)] py-4">Loading game details...</div>
                                     ) : selectedGameDetail.charge_tracking && selectedGameDetail.charge_tracking.length > 0 ? (
                                       <div>
                                         <div className="flex justify-between items-center mb-3">
@@ -2221,21 +2226,21 @@ const AdminDataViewer: React.FC = () => {
                                           if (selectedGameDetail.error_message) blobParts.push(selectedGameDetail.error_message);
                                           const symptomCounts = countSymptoms(blobParts.join('\n'));
                                           return (
-                                            <div className="bg-gray-900 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
-                                              <div className="text-sm text-gray-300">
-                                                <span className="text-gray-500">Avg Charge end (active turns): </span>
+                                            <div className="bg-black/20 rounded" style={{ padding: 'var(--spacing-component-sm)', marginBottom: 'var(--spacing-component-sm)' }}>
+                                              <div className="text-sm text-[var(--ink-muted)]">
+                                                <span className="text-[var(--ink-faint)]">Avg Charge end (active turns): </span>
                                                 <span className="text-green-400">P1</span>
-                                                <span className="text-gray-300"> {chargeAverages.p1_avg !== null ? chargeAverages.p1_avg.toFixed(2) : '—'} </span>
-                                                <span className="text-gray-500">({chargeAverages.p1_samples} turns)</span>
-                                                <span className="text-gray-600"> · </span>
+                                                <span className="text-[var(--ink-muted)]"> {chargeAverages.p1_avg !== null ? chargeAverages.p1_avg.toFixed(2) : '—'} </span>
+                                                <span className="text-[var(--ink-faint)]">({chargeAverages.p1_samples} turns)</span>
+                                                <span className="text-[var(--ink-faint)]"> · </span>
                                                 <span className="text-blue-400">P2</span>
-                                                <span className="text-gray-300"> {chargeAverages.p2_avg !== null ? chargeAverages.p2_avg.toFixed(2) : '—'} </span>
-                                                <span className="text-gray-500">({chargeAverages.p2_samples} turns)</span>
+                                                <span className="text-[var(--ink-muted)]"> {chargeAverages.p2_avg !== null ? chargeAverages.p2_avg.toFixed(2) : '—'} </span>
+                                                <span className="text-[var(--ink-faint)]">({chargeAverages.p2_samples} turns)</span>
                                               </div>
-                                              <div className="text-sm text-gray-300" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                                                <span className="text-gray-500">Symptoms (game): </span>
+                                              <div className="text-sm text-[var(--ink-muted)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                                                <span className="text-[var(--ink-faint)]">Symptoms (game): </span>
                                                 <span>{formatCountsInline(symptomCounts)}</span>
-                                                <span className="text-gray-500"> · total {totalCount(symptomCounts)}</span>
+                                                <span className="text-[var(--ink-faint)]"> · total {totalCount(symptomCounts)}</span>
                                               </div>
                                             </div>
                                           );
@@ -2244,12 +2249,12 @@ const AdminDataViewer: React.FC = () => {
                                         {/* Charge Tracking - Compact timeline view */}
                                         <div className="overflow-x-auto mb-4">
                                           <table className="w-full text-sm border-collapse">
-                                            <thead className="bg-gray-900">
+                                            <thead className="bg-black/20">
                                               <tr>
-                                                <th className="px-3 py-2 text-center border-b border-gray-700 w-16">Turn</th>
-                                                <th className="px-3 py-2 text-center text-green-400 border-b border-gray-700 w-32">P1 Charge</th>
-                                                <th className="px-3 py-2 text-center text-blue-400 border-b border-gray-700 w-32">P2 Charge</th>
-                                                <th className="px-3 py-2 text-left border-b border-gray-700">Actions</th>
+                                                <th className="px-3 py-2 text-center border-b border-white/10 w-16">Turn</th>
+                                                <th className="px-3 py-2 text-center text-green-400 border-b border-white/10 w-32">P1 Charge</th>
+                                                <th className="px-3 py-2 text-center text-blue-400 border-b border-white/10 w-32">P2 Charge</th>
+                                                <th className="px-3 py-2 text-left border-b border-white/10">Actions</th>
                                               </tr>
                                             </thead>
                                             <tbody>
@@ -2276,13 +2281,13 @@ const AdminDataViewer: React.FC = () => {
                                                 
                                                 // Format Charge change as compact string with proper spacing
                                                 const formatCharge = (data: typeof selectedGameDetail.charge_tracking[0] | undefined, isActive: boolean): React.ReactNode => {
-                                                  if (!data) return <span className="text-gray-600">—</span>;
+                                                  if (!data) return <span className="text-[var(--ink-faint)]">—</span>;
                                                   return (
                                                     <span className={`font-mono ${isActive ? '' : 'opacity-60'}`}>
                                                       <span>{data.charge_start}</span>
                                                       {data.charge_gained > 0 && <span className="text-yellow-400 ml-1">+{data.charge_gained}</span>}
                                                       {data.charge_spent > 0 && <span className="text-red-400 ml-1">-{data.charge_spent}</span>}
-                                                      <span className="text-gray-500 mx-1">→</span>
+                                                      <span className="text-[var(--ink-faint)] mx-1">→</span>
                                                       <span className="font-bold">{data.charge_end}</span>
                                                     </span>
                                                   );
@@ -2296,7 +2301,7 @@ const AdminDataViewer: React.FC = () => {
                                                   const visibleActions = turnActions.filter(a => a.action !== 'end_turn');
                                                   
                                                   return (
-                                                    <tr key={turn} className="border-t border-gray-800 hover:bg-gray-850">
+                                                    <tr key={turn} className="border-t border-white/10 hover:bg-white/5">
                                                       <td className="px-3 py-2 text-center font-bold">{turn}</td>
                                                       <td className={`px-3 py-2 text-center ${isP1Turn ? 'bg-green-900/20' : ''}`}>
                                                         {formatCharge(data.p1, isP1Turn)}
@@ -2307,21 +2312,21 @@ const AdminDataViewer: React.FC = () => {
                                                       <td className="px-3 py-2 text-left text-xs">
                                                         {visibleActions.slice(0, 10).map((a, i) => (
                                                           <React.Fragment key={i}>
-                                                            {i > 0 && <span className="text-gray-600">, </span>}
+                                                            {i > 0 && <span className="text-[var(--ink-faint)]">, </span>}
                                                             <span className={a.player === 'player1' ? 'text-green-400' : 'text-blue-400'}>
                                                               {a.description || `${a.action} ${a.card || ''}`}
                                                             </span>
                                                           </React.Fragment>
                                                         ))}
-                                                        {visibleActions.length > 10 && <span className="text-gray-500"> +{visibleActions.length - 10} more</span>}
+                                                        {visibleActions.length > 10 && <span className="text-[var(--ink-faint)]"> +{visibleActions.length - 10} more</span>}
                                                       </td>
                                                     </tr>
                                                   );
                                                 });
                                               })()}
                                               {/* Summary row aligned with columns */}
-                                              <tr className="border-t border-gray-700 bg-gray-900/50">
-                                                <td className="px-3 py-2 text-center text-xs text-gray-400">Total</td>
+                                              <tr className="border-t border-white/10 bg-black/20/50">
+                                                <td className="px-3 py-2 text-center text-xs text-[var(--ink-faint)]">Total</td>
                                                 <td className="px-3 py-2 text-center text-green-400 text-xs">
                                                   <span className="text-yellow-400">+{selectedGameDetail.charge_tracking.filter(charge => charge.player_id === 'player1').reduce((sum, charge) => sum + charge.charge_gained, 0)}</span>
                                                   <span className="text-red-400 ml-1">-{selectedGameDetail.charge_tracking.filter(charge => charge.player_id === 'player1').reduce((sum, charge) => sum + charge.charge_spent, 0)}</span>
@@ -2337,7 +2342,7 @@ const AdminDataViewer: React.FC = () => {
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="text-gray-400">No Charge tracking data available.</div>
+                                      <div className="text-[var(--ink-faint)]">No Charge tracking data available.</div>
                                     )}
                                   </div>
                                 </td>
@@ -2354,15 +2359,15 @@ const AdminDataViewer: React.FC = () => {
 
             {/* Past Simulations */}
             {!selectedSimulation && simulationRuns && simulationRuns.length > 0 && (
-              <div className="bg-gray-800 rounded-lg" style={{ padding: 'var(--spacing-component-lg)' }}>
-                <h2 className="text-xl font-bold" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+              <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
+                <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-md)' }}>
                   Past Simulations
                 </h2>
                 <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
                   {simulationRuns.map(run => (
                     <div
                       key={run.run_id}
-                      className="bg-gray-900 rounded-lg cursor-pointer hover:bg-gray-850"
+                      className="bg-black/20 rounded-lg cursor-pointer hover:bg-white/5"
                       style={{ padding: 'var(--spacing-component-md)' }}
                       onClick={() => loadSimulationResults(run.run_id)}
                     >
@@ -2374,15 +2379,15 @@ const AdminDataViewer: React.FC = () => {
                               run.status === 'completed' ? 'bg-green-600' :
                               run.status === 'running' ? 'bg-yellow-600' :
                               run.status === 'failed' ? 'bg-red-600' :
-                              'bg-gray-600'
+                              'bg-white/10'
                             }`} style={{ marginLeft: 'var(--spacing-component-xs)', padding: '2px 6px' }}>
                               {run.status}
                             </span>
                           </div>
-                          <div className="text-sm text-gray-400">
+                          <div className="text-sm text-[var(--ink-faint)]">
                             {run.config.deck_names.join(', ')} • {run.completed_games}/{run.total_games} games
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-[var(--ink-faint)]">
                             {formatRelativeTime(run.created_at)}
                           </div>
                         </div>
