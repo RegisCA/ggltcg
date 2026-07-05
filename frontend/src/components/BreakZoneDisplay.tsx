@@ -56,6 +56,8 @@ const COUNT_BADGE_STYLE: React.CSSProperties = {
   flexShrink: 0,
 };
 
+// Chips shrink and ellipsize on narrow boards (390px) instead of hard-clipping
+// mid-chip; minWidth keeps a few legible characters per chip.
 const CHIP_STYLE: React.CSSProperties = {
   fontFamily: 'var(--font-card-name)',
   fontSize: '11px',
@@ -67,13 +69,19 @@ const CHIP_STYLE: React.CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
-  flexShrink: 0,
+  flexShrink: 1,
+  minWidth: '32px',
   maxWidth: '90px',
 };
 
+// The overflow chip never shrinks — it's the only signal that cards are
+// hidden, needed most exactly when the row is tightest. It renders outside
+// the shrinking chips container so it can't be clipped by its overflow.
 const MORE_CHIP_STYLE: React.CSSProperties = {
   ...CHIP_STYLE,
   color: 'rgba(237,232,222,.45)',
+  flexShrink: 0,
+  minWidth: 0,
   maxWidth: 'none',
 };
 
@@ -130,12 +138,12 @@ export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
       >
         <span style={LABEL_STYLE}>BREAK</span>
         <span style={COUNT_BADGE_STYLE}>{cardList.length}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', minWidth: 0, flex: '1 1 auto' }}>
           {visibleChips.map((card) => (
             <span key={card.id} style={CHIP_STYLE}>{card.name}</span>
           ))}
-          {overflowCount > 0 && <span style={MORE_CHIP_STYLE}>+{overflowCount}</span>}
         </div>
+        {overflowCount > 0 && <span style={MORE_CHIP_STYLE}>+{overflowCount}</span>}
         <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'rgba(237,232,222,.4)', flexShrink: 0 }} aria-hidden="true">
           view
         </span>
