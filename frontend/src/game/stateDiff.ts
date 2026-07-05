@@ -25,6 +25,10 @@
  *   - Visible only in `prev` -> it returned to a hidden hand (e.g. a
  *     "return to hand" effect like Toynado): emit `card_moved` with
  *     `to = { playerId: card.owner, zone: 'hand' }`.
+ *   - A `card_moved` event always has `from` !== `to`: if the inferred
+ *     hidden-hand endpoint equals the card's actual location (e.g. a hand
+ *     toggling hidden <-> visible with the card staying put), no event is
+ *     emitted.
  *   - Invisible in both, or visible in both with no resolvable zone change
  *     (e.g. our own hidden-hand toggling on/off between snapshots with no
  *     other information) -> emit nothing; we can't claim a real move
@@ -194,15 +198,19 @@ export function diffGameStates(prev: GameState, next: GameState): GameStateEvent
     const prevLoc = prevIndex.get(cardId);
 
     if (!prevLoc) {
-      // Visible only in next -> came from a hidden hand.
-      const owner = nextLoc.card.owner;
-      cardMovedEvents.push({
-        type: 'card_moved',
-        cardId,
-        cardName: nextLoc.card.name,
-        from: { playerId: owner, zone: 'hand' },
-        to: nextLoc.location,
-      });
+      // Visible only in next -> came from a hidden hand. If the card
+      // surfaced in that same hand (a hand toggling hidden -> visible),
+      // the inferred `from` equals `to` — no real move, emit nothing.
+      const inferredFrom: ZoneRef = { playerId: nextLoc.card.owner, zone: 'hand' };
+      if (!sameZoneRef(inferredFrom, nextLoc.location)) {
+        cardMovedEvents.push({
+          type: 'card_moved',
+          cardId,
+          cardName: nextLoc.card.name,
+          from: inferredFrom,
+          to: nextLoc.location,
+        });
+      }
       handledForMove.add(cardId);
       continue;
     }
@@ -273,14 +281,18 @@ export function diffGameStates(prev: GameState, next: GameState): GameStateEvent
     if (handledForMove.has(cardId)) continue;
     if (nextIndex.has(cardId)) continue; // shouldn't happen, but be safe
 
-    const owner = prevLoc.card.owner;
-    cardMovedEvents.push({
-      type: 'card_moved',
-      cardId,
-      cardName: prevLoc.card.name,
-      from: prevLoc.location,
-      to: { playerId: owner, zone: 'hand' },
-    });
+    // If the card was already in that hand (a hand toggling visible ->
+    // hidden), the inferred `to` equals `from` — no real move, emit nothing.
+    const inferredTo: ZoneRef = { playerId: prevLoc.card.owner, zone: 'hand' };
+    if (!sameZoneRef(prevLoc.location, inferredTo)) {
+      cardMovedEvents.push({
+        type: 'card_moved',
+        cardId,
+        cardName: prevLoc.card.name,
+        from: prevLoc.location,
+        to: inferredTo,
+      });
+    }
   }
 
   events.push(...cardMovedEvents, ...controlChangedEvents, ...statChangedEvents);

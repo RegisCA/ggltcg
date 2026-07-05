@@ -363,6 +363,37 @@ describe('diffGameStates', () => {
     expect(events).toEqual([]);
   });
 
+  it('emits no card_moved when a hidden hand becomes visible with cards in place', () => {
+    const cardA = makeCard({ id: 'c30', name: 'Held A', owner: 'p2', zone: 'Hand' });
+    const cardB = makeCard({ id: 'c31', name: 'Held B', owner: 'p2', zone: 'Hand' });
+
+    const prev = baseState();
+    prev.players.p2.hand = null;
+    prev.players.p2.hand_count = 2;
+
+    const next = baseState();
+    next.players.p2.hand = [cardA, cardB];
+    next.players.p2.hand_count = 2;
+
+    const events = diffGameStates(prev, next);
+    expect(events.filter((e) => e.type === 'card_moved')).toEqual([]);
+  });
+
+  it('emits no card_moved when a visible hand becomes hidden with cards in place', () => {
+    const cardA = makeCard({ id: 'c32', name: 'Held C', owner: 'p2', zone: 'Hand' });
+
+    const prev = baseState();
+    prev.players.p2.hand = [cardA];
+    prev.players.p2.hand_count = 1;
+
+    const next = baseState();
+    next.players.p2.hand = null;
+    next.players.p2.hand_count = 1;
+
+    const events = diffGameStates(prev, next);
+    expect(events.filter((e) => e.type === 'card_moved')).toEqual([]);
+  });
+
   it('produces a fully ordered event list for a combined multi-event turn', () => {
     const played = makeCard({ id: 'c20', name: 'Played', owner: 'p1' });
     const broken = makeCard({ id: 'c21', name: 'Broken', owner: 'p2' });
