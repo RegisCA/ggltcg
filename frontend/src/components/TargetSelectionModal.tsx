@@ -9,7 +9,8 @@
 import { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { CardDisplay } from './CardDisplay';
-import type { Card, ValidAction, Zone } from '../types/game';
+import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
+import type { Card, ValidAction } from '../types/game';
 
 interface TargetSelectionModalProps {
   action: ValidAction;
@@ -18,14 +19,27 @@ interface TargetSelectionModalProps {
   onCancel: () => void;
   alternativeCostOptions?: Card[]; // For Ballaber
   currentCharge?: number; // Current Charge to determine if Pay Charge option is affordable
+  /** Opponent's display name, for the "…'s In play" group header. */
+  opponentName?: string;
 }
 
-// Targets are grouped by their current zone (In play / Break zone / Hand): the
-// card's material already says who owns it, so the zone is the context the
-// player needs — e.g. a fix targets the break zone. Full cards (not minimal
-// chips) so the effect text is readable when deciding what to fix.
-const ZONE_ORDER: Zone[] = ['InPlay', 'Break', 'Hand'];
-const ZONE_LABEL: Record<Zone, string> = { InPlay: 'In play', Break: 'Break zone', Hand: 'Hand' };
+// Group targets by WHOSE zone they're in. The card material already shows the
+// owner, but "In play" alone is ambiguous — both players have an in-play zone —
+// so each group names the side + zone (matching the board zone headers).
+// In-play membership follows the controller (whose board it sits on); break and
+// hand follow the owner. Full cards so the effect text stays readable.
+function targetGroup(card: Card, localId: string | null, opp: string): { order: number; label: string } {
+  if (card.zone === 'InPlay') {
+    const mine = card.controller === localId;
+    return { order: mine ? 0 : 1, label: `${mine ? 'You' : opp} · In play` };
+  }
+  if (card.zone === 'Break') {
+    const mine = card.owner === localId;
+    return { order: mine ? 2 : 3, label: `${mine ? 'You' : opp} · Break zone` };
+  }
+  const mine = card.owner === localId;
+  return { order: mine ? 4 : 5, label: mine ? 'Your hand' : `${opp} · Hand` };
+}
 
 const PANEL_STYLE: React.CSSProperties = {
   background: '#241E17',
@@ -43,7 +57,9 @@ export function TargetSelectionModal({
   onCancel,
   alternativeCostOptions,
   currentCharge,
+  opponentName,
 }: TargetSelectionModalProps) {
+  const localId = useLocalPlayerId();
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [useAlternativeCost, setUseAlternativeCost] = useState(false);
   const [alternativeCostCard, setAlternativeCostCard] = useState<string | null>(null);
@@ -318,21 +334,30 @@ export function TargetSelectionModal({
             </div>
           )}
 
-          {/* Target selection — grouped by the card's current zone. Owner is
-              read from the card material (paper/ink); the zone is the extra
-              context. Full cards so the effect text is readable. */}
-          {!useAlternativeCost && availableTargets.length > 0 && (
+          {/* Target selection — grouped by WHICH side's zone (You · In play /
+              {opp} · In play / … · Break zone / Your hand). Owner is also shown
+              by the card material; the group gives the zone context. */}
+          {!useAlternativeCost && availableTargets.length > 0 && (() => {
+            const opp = opponentName || 'Opponent';
+            const groups = new Map<number, { label: string; cards: Card[] }>();
+            for (const card of availableTargets) {
+              const g = targetGroup(card, localId, opp);
+              if (!groups.has(g.order)) groups.set(g.order, { label: g.label, cards: [] });
+              groups.get(g.order)!.cards.push(card);
+            }
+            const ordered = [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+            return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {ZONE_ORDER.filter((z) => availableTargets.some((c) => c.zone === z)).map((zone) => (
-                <div key={zone}>
+              {ordered.map((grp) => (
+                <div key={grp.label}>
                   <div style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: '2px' }}>
-                    {ZONE_LABEL[zone]}
+                    {grp.label}
                   </div>
                   {/* padding leaves room for the selected ✓ badge (which sits
                       proud of the card corner) so it isn't clipped by the scroll
                       edge or covered by the neighbouring card. */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px 10px 4px' }}>
-                    {availableTargets.filter((c) => c.zone === zone).map((card) => {
+                    {grp.cards.map((card) => {
                       const isSelected = selectedTargets.includes(card.id);
                       const isDisabled = !isSelected && selectedTargets.length >= maxTargets;
                       const clickable = !isDisabled || hasDirectAttackOption;
@@ -358,7 +383,8 @@ export function TargetSelectionModal({
                 </div>
               ))}
             </div>
-          )}
+            );
+          })()}
 
           {!useAlternativeCost && availableTargets.length === 0 && minTargets === 0 && !hasAlternativeCost && (
             <div style={{ textAlign: 'center', color: 'var(--ink-muted)', fontSize: '11.5px' }}>

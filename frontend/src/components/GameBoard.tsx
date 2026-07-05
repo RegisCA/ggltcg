@@ -421,6 +421,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
           onConfirm={handleTargetSelection}
           onCancel={handleCancelTargetSelection}
           currentCharge={humanPlayer.charge}
+          opponentName={otherPlayer.name}
           alternativeCostOptions={
             pendingAction.alternative_cost_available
               ? [...humanPlayer.in_play, ...(humanPlayer.hand || [])]

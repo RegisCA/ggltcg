@@ -238,18 +238,19 @@ export function CardDisplay({
           {canAct ? (
             <div style={{ marginLeft: 'auto', fontSize: '11px', lineHeight: 1 }} title="Ready to act">⚡</div>
           ) : card.is_broken ? (
-            // Corner tag, not a stamp over the body — the effect text must stay
-            // readable so players can decide which broken card to fix.
+            // Cracked-card pip (the broken motif, §8) instead of the word — keeps
+            // the header short so the name isn't squeezed, and never covers the
+            // body so the effect text stays readable.
             <span
+              title="Broken"
+              aria-label="Broken"
               style={{
                 marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-start',
-                fontSize: '8px', fontWeight: 900, letterSpacing: '.06em',
-                color: material.danger, border: `1px solid ${material.danger}`,
-                borderRadius: '3px', padding: '1px 4px',
+                width: '11px', height: '15px', borderRadius: '2px',
+                border: `1.5px solid ${material.danger}`,
+                background: `linear-gradient(45deg, transparent 44%, ${material.danger} 44%, ${material.danger} 56%, transparent 56%)`,
               }}
-            >
-              BROKEN
-            </span>
+            />
           ) : null}
         </div>
 
