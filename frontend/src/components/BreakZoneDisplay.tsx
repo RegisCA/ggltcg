@@ -1,12 +1,12 @@
 /**
- * BreakZoneDisplay Component
- * Shows a player's break zone with small card displays.
+ * BreakZoneDisplay — the slim break slat (Paper & Ink §7.3).
  *
- * Cards never overlap (the old offset-stack rendering made 2+ cards
- * unreadable — UI_REFRESH_2026_06 WP-1 #2 / WP-2 #8):
- * - default: cards wrap into a grid, every card fully readable
- * - compact (narrow fixed-width column): most recent card + a "view all"
- *   button that opens a modal with the full list
+ * One quiet dashed slot per player: BREAK label · latest broken card's name
+ * (Gochi) · `+n` when stacked · a "view" affordance that opens the full pile.
+ * The count lives in the score chip's broken pip (§7.1), so the zone stays
+ * deliberately quiet — no more full cards stacked in a tall panel.
+ *
+ * Values from the signed-off mockup (6a break row).
  */
 
 import { useState } from 'react';
@@ -17,89 +17,81 @@ import type { Card } from '../types/game';
 interface BreakZoneDisplayProps {
   cards: Card[];
   playerName: string;
-  isCompact?: boolean;  // Narrow fixed-width column (tablet/mobile layouts)
-  enableLayoutAnimation?: boolean;  // Enable smooth zone transitions
 }
 
-export function BreakZoneDisplay({
-  cards,
-  playerName,
-  isCompact = false,
-  enableLayoutAnimation = false,
-}: BreakZoneDisplayProps) {
+const SLOT_STYLE: React.CSSProperties = {
+  background: 'rgba(239,231,214,.05)',
+  border: '1.5px dashed rgba(239,231,214,.2)',
+  borderRadius: '6px',
+  padding: '5px 8px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  minWidth: 0,
+};
+
+const LABEL_STYLE: React.CSSProperties = {
+  fontSize: '9px',
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  color: 'rgba(237,232,222,.4)',
+  flexShrink: 0,
+};
+
+export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
   const cardList = cards || [];
   const [isListOpen, setIsListOpen] = useState(false);
 
-  const minHeight = isCompact ? '180px' : '200px';
-  // Newest break first everywhere: it's the card players look for when
-  // reconstructing what just happened (e.g. two breaks in one opponent turn
-  // used to require the log or the modal to identify).
+  // Newest break first — the card players look for when reconstructing what
+  // just happened.
   const newestFirst = [...cardList].reverse();
-  const newestCard = newestFirst[0];
-  const hiddenCount = cardList.length - 1;
+  const newest = newestFirst[0];
+  const hidden = cardList.length - 1;
+
+  if (cardList.length === 0) {
+    return (
+      <div style={SLOT_STYLE}>
+        <span style={LABEL_STYLE}>BREAK</span>
+        <span style={{ fontSize: '11px', fontStyle: 'italic', color: 'rgba(237,232,222,.28)' }}>empty</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-gray-800 rounded border border-gray-700" style={{ minHeight, padding: 'var(--spacing-component-sm)' }}>
-      <div className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
-        {playerName} - BREAK ZONE ({cardList.length})
-      </div>
-
-      {cardList.length === 0 ? (
-        <div className="text-center text-gray-600 italic text-sm" style={{ padding: 'var(--spacing-component-md) 0' }}>
-          No broken cards
-        </div>
-      ) : isCompact ? (
-        <div className="flex flex-col items-start" style={{ gap: 'var(--spacing-component-xs)' }}>
-          <CardDisplay
-            card={newestCard}
-            size="small"
-            enableLayoutAnimation={enableLayoutAnimation}
-          />
-          {hiddenCount > 0 && (
-            <button
-              onClick={() => setIsListOpen(true)}
-              className="w-full text-xs font-bold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600 transition-colors"
-              style={{ padding: 'var(--spacing-component-xs)' }}
-              aria-label={`View all ${cardList.length} broken cards`}
-            >
-              +{hiddenCount} more — view all
-            </button>
-          )}
-        </div>
-      ) : (
-        /* auto-fill grid: cards flex between their base and max width so
-           names get the available space instead of truncating */
-        <div
+    <>
+      {/* The whole slat is the click target (not just the tiny "view" label) —
+          it's a small, non-obvious tap otherwise. */}
+      <div
+        onClick={() => setIsListOpen(true)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsListOpen(true); } }}
+        role="button"
+        tabIndex={0}
+        aria-label={`View ${cardList.length} broken card${cardList.length > 1 ? 's' : ''} for ${playerName}`}
+        style={{ ...SLOT_STYLE, cursor: 'pointer' }}
+      >
+        <span style={LABEL_STYLE}>BREAK</span>
+        <span
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--spacing-card-small-w), 100%), 1fr))',
-            gap: 'var(--spacing-component-xs)',
+            fontFamily: 'var(--font-card-name)',
+            fontSize: '13px',
+            color: 'rgba(237,232,222,.75)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
           }}
         >
-          {newestFirst.map((card) => (
-            <CardDisplay
-              key={card.id}
-              card={card}
-              size="small"
-              fluid={true}
-              enableLayoutAnimation={enableLayoutAnimation}
-            />
-          ))}
-        </div>
-      )}
+          {newest.name}
+          {hidden > 0 && <span style={{ color: 'rgba(237,232,222,.45)' }}> +{hidden}</span>}
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'rgba(237,232,222,.4)', flexShrink: 0 }} aria-hidden="true">
+          view
+        </span>
+      </div>
 
-      {/* Full-list modal for compact mode. Cards here intentionally skip
-          layout animation: the newest card is also rendered in the zone and
-          duplicate framer-motion layoutIds would conflict. */}
-      <Modal
-        isOpen={isListOpen}
-        onClose={() => setIsListOpen(false)}
-        title={`${playerName} break zone`}
-      >
+      <Modal isOpen={isListOpen} onClose={() => setIsListOpen(false)} title={`${playerName} break zone`}>
         <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-          <h3 className="font-bold text-lg">
-            {playerName} - Break Zone ({cardList.length})
-          </h3>
+          <h3 className="font-bold text-lg">{playerName} · Break Zone ({cardList.length})</h3>
           <button
             onClick={() => setIsListOpen(false)}
             className="text-gray-400 hover:text-white text-xl font-bold rounded"
@@ -109,22 +101,21 @@ export function BreakZoneDisplay({
             ✕
           </button>
         </div>
-        {/* flex-1 min-h-0 lets this flex item shrink below its content height
-            so overflow-y-auto engages inside Modal's max-h-[90vh] wrapper
-            (same pattern as TargetSelectionModal/ProfileEditModal) */}
+        {/* Medium cards so the effect text is readable — you need to know what
+            a broken card does to decide whether to fix it. */}
         <div
           className="flex-1 min-h-0 overflow-y-auto content-start"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--spacing-card-small-w), 100%), 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--spacing-card-medium-min-w), 100%), 1fr))',
             gap: 'var(--spacing-component-sm)',
           }}
         >
           {newestFirst.map((card) => (
-            <CardDisplay key={card.id} card={card} size="small" fluid={true} disableDetailModal={true} />
+            <CardDisplay key={card.id} card={card} size="medium" fluid={true} disableDetailModal={true} />
           ))}
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

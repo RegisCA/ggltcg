@@ -1,11 +1,14 @@
 /**
- * AnimatedStat Component
- * 
- * Displays a stat value with animation when it changes.
- * - Green flash + scale up when value increases
- * - Red flash + shake when value decreases
- * 
- * Respects user's reduced motion preferences for accessibility (WCAG 2.1).
+ * AnimatedStat — a single stat box in a card's left stat rail (Paper & Ink §4).
+ *
+ * Box: 1.5px identity-crayon border, faint uppercase label (7px/900), value 900.
+ * Value color is material-aware: buffed → gold (gold-on-paper on cream), damaged
+ * → danger red, otherwise the card's normal text. Damaged stamina shows
+ * `current/max` with the "/max" faint. Colors are passed in by CardDisplay from
+ * the owner material + identity crayon; this component owns only the box + the
+ * transient flash when a value changes.
+ *
+ * Respects reduced-motion (WCAG 2.1).
  */
 
 import { useState, useEffect } from 'react';
@@ -17,26 +20,33 @@ interface AnimatedStatProps {
   value: number | null;
   baseValue?: number | null;
   label: string;
-  accentColor: string;
-  size: 'small' | 'medium' | 'large';
-  /** For stamina: show current/max format */
+  /** For stamina: show current/max and color as damaged when current < value. */
   currentValue?: number | null;
+  size: 'small' | 'medium' | 'large';
+  /** Identity crayon — the box border. */
+  crayonColor: string;
+  /** Faint label + "/max" color (material text-faint). */
+  labelColor: string;
+  /** Normal value color (material text). */
+  valueColor: string;
+  /** Buffed value color (material buffed: gold / gold-on-paper). */
+  buffedColor: string;
+  /** Damaged value color (material danger). */
+  damagedColor: string;
 }
 
-// Animation variants defined outside component for performance (#116)
+// Box geometry per size (§4 rail is sized for the medium board card).
+const BOX = {
+  small: { width: 26, label: 6, value: 11, max: 7 },
+  medium: { width: 30, label: 7, value: 13, max: 8 },
+  large: { width: 44, label: 10, value: 20, max: 12 },
+} as const;
+
 const statVariants = {
   initial: { scale: 1 },
-  increased: {
-    scale: [1, 1.3, 1],
-    transition: { duration: 0.4, ease: 'easeOut' as const }  // Use 'as const' for proper typing
-  },
-  decreased: {
-    x: [0, -3, 3, -3, 3, 0],
-    transition: { duration: 0.4, ease: 'easeOut' as const }
-  },
+  increased: { scale: [1, 1.3, 1], transition: { duration: 0.4, ease: 'easeOut' as const } },
+  decreased: { x: [0, -3, 3, -3, 3, 0], transition: { duration: 0.4, ease: 'easeOut' as const } },
 };
-
-// No-animation variants for reduced motion preference
 const reducedMotionVariants = {
   initial: { scale: 1 },
   increased: { scale: 1 },
@@ -47,29 +57,28 @@ export function AnimatedStat({
   value,
   baseValue,
   label,
-  accentColor,
-  size,
   currentValue,
+  size,
+  crayonColor,
+  labelColor,
+  valueColor,
+  buffedColor,
+  damagedColor,
 }: AnimatedStatProps) {
   const prefersReducedMotion = useReducedMotion();
   const previousValue = usePreviousValue(value);
   const previousCurrent = usePreviousValue(currentValue);
-  
-  // State-based flash control for proper AnimatePresence animation (#114)
+  const box = BOX[size];
+
   const [flashType, setFlashType] = useState<'increase' | 'decrease' | null>(null);
-  
-  // Determine if value changed and in which direction
+
   const valueIncreased = previousValue !== undefined && value !== null && previousValue !== null && value > previousValue;
   const valueDecreased = previousValue !== undefined && value !== null && previousValue !== null && value < previousValue;
-  
-  // For stamina with current/max, also check current value changes
   const currentDecreased = previousCurrent !== undefined && currentValue !== undefined && currentValue !== null && previousCurrent !== null && currentValue < previousCurrent;
   const currentIncreased = previousCurrent !== undefined && currentValue !== undefined && currentValue !== null && previousCurrent !== null && currentValue > previousCurrent;
-  
-  // Trigger flash effect with proper timing for AnimatePresence (#114)
+
   useEffect(() => {
-    if (prefersReducedMotion) return; // No flash effects for reduced motion
-    
+    if (prefersReducedMotion) return;
     if (valueIncreased || currentIncreased) {
       setFlashType('increase');
       const timer = setTimeout(() => setFlashType(null), 500);
@@ -80,79 +89,68 @@ export function AnimatedStat({
       return () => clearTimeout(timer);
     }
   }, [valueIncreased, currentIncreased, valueDecreased, currentDecreased, prefersReducedMotion]);
-  
-  // Determine animation key - changes trigger re-animation
+
   const animationKey = `${value}-${currentValue}`;
-  
-  // Is this stat buffed above base?
-  const isBuffed = value !== null && baseValue !== undefined && baseValue !== null && value > baseValue;
-  
-  // Determine display color
-  let displayColor = accentColor;
-  if (currentValue !== null && currentValue !== undefined && currentValue !== value) {
-    // Damaged - show in red
-    displayColor = '#f87171'; // red-400
-  } else if (isBuffed) {
-    // Buffed - show in green
-    displayColor = '#4ade80'; // green-400
-  }
-  
-  // Determine which animation to play
+
+  // Is stamina damaged (current below effective max)?
+  const isDamaged = currentValue !== null && currentValue !== undefined && currentValue !== value;
+  // Is this stat buffed above its printed base?
+  const isBuffed = !isDamaged && value !== null && baseValue !== undefined && baseValue !== null && value > baseValue;
+
+  const displayColor = isDamaged ? damagedColor : isBuffed ? buffedColor : valueColor;
+
   let animateState: 'initial' | 'increased' | 'decreased' = 'initial';
-  if (valueIncreased || currentIncreased) {
-    animateState = 'increased';
-  } else if (valueDecreased || currentDecreased) {
-    animateState = 'decreased';
-  }
-  
-  // Format display value
-  const displayValue = currentValue !== null && currentValue !== undefined && currentValue !== value
-    ? `${currentValue}/${value}`
-    : String(value);
+  if (valueIncreased || currentIncreased) animateState = 'increased';
+  else if (valueDecreased || currentDecreased) animateState = 'decreased';
 
-  // Calculate buff amount for accessibility (colorblind users)
-  const buffAmount = isBuffed && value !== null && baseValue !== null ? value - baseValue : 0;
-
-  // Use reduced motion variants if user prefers (#111)
   const variants = prefersReducedMotion ? reducedMotionVariants : statVariants;
-  
+
   return (
-    <div className="flex-1 bg-black bg-opacity-30 rounded px-1 py-1 text-center relative overflow-hidden">
-      <div 
-        className="text-gray-400" 
-        style={{ fontSize: size === 'small' ? '0.5rem' : '0.625rem' }}
+    <div
+      style={{
+        border: `1.5px solid ${crayonColor}`,
+        borderRadius: '3px',
+        width: `${box.width}px`,
+        textAlign: 'center',
+        padding: '1px 0',
+        position: 'relative',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          fontSize: `${box.label}px`,
+          fontWeight: 900,
+          letterSpacing: '.05em',
+          color: labelColor,
+          lineHeight: 1.1,
+        }}
       >
         {label}
       </div>
       <AnimatePresence mode="wait">
         <motion.div
           key={animationKey}
-          className="font-bold"
-          style={{ 
-            color: displayColor,
-            fontSize: size === 'small' ? '0.875rem' : '1rem',
-          }}
+          style={{ fontWeight: 900, fontSize: `${box.value}px`, color: displayColor, lineHeight: 1.1 }}
           variants={variants}
           initial="initial"
           animate={animateState}
         >
-          {displayValue}
-          {isBuffed && buffAmount > 0 && (
-            <span className="text-xs" style={{ marginLeft: '2px' }} title={`Buffed from ${baseValue} (+${buffAmount})`}>
-              ↑
-            </span>
+          {isDamaged ? currentValue : value}
+          {isDamaged && (
+            <span style={{ fontSize: `${box.max}px`, color: labelColor }}>/{value}</span>
           )}
         </motion.div>
       </AnimatePresence>
-      
-      {/* Flash overlay for dramatic effect - using state-based timing (#114) */}
+
+      {/* Transient change flash — gold up / danger down, on-palette (§2). */}
       <AnimatePresence>
         {flashType === 'increase' && (
           <motion.div
             key="flash-increase"
-            className="absolute inset-0 rounded pointer-events-none"
-            style={{ backgroundColor: '#4ade80' }}
-            initial={{ opacity: 0.6 }}
+            style={{ position: 'absolute', inset: 0, borderRadius: '3px', pointerEvents: 'none', backgroundColor: 'var(--gold)' }}
+            initial={{ opacity: 0.5 }}
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
@@ -161,9 +159,8 @@ export function AnimatedStat({
         {flashType === 'decrease' && (
           <motion.div
             key="flash-decrease"
-            className="absolute inset-0 rounded pointer-events-none"
-            style={{ backgroundColor: '#f87171' }}
-            initial={{ opacity: 0.6 }}
+            style={{ position: 'absolute', inset: 0, borderRadius: '3px', pointerEvents: 'none', backgroundColor: 'var(--danger)' }}
+            initial={{ opacity: 0.5 }}
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}

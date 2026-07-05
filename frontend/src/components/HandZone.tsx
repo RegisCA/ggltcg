@@ -32,32 +32,21 @@ export function HandZone({
   targetHints = {},
 }: HandZoneProps) {
   const cardList = cards || [];
-  
-  // Zone height optimized for card display (from design system):
-  // - isCompact (landscape tablet): reduced 130px for horizontal scrolling
-  // - small cards: 164px card height, ~140px zone allows slight overlap with controls
-  // - medium cards: 225px card height, ~180px zone for comfortable display
-  const minHeight = isCompact ? '130px' : (size === 'small' ? '140px' : '180px');
-  
+
   return (
-    <div className="bg-blue-950 rounded border-2 border-blue-700 flex">
-      {/* Vertical Label */}
-      <div 
-        className="flex items-center justify-center bg-blue-900 rounded-l border-r border-blue-700"
-        style={{ paddingLeft: 'var(--spacing-component-xs)', paddingRight: 'var(--spacing-component-xs)' }}
-      >
-        <div className="text-xs text-gray-400 font-bold" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-          HAND ({cardList.length})
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Zone label (§5) — "Your hand · N", no dot (the hand is always yours). */}
+      <div style={{ marginBottom: '6px' }}>
+        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>
+          Your hand · {cardList.length}
+        </span>
       </div>
-      
-      {/* Cards Area */}
-      <div className={`flex-1 ${isCompact ? 'overflow-x-auto' : ''}`} style={{ padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)' }}>
-        {cardList.length === 0 ? (
-          <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            No cards in hand
-          </div>
-        ) : (
+
+      {cardList.length === 0 ? (
+        <div style={{ minHeight: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontStyle: 'italic', color: 'var(--ink-faint)' }}>
+          No cards in hand
+        </div>
+      ) : (
           /* Compact mode keeps fixed-width cards in a horizontal scroll row;
              otherwise an auto-fill grid lets cards widen (up to a max) so
              names get the available space instead of truncating */
@@ -65,11 +54,12 @@ export function HandZone({
             className={isCompact ? 'flex flex-wrap' : ''}
             style={
               isCompact
-                ? { gap: 'var(--spacing-component-xs)' }
+                ? { gap: '8px', overflowX: 'auto' }
                 : {
                     display: 'grid',
                     gridTemplateColumns: cardGridTemplateColumns(size),
-                    gap: 'var(--spacing-component-xs)',
+                    gridAutoRows: '1fr',
+                    gap: '8px',
                   }
             }
           >
@@ -93,7 +83,6 @@ export function HandZone({
             })}
           </div>
         )}
-      </div>
     </div>
   );
 }

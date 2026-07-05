@@ -1,14 +1,17 @@
 /**
- * CardDisplay Component
- * Renders a single card with GGLTCG design system
- * Supports multiple sizes and states according to UX spec
- * 
- * Uses Framer Motion for animations:
- * - layoutId enables smooth transitions when cards move between zones
- * - Entrance/exit animations
- * - Hover/tap feedback
- * 
- * Respects user's reduced motion preferences for accessibility (WCAG 2.1).
+ * CardDisplay — a single card in the Paper & Ink language.
+ *
+ * Anatomy (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md §4): paper (yours) or ink
+ * (theirs) face bound to card.owner via the material helper; identity crayon from
+ * primary_color drives the frame border, corner brackets, cost box and stat-box
+ * borders (no rules meaning — §2). Gochi-Hand name, left stat rail for Toys,
+ * muted effect text, ready ⚡ bolt when a Toy can act, target pill on hand cards.
+ * States per §6: playable glow, selected gold outline + ✓, broken grayscale +
+ * stamp, disabled opacity. Exact values were read from the signed-off mockup
+ * (docs/plans/wireframes/direction-boards.readable.html) and verified in the
+ * /design.html harness.
+ *
+ * Framer Motion drives zone-transition layout + entrance; reduced motion honored.
  */
 
 import { motion } from 'framer-motion';
@@ -18,6 +21,8 @@ import { AnimatedStat } from './AnimatedStat';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsive } from '../hooks/useResponsive';
 import { CardDetailModal } from './CardDetailModal';
+import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
+import { crayonForColor, costNumeralColor, materialFor } from '../theme/crayon';
 
 interface CardDisplayProps {
   card: Card;
@@ -28,7 +33,7 @@ interface CardDisplayProps {
   isDisabled?: boolean;
   isUnplayable?: boolean;  // Card cannot be played this turn (not enough Charge, restricted, etc.)
   isTussling?: boolean;
-  isCopy?: boolean;  // Card created by Copy effect
+  isCopy?: boolean;  // Card created by Copy effect (belongs to the copier — §1)
   size?: 'small' | 'medium' | 'large';
   /** Fill the parent grid track (up to a per-size max) instead of a fixed
    *  width. Use inside auto-fill grid containers so card names get the
@@ -41,7 +46,28 @@ interface CardDisplayProps {
   /** Which side this card's effect can currently target (hand cards only).
    *  Surfaces self-targetable effects before the target modal opens (WP-2 #5). */
   targetHint?: 'yours' | 'theirs' | 'either';
+  /** Override the size's default min-height (px). Used to keep Toy and Action
+   *  cards the same height when they're split across separate grids (e.g. the
+   *  zone-grouped target modal), where grid-auto-rows can't equalize them. */
+  minHeight?: number;
 }
+
+// Size configs. width is the fixed (and fluid-minimum) size; maxWidth caps
+// fluid growth. Height is content-driven above a minimum so rows of cards in a
+// grid-auto-rows:1fr container stay even without wasting space (no card art).
+const SIZE = {
+  small: { width: 120, maxWidth: 175, minHeight: 92, padding: '6px 7px', cost: 16, costFont: 10, name: 13, effect: 10.5, statSize: 'small' as const, showEffect: false, gap: 6 },
+  medium: { width: 165, maxWidth: 250, minHeight: 104, padding: '7px 8px', cost: 20, costFont: 12, name: 16, effect: 10.5, statSize: 'medium' as const, showEffect: true, gap: 8 },
+  large: { width: 330, maxWidth: 330, minHeight: 300, padding: '16px', cost: 30, costFont: 18, name: 26, effect: 13, statSize: 'large' as const, showEffect: true, gap: 12 },
+};
+
+// Target-pill palette (§4). Hand cards are always yours (paper), so these are
+// the on-cream tints from the mockup; blue = your side, purple = their side.
+const PILL = {
+  yours: { background: '#E2E9DE', color: '#3D6CA8', label: 'your side' },
+  theirs: { background: '#EBE2EE', color: '#7A4F9C', label: 'their side' },
+  either: { background: 'linear-gradient(90deg,#E2E9DE,#EBE2EE)', color: '#6D5A9C', label: 'either side' },
+};
 
 export function CardDisplay({
   card,
@@ -58,104 +84,79 @@ export function CardDisplay({
   enableLayoutAnimation = false,
   disableDetailModal = false,
   targetHint,
+  minHeight,
 }: CardDisplayProps) {
   const prefersReducedMotion = useReducedMotion();
   const { isMobile } = useResponsive();
+  const localPlayerId = useLocalPlayerId();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  
-  // Track touch/mouse position to differentiate tap from scroll
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-  
-  // Combine disabled states - isUnplayable is a specific kind of disabled
+
   const effectivelyDisabled = isDisabled || isUnplayable;
-  const isToy = card.card_type === 'Toy';  // Match backend enum value
+  const isToy = card.card_type === 'Toy';
+  const cfg = SIZE[size];
 
-  // Size configurations (px values from UX spec).
-  // width is the fixed (and fluid-minimum) size; maxWidth caps fluid growth
-  // so cards widen enough for full names without becoming comically wide.
-  // height is content-driven above a minimum: with no card art, fixed tall
-  // frames were mostly dead space and forced needless board scrolling.
-  // Cards sharing a grid row stretch to the row's tallest card, so rows
-  // stay visually even. Only 'large' (detail modal) keeps a fixed height.
-  const sizeConfig = {
-    small: { width: 120, maxWidth: 175, height: 'auto' as const, minHeight: 112, padding: 8, fontSize: 'xs', statSize: 'xs' },
-    medium: { width: 165, maxWidth: 250, height: 'auto' as const, minHeight: 150, padding: 12, fontSize: 'sm', statSize: 'sm' },
-    large: { width: 330, maxWidth: 330, height: 450, minHeight: 450, padding: 24, fontSize: 'base', statSize: 'lg' },
-  };
+  // Ownership material (§1/§4): cream paper if you own it, dark ink otherwise.
+  // Outside a game (no provider) default to own — sensible for card galleries.
+  const isOwn = localPlayerId == null ? true : card.owner === localPlayerId;
+  const material = materialFor(isOwn);
+  const crayon = crayonForColor(card.primary_color);
 
-  const config = sizeConfig[size];
-  
-  // Use card's color attributes from backend (faction/type based)
-  const borderColor = card.primary_color || (isToy ? '#C74444' : '#8B5FA8');
-  const accentColor = card.accent_color || (isToy ? '#C74444' : '#8B5FA8');
+  // A Toy in play that can act this turn shows the ready bolt; playable cards
+  // (yours only) get the gold glow. Nothing glows on the opponent's turn (§6).
+  const canAct = isHighlighted && isToy && !effectivelyDisabled;
+  const isPlayable = isOwn && !effectivelyDisabled && (isHighlighted || isClickable);
 
-  // Determine border and effects based on state
-  let effectiveBorderColor = borderColor;
-  let boxShadow = undefined;
-  let animation = undefined;
-  let borderWidth = '2px';  // Default border width
-  
-  if (isTussling) {
-    effectiveBorderColor = 'var(--ggltcg-red)';
-    boxShadow = '0 0 16px rgba(199, 68, 68, 0.8)';
-    animation = 'tussle-shake 0.3s ease-in-out infinite';
-    borderWidth = '3px';  // Thicker border for tussling
-  } else if (isSelected) {
-    effectiveBorderColor = '#FFD700'; // Gold color for selection
-    boxShadow = '0 0 12px rgba(255, 215, 0, 0.9), 0 0 24px rgba(255, 215, 0, 0.5)';
-    borderWidth = '3px';  // Thicker border for selection
-  } else if (isHighlighted) {
-    // Subtle green glow for actionable cards (can tussle or use ability)
-    // Thicker border + icon badge for colorblind accessibility
-    effectiveBorderColor = '#22c55e'; // Green border
-    boxShadow = '0 0 8px rgba(34, 197, 94, 0.5)';
-    borderWidth = '4px';  // Significantly thicker border for highlighted state
-  }
+  // Cost (effective when modified; ring signals cheaper=gold / costlier=danger).
+  const displayCost = card.effective_cost ?? card.cost;
+  const isCostModified = card.effective_cost != null && card.effective_cost !== card.cost;
+  const costRing = isCostModified ? (card.effective_cost! < card.cost ? 'var(--gold)' : 'var(--danger)') : undefined;
 
-  // Logic for mobile detail view
+  // Shadow: paper sits on the desk (drop shadow); ink is part of the board (none).
+  // Playable adds the gold glow in front of the base shadow.
+  const baseShadow = isOwn ? '0 3px 0 rgba(0,0,0,.4)' : 'none';
+  const boxShadow = isPlayable
+    ? `0 4px 10px rgba(242,193,78,.25)${isOwn ? ',0 3px 0 rgba(0,0,0,.4)' : ''}`
+    : baseShadow;
+
   const shouldEnableMobileDetail = isMobile && !disableDetailModal;
 
   const handleInteraction = () => {
-    if (shouldEnableMobileDetail) {
-      setIsDetailOpen(true);
-    } else if (isClickable && !effectivelyDisabled && onClick) {
-      onClick();
-    }
+    if (shouldEnableMobileDetail) setIsDetailOpen(true);
+    else if (isClickable && !effectivelyDisabled && onClick) onClick();
   };
-  
-  // Handle touch start - record position
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     setTouchStart({ x: touch.clientX, y: touch.clientY });
   };
-  
-  // Handle touch end - only open modal if it was a tap (not scroll)
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart || !shouldEnableMobileDetail) {
-      setTouchStart(null);
-      return;
-    }
-    
+    if (!touchStart || !shouldEnableMobileDetail) { setTouchStart(null); return; }
     const touch = e.changedTouches[0];
     const deltaX = Math.abs(touch.clientX - touchStart.x);
     const deltaY = Math.abs(touch.clientY - touchStart.y);
-    
-    // If movement is less than 10px, consider it a tap
-    const TAP_THRESHOLD = 10;
-    if (deltaX < TAP_THRESHOLD && deltaY < TAP_THRESHOLD) {
-      setIsDetailOpen(true);
-    }
-    
+    if (deltaX < 10 && deltaY < 10) setIsDetailOpen(true);
     setTouchStart(null);
   };
-
-  // Keyboard event handler for accessibility
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.key === 'Enter' || e.key === ' ') && (shouldEnableMobileDetail || (isClickable && !effectivelyDisabled && onClick))) {
       e.preventDefault();
       handleInteraction();
     }
   };
+
+  const interactive = shouldEnableMobileDetail || (isClickable && !effectivelyDisabled);
+  const bracket = (corner: 'tl' | 'br') => (
+    <div
+      style={{
+        position: 'absolute',
+        width: '9px',
+        height: '9px',
+        ...(corner === 'tl'
+          ? { top: '3px', left: '3px', borderTop: `2px solid ${crayon}`, borderLeft: `2px solid ${crayon}` }
+          : { bottom: '3px', right: '3px', borderBottom: `2px solid ${crayon}`, borderRight: `2px solid ${crayon}` }),
+      }}
+    />
+  );
 
   return (
     <>
@@ -165,240 +166,154 @@ export function CardDisplay({
         onTouchStart={shouldEnableMobileDetail ? handleTouchStart : undefined}
         onTouchEnd={shouldEnableMobileDetail ? handleTouchEnd : undefined}
         onKeyDown={handleKeyDown}
-        tabIndex={shouldEnableMobileDetail || (isClickable && !effectivelyDisabled) ? 0 : undefined}
-        role={shouldEnableMobileDetail || (isClickable && !effectivelyDisabled) ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        role={interactive ? 'button' : undefined}
         aria-label={shouldEnableMobileDetail || isClickable ? `${card.name} card` : undefined}
-        className={`
-          rounded relative
-          ${shouldEnableMobileDetail || (isClickable && !effectivelyDisabled) ? 'cursor-pointer' : ''}
-          ${effectivelyDisabled && !shouldEnableMobileDetail ? 'opacity-50 cursor-not-allowed' : ''}
-        `}
+        className={interactive ? 'cursor-pointer' : effectivelyDisabled ? 'cursor-not-allowed' : ''}
         style={{
-          width: fluid ? '100%' : `${config.width}px`,
-          maxWidth: fluid ? `${config.maxWidth}px` : undefined,
-          height: typeof config.height === 'number' ? `${config.height}px` : config.height,
-          minHeight: `${config.minHeight}px`,
-          // Backstop for the fixed height: content that outgrows the card
-          // (e.g. a future extra-long 2-line name plus a large stat block)
-          // clips at the border instead of spilling past it
-          overflow: 'hidden',
-          padding: `${config.padding}px`,
-          backgroundColor: 'var(--ui-card-bg)',
-          border: `${borderWidth} solid ${effectiveBorderColor}`,
+          width: fluid ? '100%' : `${cfg.width}px`,
+          maxWidth: fluid ? `${cfg.maxWidth}px` : undefined,
+          minHeight: `${minHeight ?? cfg.minHeight}px`,
+          padding: cfg.padding,
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: material.surface,
+          color: material.text,
+          border: `2.5px solid ${crayon}`,
+          borderRadius: '6px',
           boxShadow,
-          animation,
-          // Apply grayscale filter for broken cards, but not opacity (handled by animate)
-          filter: card.is_broken && !isSelected ? 'grayscale(100%)' : undefined,
+          outline: isSelected ? '3px solid var(--gold)' : undefined,
+          outlineOffset: isSelected ? '2px' : undefined,
+          filter: card.is_broken ? 'grayscale(35%)' : undefined,
         }}
         initial={enableLayoutAnimation ? false : { opacity: 0, scale: prefersReducedMotion ? 1 : 0.9 }}
-        animate={{ 
-          opacity: effectivelyDisabled ? 0.5 : (card.is_broken && !isSelected ? 0.6 : 1), 
-          scale: 1 
-        }}
-        transition={{ 
+        animate={{ opacity: effectivelyDisabled ? 0.5 : 1, scale: 1, x: isTussling && !prefersReducedMotion ? [0, -4, 4, -4, 4, 0] : 0 }}
+        transition={{
           duration: prefersReducedMotion ? 0.1 : 0.3,
-          layout: { duration: prefersReducedMotion ? 0.1 : 0.4, ease: 'easeInOut' }
+          x: { duration: 0.3, repeat: isTussling ? Infinity : 0 },
+          layout: { duration: prefersReducedMotion ? 0.1 : 0.4, ease: 'easeInOut' },
         }}
-        whileHover={isClickable && !effectivelyDisabled && !prefersReducedMotion ? { scale: 1.05 } : undefined}
-        whileTap={isClickable && !effectivelyDisabled && !prefersReducedMotion ? { scale: 0.98 } : undefined}
+        // Don't grow a selected card on hover: the scale pushes its gold outline
+        // (offset 2px) past the card's bounds, and it's already chosen anyway.
+        whileHover={interactive && !isSelected && !prefersReducedMotion ? { scale: 1.05 } : undefined}
+        whileTap={interactive && !isSelected && !prefersReducedMotion ? { scale: 0.98 } : undefined}
       >
-        {/* Colorblind-Accessible Visual Indicators */}
-        {/* Available Action Badge - top-right corner */}
-        {isHighlighted && !effectivelyDisabled && (
+        {bracket('tl')}
+        {bracket('br')}
+
+        {/* Selected ✓ badge (targeting) — sits proud of the top-right corner. */}
+        {isSelected && (
           <div
-            className="absolute top-1 right-1 bg-green-500 text-white rounded-full flex items-center justify-center font-bold shadow-lg"
             style={{
-              width: size === 'small' ? '20px' : size === 'medium' ? '24px' : '32px',
-              height: size === 'small' ? '20px' : size === 'medium' ? '24px' : '32px',
-              fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '0.875rem' : '1.125rem',
-              zIndex: 10,
+              position: 'absolute', top: '-9px', right: '-9px', width: '20px', height: '20px',
+              background: 'var(--gold)', color: 'var(--desk-bottom)', borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '11px', zIndex: 3,
             }}
-            title="Available action"
           >
-            ⚡
+            ✓
           </div>
         )}
 
-        {/* Copy Badge - top-left corner */}
-        {isCopy && (
+        {/* Header: cost box · name · ready bolt */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
           <div
-            className="absolute top-1 left-1 bg-purple-600 text-white rounded px-1 font-bold shadow-lg"
+            title={isCostModified ? `Base cost: ${card.cost}` : undefined}
             style={{
-              fontSize: size === 'small' ? '0.625rem' : size === 'medium' ? '0.75rem' : '0.875rem',
-              zIndex: 10,
+              width: `${cfg.cost}px`, height: `${cfg.cost}px`, flexShrink: 0,
+              background: crayon, color: costNumeralColor(crayon, isOwn), borderRadius: '3px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: `${cfg.costFont}px`,
+              outline: costRing ? `2px solid ${costRing}` : undefined, outlineOffset: '1px',
             }}
-            title="Copy of another card"
           >
-            COPY
+            {displayCost}
           </div>
-        )}
-
-        {/* Card Header: Cost + Name */}
-        <div className="flex justify-between items-start" style={{ marginBottom: 'var(--spacing-component-xs)', position: 'relative', zIndex: 1 }}>
-          {/* Cost Indicator */}
-          {(() => {
-            // Determine cost display and color
-            const displayCost = card.effective_cost ?? card.cost;
-            const isCostModified = card.effective_cost !== null && card.effective_cost !== undefined;
-            const isCostIncreased = isCostModified && card.effective_cost! > card.cost;
-            const isCostDecreased = isCostModified && card.effective_cost! < card.cost;
-            
-            // Color logic: red for increased cost (debuff), green for decreased cost (buff)
-            let costBgColor = accentColor;
-            if (isCostIncreased) costBgColor = '#f87171'; // red-400 (debuff - costs more)
-            if (isCostDecreased) costBgColor = '#4ade80'; // green-400 (buff - costs less)
-            
-            return (
-              <div 
-                className="font-bold"
-                style={{
-                  width: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
-                  height: size === 'small' ? '24px' : size === 'medium' ? '32px' : '48px',
-                  backgroundColor: costBgColor,
-                  color: 'white',
-                  borderRadius: '4px',
-                  fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '1rem' : '1.5rem',
-                  boxShadow: isCostModified 
-                    ? `0 0 12px ${costBgColor}, 0 0 20px ${costBgColor}80, inset 0 0 4px rgba(255,255,255,0.3)` 
-                    : '0 2px 4px rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  border: isCostModified ? '2px solid white' : undefined,
-                  animation: isCostModified ? 'pulse 2s infinite' : undefined,
-                }}
-                title={isCostModified ? `Base cost: ${card.cost}` : undefined}
-              >
-                {displayCost}
-              </div>
-            );
-          })()}
-
-          {/* Card Name — wraps to 2 lines before ellipsizing, so long names
-              stay identifiable even at small card widths (WP-1 #5) */}
-          <h3
-            className="flex-1 font-bold"
+          <div
             style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: size === 'small' ? '0.75rem' : size === 'medium' ? '0.875rem' : '1.25rem',
-              lineHeight: '1.2',
-              fontWeight: 700,
-              marginLeft: size === 'small' ? '6px' : size === 'medium' ? '8px' : '12px',
-              marginRight: size === 'small' ? '6px' : size === 'medium' ? '8px' : '12px',
-              overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitBoxOrient: 'vertical',
-              WebkitLineClamp: 2,
-              overflowWrap: 'anywhere',
+              flex: 1, minWidth: 0, fontFamily: 'var(--font-card-name)', fontSize: `${cfg.name}px`,
+              lineHeight: 1.05, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2, overflowWrap: 'anywhere',
             }}
           >
             {card.name}
-          </h3>
+            {isCopy && (
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: '8px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: material.textFaint, marginLeft: '5px' }}>
+                copy
+              </span>
+            )}
+          </div>
+          {canAct ? (
+            <div style={{ marginLeft: 'auto', fontSize: '11px', lineHeight: 1 }} title="Ready to act">⚡</div>
+          ) : card.is_broken ? (
+            // Cracked-card pip (the broken motif, §8) instead of the word — keeps
+            // the header short so the name isn't squeezed, and never covers the
+            // body so the effect text stays readable.
+            <span
+              title="Broken"
+              aria-label="Broken"
+              style={{
+                marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-start',
+                width: '11px', height: '15px', borderRadius: '2px',
+                border: `1.5px solid ${material.danger}`,
+                background: `linear-gradient(45deg, transparent 44%, ${material.danger} 44%, ${material.danger} 56%, transparent 56%)`,
+              }}
+            />
+          ) : null}
         </div>
 
-        {/* Artwork Placeholder (for future) - Only show on large cards */}
-        {size === 'large' && (
-          <div
-            style={{
-              width: '100%',
-              height: '120px',
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              borderRadius: '4px',
-              marginBottom: '8px',
-              border: `1px solid ${borderColor}`,
-              opacity: 0.3,
-            }}
-          />
-        )}
-
-        {/* Toy Stats */}
-        {isToy && (
-          <div className="flex" style={{ gap: '4px', marginBottom: '4px', fontSize: config.fontSize, position: 'relative', zIndex: 1 }}>
-            <AnimatedStat
-              value={card.speed}
-              baseValue={card.base_speed}
-              label="SPD"
-              accentColor={accentColor}
-              size={size}
-            />
-            <AnimatedStat
-              value={card.strength}
-              baseValue={card.base_strength}
-              label="STR"
-              accentColor={accentColor}
-              size={size}
-            />
-            <AnimatedStat
-              value={card.stamina}
-              baseValue={card.base_stamina}
-              label="STA"
-              accentColor={accentColor}
-              size={size}
-              currentValue={card.current_stamina}
-            />
+        {/* Body: Toy → stat rail + effect; Action → effect full width */}
+        {isToy ? (
+          <div style={{ display: 'flex', gap: `${cfg.gap}px` }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
+              {([['SPD', card.speed, card.base_speed, undefined], ['STR', card.strength, card.base_strength, undefined], ['STA', card.stamina, card.base_stamina, card.current_stamina]] as const).map(
+                ([label, value, base, current]) => (
+                  <AnimatedStat
+                    key={label}
+                    label={label}
+                    value={value}
+                    baseValue={base}
+                    currentValue={current}
+                    size={cfg.statSize}
+                    crayonColor={crayon}
+                    labelColor={material.textFaint}
+                    valueColor={material.text}
+                    buffedColor={material.buffed}
+                    damagedColor={material.danger}
+                  />
+                )
+              )}
+            </div>
+            {cfg.showEffect && card.effect_text && (
+              <div style={{ fontSize: `${cfg.effect}px`, lineHeight: 1.35, color: material.textMuted, paddingTop: '2px' }}>
+                {card.effect_text}
+              </div>
+            )}
           </div>
+        ) : (
+          cfg.showEffect && card.effect_text && (
+            <div style={{ fontSize: `${cfg.effect}px`, lineHeight: 1.35, color: material.textMuted }}>
+              {card.effect_text}
+            </div>
+          )
         )}
 
-        {/* Effect Text - Only show on medium and large cards */}
-        {size !== 'small' && card.effect_text && (
-          <div 
-            className="text-gray-300 italic"
-            style={{
-              fontSize: size === 'medium' ? '0.75rem' : '0.875rem',
-              lineHeight: '1.3',
-              overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitBoxOrient: 'vertical',
-              WebkitLineClamp: size === 'medium' ? 3 : 8,
-              position: 'relative',
-              zIndex: 1,
-              marginTop: size === 'medium' ? '8px' : '12px',
-            }}
-          >
-            {card.effect_text}
-          </div>
-        )}
-
-        {/* Targeting-side hint. "either" is the case players miss (WP-2 #5:
-            self-targeting was invisible until the target modal). Colors match
-            the yours=blue / theirs=purple language of the log and modal tags. */}
+        {/* Target-side hint pill (hand cards). "either" is the case players miss
+            (WP-2 #5). Pushed to the card's bottom edge. */}
         {targetHint && (
-          <div
-            className={`inline-block rounded-full font-semibold ${
-              targetHint === 'yours'
-                ? 'bg-blue-900 text-blue-200'
-                : targetHint === 'theirs'
-                  ? 'bg-purple-950 text-purple-200'
-                  : 'text-gray-100'
-            }`}
-            style={{
-              fontSize: size === 'small' ? '0.625rem' : '0.6875rem',
-              padding: '1px var(--spacing-component-sm)',
-              marginTop: 'var(--spacing-component-xs)',
-              position: 'relative',
-              zIndex: 1,
-              ...(targetHint === 'either'
-                ? { background: 'linear-gradient(90deg, rgb(30 58 138) 0%, rgb(59 7 100) 100%)' }
-                : {}),
-            }}
-          >
-            🎯 {targetHint === 'yours' ? 'your side' : targetHint === 'theirs' ? 'their side' : 'either side'}
+          <div style={{ marginTop: 'auto', paddingTop: '5px' }}>
+            <span
+              style={{
+                display: 'inline-block', background: PILL[targetHint].background, color: PILL[targetHint].color,
+                fontSize: '9px', fontWeight: 700, borderRadius: '999px', padding: '1px 7px', whiteSpace: 'nowrap',
+              }}
+            >
+              🎯 {PILL[targetHint].label}
+            </span>
           </div>
         )}
 
-        {/* Broken Indicator */}
-        {card.is_broken && (
-          <div 
-            className="text-center font-bold text-red-400"
-            style={{ marginTop: 'var(--spacing-component-xs)', fontSize: size === 'small' ? '0.625rem' : '0.75rem', position: 'relative', zIndex: 1 }}
-          >
-            BROKEN
-          </div>
-        )}
       </motion.div>
 
-      {/* Mobile Detail Modal */}
       {shouldEnableMobileDetail && (
         <CardDetailModal
           card={card}

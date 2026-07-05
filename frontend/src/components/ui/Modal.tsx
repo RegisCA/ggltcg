@@ -15,6 +15,10 @@ export interface ModalProps {
   children: React.ReactNode;
   closeOnBackdropClick?: boolean;
   closeOnEscape?: boolean;
+  /** Inline overrides for the panel (background/border/radius/padding). Inline
+   *  styles win over the default Tailwind classes, so a caller can theme the
+   *  panel (e.g. the Paper & Ink target modal) without losing the a11y wrapper. */
+  panelStyle?: React.CSSProperties;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -24,6 +28,7 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   closeOnBackdropClick = true,
   closeOnEscape = true,
+  panelStyle,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedElement = useRef<HTMLElement | null>(null);
@@ -105,6 +110,7 @@ export const Modal: React.FC<ModalProps> = ({
         aria-modal="true"
         aria-labelledby={titleId}
         className="modal-padding bg-gray-900 rounded-lg border-2 border-game-highlight shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        style={panelStyle}
       >
         <div id={titleId} className="sr-only">
           {title}

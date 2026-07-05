@@ -35,34 +35,32 @@ export function InPlayZone({
 }: InPlayZoneProps) {
   const cardList = cards || [];
 
-  // Zone height based on card size (from design system):
-  // - small cards: 164px height + padding = ~170px
-  // - medium cards: 225px height + padding = ~240px
-  // - empty zone: collapses to minimal 80px
-  const minHeight = cardList.length === 0 ? '80px' : (size === 'small' ? '170px' : '240px');
-
   return (
-    <div className="bg-gray-800 rounded border border-gray-700" style={{ padding: 'var(--spacing-component-sm)' }}>
-      {/* Header names the owner: zones sit side by side (opponent | you),
-          so position alone no longer says whose board this is. Matches the
-          Break Zone header style (one zone-label language, WP-1 #6). */}
-      <div className="text-sm text-gray-400" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
-        {playerName} - IN PLAY ({cardList.length})
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Zone header (§5): color dot (you=blue / them=purple) + NAME · IN PLAY.
+          Zones sit side by side (opponent | you), so position alone no longer
+          says whose board this is. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '6px' }}>
+        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isHuman ? 'var(--you)' : 'var(--them)', flexShrink: 0 }} />
+        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>
+          {playerName} · In play
+        </span>
       </div>
 
       {cardList.length === 0 ? (
-        <div className="text-center text-gray-600 italic text-sm" style={{ minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ minHeight: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontStyle: 'italic', color: 'var(--ink-faint)' }}>
           No cards in play
         </div>
       ) : (
-        /* auto-fill grid: cards flex between their base width and max width
-           so names get the available space instead of truncating (track
-           sizing shared with HandZone — see utils/cardGridTracks). */
+        /* auto-fill grid, equal-height rows (grid-auto-rows:1fr) so cards in a
+           column stay even; track sizing shared with HandZone. */
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: cardGridTemplateColumns(size),
-              gap: 'var(--spacing-component-xs)',
+              gridAutoRows: '1fr',
+              gap: '8px',
+              flex: 1,
             }}
           >
             {cardList.map((card) => {
