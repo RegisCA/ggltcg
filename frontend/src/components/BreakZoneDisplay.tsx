@@ -138,7 +138,21 @@ export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
       >
         <span style={LABEL_STYLE}>BREAK</span>
         <span style={COUNT_BADGE_STYLE}>{cardList.length}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', minWidth: 0, flex: '1 1 auto' }}>
+        {/* The right-edge fade is the graceful-degradation path for chips that
+            can't shrink below their 32px minimum — residual overflow fades out
+            instead of hard-clipping mid-glyph. */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            overflow: 'hidden',
+            minWidth: 0,
+            flex: '1 1 auto',
+            WebkitMaskImage: 'linear-gradient(to right, black calc(100% - 16px), transparent)',
+            maskImage: 'linear-gradient(to right, black calc(100% - 16px), transparent)',
+          }}
+        >
           {visibleChips.map((card) => (
             <span key={card.id} style={CHIP_STYLE}>{card.name}</span>
           ))}
