@@ -1,6 +1,6 @@
 # Known Issues & Workarounds
 
-**Last Updated**: June 29, 2026 (all Active Issues resolved — PRs #349-#351)
+**Last Updated**: July 5, 2026 (added target-modal single-select inconsistency)
 
 This document tracks unresolved issues, their workarounds, and recommended fixes for future sessions.
 
@@ -8,7 +8,34 @@ This document tracks unresolved issues, their workarounds, and recommended fixes
 
 ## 🔴 Active Issues
 
-_None currently — see Resolved below._
+### Target-selection modal: single-select requires deselect-first, inconsistent with alt-cost / direct-attack
+
+- **Found**: July 5, 2026 (Régis, during Paper & Ink board review). **Not yet fixed.**
+- **What it is**: in `TargetSelectionModal.tsx`, when a card effect targets **one**
+  card (`maxTargets === 1`, the common case — Drop, Wake, tussle, etc.), the target
+  grid uses `toggleTarget()`: clicking the already-selected card deselects it, but
+  clicking a *different* card does **nothing** (the `else if (selectedTargets.length
+  < maxTargets)` guard fails because length is already 1 = max). So you must click
+  the selected card to deselect, then click the new one. The **alt-cost** break list
+  (`selectAlternativeCostCard`) and the **direct-attack/tussle** path
+  (`selectCardTarget`) both just **replace** the selection on click — the natural
+  single-select behavior. Three handlers, three-ish semantics; the standard target
+  grid is the odd one out. Toggle-then-add is only correct for multi-target (Sun,
+  `maxTargets === 2`).
+- **Code**: `frontend/src/components/TargetSelectionModal.tsx` —
+  `toggleTarget` (~L111, the culprit), `selectCardTarget` (~L127, replace),
+  `selectAlternativeCostCard` (~L133, replace).
+- **Pre-existing**: predates the Paper & Ink redesign; the redesign preserved the
+  interaction logic untouched and carried the inconsistency forward.
+- **Severity**: Low (functional, minor friction). **Effort**: Low.
+- **Recommended fix (fixes the class, not just this bug)**: consolidate all three
+  into **one** selection primitive parameterized by `maxTargets` — replace when
+  `maxTargets === 1`, toggle-up-to-max otherwise — used by every path. Then pin it
+  with a **component interaction test** (requires adding a frontend test runner —
+  Vitest + React Testing Library; none exists today). The same test would have
+  caught the round-4 "Cancel leaves the card selected" bug. This is the frontend
+  version of the drifted-duplicate pattern this doc documents repeatedly on the
+  backend (AI card-metadata / CC-gain tables): derive/define once, reuse, test once.
 
 ---
 
