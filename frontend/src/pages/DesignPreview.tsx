@@ -125,9 +125,9 @@ export function DesignPreview() {
           defaultPlayerName="You"
         />
       ) : route.kind === 'screen' && route.id === 'victory' ? (
-        <VictoryScreen key="victory" gameState={VICTORY_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} />
+        <VictoryScreen key="victory" gameState={VICTORY_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} localPlayerId={FIXTURE_HUMAN_ID} />
       ) : route.kind === 'screen' && route.id === 'defeat' ? (
-        <VictoryScreen key="defeat" gameState={DEFEAT_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} />
+        <VictoryScreen key="defeat" gameState={DEFEAT_FIXTURE.state} onPlayAgain={() => {}} aiLogsOverride={VICTORY_AI_LOGS_FIXTURE} localPlayerId={FIXTURE_HUMAN_ID} />
       ) : (
         // key remounts the board on fixture switch so no UI state leaks across
         <GameBoard

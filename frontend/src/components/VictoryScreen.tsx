@@ -27,6 +27,11 @@ import { fetchAILogsForGame } from '../api/statsService';
 interface VictoryScreenProps {
   gameState: GameState;
   onPlayAgain: () => void;
+  /** The viewing player's id. Identity colors are viewer-relative: this
+   *  player renders --you (blue), everyone else --them (purple), whether the
+   *  opponent is AI or human. Optional for backward compatibility — absent,
+   *  the AI-authored side is treated as "them". */
+  localPlayerId?: string;
   /** Test/preview seam: when provided, skips the fetchAILogsForGame() call
    *  and renders this canned payload instead. Production callers never pass
    *  this — used by the /design.html harness fixtures (#victory, #defeat),
@@ -38,7 +43,7 @@ interface VictoryScreenProps {
 import type { AILogData } from '../api/statsService';
 import { plannerModeLabel, plannerDisplayName } from '../utils/plannerMode';
 
-export function VictoryScreen({ gameState, onPlayAgain, aiLogsOverride }: VictoryScreenProps) {
+export function VictoryScreen({ gameState, onPlayAgain, aiLogsOverride, localPlayerId }: VictoryScreenProps) {
   const winnerPlayer = gameState.players[gameState.winner || ''];
   const playByPlay = useMemo(() => gameState.play_by_play || [], [gameState.play_by_play]);
   const [narrativeMode, setNarrativeMode] = useState(false);
@@ -114,16 +119,24 @@ export function VictoryScreen({ gameState, onPlayAgain, aiLogsOverride }: Victor
     return grouped;
   }, [playByPlay, aiLogs, gameState.players]);
 
-  // Identity color for a player name in the recap — you = blue, them = purple.
-  // The winner's own player_id isn't directly on Player, so match by name
-  // against the local-ish convention used elsewhere on this screen (the
-  // "human" player is whichever one is NOT flagged as AI-authored below).
+  // Identity color for a player name in the recap — viewer-relative: the local
+  // player is always blue (--you) and the opponent purple (--them), whether the
+  // opponent is AI or human. When no localPlayerId is available (older callers),
+  // fall back to treating the AI-authored side as "them".
   const isAiPlayerName = (playerName: string): boolean => {
     return aiLogs.some((log) => gameState.players[log.player_id]?.name === playerName) ||
       playByPlay.some((e) => e.player === playerName && e.reasoning !== undefined);
   };
 
-  const nameColor = (playerName: string): string => (isAiPlayerName(playerName) ? 'var(--them)' : 'var(--you)');
+  const isThem = (playerName: string): boolean => {
+    if (localPlayerId) {
+      const entry = Object.entries(gameState.players).find(([, p]) => p.name === playerName);
+      if (entry) return entry[0] !== localPlayerId;
+    }
+    return isAiPlayerName(playerName);
+  };
+
+  const nameColor = (playerName: string): string => (isThem(playerName) ? 'var(--them)' : 'var(--you)');
 
   return (
     <div
@@ -268,7 +281,7 @@ export function VictoryScreen({ gameState, onPlayAgain, aiLogsOverride }: Victor
               <div className="content-spacing">
                 {Object.entries(groupedActions).map(([key, { actions, aiLog }]) => {
                   const firstAction = actions[0];
-                  const isAI = firstAction.reasoning !== undefined || aiLog !== undefined;
+                  const them = isThem(firstAction.player);
                   const plannerMode = plannerModeLabel(aiLog?.turn_plan?.planner, aiLog?.ai_version);
                   const plannerNickname = plannerDisplayName(aiLog?.turn_plan?.planner, aiLog?.ai_version);
                   const hasPlan = !!aiLog?.turn_plan;
@@ -280,8 +293,8 @@ export function VictoryScreen({ gameState, onPlayAgain, aiLogsOverride }: Victor
                       className="card-padding"
                       style={{
                         borderRadius: '6px',
-                        borderLeft: `4px solid ${isAI ? 'var(--them)' : 'var(--you)'}`,
-                        background: isAI ? 'rgba(180,142,222,.1)' : 'rgba(237,232,222,.04)',
+                        borderLeft: `4px solid ${them ? 'var(--them)' : 'var(--you)'}`,
+                        background: them ? 'rgba(180,142,222,.1)' : 'rgba(237,232,222,.04)',
                       }}
                     >
                       {/* Turn and Player Header */}

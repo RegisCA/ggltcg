@@ -77,4 +77,22 @@ describe('VictoryScreen', () => {
     expect(screen.getByText('You Wins!')).toBeInTheDocument();
     expect(screen.queryByText(/Improvised/)).not.toBeInTheDocument();
   });
+
+  it('colors identities viewer-relative when localPlayerId is provided (human vs human)', () => {
+    // No AI logs and no reasoning entries: without localPlayerId both sides
+    // would fall back to --you. With it, the opponent must still be --them.
+    const state = makeGameState({
+      play_by_play: [
+        { turn: 1, player: 'You', action_type: 'play_card', description: 'Played Knight (1 Charge)' },
+        { turn: 2, player: 'Gemiknight', action_type: 'play_card', description: 'Played Ka (2 Charge)' },
+      ],
+    });
+    render(
+      <VictoryScreen gameState={state} onPlayAgain={() => {}} aiLogsOverride={[]} localPlayerId={HUMAN_ID} />
+    );
+    const you = screen.getByText('You', { selector: 'span,div,p,h3' });
+    const them = screen.getByText('Gemiknight', { selector: 'span,div,p,h3' });
+    expect(you).toHaveStyle({ color: 'var(--you)' });
+    expect(them).toHaveStyle({ color: 'var(--them)' });
+  });
 });
