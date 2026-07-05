@@ -189,8 +189,10 @@ export function CardDisplay({
           x: { duration: 0.3, repeat: isTussling ? Infinity : 0 },
           layout: { duration: prefersReducedMotion ? 0.1 : 0.4, ease: 'easeInOut' },
         }}
-        whileHover={interactive && !prefersReducedMotion ? { scale: 1.05 } : undefined}
-        whileTap={interactive && !prefersReducedMotion ? { scale: 0.98 } : undefined}
+        // Don't grow a selected card on hover: the scale pushes its gold outline
+        // (offset 2px) past the card's bounds, and it's already chosen anyway.
+        whileHover={interactive && !isSelected && !prefersReducedMotion ? { scale: 1.05 } : undefined}
+        whileTap={interactive && !isSelected && !prefersReducedMotion ? { scale: 0.98 } : undefined}
       >
         {bracket('tl')}
         {bracket('br')}

@@ -216,6 +216,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   const handleCancelTargetSelection = useCallback(() => {
     setPendingAction(null);
+    // Clear the triggering card's selected state too — otherwise the card that
+    // opened the modal stays highlighted after cancelling.
+    setSelectedCard(null);
   }, []);
 
   // Loading state
