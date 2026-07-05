@@ -82,6 +82,11 @@ export function Leaderboard({ onClose, onViewPlayer, entriesOverride }: Leaderbo
 
   return (
     <div
+      onClick={(e) => {
+        // Backdrop click closes; clicks inside the panel bubble here too, so
+        // only close when the backdrop itself is the target.
+        if (e.target === e.currentTarget) onClose();
+      }}
       style={{
         position: 'fixed',
         top: 0,

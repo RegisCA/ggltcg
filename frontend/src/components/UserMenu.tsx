@@ -76,9 +76,10 @@ export const UserMenu: React.FC = () => {
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Dropdown menu - positioned to the right */}
+          {/* Dropdown menu — the trigger sits at the screen's right edge, so
+              anchor the panel's right edge to it or it overflows the viewport */}
           <div
-            className="absolute left-0 overflow-hidden z-50"
+            className="absolute right-0 overflow-hidden z-50"
             style={{
               marginTop: 'var(--spacing-component-xs)',
               width: '240px',

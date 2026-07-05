@@ -200,7 +200,12 @@ export function DesignPreview() {
         <LoginPage key="login" onShowPrivacyPolicy={() => {}} onShowTermsOfService={() => {}} />
       ) : route.kind === 'screen' && route.id === 'leaderboard' ? (
         <LocalPlayerProvider key="leaderboard" value={LEADERBOARD_VIEWER_ID}>
-          <Leaderboard entriesOverride={LEADERBOARD_FIXTURE_ENTRIES} onClose={() => {}} />
+          {/* Closing a modal fixture has to go somewhere — route back to the
+              lobby home fixture so X / backdrop / Esc visibly work in preview */}
+          <Leaderboard
+            entriesOverride={LEADERBOARD_FIXTURE_ENTRIES}
+            onClose={() => selectRoute({ kind: 'screen', id: 'lobby-home' })}
+          />
         </LocalPlayerProvider>
       ) : route.kind === 'screen' && route.id === 'loading' ? (
         <LoadingScreen key="loading" onReady={() => {}} />
