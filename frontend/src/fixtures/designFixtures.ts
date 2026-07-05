@@ -14,7 +14,7 @@
  */
 
 import type { Card, CardType, GameState, PlayByPlayEntry, Player, ValidAction, Zone } from '../types/game';
-import type { ActionResponse, CardDataResponse, LeaderboardEntry, ValidActionsResponse } from '../types/api';
+import type { ActionResponse, CardDataResponse, CardStats, LeaderboardEntry, PlayerStats, ValidActionsResponse } from '../types/api';
 
 export const FIXTURE_HUMAN_ID = 'fixture-you';
 export const FIXTURE_AI_ID = 'fixture-opponent';
@@ -614,6 +614,40 @@ export const LEADERBOARD_FIXTURE_ENTRIES: LeaderboardEntry[] = [
   { rank: 9, player_id: 'fixture-lb-9', display_name: 'Gibbers Gambit', games_played: 10, games_won: 3, win_rate: 30.0 },
   { rank: 10, player_id: 'fixture-lb-10', display_name: 'Toynado Tom', games_played: 9, games_won: 2, win_rate: 22.2 },
 ];
+
+// ============================================================================
+// PLAYER-STATS FIXTURE (for /design.html#player-stats)
+// ============================================================================
+// PlayerStats fetches getPlayerStats(playerId) on mount; the harness supplies
+// this canned payload via the statsOverride seam (see PlayerStats.tsx)
+// instead of hitting the network. Card names mirror the DEFS catalog above
+// so the drill-in reads as real play data. This is the same player as
+// LEADERBOARD_VIEWER_ID (rank 4, "Régis") so a leaderboard->player-stats
+// handoff in the harness shows consistent identity/--you highlighting.
+
+const PLAYER_STATS_CARD_STATS: CardStats[] = [
+  { card_name: 'Knight', games_played: 14, games_won: 11, win_rate: 78.6 },
+  { card_name: 'Drum', games_played: 12, games_won: 9, win_rate: 75.0 },
+  { card_name: 'Ballaber', games_played: 9, games_won: 6, win_rate: 66.7 },
+  { card_name: 'Wake', games_played: 10, games_won: 5, win_rate: 50.0 },
+  { card_name: 'Bubble Blocker', games_played: 7, games_won: 3, win_rate: 42.9 },
+  { card_name: 'Stomp', games_played: 6, games_won: 2, win_rate: 33.3 },
+  { card_name: 'Archer', games_played: 5, games_won: 1, win_rate: 20.0 },
+];
+
+export const PLAYER_STATS_FIXTURE: PlayerStats = {
+  player_id: LEADERBOARD_VIEWER_ID,
+  display_name: 'Régis',
+  games_played: 20,
+  games_won: 14,
+  win_rate: 70.0,
+  total_tussles: 58,
+  tussles_won: 34,
+  tussle_win_rate: 58.6,
+  avg_turns: 8.4,
+  avg_game_duration_seconds: 312,
+  card_stats: PLAYER_STATS_CARD_STATS,
+};
 
 // ============================================================================
 // USER-MENU FIXTURE (for /design.html#user-menu)

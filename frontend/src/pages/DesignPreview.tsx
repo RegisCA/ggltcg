@@ -22,6 +22,7 @@ import { LobbyWaiting } from '../components/LobbyWaiting';
 import LoginPage from '../components/LoginPage';
 import { Leaderboard } from '../components/Leaderboard';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { PlayerStats } from '../components/PlayerStats';
 import { UserMenu } from '../components/UserMenu';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,6 +39,7 @@ import {
   LOBBY_FIXTURE_GAME_CODE,
   LEADERBOARD_FIXTURE_ENTRIES,
   LEADERBOARD_VIEWER_ID,
+  PLAYER_STATS_FIXTURE,
   USER_MENU_FIXTURE_USER,
 } from '../fixtures/designFixtures';
 
@@ -52,8 +54,9 @@ const SCREEN_FIXTURES = [
   { id: 'lobby-join', label: 'Lobby: Join', description: 'LobbyJoin screen: join-game code entry, no backend.' },
   { id: 'lobby-waiting', label: 'Lobby: Waiting', description: 'LobbyWaiting screen: waiting room with both players present, polling disabled.' },
   { id: 'login', label: 'Login', description: 'LoginPage: signed-out entry screen, no backend.' },
-  { id: 'leaderboard', label: 'Leaderboard', description: 'Leaderboard: canned top-10 standings via entriesOverride, no backend fetch.' },
-  { id: 'loading', label: 'Loading', description: 'LoadingScreen: representative loading phase.' },
+  { id: 'leaderboard', label: 'Leaderboard', description: 'Leaderboard: canned top-10 standings via entriesOverride, no backend fetch. Click the viewer row (Régis) to open Player Stats.' },
+  { id: 'player-stats', label: 'Player stats', description: 'PlayerStats: canned drill-in stats via statsOverride, no backend fetch.' },
+  { id: 'loading', label: 'Loading', description: 'LoadingScreen: cold-start waking state (forced via coldStartOverride).' },
   { id: 'user-menu', label: 'User menu', description: 'UserMenu over the desk background, canned signed-in user.' },
 ];
 
@@ -205,10 +208,21 @@ export function DesignPreview() {
           <Leaderboard
             entriesOverride={LEADERBOARD_FIXTURE_ENTRIES}
             onClose={() => selectRoute({ kind: 'screen', id: 'lobby-home' })}
+            onViewPlayer={() => selectRoute({ kind: 'screen', id: 'player-stats' })}
+          />
+        </LocalPlayerProvider>
+      ) : route.kind === 'screen' && route.id === 'player-stats' ? (
+        <LocalPlayerProvider key="player-stats" value={LEADERBOARD_VIEWER_ID}>
+          {/* Closing routes back to the leaderboard fixture, mirroring the
+              real LobbyHome handoff (Leaderboard -> PlayerStats -> back). */}
+          <PlayerStats
+            playerId={LEADERBOARD_VIEWER_ID}
+            statsOverride={PLAYER_STATS_FIXTURE}
+            onClose={() => selectRoute({ kind: 'screen', id: 'leaderboard' })}
           />
         </LocalPlayerProvider>
       ) : route.kind === 'screen' && route.id === 'loading' ? (
-        <LoadingScreen key="loading" onReady={() => {}} />
+        <LoadingScreen key="loading" onReady={() => {}} coldStartOverride />
       ) : route.kind === 'screen' && route.id === 'user-menu' ? (
         <div
           key="user-menu"
