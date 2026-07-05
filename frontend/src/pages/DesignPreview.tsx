@@ -26,6 +26,7 @@ import { PlayerStats } from '../components/PlayerStats';
 import { UserMenu } from '../components/UserMenu';
 import { ProfileEditModal } from '../components/ProfileEditModal';
 import { CardDetailModal } from '../components/CardDetailModal';
+import { HowToPlay } from '../components/HowToPlay';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../contexts/AuthContext';
 import { LocalPlayerProvider } from '../contexts/LocalPlayerContext';
@@ -63,6 +64,7 @@ const SCREEN_FIXTURES = [
   { id: 'user-menu', label: 'User menu', description: 'UserMenu over the desk background, canned signed-in user.' },
   { id: 'profile-edit', label: 'Profile edit', description: 'ProfileEditModal over the desk background, canned signed-in user. Save no-ops offline (API call will fail/reject; expected in the harness).' },
   { id: 'card-detail', label: 'Card detail', description: 'CardDetailModal over the desk background: Archer (longest effect text) with an action button.' },
+  { id: 'how-to-play', label: 'How to play', description: 'HowToPlay over the desk background: rules modal with tab navigation, no backend.' },
 ];
 
 type RouteMatch = { kind: 'board'; id: string } | { kind: 'screen'; id: string };
@@ -257,6 +259,14 @@ export function DesignPreview() {
             onAction={() => {}}
             actionLabel="Select"
           />
+        </div>
+      ) : route.kind === 'screen' && route.id === 'how-to-play' ? (
+        <div
+          key="how-to-play"
+          className="min-h-screen"
+          style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))' }}
+        >
+          <HowToPlay isOpen={true} onClose={() => selectRoute({ kind: 'screen', id: 'lobby-home' })} />
         </div>
       ) : (
         // key remounts the board on fixture switch so no UI state leaks across
