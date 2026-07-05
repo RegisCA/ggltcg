@@ -163,8 +163,9 @@ export function LobbyHome({
           </p>
         </div>
 
-        {/* Game Mode Options */}
-        <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
+        {/* Game Mode Options — single column on phones, 2×2 on wider screens
+            so the whole menu fits without vertical scrolling on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 'var(--spacing-component-md)' }}>
           <ModeCard
             title="Create Game"
             description="Host a new game and invite a friend"
