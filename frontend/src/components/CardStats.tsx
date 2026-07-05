@@ -229,9 +229,13 @@ export function CardStats({ onClose }: CardStatsProps) {
                 {cards.length} cards · {totalGames} total deck slots played
               </p>
 
+              {/* One shared horizontal scroll container for header + rows —
+                  separate scrollers desync and clip the last column at 390px */}
+              <div className="overflow-x-auto">
+              <div style={{ minWidth: 'max-content' }}>
               {/* Column Headers */}
               <div
-                className="flex items-center overflow-x-auto"
+                className="flex items-center"
                 style={{
                   gap: 'var(--spacing-component-sm)',
                   padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
@@ -288,7 +292,7 @@ export function CardStats({ onClose }: CardStatsProps) {
                 </button>
               </div>
 
-              <div className="flex flex-col overflow-x-auto">
+              <div className="flex flex-col">
                 {getSortedCards(cards).map((card) => (
                   <div
                     key={card.card_name}
@@ -312,6 +316,8 @@ export function CardStats({ onClose }: CardStatsProps) {
                     </div>
                   </div>
                 ))}
+              </div>
+              </div>
               </div>
             </div>
           )}
