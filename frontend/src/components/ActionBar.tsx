@@ -91,7 +91,7 @@ export function ActionBar({
     <div
       style={{
         background: 'var(--bar)',
-        borderTop: `1px solid ${isYourTurn ? 'rgba(242,193,78,.35)' : 'rgba(180,142,222,.3)'}`,
+        borderTop: `1px solid ${isYourTurn ? 'rgba(126,166,224,.35)' : 'rgba(180,142,222,.3)'}`,
         padding: '8px 12px',
         display: 'flex',
         alignItems: 'center',
@@ -101,7 +101,7 @@ export function ActionBar({
     >
       {isYourTurn ? (
         <>
-          <span className="turn-bar-label" style={{ color: 'var(--gold)', fontWeight: 900, fontSize: '13px', paddingLeft: '4px' }}>
+          <span className="turn-bar-label" style={{ color: 'var(--you)', fontWeight: 900, fontSize: '13px', paddingLeft: '4px' }}>
             Your Turn · Turn {turnNumber}
           </span>
           <button

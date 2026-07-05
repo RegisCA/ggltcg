@@ -260,76 +260,87 @@ export function TargetSelectionModal({
             </div>
           )}
 
-          {/* Ballaber alternative cost: one-click selection */}
+          {/* Ballaber alternative cost */}
           {hasAlternativeCost && (
-            <div style={{ marginBottom: 'var(--spacing-component-md)' }}>
-              <h3 className="text-lg font-bold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Pay cost to play Ballaber:</h3>
+            <div>
+              {/* Pay-Charge option. Selection is a border (in-box), not an
+                  outward ring — an outward ring gets clipped by the scroll edge. */}
               <button
                 disabled={!canAffordCharge}
-                style={{
-                  ...(useAlternativeCost && !alternativeCostCard && canAffordCharge
-                    ? { boxShadow: '0 0 0 4px rgb(250 204 21), 0 10px 15px -3px rgba(250, 204, 21, 0.5)' }
-                    : {}),
-                  padding: 'var(--spacing-component-sm) var(--spacing-component-md)',
-                  marginBottom: 'var(--spacing-component-md)'
-                }}
-                className={`
-                  w-full rounded transition-all text-sm focus:ring-2 focus:ring-yellow-400
-                  ${!canAffordCharge
-                    ? 'bg-gray-600 opacity-50 cursor-not-allowed'
-                    : useAlternativeCost && !alternativeCostCard
-                      ? 'bg-red-700'
-                      : 'bg-red-600 hover:bg-red-700 cursor-pointer'
-                  }
-                `}
                 onClick={canAffordCharge ? selectPayCharge : undefined}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  padding: '9px 12px',
+                  marginBottom: '12px',
+                  borderRadius: '8px',
+                  border: `2px solid ${useAlternativeCost && !alternativeCostCard && canAffordCharge ? 'var(--gold)' : 'rgba(237,232,222,.18)'}`,
+                  background: useAlternativeCost && !alternativeCostCard && canAffordCharge ? 'rgba(242,193,78,.12)' : 'rgba(237,232,222,.04)',
+                  color: canAffordCharge ? 'var(--ink-text)' : 'var(--ink-faint)',
+                  cursor: canAffordCharge ? 'pointer' : 'not-allowed',
+                  opacity: canAffordCharge ? 1 : 0.6,
+                }}
               >
-                <div className="flex justify-between items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
-                  <span className="font-medium leading-tight text-left flex-1">
-                    {canAffordCharge ? `Pay ${action.cost_charge} Charge` : `🔒 Pay ${action.cost_charge} Charge (not enough Charge)`}
-                  </span>
-                  <span 
-                    className="rounded text-xs font-bold whitespace-nowrap flex-shrink-0 bg-black bg-opacity-30"
-                    style={{ padding: 'var(--spacing-component-xs) var(--spacing-component-xs)' }}
-                  >
-                    {action.cost_charge} Charge
-                  </span>
-                </div>
+                <span style={{ fontWeight: 700, fontSize: '13px', textAlign: 'left' }}>
+                  {canAffordCharge ? `Pay ${action.cost_charge} Charge` : `Pay ${action.cost_charge} Charge — not enough`}
+                </span>
+                <span style={{ flexShrink: 0, color: 'var(--gold)', fontWeight: 900, fontSize: '13px' }}>⚡{action.cost_charge}</span>
               </button>
+
               {hasCardsToBreak ? (
                 <>
-                  <h4 className="text-md font-semibold" style={{ marginBottom: 'var(--spacing-component-sm)' }}>Or select a card to break:</h4>
-                  <div 
-                    className="grid grid-cols-2" 
-                    style={{ 
-                      gap: 'var(--spacing-component-md)', 
-                      padding: 'var(--spacing-component-sm)',
-                      paddingBottom: 'var(--spacing-component-lg)'
-                    }}
-                  >
-                    {filteredAlternativeCostOptions.map((card) => {
-                      const isSelected = alternativeCostCard === card.id;
-                      return (
-                        <div
-                          key={card.id}
-                          onClick={() => selectAlternativeCostCard(card.id)}
-                          className="flex justify-center"
-                        >
-                          <CardDisplay
-                            card={card}
-                            size="medium"
-                            isSelected={isSelected}
-                            isClickable={true}
-                          />
-                        </div>
-                      );
-                    })}
+                  <div style={{ fontSize: '11.5px', color: 'var(--ink-muted)', marginBottom: '2px' }}>
+                    Or break one of your cards to play it free:
                   </div>
+                  {/* Grouped by zone — the break options mix in-play and hand
+                      cards, and it matters which one you're about to break. */}
+                  {(() => {
+                    const opp = opponentName || 'Opponent';
+                    const groups = new Map<number, { label: string; cards: Card[] }>();
+                    for (const card of filteredAlternativeCostOptions) {
+                      const g = targetGroup(card, localId, opp);
+                      if (!groups.has(g.order)) groups.set(g.order, { label: g.label, cards: [] });
+                      groups.get(g.order)!.cards.push(card);
+                    }
+                    const ordered = [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {ordered.map((grp) => (
+                          <div key={grp.label}>
+                            <div style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: '2px' }}>
+                              {grp.label}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px 10px 4px' }}>
+                              {grp.cards.map((card) => {
+                                const isSelected = alternativeCostCard === card.id;
+                                return (
+                                  <div key={card.id} style={{ position: 'relative', zIndex: isSelected ? 2 : 1, display: 'flex', justifyContent: 'center' }}>
+                                    <CardDisplay
+                                      card={card}
+                                      size="medium"
+                                      fluid
+                                      isSelected={isSelected}
+                                      isClickable
+                                      onClick={() => selectAlternativeCostCard(card.id)}
+                                      disableDetailModal
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </>
               ) : (
-                <p className="text-gray-400 text-sm">
+                <div style={{ color: 'var(--ink-muted)', fontSize: '11.5px' }}>
                   No cards available to break. You must pay {action.cost_charge} Charge.
-                </p>
+                </div>
               )}
             </div>
           )}
