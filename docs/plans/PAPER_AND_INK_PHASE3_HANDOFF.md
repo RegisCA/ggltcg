@@ -14,14 +14,13 @@
 >
 > **Deliberately deferred / next-session candidates:**
 > - **AdminDataViewer** — admin-only; Régis explicitly deferred its restyle.
-> - **Usability: charge visibility** (Régis, 2026-07-05): mid-turn, your own ⚡
->   charge count is hard to locate at a glance — it's checked after every action
->   and doesn't pop. Related idea: highlight the ACTIVE player's score bar.
->   Design work on `PlayerInfoBar` / the score chips; run through the harness.
-> - **Action-bar alignment inconsistency** (Régis, 2026-07-05): on desktop the
->   bottom action bar is centered during your turn but not during the
->   opponent's (Gemiknight) turn. Fix + audit for similar per-turn-state
->   layout inconsistencies.
+> - ~~**Usability: charge visibility**~~ ✅ RESOLVED (PR #389): Régis compared
+>   A/B/C variants on a Vercel preview and picked C — own-charge gold emphasis
+>   (larger numeral in a gold chip + change pulse, reduced-motion respected)
+>   combined with an identity-color (`--you`/`--them`) highlight on the active
+>   player's score chip, inactive chip dimmed. Now the production behavior of
+>   `PlayerInfoBar`.
+> - ~~**Action-bar alignment inconsistency**~~ ✅ RESOLVED (PR #388).
 > - **⚡ → SVG bolt** (§8): replace the emoji bolt with a single-color gold SVG
 >   when convenient.
 > - **CardStats has no offline fixture** (fetch-driven only) — add

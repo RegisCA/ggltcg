@@ -9,15 +9,15 @@
  *
  * Values from the signed-off mockup (direction 6a).
  *
- * `chargeVariant` (design-review only, 2026-07 charge-visibility prototype —
- * see docs/plans/PAPER_AND_INK_PHASE3_HANDOFF.md "next-session candidates"):
- * - 'current' (default everywhere in the real app): unchanged baseline.
- * - 'chargePops': your own charge value gets stronger gold emphasis + a brief
- *   scale pulse when it changes (reduced-motion respected). Opponent unchanged.
- * - 'activeHighlight': the active player's whole chip gets an identity-color
- *   (--you/--them, never --gold) border/background lift; inactive chip dims.
- * - 'both': chargePops + activeHighlight together.
- * The prop always defaults to 'current' so nothing outside the harness changes.
+ * Charge-visibility treatment (PR #389, from the Phase-3 handoff usability
+ * item: your own charge was hard to locate mid-turn — Régis picked variant C
+ * of the A/B/C prototype):
+ * - Your own charge gets strong gold emphasis: larger numeral in a gold-tinted
+ *   chip, plus a brief scale pulse when the value changes (reduced-motion
+ *   respected). The opponent's charge stays quiet.
+ * - The active player's whole chip gets an identity-color lift (--you/--them
+ *   border + glow — never --gold, which stays reserved for charge/action);
+ *   the inactive player's chip dims slightly.
  */
 
 import { motion } from 'framer-motion';
@@ -26,18 +26,14 @@ import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
 import { usePreviousValue } from '../hooks/usePreviousValue';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
-export type ChargeVisibilityVariant = 'current' | 'chargePops' | 'activeHighlight' | 'both';
-
 interface PlayerInfoBarProps {
   player: Player;
-  /** Whether this player is the active (current-turn) player. Only consulted
-   *  by the 'activeHighlight'/'both' variants; ignored by 'current'. */
+  /** Whether this player is the active (current-turn) player — drives the
+   *  identity-color chip highlight / inactive dim. */
   isActivePlayer?: boolean;
-  /** Design-review variant switch — see file header. Defaults to 'current'. */
-  chargeVariant?: ChargeVisibilityVariant;
 }
 
-export function PlayerInfoBar({ player, isActivePlayer = false, chargeVariant = 'current' }: PlayerInfoBarProps) {
+export function PlayerInfoBar({ player, isActivePlayer = false }: PlayerInfoBarProps) {
   const localPlayerId = useLocalPlayerId();
   const isOwn = localPlayerId != null && player.player_id === localPlayerId;
   const prefersReducedMotion = useReducedMotion();
@@ -48,31 +44,22 @@ export function PlayerInfoBar({ player, isActivePlayer = false, chargeVariant = 
 
   const accent = isOwn ? 'var(--you)' : 'var(--them)';
 
-  const chargePops = chargeVariant === 'chargePops' || chargeVariant === 'both';
-  const activeHighlight = chargeVariant === 'activeHighlight' || chargeVariant === 'both';
+  const chargeChanged = isOwn && previousCharge !== undefined && previousCharge !== player.charge;
 
-  const chargeChanged =
-    chargePops && isOwn && previousCharge !== undefined && previousCharge !== player.charge;
-
-  // Base chip tint (unchanged from baseline).
-  let chipBg = isOwn ? 'rgba(126,166,224,.08)' : 'rgba(180,142,222,.07)';
-  let chipBorder = isOwn ? 'rgba(126,166,224,.3)' : 'rgba(180,142,222,.28)';
-  let chipOpacity = 1;
-  let chipBoxShadow: string | undefined;
-
-  if (activeHighlight) {
-    if (isActivePlayer) {
-      // Active player: identity-color lift (--you/--them), never --gold —
-      // gold stays reserved for charge/action per §2/§7.2.
-      chipBg = isOwn ? 'rgba(126,166,224,.16)' : 'rgba(180,142,222,.15)';
-      chipBorder = isOwn ? 'var(--you)' : 'var(--them)';
-      chipBoxShadow = isOwn
-        ? '0 0 0 1px rgba(126,166,224,.25), 0 4px 10px rgba(126,166,224,.18)'
-        : '0 0 0 1px rgba(180,142,222,.22), 0 4px 10px rgba(180,142,222,.18)';
-    } else {
-      chipOpacity = 0.72;
-    }
-  }
+  // Active player: identity-color lift (--you/--them), never --gold — gold
+  // stays reserved for charge/action per §2/§7.2. Inactive player dims.
+  const chipBg = isActivePlayer
+    ? isOwn ? 'rgba(126,166,224,.16)' : 'rgba(180,142,222,.15)'
+    : isOwn ? 'rgba(126,166,224,.08)' : 'rgba(180,142,222,.07)';
+  const chipBorder = isActivePlayer
+    ? isOwn ? 'var(--you)' : 'var(--them)'
+    : isOwn ? 'rgba(126,166,224,.3)' : 'rgba(180,142,222,.28)';
+  const chipBoxShadow = isActivePlayer
+    ? isOwn
+      ? '0 0 0 1px rgba(126,166,224,.25), 0 4px 10px rgba(126,166,224,.18)'
+      : '0 0 0 1px rgba(180,142,222,.22), 0 4px 10px rgba(180,142,222,.18)'
+    : undefined;
+  const chipOpacity = isActivePlayer ? 1 : 0.72;
 
   return (
     <div
@@ -124,21 +111,21 @@ export function PlayerInfoBar({ player, isActivePlayer = false, chargeVariant = 
         <span style={{ color: 'var(--danger)', fontWeight: 900, fontSize: '14px' }}>{brokenCount}</span>
       </span>
 
-      {/* Charge — chargePops variant gives your own value stronger emphasis
-          (bigger numeral + gold chip) and a brief pulse on change. */}
+      {/* Charge — your own value gets stronger emphasis (bigger numeral in a
+          gold chip) and a brief pulse on change; opponent's stays quiet. */}
       <motion.span
-        key={chargePops ? `charge-${player.charge}` : 'charge'}
+        key={`charge-${player.charge}`}
         style={{
           color: 'var(--gold)',
           fontWeight: 900,
-          fontSize: chargePops && isOwn ? '18px' : '14px',
+          fontSize: isOwn ? '18px' : '14px',
           flexShrink: 0,
           display: 'inline-flex',
           alignItems: 'center',
           borderRadius: '5px',
-          padding: chargePops && isOwn ? '1px 6px' : undefined,
-          background: chargePops && isOwn ? 'rgba(242,193,78,.16)' : undefined,
-          border: chargePops && isOwn ? '1px solid rgba(242,193,78,.5)' : undefined,
+          padding: isOwn ? '1px 6px' : undefined,
+          background: isOwn ? 'rgba(242,193,78,.16)' : undefined,
+          border: isOwn ? '1px solid rgba(242,193,78,.5)' : undefined,
         }}
         title={`${player.charge} Charge`}
         initial={false}

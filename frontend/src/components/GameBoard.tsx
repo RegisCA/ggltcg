@@ -15,7 +15,7 @@ import { useGameMessages } from '../hooks/useGameMessages';
 import { useGameFlow } from '../hooks/useGameFlow';
 import { useGameActions } from '../hooks/useGameActions';
 import { useResponsive } from '../hooks/useResponsive';
-import { PlayerInfoBar, type ChargeVisibilityVariant } from './PlayerInfoBar';
+import { PlayerInfoBar } from './PlayerInfoBar';
 import { InPlayZone } from './InPlayZone';
 import { HandZone } from './HandZone';
 import { BreakZoneDisplay } from './BreakZoneDisplay';
@@ -29,12 +29,9 @@ interface GameBoardProps {
   humanPlayerId: string;
   aiPlayerId?: string;
   onGameEnd: (winner: string, gameState: GameState) => void;
-  /** Design-review only (charge-visibility prototype) — see PlayerInfoBar.tsx.
-   *  Always defaults to 'current' (production behavior) outside the harness. */
-  chargeVariant?: ChargeVisibilityVariant;
 }
 
-export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd, chargeVariant = 'current' }: GameBoardProps) {
+export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: GameBoardProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ValidAction | null>(null);
   
@@ -322,12 +319,10 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd, charge
           <PlayerInfoBar
             player={humanPlayer}
             isActivePlayer={gameState.active_player_id === humanPlayerId}
-            chargeVariant={chargeVariant}
           />
           <PlayerInfoBar
             player={otherPlayer}
             isActivePlayer={gameState.active_player_id === otherPlayerId}
-            chargeVariant={chargeVariant}
           />
         </div>
 
