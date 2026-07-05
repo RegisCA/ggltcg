@@ -12,13 +12,13 @@ interface TermsOfServiceProps {
 
 export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
+    <div className="min-h-screen bg-panel text-gray-100">
       {/* Header */}
-      <header className="bg-gray-800 border-b-4 border-game-highlight" style={{ padding: 'var(--spacing-component-lg)' }}>
+      <header className="bg-panel border-b-4 border-gold" style={{ padding: 'var(--spacing-component-lg)' }}>
         <div className="container mx-auto" style={{ padding: '0 var(--spacing-component-md)' }}>
           <button
             onClick={onBack}
-            className="text-2xl font-bold text-game-highlight hover:text-red-400 transition-colors"
+            className="text-2xl font-bold text-gold hover:opacity-80 transition-colors"
           >
             ← Back to GGLTCG
           </button>
@@ -27,7 +27,7 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
 
       {/* Content */}
       <main className="container mx-auto max-w-4xl" style={{ padding: 'var(--spacing-component-xl) var(--spacing-component-md)' }}>
-        <h1 className="text-4xl font-bold text-game-highlight" style={{ marginBottom: 'var(--spacing-component-xl)' }}>Terms of Service</h1>
+        <h1 className="text-4xl font-bold text-gold" style={{ marginBottom: 'var(--spacing-component-xl)' }}>Terms of Service</h1>
         
         <div className="flex flex-col text-gray-300 leading-relaxed" style={{ gap: 'var(--spacing-component-xl)' }}>
           <section>
@@ -142,7 +142,7 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
                 href="https://github.com/RegisCA/ggltcg" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-game-highlight hover:underline"
+                className="text-gold hover:underline"
               >
                 GitHub
               </a>.
@@ -194,7 +194,7 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
             <h3 className="text-xl font-semibold text-gray-200" style={{ marginBottom: 'var(--spacing-component-sm)' }}>By You</h3>
             <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               You may stop using GGLTCG at any time. To delete your account and data, contact us at{' '}
-              <a href="mailto:regiseloi+ggltcg@me.com" className="text-game-highlight hover:underline">
+              <a href="mailto:regiseloi+ggltcg@me.com" className="text-gold hover:underline">
                 regiseloi+ggltcg@me.com
               </a>.
             </p>
@@ -253,7 +253,7 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
             <p style={{ marginBottom: 'var(--spacing-component-xs)' }}>
               <strong>Email:</strong> <a 
                 href="mailto:regiseloi+ggltcg@me.com" 
-                className="text-game-highlight hover:underline"
+                className="text-gold hover:underline"
               >
                 regiseloi+ggltcg@me.com
               </a>
@@ -263,14 +263,14 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
                 href="https://github.com/RegisCA/ggltcg" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-game-highlight hover:underline"
+                className="text-gold hover:underline"
               >
                 GitHub Repository
               </a>
             </p>
           </section>
 
-          <section className="bg-gray-800 rounded-lg border-2 border-game-highlight" style={{ marginTop: '48px', padding: 'var(--spacing-component-lg)' }}>
+          <section className="bg-panel rounded-lg border-2 border-gold" style={{ marginTop: '48px', padding: 'var(--spacing-component-lg)' }}>
             <h2 className="text-2xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-md)' }}>Acknowledgment</h2>
             <p style={{ marginBottom: 'var(--spacing-component-md)' }}>
               By using GGLTCG, you acknowledge that you have read and understood these Terms of Service 
@@ -286,7 +286,7 @@ export const TermsOfService: React.FC<TermsOfServiceProps> = ({ onBack }) => {
         <div className="border-t-2 border-gray-700" style={{ marginTop: '48px', paddingTop: 'var(--spacing-component-xl)' }}>
           <button
             onClick={onBack}
-            className="inline-block bg-game-highlight hover:bg-red-600 text-white font-bold rounded-lg transition-all"
+            className="inline-block bg-gold hover:opacity-90 text-desk font-bold rounded-lg transition-all"
             style={{ padding: 'var(--spacing-component-sm) var(--spacing-component-lg)' }}
           >
             Return to Game

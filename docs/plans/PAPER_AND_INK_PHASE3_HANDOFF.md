@@ -1,7 +1,32 @@
 # Paper & Ink — Phase 3 Handoff
 
-**Created:** July 5, 2026. Written to kick-start a fresh session that finishes the
-Paper & Ink UI refresh (Phase 3 screens + Phase 4 cleanup) and brings it to a close.
+> ## ✅ STATUS (updated July 5, 2026, end of day): COMPLETE
+>
+> Everything below this box is the original handoff, kept for historical context.
+> The migration finished the same day, via PRs #374–#385 plus the Phase 4 cleanup PR:
+> board + target modal (#374), selection primitive + Vitest/RTL test infra (#375,
+> #380), deck selection (#376), victory screen (#377, #378 viewer-relative colors),
+> lobby flow (#379), login/leaderboard/loading/user-menu/footer (#381), loading
+> cold-start expectation + player/card stats (#382, #383), profile-edit +
+> card-detail modals (#384), HowToPlay + copy audit (#385), Phase 4 token/emoji
+> cleanup (this PR). Frontend test suite: 34 tests, running in CI.
+> Every screen has a deep-linkable `/design.html#<fixture>` harness route.
+>
+> **Deliberately deferred / next-session candidates:**
+> - **AdminDataViewer** — admin-only; Régis explicitly deferred its restyle.
+> - **Usability: charge visibility** (Régis, 2026-07-05): mid-turn, your own ⚡
+>   charge count is hard to locate at a glance — it's checked after every action
+>   and doesn't pop. Related idea: highlight the ACTIVE player's score bar.
+>   Design work on `PlayerInfoBar` / the score chips; run through the harness.
+> - **⚡ → SVG bolt** (§8): replace the emoji bolt with a single-color gold SVG
+>   when convenient.
+> - **CardStats has no offline fixture** (fetch-driven only) — add
+>   `statsOverride` + `#card-stats` route if it needs design iteration.
+> - **CardDetailModal existence check**: kept (it's the mobile tap-to-read AND
+>   tap-to-act flow), but Régis wondered if it's still needed now that cards are
+>   readable at 390 — revisit with a tap-acts-directly prototype if desired.
+> - HowToPlay copy: Direct Attack's 2-Charge cost is not stated (flagged, not
+>   fixed, in #385).
 
 This session got the board + modal done but took too many rounds because of
 avoidable process mistakes. Read the **Process rules** section before writing any

@@ -224,7 +224,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   // Loading state
   if (isLoading || !gameState) {
     return (
-      <div className="min-h-screen bg-game-bg flex items-center justify-center">
+      <div className="min-h-screen bg-desk flex items-center justify-center">
         <div className="text-2xl">Loading game...</div>
       </div>
     );
@@ -236,7 +236,7 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
 
   if (!humanPlayer || !otherPlayer) {
     return (
-      <div className="min-h-screen bg-game-bg flex items-center justify-center">
+      <div className="min-h-screen bg-desk flex items-center justify-center">
         <div className="text-2xl text-red-500">Error: Players not found</div>
       </div>
     );

@@ -240,7 +240,7 @@ export function GameMessages({
                                 >
                                   {isStrategy ? (
                                     <>
-                                      <span style={{ fontWeight: 700 }}>💭 {entry.player}:</span>{' '}
+                                      <span style={{ fontWeight: 700 }}>{entry.player}:</span>{' '}
                                       <span style={{ fontStyle: 'italic', color: 'var(--paper-muted)' }}>{entry.description}</span>
                                     </>
                                   ) : (

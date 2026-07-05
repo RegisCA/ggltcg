@@ -120,7 +120,7 @@ export function DesignPreview() {
   const activeDescription = route.kind === 'screen' ? screenFixture?.description : boardFixture.description;
 
   return (
-    <div className="min-h-screen bg-game-bg">
+    <div className="min-h-screen bg-desk">
       {/* Harness chrome — deliberately visually distinct from the game UI */}
       <div
         className="border-b-2 border-purple-500 bg-purple-950/60"

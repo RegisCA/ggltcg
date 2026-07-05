@@ -94,8 +94,8 @@ export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
           <h3 className="font-bold text-lg">{playerName} · Break Zone ({cardList.length})</h3>
           <button
             onClick={() => setIsListOpen(false)}
-            className="text-gray-400 hover:text-white text-xl font-bold rounded"
-            style={{ padding: '0 var(--spacing-component-xs)' }}
+            className="text-xl font-bold rounded hover:opacity-80"
+            style={{ color: 'var(--ink-muted)', padding: '0 var(--spacing-component-xs)' }}
             aria-label="Close break zone list"
           >
             ✕
