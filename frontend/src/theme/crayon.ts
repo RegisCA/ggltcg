@@ -160,7 +160,3 @@ const INK_MATERIAL: Omit<CardMaterial, 'isOwn'> = {
 export function materialFor(isOwn: boolean): CardMaterial {
   return { isOwn, ...(isOwn ? PAPER_MATERIAL : INK_MATERIAL) };
 }
-
-export function materialForOwner(cardOwner: string, localPlayerId: string): CardMaterial {
-  return materialFor(cardOwner === localPlayerId);
-}

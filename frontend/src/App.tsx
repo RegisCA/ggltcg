@@ -341,7 +341,7 @@ function GameApp() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
       <div style={{ fontSize: '1.5rem' }}>Loading...</div>
     </div>
   );
@@ -362,7 +362,7 @@ function AuthWrapper() {
   // Show loading while checking auth state
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
         <div style={{ fontSize: '1.5rem' }}>Loading...</div>
       </div>
     );

@@ -38,7 +38,7 @@ export const UserMenu: React.FC = () => {
           gap: 'var(--spacing-component-xs)',
           padding: 'var(--spacing-component-xs) var(--spacing-component-md)',
           borderRadius: '8px',
-          background: '#241E17',
+          background: 'var(--color-panel)',
           border: '1px solid rgba(242,193,78,.35)',
           color: 'var(--ink-text)',
         }}
@@ -83,7 +83,7 @@ export const UserMenu: React.FC = () => {
             style={{
               marginTop: 'var(--spacing-component-xs)',
               width: '240px',
-              background: '#241E17',
+              background: 'var(--color-panel)',
               border: '1px solid rgba(242,193,78,.35)',
               borderRadius: '8px',
               boxShadow: '0 8px 24px rgba(0,0,0,.4)',

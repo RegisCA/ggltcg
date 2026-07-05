@@ -590,7 +590,6 @@ export const VICTORY_AI_LOGS_FIXTURE = VICTORY_AI_LOGS;
 
 export const LOBBY_FIXTURE_GAME_ID = 'fixture-lobby-game';
 export const LOBBY_FIXTURE_GAME_CODE = '9P47XA';
-export const LOBBY_FIXTURE_PLAYER_ID = 'fixture-lobby-player';
 
 // ============================================================================
 // LEADERBOARD FIXTURE (for /design.html#leaderboard)

@@ -262,7 +262,7 @@ export function LoadingScreen({ onReady, coldStartOverride }: LoadingScreenProps
             marginTop: 'var(--spacing-component-xl)',
             padding: 'var(--spacing-component-md)',
             maxWidth: '400px',
-            background: '#241E17',
+            background: 'var(--color-panel)',
             border: '1px solid rgba(242,193,78,.25)',
             borderRadius: '8px',
           }}

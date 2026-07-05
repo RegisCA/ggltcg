@@ -150,7 +150,7 @@ export function PlayerStats({ playerId, onClose, statsOverride }: PlayerStatsPro
           width: '600px',
           maxWidth: '100%',
           maxHeight: '85vh',
-          background: '#241E17',
+          background: 'var(--color-panel)',
           borderRadius: '8px',
           border: '1px solid var(--gold)',
           boxShadow: '0 8px 24px rgba(0,0,0,.4)',
