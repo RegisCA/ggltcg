@@ -18,6 +18,10 @@
 >   charge count is hard to locate at a glance — it's checked after every action
 >   and doesn't pop. Related idea: highlight the ACTIVE player's score bar.
 >   Design work on `PlayerInfoBar` / the score chips; run through the harness.
+> - **Action-bar alignment inconsistency** (Régis, 2026-07-05): on desktop the
+>   bottom action bar is centered during your turn but not during the
+>   opponent's (Gemiknight) turn. Fix + audit for similar per-turn-state
+>   layout inconsistencies.
 > - **⚡ → SVG bolt** (§8): replace the emoji bolt with a single-color gold SVG
 >   when convenient.
 > - **CardStats has no offline fixture** (fetch-driven only) — add

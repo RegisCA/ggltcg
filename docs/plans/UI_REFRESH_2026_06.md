@@ -3,7 +3,7 @@
 **Created**: June 30, 2026
 **Updated**: July 4, 2026 — WP-3/WP-4 replaced with the harness-based approach (Claude Code session)
 **Source**: Solo AI-vs-AI playtest (Claude playing via Chrome, live production site) + responsive-width check
-**Status**: WP-1 ✅ · WP-2 ✅ · WP-3 ✅ (design harness, PR #353) · WP-4 Phase 0 ✅ (PRs #354-#355) · **Phase 2 ✅ complete 2026-07-04** (PRs #356-#369, device-tested) · **Phase 3 in progress** — items 1-2 ✅ (log copy #370, victory badges #371, merged 2026-07-04); items 3-6 (typography/iconography, Story-Mode tone, screen sweep) pending the parallel Claude Design system session — see the seeded plan at the end of WP-4
+**Status**: ✅ **COMPLETE (2026-07-05).** WP-1 ✅ · WP-2 ✅ · WP-3 ✅ (design harness, PR #353) · WP-4 Phase 0 ✅ (PRs #354-#355) · Phase 2 ✅ (PRs #356-#369, device-tested, 2026-07-04) · Phase 3 items 1-2 ✅ (log copy #370, victory badges #371) · Phase 3 items 3-6 ✅ **delivered as the "Paper & Ink" design system** (PRs #372-#386, 2026-07-05) — spec in `DESIGN_SYSTEM_PAPER_AND_INK.md`, status + deferred items in `PAPER_AND_INK_PHASE3_HANDOFF.md`. Follow-on UX tweaks are tracked there, not here.
 
 **Context**: Repo is post-audit and stable. Card art was deliberately dropped (physical
 game only) — the redesign is function-first, no illustration budget. An earlier pass
@@ -369,7 +369,15 @@ session should read both, `git fetch`, and start Phase 3 below. All work
 so far: PRs #353-#369, all bot-authored, harness-verified at 390/768/1280,
 final batch device-tested by Régis.
 
-## Phase 3 — design language + whole-experience sweep (in progress)
+## Phase 3 — design language + whole-experience sweep (✅ complete 2026-07-05)
+
+> **Resolution:** items 3-6 below were delivered as the **Paper & Ink design
+> system** (PRs #372-#386): tokens/fonts foundation (#372), whole board +
+> target modal (#374), selection primitive + Vitest/RTL test infra (#375,
+> #380), every remaining screen (#376-#385), Phase 4 legacy-token cleanup
+> (#386). Spec: `DESIGN_SYSTEM_PAPER_AND_INK.md`. Final status and the
+> deliberately-deferred list (AdminDataViewer, charge visibility, SVG bolt):
+> `PAPER_AND_INK_PHASE3_HANDOFF.md`. This plan file is now historical.
 
 Phase 2 fixed *what's on screen and where*; Phase 3 is *how it reads and
 feels*. Layout/gameplay are settled — do not reopen them. Suggested
