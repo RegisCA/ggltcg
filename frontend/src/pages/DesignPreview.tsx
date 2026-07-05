@@ -24,6 +24,8 @@ import { Leaderboard } from '../components/Leaderboard';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { PlayerStats } from '../components/PlayerStats';
 import { UserMenu } from '../components/UserMenu';
+import { ProfileEditModal } from '../components/ProfileEditModal';
+import { CardDetailModal } from '../components/CardDetailModal';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../contexts/AuthContext';
 import { LocalPlayerProvider } from '../contexts/LocalPlayerContext';
@@ -41,6 +43,7 @@ import {
   LEADERBOARD_VIEWER_ID,
   PLAYER_STATS_FIXTURE,
   USER_MENU_FIXTURE_USER,
+  CARD_DETAIL_FIXTURE_CARD,
 } from '../fixtures/designFixtures';
 
 // Non-GameBoard screens get their own fixture ids (no `fixture-` game state
@@ -58,6 +61,8 @@ const SCREEN_FIXTURES = [
   { id: 'player-stats', label: 'Player stats', description: 'PlayerStats: canned drill-in stats via statsOverride, no backend fetch.' },
   { id: 'loading', label: 'Loading', description: 'LoadingScreen: cold-start waking state (forced via coldStartOverride).' },
   { id: 'user-menu', label: 'User menu', description: 'UserMenu over the desk background, canned signed-in user.' },
+  { id: 'profile-edit', label: 'Profile edit', description: 'ProfileEditModal over the desk background, canned signed-in user. Save no-ops offline (API call will fail/reject; expected in the harness).' },
+  { id: 'card-detail', label: 'Card detail', description: 'CardDetailModal over the desk background: Archer (longest effect text) with an action button.' },
 ];
 
 type RouteMatch = { kind: 'board'; id: string } | { kind: 'screen'; id: string };
@@ -82,7 +87,7 @@ export function DesignPreview() {
   // state + localStorage. Signed out again on route change so other screens
   // (e.g. #login) aren't affected by a lingering session.
   useEffect(() => {
-    if (route.kind === 'screen' && route.id === 'user-menu') {
+    if (route.kind === 'screen' && (route.id === 'user-menu' || route.id === 'profile-edit')) {
       if (!user) {
         const fakeJwt = `fixture.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.sig`;
         login(fakeJwt, USER_MENU_FIXTURE_USER);
@@ -230,6 +235,28 @@ export function DesignPreview() {
           style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))' }}
         >
           <UserMenu />
+        </div>
+      ) : route.kind === 'screen' && route.id === 'profile-edit' ? (
+        <div
+          key="profile-edit"
+          className="min-h-screen"
+          style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))' }}
+        >
+          <ProfileEditModal isOpen={true} onClose={() => selectRoute({ kind: 'screen', id: 'user-menu' })} />
+        </div>
+      ) : route.kind === 'screen' && route.id === 'card-detail' ? (
+        <div
+          key="card-detail"
+          className="min-h-screen"
+          style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))' }}
+        >
+          <CardDetailModal
+            card={CARD_DETAIL_FIXTURE_CARD}
+            isOpen={true}
+            onClose={() => selectRoute({ kind: 'screen', id: 'lobby-home' })}
+            onAction={() => {}}
+            actionLabel="Select"
+          />
         </div>
       ) : (
         // key remounts the board on fixture switch so no UI state leaks across
