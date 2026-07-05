@@ -1,20 +1,40 @@
 /**
  * Leaderboard Component
- * Displays top players ranked by wins - losses differential
+ * Displays top players ranked by wins - losses differential.
+ *
+ * Restyled to Paper & Ink (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md) — no
+ * mockup exists for this screen, so this applies the established language:
+ * dark panel with gold hairline border, Gochi Hand title, --you highlighting
+ * for the viewing player's row (viewer-relative, same idiom as VictoryScreen).
+ *
+ * Decorative emoji removed per §8 (🏆🎲😢🎮🥇🥈🥉🔥); ranks render as plain
+ * numerals — none of these are content-bearing state badges.
  */
 
 import { useState, useEffect } from 'react';
 import { getLeaderboard } from '../api/statsService';
+import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
+import { useAuth } from '../contexts/AuthContext';
 import type { LeaderboardResponse, LeaderboardEntry } from '../types/api';
 
 interface LeaderboardProps {
   onClose: () => void;
   onViewPlayer?: (playerId: string) => void;
+  /** Test/preview seam: when provided, skips the getLeaderboard() fetch and
+   *  renders this canned list instead. Production callers never pass this —
+   *  used by the /design.html#leaderboard fixture and component tests. */
+  entriesOverride?: LeaderboardEntry[];
 }
 
-export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+export function Leaderboard({ onClose, onViewPlayer, entriesOverride }: LeaderboardProps) {
+  const localPlayerId = useLocalPlayerId();
+  const { user } = useAuth();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(
+    entriesOverride
+      ? { entries: entriesOverride, total_players: entriesOverride.length, min_games_required: 3 }
+      : null
+  );
+  const [loading, setLoading] = useState(!entriesOverride);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLeaderboard = async () => {
@@ -32,7 +52,9 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
   };
 
   useEffect(() => {
+    if (entriesOverride) return; // preview/test harness supplies entries directly
     fetchLeaderboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle Escape key to close modal
@@ -44,27 +66,28 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const getRankEmoji = (rank: number): string => {
-    switch (rank) {
-      case 1: return '🥇';
-      case 2: return '🥈';
-      case 3: return '🥉';
-      default: return `#${rank}`;
-    }
-  };
+  // Leaderboard entries carry Google ids for human players. In production the
+  // Leaderboard opens from LobbyHome — outside any game, so there is no
+  // LocalPlayerProvider; the signed-in user is the viewer. The context id is
+  // kept as a fallback for in-game mounts and the design harness.
+  const viewerId = user?.google_id ?? localPlayerId;
+  const isViewer = (entry: LeaderboardEntry): boolean =>
+    !!viewerId && entry.player_id === viewerId;
 
-  const getRankColor = (rank: number): string => {
-    switch (rank) {
-      case 1: return 'text-yellow-400';
-      case 2: return 'text-gray-300';
-      case 3: return 'text-amber-600';
-      default: return 'text-gray-400';
-    }
+  const winRateColor = (winRate: number): string => {
+    if (winRate >= 70) return 'var(--gold)';
+    if (winRate >= 50) return 'var(--ink-text)';
+    return 'var(--danger)';
   };
 
   return (
-    <div 
-      style={{ 
+    <div
+      onClick={(e) => {
+        // Backdrop click closes; clicks inside the panel bubble here too, so
+        // only close when the backdrop itself is the target.
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -75,50 +98,78 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2rem'
+        padding: 'var(--spacing-component-md)',
       }}
     >
-      <div 
-        className="bg-gray-900/95 rounded-xl border-4 border-game-highlight shadow-2xl flex flex-col"
-        style={{ 
+      <div
+        className="flex flex-col"
+        style={{
           width: '600px',
+          maxWidth: '100%',
           maxHeight: '80vh',
+          background: '#241E17',
+          borderRadius: '8px',
+          border: '1px solid var(--gold)',
+          boxShadow: '0 8px 24px rgba(0,0,0,.4)',
         }}
       >
         {/* Header */}
-        <div className="border-b-4 border-game-accent bg-gray-800 flex-shrink-0" style={{ padding: 'var(--spacing-component-md)' }}>
+        <div
+          className="flex-shrink-0"
+          style={{
+            padding: 'var(--spacing-component-md)',
+            borderBottom: '1px solid rgba(242,193,78,.25)',
+          }}
+        >
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold text-game-highlight">🏆 Leaderboard</h2>
-              <p className="text-gray-300" style={{ marginTop: '4px' }}>
+              <h2 style={{ fontFamily: 'var(--font-card-name)', fontSize: '28px', color: 'var(--ink-text)' }}>
+                Leaderboard
+              </h2>
+              <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--ink-muted)' }}>
                 Top players by win differential
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl font-bold" style={{ padding: '4px' }}
+              aria-label="Close leaderboard"
+              style={{
+                fontSize: '22px',
+                fontWeight: 900,
+                color: 'var(--ink-faint)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+              }}
             >
-              ✕
+              &times;
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
-            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl animate-bounce" style={{ marginBottom: 'var(--spacing-component-md)' }}>🎲</div>
-              <p className="text-gray-400">Loading leaderboard...</p>
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0', color: 'var(--ink-muted)' }}>
+              <p>Loading leaderboard...</p>
             </div>
           )}
 
           {error && (
             <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>😢</div>
-              <p className="text-red-400">{error}</p>
+              <p style={{ color: 'var(--danger)' }}>{error}</p>
               <button
                 onClick={fetchLeaderboard}
-                className="bg-gray-700 hover:bg-gray-600 rounded-lg" style={{ marginTop: 'var(--spacing-component-md)', padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
+                style={{
+                  marginTop: 'var(--spacing-component-md)',
+                  padding: 'var(--spacing-component-xs) var(--spacing-component-md)',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'rgba(237,232,222,.1)',
+                  color: 'var(--ink-text)',
+                  cursor: 'pointer',
+                }}
               >
                 Retry
               </button>
@@ -126,10 +177,9 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
           )}
 
           {!loading && !error && leaderboard && leaderboard.entries.length === 0 && (
-            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>🎮</div>
-              <p className="text-gray-400">No players on the leaderboard yet!</p>
-              <p className="text-gray-500 text-sm" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0', color: 'var(--ink-muted)' }}>
+              <p>No players on the leaderboard yet!</p>
+              <p style={{ marginTop: 'var(--spacing-component-xs)', fontSize: '13px', color: 'var(--ink-faint)' }}>
                 Play some games to be the first!
               </p>
             </div>
@@ -137,58 +187,85 @@ export function Leaderboard({ onClose, onViewPlayer }: LeaderboardProps) {
 
           {!loading && !error && leaderboard && leaderboard.entries.length > 0 && (
             <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
-              {leaderboard.entries.map((entry: LeaderboardEntry) => (
-                <div
-                  key={entry.player_id}
-                  onClick={() => onViewPlayer?.(entry.player_id)}
-                  className={`
-                    flex items-center rounded-lg bg-gray-700/50 
-                    ${onViewPlayer ? 'cursor-pointer hover:bg-gray-700' : ''}
-                    transition-colors
-                  `}
-                  style={{ gap: 'var(--spacing-component-md)', padding: 'var(--spacing-component-md)' }}
-                >
-                  {/* Rank */}
-                  <div className={`text-2xl font-bold w-12 text-center ${getRankColor(entry.rank)} flex items-center justify-center`} style={{ gap: '2px' }}>
-                    {getRankEmoji(entry.rank)}
-                    {entry.win_rate === 100 && (
-                      <span className="text-lg" title="Perfect Record!">🔥</span>
-                    )}
-                  </div>
+              {leaderboard.entries.map((entry: LeaderboardEntry) => {
+                const you = isViewer(entry);
+                return (
+                  <div
+                    key={entry.player_id}
+                    onClick={() => onViewPlayer?.(entry.player_id)}
+                    data-testid={`leaderboard-row-${entry.player_id}`}
+                    className={onViewPlayer ? 'cursor-pointer' : ''}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      minWidth: 0,
+                      gap: 'var(--spacing-component-sm)',
+                      padding: 'var(--spacing-component-sm) var(--spacing-component-md)',
+                      borderRadius: '6px',
+                      background: you ? 'rgba(126,166,224,.14)' : 'rgba(237,232,222,.04)',
+                      border: `1px solid ${you ? 'var(--you)' : 'rgba(237,232,222,.1)'}`,
+                    }}
+                  >
+                    {/* Rank */}
+                    <div
+                      style={{
+                        width: '28px',
+                        flexShrink: 0,
+                        textAlign: 'center',
+                        fontWeight: 900,
+                        fontSize: '16px',
+                        color: entry.rank <= 3 ? 'var(--gold)' : 'var(--ink-faint)',
+                      }}
+                    >
+                      {entry.rank}
+                    </div>
 
-                  {/* Player Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-lg truncate">
-                      {entry.display_name}
+                    {/* Player Info */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '15px',
+                          color: you ? 'var(--you)' : 'var(--ink-text)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {entry.display_name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>
+                        {entry.games_won}W / {entry.games_played - entry.games_won}L
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-400">
-                      {entry.games_won}W / {entry.games_played - entry.games_won}L
-                    </div>
-                  </div>
 
-                  {/* Win Rate */}
-                  <div className="text-right" style={{ paddingRight: 'var(--spacing-component-sm)' }}>
-                    <div className={`
-                      text-xl font-bold
-                      ${entry.win_rate >= 70 ? 'text-green-400' : ''}
-                      ${entry.win_rate >= 50 && entry.win_rate < 70 ? 'text-yellow-400' : ''}
-                      ${entry.win_rate < 50 ? 'text-red-400' : ''}
-                    `}>
-                      {entry.win_rate.toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {entry.games_played} games
+                    {/* Win Rate */}
+                    <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                      <div style={{ fontWeight: 900, fontSize: '16px', color: winRateColor(entry.win_rate) }}>
+                        {entry.win_rate.toFixed(1)}%
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--ink-faint)', whiteSpace: 'nowrap' }}>
+                        {entry.games_played} games
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Footer */}
         {!loading && !error && leaderboard && (
-          <div className="border-t border-gray-700 text-center text-gray-500 text-sm" style={{ padding: 'var(--spacing-component-md)' }}>
+          <div
+            className="text-center flex-shrink-0"
+            style={{
+              padding: 'var(--spacing-component-md)',
+              borderTop: '1px solid rgba(237,232,222,.12)',
+              fontSize: '12px',
+              color: 'var(--ink-faint)',
+            }}
+          >
             Minimum {leaderboard.min_games_required} game{leaderboard.min_games_required !== 1 ? 's' : ''} required to qualify
           </div>
         )}
