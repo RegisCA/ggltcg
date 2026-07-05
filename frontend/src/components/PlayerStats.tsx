@@ -1,28 +1,48 @@
 /**
  * PlayerStats Component
- * Displays detailed statistics for a single player
+ * Displays detailed statistics for a single player.
+ *
+ * Restyled to Paper & Ink (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md) — no
+ * mockup exists for this screen, so this applies the established
+ * dark-panel + gold-hairline idiom from Leaderboard.tsx / VictoryScreen.tsx:
+ * Gochi Hand header, gold accents, viewer-relative --you highlighting where
+ * identity appears (this player's own row, if they're the viewer).
+ *
+ * Decorative emoji removed per §8 (📊🃏😢); none of these are content-bearing
+ * state badges.
  */
 
 import { useState, useEffect } from 'react';
 import { getPlayerStats } from '../api/statsService';
+import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
+import { useAuth } from '../contexts/AuthContext';
 import type { PlayerStats as PlayerStatsType, CardStats } from '../types/api';
 
 interface PlayerStatsProps {
   playerId: string;
   onClose: () => void;
+  /** Test/preview seam: when provided, skips the getPlayerStats() fetch and
+   *  renders this canned payload instead. Production callers never pass
+   *  this — used by the /design.html#player-stats fixture and component
+   *  tests, mirroring Leaderboard's entriesOverride seam. */
+  statsOverride?: PlayerStatsType;
 }
 
 type SortField = 'card_name' | 'games_won' | 'games_lost' | 'win_rate';
 type SortDirection = 'asc' | 'desc';
 
-export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
-  const [stats, setStats] = useState<PlayerStatsType | null>(null);
-  const [loading, setLoading] = useState(true);
+export function PlayerStats({ playerId, onClose, statsOverride }: PlayerStatsProps) {
+  const localPlayerId = useLocalPlayerId();
+  const { user } = useAuth();
+  const [stats, setStats] = useState<PlayerStatsType | null>(statsOverride ?? null);
+  const [loading, setLoading] = useState(!statsOverride);
   const [error, setError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('win_rate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   useEffect(() => {
+    if (statsOverride) return; // preview/test harness supplies stats directly
+
     async function fetchStats() {
       try {
         setLoading(true);
@@ -38,7 +58,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
     }
 
     fetchStats();
-  }, [playerId]);
+  }, [playerId, statsOverride]);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -49,29 +69,29 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const getWinRateColor = (rate: number): string => {
-    if (rate >= 70) return 'text-green-400';
-    if (rate >= 50) return 'text-yellow-400';
-    return 'text-red-400';
+  const viewerId = user?.google_id ?? localPlayerId;
+  const isViewer = !!viewerId && viewerId === playerId;
+
+  const winRateColor = (rate: number): string => {
+    if (rate >= 70) return 'var(--gold)';
+    if (rate >= 50) return 'var(--ink-text)';
+    return 'var(--danger)';
   };
 
-  const getHeatmapColor = (rate: number): string => {
-    // Background colors for heatmap (more subtle than text colors)
-    if (rate >= 80) return 'bg-green-900/60';
-    if (rate >= 70) return 'bg-green-900/40';
-    if (rate >= 60) return 'bg-yellow-900/40';
-    if (rate >= 50) return 'bg-yellow-900/30';
-    if (rate >= 40) return 'bg-orange-900/30';
-    if (rate >= 30) return 'bg-red-900/30';
-    return 'bg-red-900/50';
+  const heatmapBg = (rate: number): string => {
+    if (rate >= 80) return 'rgba(90,168,90,.22)';
+    if (rate >= 70) return 'rgba(90,168,90,.14)';
+    if (rate >= 60) return 'rgba(242,193,78,.14)';
+    if (rate >= 50) return 'rgba(242,193,78,.09)';
+    if (rate >= 40) return 'rgba(224,142,74,.10)';
+    if (rate >= 30) return 'rgba(200,80,80,.10)';
+    return 'rgba(200,80,80,.18)';
   };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      // Toggle direction if clicking same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // Default to desc for numeric fields, asc for name
       setSortField(field);
       setSortDirection(field === 'card_name' ? 'asc' : 'desc');
     }
@@ -80,7 +100,7 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
   const getSortedCardStats = (cardStats: CardStats[]): CardStats[] => {
     return [...cardStats].sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortField) {
         case 'card_name':
           comparison = a.card_name.localeCompare(b.card_name);
@@ -100,48 +120,106 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
     });
   };
 
-  const getSortIcon = (field: SortField): string => {
-    if (sortField !== field) return '↕️';
-    return sortDirection === 'asc' ? '↑' : '↓';
+  const getSortIndicator = (field: SortField): string => {
+    if (sortField !== field) return '';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" style={{ padding: 'var(--spacing-component-md)' }}>
-      <div className="bg-gray-800 rounded-xl border-4 border-purple-500 max-w-xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.80)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'var(--spacing-component-md)',
+      }}
+    >
+      <div
+        className="flex flex-col"
+        style={{
+          width: '600px',
+          maxWidth: '100%',
+          maxHeight: '85vh',
+          background: '#241E17',
+          borderRadius: '8px',
+          border: '1px solid var(--gold)',
+          boxShadow: '0 8px 24px rgba(0,0,0,.4)',
+        }}
+      >
         {/* Header */}
-        <div className="border-b border-gray-700 flex justify-between items-center" style={{ padding: 'var(--spacing-component-lg)' }}>
+        <div
+          className="flex-shrink-0 flex justify-between items-start"
+          style={{
+            padding: 'var(--spacing-component-md)',
+            borderBottom: '1px solid rgba(242,193,78,.25)',
+          }}
+        >
           <div>
-            <h2 className="text-3xl font-bold text-purple-400">📊 Player Stats</h2>
+            <h2 style={{ fontFamily: 'var(--font-card-name)', fontSize: '28px', color: 'var(--ink-text)' }}>
+              Player Stats
+            </h2>
             {stats && (
-              <p className="text-xl text-gray-200 font-semibold" style={{ marginTop: '4px' }}>
+              <p
+                style={{
+                  marginTop: '4px',
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  color: isViewer ? 'var(--you)' : 'var(--ink-muted)',
+                }}
+              >
                 {stats.display_name}
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl font-bold" style={{ padding: 'var(--spacing-component-xs)' }}
+            aria-label="Close player stats"
+            style={{
+              fontSize: '22px',
+              fontWeight: 900,
+              color: 'var(--ink-faint)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
+            }}
           >
-            ✕
+            &times;
           </button>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
-            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl animate-bounce" style={{ marginBottom: 'var(--spacing-component-md)' }}>📈</div>
-              <p className="text-gray-400">Loading stats...</p>
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0', color: 'var(--ink-muted)' }}>
+              <p>Loading stats...</p>
             </div>
           )}
 
           {error && (
             <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>😢</div>
-              <p className="text-red-400">{error}</p>
+              <p style={{ color: 'var(--danger)' }}>{error}</p>
               <button
                 onClick={onClose}
-                className="bg-gray-700 hover:bg-gray-600 rounded-lg" style={{ marginTop: 'var(--spacing-component-md)', padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
+                style={{
+                  marginTop: 'var(--spacing-component-md)',
+                  padding: 'var(--spacing-component-xs) var(--spacing-component-md)',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'rgba(237,232,222,.1)',
+                  color: 'var(--ink-text)',
+                  cursor: 'pointer',
+                }}
               >
                 Close
               </button>
@@ -152,103 +230,119 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
             <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
               {/* Overall Stats - top row: 3 columns */}
               <div className="grid grid-cols-3" style={{ gap: 'var(--spacing-component-sm)' }}>
-                {/* Win Rate */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
-                  <div className={`text-2xl font-bold ${getWinRateColor(stats.win_rate)}`}>
-                    {stats.win_rate.toFixed(1)}%
-                  </div>
-                  <div className="text-gray-300 text-xs">Win Rate</div>
-                </div>
-
-                {/* Games */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
-                  <div className="text-2xl font-bold text-blue-400">
-                    {stats.games_played}
-                  </div>
-                  <div className="text-gray-300 text-xs">Games</div>
-                </div>
-
-                {/* Record */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
-                  <div className="text-2xl font-bold text-green-400">
-                    {stats.games_won}W / {stats.games_played - stats.games_won}L
-                  </div>
-                  <div className="text-gray-300 text-xs">Record</div>
-                </div>
+                <StatTile
+                  value={`${stats.win_rate.toFixed(1)}%`}
+                  label="Win Rate"
+                  color={winRateColor(stats.win_rate)}
+                />
+                <StatTile
+                  value={String(stats.games_played)}
+                  label="Games"
+                  color="var(--you)"
+                />
+                <StatTile
+                  value={`${stats.games_won}W / ${stats.games_played - stats.games_won}L`}
+                  label="Record"
+                  color="var(--ink-text)"
+                />
               </div>
 
               {/* Second row: 2 columns for avg stats */}
               <div className="grid grid-cols-2" style={{ gap: 'var(--spacing-component-sm)' }}>
-                {/* Avg Turns */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
-                  <div className="text-2xl font-bold text-orange-400">
-                    {stats.avg_turns.toFixed(1)}
-                  </div>
-                  <div className="text-gray-300 text-xs">Avg Turns</div>
-                </div>
-
-                {/* Avg Duration */}
-                <div className="bg-gray-900/90 rounded-lg text-center" style={{ padding: 'var(--spacing-component-sm)' }}>
-                  <div className="text-2xl font-bold text-cyan-400">
-                    {stats.avg_game_duration_seconds < 60 
+                <StatTile
+                  value={stats.avg_turns.toFixed(1)}
+                  label="Avg Turns"
+                  color="var(--ink-text)"
+                />
+                <StatTile
+                  value={
+                    stats.avg_game_duration_seconds < 60
                       ? `${Math.round(stats.avg_game_duration_seconds)}s`
                       : `${Math.floor(stats.avg_game_duration_seconds / 60)}m ${Math.round(stats.avg_game_duration_seconds % 60)}s`
-                    }
-                  </div>
-                  <div className="text-gray-300 text-xs">Avg Game</div>
-                </div>
+                  }
+                  label="Avg Game"
+                  color="var(--ink-text)"
+                />
               </div>
 
               {/* Card Stats */}
               {stats.card_stats && stats.card_stats.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-cyan-400" style={{ marginBottom: 'var(--spacing-component-sm)' }}>🃏 Card Usage</h3>
-                  
+                  <h3
+                    style={{
+                      fontFamily: 'var(--font-card-name)',
+                      fontSize: '20px',
+                      color: 'var(--ink-text)',
+                      marginBottom: 'var(--spacing-component-sm)',
+                    }}
+                  >
+                    Card Usage
+                  </h3>
+
                   {/* Column Headers */}
-                  <div className="flex items-center bg-gray-950/80 rounded-t-lg font-semibold text-xs text-gray-400 uppercase" style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}>
+                  <div
+                    className="flex items-center"
+                    style={{
+                      gap: 'var(--spacing-component-sm)',
+                      padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                      background: 'rgba(0,0,0,.25)',
+                      borderRadius: '6px 6px 0 0',
+                      fontSize: '11px',
+                      fontWeight: 900,
+                      textTransform: 'uppercase',
+                      color: 'var(--ink-faint)',
+                    }}
+                  >
                     <button
                       onClick={() => handleSort('card_name')}
-                      className="flex-1 text-left hover:text-cyan-400 transition-colors"
+                      className="flex-1 text-left"
+                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', minWidth: 0 }}
                     >
-                      Card {getSortIcon('card_name')}
+                      Card{getSortIndicator('card_name')}
                     </button>
                     <button
                       onClick={() => handleSort('games_won')}
-                      className="w-16 text-center hover:text-cyan-400 transition-colors"
+                      style={{ width: '56px', textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', flexShrink: 0 }}
                     >
-                      Wins {getSortIcon('games_won')}
+                      Wins{getSortIndicator('games_won')}
                     </button>
                     <button
                       onClick={() => handleSort('games_lost')}
-                      className="w-16 text-center hover:text-cyan-400 transition-colors"
+                      style={{ width: '56px', textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', flexShrink: 0 }}
                     >
-                      Loss {getSortIcon('games_lost')}
+                      Loss{getSortIndicator('games_lost')}
                     </button>
                     <button
                       onClick={() => handleSort('win_rate')}
-                      className="w-16 text-center hover:text-cyan-400 transition-colors"
+                      style={{ width: '56px', textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', flexShrink: 0 }}
                     >
-                      Rate {getSortIcon('win_rate')}
+                      Rate{getSortIndicator('win_rate')}
                     </button>
                   </div>
 
-                  <div className="flex flex-col max-h-48 overflow-y-auto">
+                  <div className="flex flex-col overflow-y-auto overflow-x-hidden" style={{ maxHeight: '192px' }}>
                     {getSortedCardStats(stats.card_stats).map((card: CardStats) => {
                       const gamesLost = card.games_played - card.games_won;
                       return (
                         <div
                           key={card.card_name}
-                          className={`flex items-center ${getHeatmapColor(card.win_rate)} hover:brightness-125 transition-all`}
-                          style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}
+                          className="flex items-center"
+                          style={{
+                            gap: 'var(--spacing-component-sm)',
+                            padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                            background: heatmapBg(card.win_rate),
+                          }}
                         >
-                          <div className="flex-1 font-medium text-white">{card.card_name}</div>
-                          <div className="w-16 text-center text-sm text-green-300">
+                          <div className="flex-1 min-w-0" style={{ fontWeight: 700, color: 'var(--ink-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {card.card_name}
+                          </div>
+                          <div style={{ width: '56px', flexShrink: 0, textAlign: 'center', fontSize: '13px', color: 'var(--ink-muted)' }}>
                             {card.games_won}
                           </div>
-                          <div className="w-16 text-center text-sm text-red-300">
+                          <div style={{ width: '56px', flexShrink: 0, textAlign: 'center', fontSize: '13px', color: 'var(--ink-faint)' }}>
                             {gamesLost}
                           </div>
-                          <div className={`w-16 text-center font-bold ${getWinRateColor(card.win_rate)}`}>
+                          <div style={{ width: '56px', flexShrink: 0, textAlign: 'center', fontWeight: 900, color: winRateColor(card.win_rate) }}>
                             {card.win_rate.toFixed(0)}%
                           </div>
                         </div>
@@ -262,16 +356,41 @@ export function PlayerStats({ playerId, onClose }: PlayerStatsProps) {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-700" style={{ padding: 'var(--spacing-component-md)' }}>
+        <div className="flex-shrink-0" style={{ padding: 'var(--spacing-component-md)', borderTop: '1px solid rgba(237,232,222,.12)' }}>
           <button
             onClick={onClose}
-            className="w-full bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
-            style={{ padding: 'var(--spacing-component-sm)' }}
+            style={{
+              width: '100%',
+              padding: 'var(--spacing-component-sm)',
+              borderRadius: '6px',
+              border: 'none',
+              fontWeight: 900,
+              background: 'var(--gold)',
+              color: 'var(--desk-bottom)',
+              boxShadow: '0 3px 0 rgba(0,0,0,.5)',
+              cursor: 'pointer',
+            }}
           >
             Close
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatTile({ value, label, color }: { value: string; label: string; color: string }) {
+  return (
+    <div
+      className="text-center"
+      style={{
+        padding: 'var(--spacing-component-sm)',
+        background: 'rgba(0,0,0,.25)',
+        borderRadius: '8px',
+      }}
+    >
+      <div style={{ fontSize: '22px', fontWeight: 900, color }}>{value}</div>
+      <div style={{ fontSize: '11px', color: 'var(--ink-faint)' }}>{label}</div>
     </div>
   );
 }

@@ -1,6 +1,12 @@
 /**
  * CardStats Component
- * Displays per-card statistics aggregated across all players
+ * Displays per-card statistics aggregated across all players.
+ *
+ * Restyled to Paper & Ink (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md) — same
+ * dark-panel + gold-hairline idiom as Leaderboard.tsx / PlayerStats.tsx.
+ *
+ * Decorative emoji removed per §8 (🃏😢🤷); none of these are content-bearing
+ * state badges.
  */
 
 import { useState, useEffect } from 'react';
@@ -57,21 +63,20 @@ export function CardStats({ onClose }: CardStatsProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const getWinRateColor = (rate: number): string => {
-    if (rate >= 70) return 'text-green-400';
-    if (rate >= 50) return 'text-yellow-400';
-    return 'text-red-400';
+  const winRateColor = (rate: number): string => {
+    if (rate >= 70) return 'var(--gold)';
+    if (rate >= 50) return 'var(--ink-text)';
+    return 'var(--danger)';
   };
 
-  const getHeatmapColor = (rate: number): string => {
-    // Background colors for heatmap (more subtle than text colors)
-    if (rate >= 80) return 'bg-green-900/60';
-    if (rate >= 70) return 'bg-green-900/40';
-    if (rate >= 60) return 'bg-yellow-900/40';
-    if (rate >= 50) return 'bg-yellow-900/30';
-    if (rate >= 40) return 'bg-orange-900/30';
-    if (rate >= 30) return 'bg-red-900/30';
-    return 'bg-red-900/50';
+  const heatmapBg = (rate: number): string => {
+    if (rate >= 80) return 'rgba(90,168,90,.22)';
+    if (rate >= 70) return 'rgba(90,168,90,.14)';
+    if (rate >= 60) return 'rgba(242,193,78,.14)';
+    if (rate >= 50) return 'rgba(242,193,78,.09)';
+    if (rate >= 40) return 'rgba(224,142,74,.10)';
+    if (rate >= 30) return 'rgba(200,80,80,.10)';
+    return 'rgba(200,80,80,.18)';
   };
 
   const handleSort = (field: SortField) => {
@@ -115,46 +120,97 @@ export function CardStats({ onClose }: CardStatsProps) {
     });
   };
 
-  const getSortIcon = (field: SortField): string => {
-    if (sortField !== field) return '↕️';
-    return sortDirection === 'asc' ? '↑' : '↓';
+  const getSortIndicator = (field: SortField): string => {
+    if (sortField !== field) return '';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" style={{ padding: 'var(--spacing-component-md)' }}>
-      <div className="bg-gray-800 rounded-xl border-4 border-purple-500 max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.80)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'var(--spacing-component-md)',
+      }}
+    >
+      <div
+        className="flex flex-col"
+        style={{
+          width: '720px',
+          maxWidth: '100%',
+          maxHeight: '85vh',
+          background: '#241E17',
+          borderRadius: '8px',
+          border: '1px solid var(--gold)',
+          boxShadow: '0 8px 24px rgba(0,0,0,.4)',
+        }}
+      >
         {/* Header */}
-        <div className="border-b border-gray-700 flex justify-between items-center" style={{ padding: 'var(--spacing-component-lg)' }}>
+        <div
+          className="flex-shrink-0 flex justify-between items-start"
+          style={{
+            padding: 'var(--spacing-component-md)',
+            borderBottom: '1px solid rgba(242,193,78,.25)',
+          }}
+        >
           <div>
-            <h2 className="text-3xl font-bold text-purple-400">🃏 Card Stats</h2>
-            <p className="text-sm text-gray-400" style={{ marginTop: '4px' }}>
-              Aggregated across all players · usage = deck inclusion
+            <h2 style={{ fontFamily: 'var(--font-card-name)', fontSize: '28px', color: 'var(--ink-text)' }}>
+              Card Stats
+            </h2>
+            <p style={{ marginTop: '4px', fontSize: '13px', color: 'var(--ink-faint)' }}>
+              Aggregated across all players — usage = deck inclusion
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl font-bold" style={{ padding: 'var(--spacing-component-xs)' }}
+            aria-label="Close card stats"
+            style={{
+              fontSize: '22px',
+              fontWeight: 900,
+              color: 'var(--ink-faint)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
+            }}
           >
-            ✕
+            &times;
           </button>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1" style={{ padding: 'var(--spacing-component-lg)' }}>
           {loading && (
-            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl animate-bounce" style={{ marginBottom: 'var(--spacing-component-md)' }}>📊</div>
-              <p className="text-gray-400">Loading card stats...</p>
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0', color: 'var(--ink-muted)' }}>
+              <p>Loading card stats...</p>
             </div>
           )}
 
           {error && (
             <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>😢</div>
-              <p className="text-red-400">{error}</p>
+              <p style={{ color: 'var(--danger)' }}>{error}</p>
               <button
                 onClick={onClose}
-                className="bg-gray-700 hover:bg-gray-600 rounded-lg" style={{ marginTop: 'var(--spacing-component-md)', padding: 'var(--spacing-component-xs) var(--spacing-component-md)' }}
+                style={{
+                  marginTop: 'var(--spacing-component-md)',
+                  padding: 'var(--spacing-component-xs) var(--spacing-component-md)',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'rgba(237,232,222,.1)',
+                  color: 'var(--ink-text)',
+                  cursor: 'pointer',
+                }}
               >
                 Close
               </button>
@@ -162,78 +218,96 @@ export function CardStats({ onClose }: CardStatsProps) {
           )}
 
           {!loading && !error && cards && cards.length === 0 && (
-            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
-              <div className="text-4xl" style={{ marginBottom: 'var(--spacing-component-md)' }}>🤷</div>
-              <p className="text-gray-400">No card data yet — play some games!</p>
+            <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0', color: 'var(--ink-muted)' }}>
+              <p>No card data yet — play some games!</p>
             </div>
           )}
 
           {!loading && !error && cards && cards.length > 0 && (
             <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
-              <p className="text-xs text-gray-400">
+              <p style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>
                 {cards.length} cards · {totalGames} total deck slots played
               </p>
 
               {/* Column Headers */}
-              <div className="flex items-center bg-gray-950/80 rounded-t-lg font-semibold text-xs text-gray-400 uppercase" style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}>
+              <div
+                className="flex items-center overflow-x-auto"
+                style={{
+                  gap: 'var(--spacing-component-sm)',
+                  padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                  background: 'rgba(0,0,0,.25)',
+                  borderRadius: '6px 6px 0 0',
+                  fontSize: '11px',
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  color: 'var(--ink-faint)',
+                }}
+              >
                 <button
                   onClick={() => handleSort('card_name')}
-                  className="flex-1 text-left hover:text-cyan-400 transition-colors"
+                  className="flex-1 text-left"
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', minWidth: '96px' }}
                 >
-                  Card {getSortIcon('card_name')}
+                  Card{getSortIndicator('card_name')}
                 </button>
                 <button
                   onClick={() => handleSort('games_played')}
-                  className="w-14 text-center hover:text-cyan-400 transition-colors"
+                  style={{ width: '52px', flexShrink: 0, textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
                 >
-                  Picked {getSortIcon('games_played')}
+                  Picked{getSortIndicator('games_played')}
                 </button>
                 <button
                   onClick={() => handleSort('pick_rate')}
-                  className="w-14 text-center hover:text-cyan-400 transition-colors"
+                  style={{ width: '52px', flexShrink: 0, textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
                 >
-                  Pick% {getSortIcon('pick_rate')}
+                  Pick%{getSortIndicator('pick_rate')}
                 </button>
                 <button
                   onClick={() => handleSort('player_count')}
-                  className="w-14 text-center hover:text-cyan-400 transition-colors"
+                  style={{ width: '48px', flexShrink: 0, textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
                 >
-                  Plyrs {getSortIcon('player_count')}
+                  Plyrs{getSortIndicator('player_count')}
                 </button>
                 <button
                   onClick={() => handleSort('games_won')}
-                  className="w-12 text-center hover:text-cyan-400 transition-colors"
+                  style={{ width: '40px', flexShrink: 0, textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
                 >
-                  W {getSortIcon('games_won')}
+                  W{getSortIndicator('games_won')}
                 </button>
                 <button
                   onClick={() => handleSort('games_lost')}
-                  className="w-12 text-center hover:text-cyan-400 transition-colors"
+                  style={{ width: '40px', flexShrink: 0, textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
                 >
-                  L {getSortIcon('games_lost')}
+                  L{getSortIndicator('games_lost')}
                 </button>
                 <button
                   onClick={() => handleSort('win_rate')}
-                  className="w-14 text-center hover:text-cyan-400 transition-colors"
+                  style={{ width: '52px', flexShrink: 0, textAlign: 'center', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
                 >
-                  Rate {getSortIcon('win_rate')}
+                  Rate{getSortIndicator('win_rate')}
                 </button>
               </div>
 
-              <div className="flex flex-col" style={{ marginTop: 'calc(-1 * var(--spacing-component-sm))' }}>
+              <div className="flex flex-col overflow-x-auto">
                 {getSortedCards(cards).map((card) => (
                   <div
                     key={card.card_name}
-                    className={`flex items-center ${getHeatmapColor(card.win_rate)} hover:brightness-125 transition-all`}
-                    style={{ gap: 'var(--spacing-component-sm)', padding: 'var(--spacing-component-xs) var(--spacing-component-sm)' }}
+                    className="flex items-center"
+                    style={{
+                      gap: 'var(--spacing-component-sm)',
+                      padding: 'var(--spacing-component-xs) var(--spacing-component-sm)',
+                      background: heatmapBg(card.win_rate),
+                    }}
                   >
-                    <div className="flex-1 font-medium text-white">{card.card_name}</div>
-                    <div className="w-14 text-center text-sm text-gray-200">{card.games_played}</div>
-                    <div className="w-14 text-center text-sm text-gray-300">{card.pick_rate.toFixed(1)}%</div>
-                    <div className="w-14 text-center text-sm text-gray-300">{card.player_count}</div>
-                    <div className="w-12 text-center text-sm text-green-300">{card.games_won}</div>
-                    <div className="w-12 text-center text-sm text-red-300">{card.games_lost}</div>
-                    <div className={`w-14 text-center font-bold ${getWinRateColor(card.win_rate)}`}>
+                    <div className="flex-1" style={{ minWidth: '96px', fontWeight: 700, color: 'var(--ink-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {card.card_name}
+                    </div>
+                    <div style={{ width: '52px', flexShrink: 0, textAlign: 'center', fontSize: '13px', color: 'var(--ink-muted)' }}>{card.games_played}</div>
+                    <div style={{ width: '52px', flexShrink: 0, textAlign: 'center', fontSize: '13px', color: 'var(--ink-muted)' }}>{card.pick_rate.toFixed(1)}%</div>
+                    <div style={{ width: '48px', flexShrink: 0, textAlign: 'center', fontSize: '13px', color: 'var(--ink-muted)' }}>{card.player_count}</div>
+                    <div style={{ width: '40px', flexShrink: 0, textAlign: 'center', fontSize: '13px', color: 'var(--ink-muted)' }}>{card.games_won}</div>
+                    <div style={{ width: '40px', flexShrink: 0, textAlign: 'center', fontSize: '13px', color: 'var(--ink-faint)' }}>{card.games_lost}</div>
+                    <div style={{ width: '52px', flexShrink: 0, textAlign: 'center', fontWeight: 900, color: winRateColor(card.win_rate) }}>
                       {card.win_rate.toFixed(0)}%
                     </div>
                   </div>
@@ -244,11 +318,20 @@ export function CardStats({ onClose }: CardStatsProps) {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-700" style={{ padding: 'var(--spacing-component-md)' }}>
+        <div className="flex-shrink-0" style={{ padding: 'var(--spacing-component-md)', borderTop: '1px solid rgba(237,232,222,.12)' }}>
           <button
             onClick={onClose}
-            className="w-full bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
-            style={{ padding: 'var(--spacing-component-sm)' }}
+            style={{
+              width: '100%',
+              padding: 'var(--spacing-component-sm)',
+              borderRadius: '6px',
+              border: 'none',
+              fontWeight: 900,
+              background: 'var(--gold)',
+              color: 'var(--desk-bottom)',
+              boxShadow: '0 3px 0 rgba(0,0,0,.5)',
+              cursor: 'pointer',
+            }}
           >
             Close
           </button>

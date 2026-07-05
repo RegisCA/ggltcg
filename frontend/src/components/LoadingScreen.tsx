@@ -5,27 +5,64 @@
  * Restyled to Paper & Ink (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md) — desk
  * gradient background, Gochi Hand title, gold spinner/progress accents.
  *
+ * Cold-start expectation (Régis-approved, Phase 3 PR 5): the production
+ * backend is Render free tier — it's either warm (health responds within a
+ * few seconds) or cold (takes just under a minute to spin up). Rather than a
+ * vague "waking up, could be a while" message, we set that expectation
+ * honestly: a short quick-path window, then an explicit "about a minute"
+ * message with a time-based progress bar calibrated to ~55s. The bar
+ * approaches but never reaches 100% until the health check actually
+ * succeeds — it should never look "done" while still polling.
+ *
  * Decorative emoji removed per §8 (☕); none of these are content-bearing
  * state badges.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import type { Card } from '../types/game';
 
 interface LoadingScreenProps {
   onReady: (cards: Card[]) => void;
+  /** Test/preview seam: when true, skips the quick-path window and forces
+   *  the cold-start "waking up" presentation immediately — used by the
+   *  /design.html#loading fixture so the interesting state is visible
+   *  offline without waiting out the real quick-path timer. */
+  coldStartOverride?: boolean;
 }
 
-export function LoadingScreen({ onReady }: LoadingScreenProps) {
-  const [status, setStatus] = useState<'checking' | 'waking' | 'loading' | 'ready' | 'error'>('checking');
+// Quick path: if health responds within this window, proceed as normal —
+// this covers the "already warm" case (the common case after the first
+// visit of the day).
+const QUICK_PATH_MS = 2500;
+
+// Cold-start progress is calibrated to Render free tier's observed wake time
+// (consistently just under a minute). The bar approaches, but never reaches,
+// 100% on its own — only an actual successful health check completes it.
+const COLD_START_ESTIMATE_MS = 55000;
+const COLD_START_PROGRESS_TICK_MS = 200;
+// Asymptotic cap so the bar visibly slows rather than snapping to a hard
+// ceiling — still reads as "almost there" without ever claiming done.
+const COLD_START_MAX_PROGRESS = 96;
+
+export function LoadingScreen({ onReady, coldStartOverride }: LoadingScreenProps) {
+  const [status, setStatus] = useState<'checking' | 'waking' | 'loading' | 'ready' | 'error'>(
+    coldStartOverride ? 'waking' : 'checking'
+  );
   const [dots, setDots] = useState('');
+  const [coldStartProgress, setColdStartProgress] = useState(0);
+  const wakingStartRef = useRef<number | null>(coldStartOverride ? Date.now() : null);
 
   // Check backend health
   const healthCheck = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
+      if (coldStartOverride) {
+        // Preview harness: never actually resolves, so the waking state
+        // stays visible indefinitely instead of flashing to "ready".
+        return new Promise<never>(() => {});
+      }
       const response = await apiClient.get('/health');
       return response.data;
     },
@@ -54,13 +91,54 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
     return () => clearInterval(interval);
   }, [status]);
 
+  // Quick-path timer: if we're still "checking" after QUICK_PATH_MS, the
+  // backend is cold — switch to the honest waking message. Skipped when
+  // coldStartOverride forces the waking state from the start.
   useEffect(() => {
+    if (coldStartOverride) return;
+    if (status !== 'checking') return;
+    const timer = setTimeout(() => {
+      setStatus((current) => (current === 'checking' ? 'waking' : current));
+    }, QUICK_PATH_MS);
+    return () => clearTimeout(timer);
+  }, [status, coldStartOverride]);
+
+  // Track when we entered "waking" so progress is time-based, not
+  // retry-count-based (a real quick retry backoff doesn't line up with the
+  // ~55s wake estimate).
+  useEffect(() => {
+    if (status === 'waking' && wakingStartRef.current === null) {
+      wakingStartRef.current = Date.now();
+    }
+    if (status !== 'waking') {
+      wakingStartRef.current = null;
+      setColdStartProgress(0);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== 'waking') return;
+    const interval = setInterval(() => {
+      const start = wakingStartRef.current;
+      if (start === null) return;
+      const elapsed = Date.now() - start;
+      // Asymptotic approach to COLD_START_MAX_PROGRESS so it never reads as
+      // finished before the health check actually succeeds.
+      const linear = Math.min(100, (elapsed / COLD_START_ESTIMATE_MS) * 100);
+      setColdStartProgress(Math.min(COLD_START_MAX_PROGRESS, linear));
+    }, COLD_START_PROGRESS_TICK_MS);
+    return () => clearInterval(interval);
+  }, [status]);
+
+  useEffect(() => {
+    if (coldStartOverride) return; // stay in the forced waking state
     if (healthCheck.isError) {
-      setStatus('waking');
-    } else if (healthCheck.isSuccess && status === 'checking') {
+      setStatus((current) => (current === 'checking' ? 'waking' : current));
+    } else if (healthCheck.isSuccess && (status === 'checking' || status === 'waking')) {
+      setColdStartProgress(100);
       setStatus('loading');
     }
-  }, [healthCheck.isError, healthCheck.isSuccess, status]);
+  }, [healthCheck.isError, healthCheck.isSuccess, status, coldStartOverride]);
 
   useEffect(() => {
     if (cardsQuery.isSuccess && cardsQuery.data) {
@@ -76,7 +154,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
       case 'checking':
         return 'Connecting to game server';
       case 'waking':
-        return 'Waking up game server (up to 50 seconds)';
+        return 'Waking up the game server';
       case 'loading':
         return 'Loading cards';
       case 'ready':
@@ -86,8 +164,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
     }
   };
 
-  const retryCount = healthCheck.failureCount || 0;
-  const showWakeupInfo = status === 'waking' && retryCount > 1;
+  const showWakeupInfo = status === 'waking';
 
   return (
     <div
@@ -131,6 +208,7 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
       {/* Loading Spinner */}
       {status !== 'ready' && status !== 'error' && (
         <div
+          className="loading-screen-spinner"
           style={{
             width: '48px',
             height: '48px',
@@ -174,10 +252,12 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
         }
       `}</style>
 
-      {/* Wake-up Info Box - shows after a few retries */}
+      {/* Cold-start info box — shown once the quick-path window has elapsed
+          with no response, i.e. the backend is actually cold. */}
       {showWakeupInfo && (
         <div
           className="text-center"
+          data-testid="cold-start-info"
           style={{
             marginTop: 'var(--spacing-component-xl)',
             padding: 'var(--spacing-component-md)',
@@ -188,11 +268,12 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
           }}
         >
           <p style={{ fontSize: '13px', color: 'var(--ink-muted)' }}>
-            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>First visit of the day?</span> The server
-            is waking up. After this, it&apos;ll be instant!
+            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>First visit of the day?</span> The
+            server is waking up — it takes about a minute. After this, it&apos;ll be instant.
           </p>
 
-          {/* Progress indicator */}
+          {/* Progress indicator — time-based, calibrated to ~55s; approaches
+              but never hits 100% until the health check actually succeeds. */}
           <div
             style={{
               marginTop: 'var(--spacing-component-md)',
@@ -204,11 +285,11 @@ export function LoadingScreen({ onReady }: LoadingScreenProps) {
           >
             <div
               style={{
-                width: `${Math.min(retryCount * 15, 90)}%`,
+                width: `${coldStartProgress}%`,
                 height: '100%',
                 borderRadius: '999px',
                 background: 'var(--gold)',
-                transition: 'width 1s ease-out',
+                transition: 'width 200ms linear',
               }}
             />
           </div>
