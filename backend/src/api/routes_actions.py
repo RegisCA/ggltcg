@@ -21,7 +21,7 @@ from api.game_service import get_game_service
 from api.stats_service import get_stats_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
-from game_engine.validation import ActionValidator, ActionExecutor
+from game_engine.validation import ActionValidator, ActionExecutor, build_tussle_description
 
 logger = logging.getLogger(__name__)
 
@@ -186,13 +186,9 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
         engine.check_state_based_actions()
         
         # Log to play-by-play with cost BEFORE victory check (so action appears first)
-        if defender:
-            target_desc = defender.name
-        elif broken_from_hand:
-            target_desc = f"{broken_from_hand} (from hand)"
-        else:
-            target_desc = "opponent directly"
-        description = f"Spent {cost} Charge for {attacker.name} to tussle {target_desc}"
+        description = build_tussle_description(
+            cost, attacker.name, defender=defender, broken_from_hand=broken_from_hand
+        )
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="tussle",
@@ -377,12 +373,12 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
         )
 
         # Log to play-by-play
-        description = f"Activated {source_card.name}'s ability"
+        description = f"{source_card.name} used its ability"
         if target_card:
-            description += f" targeting {target_card.name}"
+            description += f" on {target_card.name}"
         if amount > 1:
-            description += f" (amount: {amount})"
-        
+            description += f" (amount {amount})"
+
         game_state.add_play_by_play(
             player_name=player.name,
             action_type="activate_ability",
@@ -534,7 +530,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             game_state.add_play_by_play(
                 player_name=player.name,
                 action_type="pass",
-                description="AI failed to select action, ended turn",
+                description="Ended turn without acting",
                 ai_endpoint=ai_player.get_endpoint_name(),
             )
 
@@ -923,12 +919,12 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     ai_player.record_execution_result(success=True)
                 
                 # Log to play-by-play
-                description = f"Activated {source_card.name}'s ability"
+                description = f"{source_card.name} used its ability"
                 if target_card:
-                    description += f" targeting {target_card.name}"
+                    description += f" on {target_card.name}"
                 if amount > 1:
-                    description += f" (amount: {amount})"
-                
+                    description += f" (amount {amount})"
+
                 # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
                 game_state.add_play_by_play(
                     player_name=player.name,

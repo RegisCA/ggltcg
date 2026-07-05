@@ -278,7 +278,7 @@ function buildMidgame(): DesignFixture {
       winner: null,
       is_game_over: false,
       play_by_play: [
-        { turn: 4, player: 'Gemiknight', action_type: 'play_card', description: 'Played Ka (Cost: 2)' },
+        { turn: 4, player: 'Gemiknight', action_type: 'play_card', description: 'Played Ka (2 Charge)' },
         { turn: 4, player: 'Gemiknight', action_type: 'tussle', description: 'Ka tussled Umbruh — Umbruh broken' },
         { turn: 4, player: 'Gemiknight', action_type: 'end_turn', description: 'Ended turn' },
         { turn: 5, player: 'You', action_type: 'draw', description: 'Drew Surge' },
@@ -425,7 +425,7 @@ function buildOpponentTurn(): DesignFixture {
       play_by_play: [
         // Turn 6 entries arrive via OPPONENT_TURN_SCRIPT (strategy first,
         // then actions), matching the backend's live ordering
-        { turn: 5, player: 'You', action_type: 'play_card', description: 'Played Drum (Cost: 1)' },
+        { turn: 5, player: 'You', action_type: 'play_card', description: 'Played Drum (1 Charge)' },
         { turn: 5, player: 'You', action_type: 'tussle', description: 'Knight tussled Gibbers — Gibbers broken' },
         { turn: 5, player: 'You', action_type: 'end_turn', description: 'Ended turn' },
       ],
@@ -471,7 +471,7 @@ const OPPONENT_TURN_SCRIPT: PlayByPlayEntry[] = [
     turn: 6,
     player: 'Gemiknight',
     action_type: 'play_card',
-    description: 'Played Belchaletta (Cost: 1)',
+    description: 'Played Belchaletta (1 Charge)',
   },
   {
     turn: 6,

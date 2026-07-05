@@ -779,3 +779,94 @@ def test_ai_turn_route_announces_plan_strategy_once_per_turn():
     assert entry_types.index("strategy") < entry_types.index("play_card"), (
         f"Strategy should be announced before the first action entry: {entry_types}"
     )
+
+
+def test_play_card_route_uses_subject_verb_copy():
+    """POST /play-card logs the Phase-3 log copy shape: "Played <card>
+    (<cost> Charge)" — subject-verb voice, cost in trailing parens, no
+    legacy "Spent N Charge ...". Pins the copy at the real route layer,
+    which builds it via ActionExecutor (UI Refresh Phase 3, item 1)."""
+    from api.app import app
+
+    surge = _load_card("Surge")
+    surge.owner = "player1"
+    surge.controller = "player1"
+    surge.zone = Zone.HAND
+
+    player1 = Player(player_id="player1", name="Player 1", charge=2, hand=[surge], in_play=[])
+    player2 = Player(player_id="player2", name="Player 2", charge=2, hand=[], in_play=[])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=1,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(
+            f"/games/{game_state.game_id}/play-card",
+            json={"player_id": "player1", "card_id": surge.id},
+        )
+    finally:
+        service.use_database = original_use_database
+
+    assert response.status_code == 200, response.text
+    play_entry = next(e for e in game_state.play_by_play if e["action_type"] == "play_card")
+    assert play_entry["description"] == "Played Surge (0 Charge)", play_entry["description"]
+    assert "Spent" not in play_entry["description"]
+
+
+def test_tussle_route_uses_subject_verb_copy():
+    """POST /tussle logs "<attacker> tussled <defender> (<cost> Charge)" —
+    the shared build_tussle_description shape, pinned at the real route
+    layer (the human route builds it inline, so the executor unit test
+    doesn't cover this path). UI Refresh Phase 3, item 1."""
+    from api.app import app
+
+    knight = _load_card("Knight")
+    knight.owner = "player1"
+    knight.controller = "player1"
+    knight.zone = Zone.IN_PLAY
+
+    paper_plane = _load_card("Paper Plane")
+    paper_plane.owner = "player2"
+    paper_plane.controller = "player2"
+    paper_plane.zone = Zone.IN_PLAY
+
+    player1 = Player(player_id="player1", name="Player 1", charge=2, hand=[], in_play=[knight])
+    player2 = Player(player_id="player2", name="Player 2", charge=2, hand=[], in_play=[paper_plane])
+
+    game_state = GameState(
+        game_id=str(uuid.uuid4()),
+        players={"player1": player1, "player2": player2},
+        turn_number=3,
+        phase=Phase.MAIN,
+        active_player_id="player1",
+        first_player_id="player1",
+    )
+    engine = GameEngine(game_state)
+    service = _client_for(engine)
+
+    original_use_database = service.use_database
+    service.use_database = False
+    try:
+        client = TestClient(app)
+        response = client.post(
+            f"/games/{game_state.game_id}/tussle",
+            json={"player_id": "player1", "attacker_id": knight.id, "defender_id": paper_plane.id},
+        )
+    finally:
+        service.use_database = original_use_database
+
+    assert response.status_code == 200, response.text
+    tussle_entry = next(e for e in game_state.play_by_play if e["action_type"] == "tussle")
+    assert tussle_entry["description"] == "Knight tussled Paper Plane (2 Charge)", tussle_entry["description"]
+    assert "Spent" not in tussle_entry["description"]
