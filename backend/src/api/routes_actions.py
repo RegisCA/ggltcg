@@ -610,7 +610,34 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
         except Exception as e:
             # Don't fail the action if logging fails
             logger.warning(f"Failed to log AI decision: {e}")
-        
+
+        # Announce the turn plan in the play-by-play, once per turn: the live
+        # game log shows the AI's strategy up front, then the factual action
+        # entries follow as each /ai-turn request lands (live opponent-turn
+        # playback, UI refresh WP-1 #3 / WP-2 #9). Guarded by the play-by-play
+        # itself rather than the plan's current_action index — select_action
+        # advances that index before returning, and a mid-turn replan resets
+        # it, so index equality can't identify "first action of the turn".
+        # The post-game recap keeps sourcing the plan from ai_decision_logs;
+        # VictoryScreen filters these entries out of its action list.
+        try:
+            plan_for_announce = ai_player.get_last_decision_info().get("plan")
+            strategy = plan_for_announce.get("strategy") if plan_for_announce else None
+            already_announced = any(
+                entry.get("action_type") == "strategy"
+                and entry.get("turn") == game_state.turn_number
+                for entry in game_state.play_by_play
+            )
+            if strategy and not already_announced:
+                game_state.add_play_by_play(
+                    player_name=player.name,
+                    action_type="strategy",
+                    description=strategy,
+                    ai_endpoint=ai_endpoint_name,
+                )
+        except Exception as e:
+            logger.warning(f"Failed to announce turn plan in play-by-play: {e}")
+
         # Build turn summary for response
         turn_summary = {
             "action": action_details["action_type"],

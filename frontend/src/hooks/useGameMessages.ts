@@ -50,6 +50,12 @@ export function useGameMessages(
     return gameState.play_by_play
       .filter((entry: PlayByPlayEntry) => entry.turn >= currentTurn - 1)
       .map((entry: PlayByPlayEntry) => {
+        // The once-per-turn plan announcement reads as commentary, not an
+        // action — mark it so plain-text surfaces (collapsed ticker,
+        // fallback list) stay consistent with the expanded log's 💭 chip
+        if (entry.action_type === 'strategy') {
+          return `💭 ${entry.player}: ${entry.description}`;
+        }
         // Format: "PlayerName: Action description"
         return `${entry.player}: ${entry.description}`;
       });

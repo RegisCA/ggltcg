@@ -43,7 +43,15 @@ function actorChipClass(isHuman: boolean | null): string {
 
 interface GameMessagesProps {
   messages: string[];
-  isAIThinking?: boolean;
+  /** True for the opponent's whole turn. The AI turn is a *sequence* of
+   *  /ai-turn requests, so mutation-pending state flickers off between
+   *  actions — the height freeze keys on this instead, spanning the gaps. */
+  isOpponentTurn?: boolean;
+  /** True only for the turn's thinking phase: from the opponent's turn
+   *  starting until their first entry (normally the plan announcement)
+   *  lands in the log. After that the streaming entries are the feedback —
+   *  the spinner would just be noise over the acting phase. */
+  isOpponentThinking?: boolean;
   isCompact?: boolean;  // Tighter type/spacing at phone widths
   playByPlay?: PlayByPlayEntry[];  // Full play-by-play with reasoning
   /** Display name of the local player, for per-actor color coding */
@@ -52,14 +60,14 @@ interface GameMessagesProps {
 
 export function GameMessages({
   messages,
-  isAIThinking = false,
+  isOpponentTurn = false,
+  isOpponentThinking = false,
   isCompact = false,
   playByPlay = [],
   humanPlayerName,
 }: GameMessagesProps) {
   const [isCollapsed, setIsCollapsedState] = useState(loadCollapsedPreference);
   const [lastSeenCount, setLastSeenCount] = useState(0);
-  const [frozenHeight, setFrozenHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const setIsCollapsed = (value: boolean) => {
@@ -83,21 +91,6 @@ export function GameMessages({
       setLastSeenCount(messages.length);
     }
   }, [isCollapsed, messages.length]);
-
-  // Freeze the expanded log's height for the duration of the opponent's
-  // turn: entries stream in mid-turn (2s poll), and letting the panel
-  // re-fit per entry bounces the whole board below it. The held height
-  // releases when the turn ends — the one moment the board is changing
-  // anyway. New entries stay visible via the auto-scroll below.
-  useEffect(() => {
-    if (isAIThinking && !isCollapsed && scrollContainerRef.current) {
-      // isCompact dep: re-capture when crossing the phone breakpoint, whose
-      // max-height cap differs — a stale frozen height would fight it
-      setFrozenHeight(scrollContainerRef.current.offsetHeight);
-    } else {
-      setFrozenHeight(null);
-    }
-  }, [isAIThinking, isCollapsed, isCompact]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -142,7 +135,7 @@ export function GameMessages({
             </span>
           )}
           {isCollapsed && (
-            isAIThinking ? (
+            isOpponentThinking ? (
               <span
                 className={`inline-flex items-center text-purple-300 ${isCompact ? 'text-xs' : 'text-sm'}`}
                 style={{ gap: 'var(--spacing-component-xs)', minWidth: 0 }}
@@ -184,7 +177,13 @@ export function GameMessages({
 
       {/* Collapsible Content — grows with the log up to a cap (a short log
           shouldn't reserve a fixed panel height above the board), then the
-          inner container scrolls */}
+          inner container scrolls. During the opponent's turn the panel
+          holds the full cap height instead: entries stream in mid-turn
+          (2s poll), and per-entry re-fits would bounce the board below —
+          the fixed slot keeps the board still AND gives the plan + actions
+          the cap's room (a height frozen at its turn-start measurement
+          could confine the whole playback to a few lines). It re-fits when
+          the turn ends — the one moment the board is changing anyway. */}
       <AnimatePresence initial={false}>
         {!isCollapsed && (
           <motion.div
@@ -198,12 +197,12 @@ export function GameMessages({
               ref={scrollContainerRef}
               style={{
                 overflowY: 'auto',
-                height: frozenHeight !== null ? `${frozenHeight}px` : undefined,
+                height: isOpponentTurn ? (isCompact ? '150px' : '220px') : undefined,
                 maxHeight: isCompact ? '150px' : '220px',
                 padding: isCompact ? 'var(--spacing-component-xs) var(--spacing-component-sm)' : 'var(--spacing-component-xs) var(--spacing-component-sm)'
               }}
             >
-              {displayMessages.length === 0 && !isAIThinking ? (
+              {displayMessages.length === 0 && !isOpponentThinking ? (
                 <div className={`text-gray-500 italic ${isCompact ? 'text-xs' : 'text-sm'}`}>
                   No messages yet
                 </div>
@@ -243,6 +242,28 @@ export function GameMessages({
                             {entries.map((entry, idx) => {
                               const entryKey = `${turn}-${idx}`;
                               const isHuman = isHumanActor(entry.player);
+
+                              // The AI's once-per-turn plan announcement
+                              // (backend action_type "strategy") reads as
+                              // commentary, not an action: brighter purple,
+                              // italic, 💭 — mirrors the recap's plan block
+                              if (entry.action_type === 'strategy') {
+                                return (
+                                  <div
+                                    key={entryKey}
+                                    className="bg-purple-900 rounded overflow-hidden"
+                                    style={{
+                                      padding: isCompact ? '2px 6px' : '2px 8px',
+                                      borderLeft: '3px solid #c084fc',
+                                    }}
+                                  >
+                                    <div className={`text-purple-100 ${isCompact ? 'text-xs' : 'text-sm'}`}>
+                                      <span className="font-semibold not-italic">💭 {entry.player}:</span>{' '}
+                                      <span className="italic">{entry.description}</span>
+                                    </div>
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <div
@@ -286,8 +307,8 @@ export function GameMessages({
                     })
                   )}
                   
-                  {isAIThinking && (
-                    <div 
+                  {isOpponentThinking && (
+                    <div
                       className="bg-purple-900 rounded inline-flex items-center"
                       style={{
                         padding: isCompact ? 'var(--spacing-component-xs)' : 'var(--spacing-component-sm)',
