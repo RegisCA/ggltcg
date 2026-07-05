@@ -125,6 +125,53 @@
 :root {
   /* Typography - kept for backward compatibility, use --font-family preferred */
   --font-body: 'Lato', 'Arial', sans-serif;
+
+  /* ==========================================================================
+   * Paper & Ink Design System (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md §2)
+   *
+   * Defined here in :root (not @theme) on purpose: these are consumed via
+   * var(--token) in component inline styles, not as Tailwind utilities, and
+   * Tailwind v4's @theme prunes variables it doesn't see referenced in scanned
+   * CSS — a plain :root block always emits verbatim.
+   *
+   * ADDITIVE — the legacy @theme palette stays until every component migrates
+   * onto these tokens, then a cleanup PR removes it (Phase 4).
+   * ========================================================================== */
+
+  /* Surfaces (§2) */
+  --desk-top: #282018;        /* Board background gradient start */
+  --desk-bottom: #211a13;     /* Board background gradient end */
+  --paper: #EFE7D6;           /* Local player's card face; log strip */
+  --paper-ink-text: #2E2921;  /* Primary text on paper */
+  --paper-muted: #5A5347;     /* Effect text on paper */
+  --paper-faint: #8A8071;     /* Stat labels, metadata on paper */
+  --ink: #2E2A24;             /* Opponent's card face; opponent card backs */
+  --ink-text: #EDE8DE;        /* Primary text on ink and on desk */
+  --ink-muted: rgba(237, 232, 222, 0.65); /* Effect text on ink */
+  --ink-faint: rgba(237, 232, 222, 0.45); /* Stat labels on ink */
+  --bar: #171209;             /* Bottom turn bar */
+
+  /* Semantic — four meanings, nothing else (§2) */
+  --gold: #F2C14E;            /* Charge / can act / your turn / buffed stats on ink */
+  --gold-on-paper: #B08A1F;   /* Buffed stat numerals on paper (AA) */
+  --you: #7EA6E0;             /* Local player name, side markers */
+  --them: #B48EDE;            /* Opponent name/markers, opponent-turn state */
+  --danger: #E0716B;          /* Broken pips/counts on dark surfaces */
+  --danger-on-paper: #C0392B; /* Damaged stat / BROKEN stamp on paper (AA) */
+
+  /* Crayon set — card identity only, NO rules meaning (§2). Snap backend
+   * primary_color to the nearest of these via src/theme/crayon.ts. */
+  --crayon-red: #C74444;
+  --crayon-orange: #D98E1F;
+  --crayon-green: #4C9A57;
+  --crayon-blue: #4A7BB5;
+  --crayon-purple: #8B5FA8;
+  --crayon-pink: #D6559C;
+  --crayon-sky: #6FA8C9;
+
+  /* Card names only — Gochi Hand, echoing the hand-lettered physical cards (§3).
+   * Never for UI copy, stats, or body text. */
+  --font-card-name: 'Gochi Hand', 'Lato', cursive;
 }
 
 /* Standard Component Spacing Classes */
@@ -254,4 +301,21 @@ a:focus-visible {
 /* Custom class for card glow effect */
 .card-glow {
   box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+}
+
+/* Reduced-motion (Paper & Ink §9)
+ *
+ * Disable the passive turn-bar pulse and glow/state transitions for users who
+ * ask for it. Global scaffolding the later phases inherit — the playable glow
+ * (§6) and the opponent-turn pulse (§7.2) are motion/transition-driven, so
+ * neutralizing animations + transitions here covers them by construction. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
