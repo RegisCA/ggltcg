@@ -580,6 +580,20 @@ export const DEFEAT_FIXTURE = buildVictoryFixture(FIXTURE_AI_ID, 'Gemiknight');
 export const VICTORY_AI_LOGS_FIXTURE = VICTORY_AI_LOGS;
 
 // ============================================================================
+// LOBBY-FLOW FIXTURES (for /design.html#lobby-home / -create / -join / -waiting)
+// ============================================================================
+// Lobby screens are almost entirely prop-driven (no GameState behind them),
+// so unlike the board fixtures these are just canned prop bundles + no-op
+// callbacks. LobbyWaiting is the one exception: it polls getLobbyStatus() via
+// useLobbyPolling, so it gets an initialPhaseOverride/currentPlayerReadyOverride
+// seam (see LobbyWaiting.tsx) to force a phase without hitting the network.
+
+export const LOBBY_FIXTURE_GAME_ID = 'fixture-lobby-game';
+export const LOBBY_FIXTURE_GAME_CODE = '9P47XA';
+export const LOBBY_FIXTURE_PLAYER_ID = 'fixture-lobby-player';
+
+
+// ============================================================================
 // REGISTRY + LOOKUP API (consumed by gameService and DesignPreview)
 // ============================================================================
 

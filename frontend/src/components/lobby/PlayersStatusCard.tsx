@@ -1,10 +1,13 @@
 /**
  * PlayersStatusCard Component
- * 
+ *
  * Displays both players' status in a lobby:
  * - Player names with "You" indicator
  * - Ready/waiting states
  * - Deck submission status
+ *
+ * Viewer-relative identity: the current player renders --you (blue), the
+ * other player renders --them (purple).
  */
 
 interface PlayerInfo {
@@ -19,29 +22,37 @@ interface PlayersStatusCardProps {
 }
 
 function PlayerRow({ player, label }: { player: PlayerInfo; label: string }) {
+  const nameColor = player.isCurrentPlayer ? 'var(--you)' : 'var(--them)';
+
   return (
-    <div className="flex items-center justify-between bg-gray-700 rounded-lg" style={{ padding: 'var(--spacing-component-md)' }}>
-      <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)' }}>
-        <div className="text-3xl">🎮</div>
-        <div>
-          <div className="font-bold text-lg">
-            {player.name ? (
-              <>
-                {player.name}
-                {player.isCurrentPlayer && (
-                  <span className="text-game-highlight" style={{ marginLeft: 'var(--spacing-component-xs)' }}>(You)</span>
-                )}
-              </>
-            ) : (
-              <span className="text-gray-500">Waiting for player...</span>
-            )}
-          </div>
-          <div className="text-sm text-gray-400">{label}</div>
+    <div
+      className="flex items-center justify-between"
+      style={{
+        background: 'rgba(237,232,222,.05)',
+        borderRadius: '6px',
+        padding: 'var(--spacing-component-md)',
+      }}
+    >
+      <div>
+        <div style={{ fontWeight: 900, fontSize: '17px', color: player.name ? nameColor : 'var(--ink-faint)' }}>
+          {player.name ? (
+            <>
+              {player.name}
+              {player.isCurrentPlayer && (
+                <span style={{ marginLeft: 'var(--spacing-component-xs)', color: 'var(--ink-muted)', fontWeight: 700 }}>
+                  (You)
+                </span>
+              )}
+            </>
+          ) : (
+            'Waiting for player...'
+          )}
         </div>
+        <div style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>{label}</div>
       </div>
       <div>
         {player.isReady && (
-          <span className="text-green-400 font-semibold">✓ Deck Ready</span>
+          <span style={{ color: 'var(--you)', fontWeight: 700, fontSize: '13px' }}>Deck Ready</span>
         )}
       </div>
     </div>
@@ -50,15 +61,33 @@ function PlayerRow({ player, label }: { player: PlayerInfo; label: string }) {
 
 export function PlayersStatusCard({ player1, player2 }: PlayersStatusCardProps) {
   return (
-    <div className="bg-gray-800 rounded-lg border-2 border-gray-600" style={{ padding: 'var(--spacing-component-xl)' }}>
-      <h2 className="text-2xl font-bold text-center" style={{ marginBottom: 'var(--spacing-component-lg)' }}>Players</h2>
-      
+    <div
+      style={{
+        background: '#241E17',
+        borderRadius: '8px',
+        border: '1px solid rgba(242,193,78,.25)',
+        padding: 'var(--spacing-component-xl)',
+      }}
+    >
+      <h2
+        style={{
+          fontFamily: 'var(--font-card-name)',
+          fontSize: '22px',
+          textAlign: 'center',
+          marginBottom: 'var(--spacing-component-lg)',
+          color: 'var(--ink-text)',
+        }}
+      >
+        Players
+      </h2>
+
       <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
         <PlayerRow player={player1} label="Player 1" />
-        
-        {/* VS Divider */}
-        <div className="text-center text-gray-500 font-bold">VS</div>
-        
+
+        <div style={{ textAlign: 'center', color: 'var(--ink-faint)', fontWeight: 700, fontSize: '12px' }}>
+          vs
+        </div>
+
         <PlayerRow player={player2} label="Player 2" />
       </div>
     </div>

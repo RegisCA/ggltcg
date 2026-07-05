@@ -1,6 +1,14 @@
 /**
  * Lobby Home Component
- * Main entry point for multiplayer - Create or Join a game
+ *
+ * Main entry point for multiplayer - Create or Join a game. Restyled to the
+ * Paper & Ink language (docs/plans/DESIGN_SYSTEM_PAPER_AND_INK.md): desk
+ * gradient background, Gochi Hand title, gold primary card + dark
+ * secondary cards with the board's button idiom.
+ *
+ * Decorative one-off emoji not sanctioned by §8 removed (🎮🔗🤖⚡🏆🃏📖); kept
+ * none here since none of these are content-bearing state badges (same call
+ * as VictoryScreen).
  */
 
 import { useState } from 'react';
@@ -19,13 +27,107 @@ interface LobbyHomeProps {
   onShowTermsOfService?: () => void;
 }
 
-export function LobbyHome({ 
-  onCreateLobby, 
-  onJoinLobby, 
-  onPlayVsAI, 
+interface ModeCardProps {
+  title: string;
+  description: string;
+  hint: string;
+  onClick: () => void;
+  hoverKey: string;
+  hoveredButton: string | null;
+  setHoveredButton: (key: string | null) => void;
+  emphasis?: 'gold' | 'default';
+}
+
+function ModeCard({
+  title,
+  description,
+  hint,
+  onClick,
+  hoverKey,
+  hoveredButton,
+  setHoveredButton,
+  emphasis = 'default',
+}: ModeCardProps) {
+  const isHovered = hoveredButton === hoverKey;
+  const isGold = emphasis === 'gold';
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHoveredButton(hoverKey)}
+      onMouseLeave={() => setHoveredButton(null)}
+      className="w-full text-left transition-all"
+      style={{
+        borderRadius: '8px',
+        border: `2px solid ${isGold ? 'var(--gold)' : isHovered ? 'rgba(242,193,78,.45)' : 'rgba(237,232,222,.15)'}`,
+        background: isGold ? 'rgba(242,193,78,.12)' : '#241E17',
+        padding: 'var(--spacing-component-lg)',
+        cursor: 'pointer',
+        boxShadow: isHovered ? '0 4px 14px rgba(0,0,0,.35)' : 'none',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: 'var(--font-card-name)',
+          fontSize: '26px',
+          color: isGold ? 'var(--gold)' : 'var(--ink-text)',
+          marginBottom: 'var(--spacing-component-xs)',
+        }}
+      >
+        {title}
+      </div>
+      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink-muted)' }}>{description}</div>
+      <div style={{ fontSize: '12px', color: 'var(--ink-faint)', marginTop: '4px' }}>{hint}</div>
+    </button>
+  );
+}
+
+function SecondaryButton({
+  label,
+  hint,
+  onClick,
+  hoverKey,
+  hoveredButton,
+  setHoveredButton,
+}: {
+  label: string;
+  hint: string;
+  onClick: () => void;
+  hoverKey: string;
+  hoveredButton: string | null;
+  setHoveredButton: (key: string | null) => void;
+}) {
+  const isHovered = hoveredButton === hoverKey;
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHoveredButton(hoverKey)}
+      onMouseLeave={() => setHoveredButton(null)}
+      className="flex-1 text-center transition-all"
+      style={{
+        borderRadius: '6px',
+        border: `1px solid ${isHovered ? 'rgba(242,193,78,.45)' : 'rgba(237,232,222,.15)'}`,
+        background: isHovered ? 'rgba(237,232,222,.08)' : 'rgba(237,232,222,.04)',
+        padding: 'var(--spacing-component-md)',
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{ fontWeight: 900, fontSize: '15px', color: 'var(--ink-text)', marginBottom: '4px' }}>
+        {label}
+      </div>
+      <div style={{ fontSize: '11px', color: 'var(--ink-faint)' }}>{hint}</div>
+    </button>
+  );
+}
+
+export function LobbyHome({
+  onCreateLobby,
+  onJoinLobby,
+  onPlayVsAI,
   onQuickPlay,
   onShowPrivacyPolicy,
-  onShowTermsOfService
+  onShowTermsOfService,
 }: LobbyHomeProps) {
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -34,178 +136,102 @@ export function LobbyHome({
   const [showCardStats, setShowCardStats] = useState(false);
 
   return (
-    <div className="min-h-screen bg-game-bg flex items-center justify-center" style={{ padding: 'var(--spacing-component-md)' }}>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        padding: 'var(--spacing-component-md)',
+        background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))',
+        color: 'var(--ink-text)',
+      }}
+    >
       <div className="max-w-2xl w-full">
         {/* Title */}
         <div className="text-center" style={{ marginBottom: 'var(--spacing-component-xl)' }}>
-          <h1 
-            className="text-7xl font-bold text-game-highlight" 
-            style={{ 
+          <h1
+            style={{
+              fontFamily: 'var(--font-card-name)',
+              fontSize: 'clamp(48px, 10vw, 72px)',
+              lineHeight: 1,
+              color: 'var(--ink-text)',
               marginBottom: 'var(--spacing-component-sm)',
-              fontWeight: 700,
-              textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
             }}
           >
             GGLTCG
           </h1>
-          <p className="text-3xl text-gray-100 font-semibold">Choose Your Game Mode</p>
+          <p style={{ fontSize: 'clamp(16px, 3vw, 20px)', fontWeight: 700, color: 'var(--ink-muted)' }}>
+            Choose Your Game Mode
+          </p>
         </div>
 
         {/* Game Mode Options */}
         <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
-          {/* Create Lobby */}
-          <button
+          <ModeCard
+            title="Create Game"
+            description="Host a new game and invite a friend"
+            hint="Get a 6-character code to share"
             onClick={onCreateLobby}
-            onMouseEnter={() => setHoveredButton('create')}
-            onMouseLeave={() => setHoveredButton(null)}
-            className={`
-              w-full rounded-lg border-4 transition-all
-              ${hoveredButton === 'create'
-                ? 'border-game-highlight bg-gray-700 scale-105'
-                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-              }
-            `}
-            style={{ padding: 'var(--spacing-component-lg)' }}
-          >
-            <div className="text-3xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-xs)' }}>🎮 Create Game</div>
-            <div className="text-xl text-gray-100 font-semibold">
-              Host a new game and invite a friend
-            </div>
-            <div className="text-sm text-gray-300" style={{ marginTop: '4px' }}>
-              Get a 6-character code to share
-            </div>
-          </button>
+            hoverKey="create"
+            hoveredButton={hoveredButton}
+            setHoveredButton={setHoveredButton}
+            emphasis="gold"
+          />
 
-          {/* Join Lobby */}
-          <button
+          <ModeCard
+            title="Join Game"
+            description="Enter a friend's game code"
+            hint="Connect to an existing lobby"
             onClick={onJoinLobby}
-            onMouseEnter={() => setHoveredButton('join')}
-            onMouseLeave={() => setHoveredButton(null)}
-            className={`
-              w-full rounded-lg border-4 transition-all
-              ${hoveredButton === 'join'
-                ? 'border-game-highlight bg-gray-700 scale-105'
-                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-              }
-            `}
-            style={{ padding: 'var(--spacing-component-lg)' }}
-          >
-            <div className="text-3xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-xs)' }}>🔗 Join Game</div>
-            <div className="text-xl text-gray-100 font-semibold">
-              Enter a friend's game code
-            </div>
-            <div className="text-sm text-gray-300" style={{ marginTop: '4px' }}>
-              Connect to an existing lobby
-            </div>
-          </button>
+            hoverKey="join"
+            hoveredButton={hoveredButton}
+            setHoveredButton={setHoveredButton}
+          />
 
-          {/* Play vs AI */}
-          <button
+          <ModeCard
+            title="Play vs AI"
+            description="Practice against computer opponent"
+            hint="Single-player mode"
             onClick={() => onPlayVsAI(false)}
-            onMouseEnter={() => setHoveredButton('ai')}
-            onMouseLeave={() => setHoveredButton(null)}
-            className={`
-              w-full rounded-lg border-4 transition-all
-              ${hoveredButton === 'ai'
-                ? 'border-purple-500 bg-gray-700 scale-105'
-                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-              }
-            `}
-            style={{ padding: 'var(--spacing-component-lg)' }}
-          >
-            <div className="text-3xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-xs)' }}>🤖 Play vs AI</div>
-            <div className="text-xl text-gray-100 font-semibold">
-              Practice against computer opponent
-            </div>
-            <div className="text-sm text-gray-300" style={{ marginTop: '4px' }}>
-              Single-player mode
-            </div>
-          </button>
+            hoverKey="ai"
+            hoveredButton={hoveredButton}
+            setHoveredButton={setHoveredButton}
+          />
 
-          {/* Quick Play */}
-          <button
+          <ModeCard
+            title="Quick Play"
+            description="Jump straight into battle"
+            hint="Random decks, instant action!"
             onClick={onQuickPlay}
-            onMouseEnter={() => setHoveredButton('quick')}
-            onMouseLeave={() => setHoveredButton(null)}
-            className={`
-              w-full rounded-lg border-4 transition-all
-              ${hoveredButton === 'quick'
-                ? 'border-orange-500 bg-gray-700 scale-105'
-                : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-              }
-            `}
-            style={{ padding: 'var(--spacing-component-lg)' }}
-          >
-            <div className="text-3xl font-bold text-white" style={{ marginBottom: 'var(--spacing-component-xs)' }}>⚡ Quick Play</div>
-            <div className="text-xl text-gray-100 font-semibold">
-              Jump straight into battle
-            </div>
-            <div className="text-sm text-gray-300" style={{ marginTop: '4px' }}>
-              Random decks, instant action!
-            </div>
-          </button>
+            hoverKey="quick"
+            hoveredButton={hoveredButton}
+            setHoveredButton={setHoveredButton}
+          />
 
           {/* Secondary buttons row */}
           <div className="flex" style={{ gap: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)' }}>
-            {/* Leaderboard Button */}
-            <button
+            <SecondaryButton
+              label="Leaderboard"
+              hint="View top players"
               onClick={() => setShowLeaderboard(true)}
-              onMouseEnter={() => setHoveredButton('leaderboard')}
-              onMouseLeave={() => setHoveredButton(null)}
-              className={`
-                flex-1 rounded-lg border-4 transition-all
-                ${hoveredButton === 'leaderboard'
-                  ? 'border-yellow-500 bg-gray-700 scale-105'
-                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                }
-              `}
-              style={{ padding: 'var(--spacing-component-md)' }}
-            >
-              <div className="text-2xl font-bold text-white" style={{ marginBottom: '4px' }}>🏆 Leaderboard</div>
-              <div className="text-sm text-gray-300">
-                View top players
-              </div>
-            </button>
-
-            {/* Card Stats Button */}
-            <button
+              hoverKey="leaderboard"
+              hoveredButton={hoveredButton}
+              setHoveredButton={setHoveredButton}
+            />
+            <SecondaryButton
+              label="Card Stats"
+              hint="Win rates per card"
               onClick={() => setShowCardStats(true)}
-              onMouseEnter={() => setHoveredButton('cardstats')}
-              onMouseLeave={() => setHoveredButton(null)}
-              className={`
-                flex-1 rounded-lg border-4 transition-all
-                ${hoveredButton === 'cardstats'
-                  ? 'border-purple-500 bg-gray-700 scale-105'
-                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                }
-              `}
-              style={{ padding: 'var(--spacing-component-md)' }}
-            >
-              <div className="text-2xl font-bold text-white" style={{ marginBottom: '4px' }}>🃏 Card Stats</div>
-              <div className="text-sm text-gray-300">
-                Win rates per card
-              </div>
-            </button>
-
-            {/* How to Play Button */}
-            <button
+              hoverKey="cardstats"
+              hoveredButton={hoveredButton}
+              setHoveredButton={setHoveredButton}
+            />
+            <SecondaryButton
+              label="How to Play"
+              hint="Learn the rules"
               onClick={() => setShowHowToPlay(true)}
-              onMouseEnter={() => setHoveredButton('howtoplay')}
-              onMouseLeave={() => setHoveredButton(null)}
-              className={`
-                flex-1 rounded-lg border-4 transition-all
-                ${hoveredButton === 'howtoplay'
-                  ? 'border-blue-500 bg-gray-700 scale-105'
-                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                }
-              `}
-              style={{ padding: 'var(--spacing-component-md)' }}
-            >
-              <div className="text-2xl font-bold text-white" style={{ marginBottom: '4px' }}>📖 How to Play</div>
-              <div className="text-sm text-gray-300">
-                Learn the rules
-              </div>
-            </button>
+              hoverKey="howtoplay"
+              hoveredButton={hoveredButton}
+              setHoveredButton={setHoveredButton}
+            />
           </div>
         </div>
 

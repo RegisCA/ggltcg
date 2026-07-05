@@ -1,14 +1,14 @@
 /**
  * Lobby Waiting Component
- * 
+ *
  * Waiting room showing game code, players, and deck selection status.
- * Refactored to use shared hooks and components.
+ * Restyled to the Paper & Ink language: desk gradient, Gochi Hand headers,
+ * dark panels with gold hairline borders, gold primary buttons.
  */
 
 import { useState } from 'react';
-import { Button } from './ui/Button';
 import { startLobbyGame } from '../api/gameService';
-import { useLobbyPolling } from '../hooks/useLobbyPolling';
+import { useLobbyPolling, type LobbyPhase } from '../hooks/useLobbyPolling';
 import { DeckSelection } from './DeckSelection';
 import {
   GameCodeDisplay,
@@ -27,6 +27,15 @@ interface LobbyWaitingProps {
   otherPlayerName: string | null;
   onGameStarted: (gameId: string, firstPlayerId: string) => void;
   onBack: () => void;
+  /** Test/preview seam: when provided, forces the lobby's initial phase and
+   *  disables status polling. Production callers never pass this — used by
+   *  the /design.html harness fixture to show 'deck-selection',
+   *  'waiting-for-decks', or 'starting' without a backend. */
+  initialPhaseOverride?: LobbyPhase;
+  /** Test/preview seam: when true, the current player's deck is treated as
+   *  already submitted (mirrors what happens after handleDeckSelected
+   *  succeeds) so the waiting-room ready state renders correctly. */
+  currentPlayerReadyOverride?: boolean;
 }
 
 export function LobbyWaiting({
@@ -38,8 +47,10 @@ export function LobbyWaiting({
   otherPlayerName: initialOtherPlayerName,
   onGameStarted,
   onBack,
+  initialPhaseOverride,
+  currentPlayerReadyOverride,
 }: LobbyWaitingProps) {
-  const [currentPlayerReady, setCurrentPlayerReady] = useState(false);
+  const [currentPlayerReady, setCurrentPlayerReady] = useState(currentPlayerReadyOverride ?? false);
   const [error, setError] = useState<string | null>(null);
 
   // Use polling hook for lobby status
@@ -47,7 +58,10 @@ export function LobbyWaiting({
     gameCode,
     initialOtherPlayerName,
     onGameReady: () => onGameStarted(gameId, ''),
+    disablePolling: initialPhaseOverride !== undefined,
   });
+
+  const effectivePhase = initialPhaseOverride ?? phase;
 
   // Handle deck selection submission
   const handleDeckSelected = async (deck: string[]) => {
@@ -79,11 +93,11 @@ export function LobbyWaiting({
   const player2Name = currentPlayerId === 'player2' ? currentPlayerName : otherPlayerName || '';
 
   // Deck selection phase
-  if (phase === 'deck-selection' && !currentPlayerReady) {
+  if (effectivePhase === 'deck-selection' && !currentPlayerReady) {
     return (
-      <div>
+      <div style={{ background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))', color: 'var(--ink-text)', minHeight: '100vh' }}>
         <LobbyHeader gameCode={gameCode} onBack={onBack} />
-        
+
         <PlayersBanner
           player1Name={player1Name}
           player2Name={player2Name}
@@ -91,8 +105,17 @@ export function LobbyWaiting({
         />
 
         {error && (
-          <div className="bg-red-900/30 border-2 border-red-500 rounded max-w-2xl mx-auto" style={{ padding: 'var(--spacing-component-md)', marginTop: 'var(--spacing-component-md)' }}>
-            <div className="text-red-200">{error}</div>
+          <div
+            className="max-w-2xl mx-auto"
+            style={{
+              background: 'rgba(224,113,107,.12)',
+              border: '1px solid var(--danger)',
+              borderRadius: '6px',
+              padding: 'var(--spacing-component-md)',
+              marginTop: 'var(--spacing-component-md)',
+            }}
+          >
+            <div style={{ color: 'var(--danger)', fontWeight: 700, fontSize: '13px' }}>{error}</div>
           </div>
         )}
 
@@ -105,21 +128,48 @@ export function LobbyWaiting({
 
   // Waiting room display (waiting for player, waiting for decks, starting)
   return (
-    <div className="min-h-screen bg-game-bg flex items-center justify-center" style={{ padding: 'var(--spacing-component-md)' }}>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        padding: 'var(--spacing-component-md)',
+        background: 'linear-gradient(180deg, var(--desk-top), var(--desk-bottom))',
+        color: 'var(--ink-text)',
+      }}
+    >
       <div className="max-w-2xl w-full">
         {/* Back Button */}
         <div style={{ marginBottom: 'var(--spacing-component-xl)' }}>
-          <Button variant="ghost" size="md" onClick={onBack}>
-            ← Back to Main Menu
-          </Button>
+          <button
+            onClick={onBack}
+            className="flex items-center transition-colors"
+            style={{
+              gap: 'var(--spacing-component-xs)',
+              color: 'var(--ink-muted)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px',
+            }}
+          >
+            <span>←</span> Back to Main Menu
+          </button>
         </div>
 
         {/* Game Code Display */}
-        <div className="modal-padding bg-gray-800 rounded-lg border-2 border-gray-600" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
-          <GameCodeDisplay 
-            code={gameCode} 
-            size="large" 
-            label="Share this code with your friend:" 
+        <div
+          style={{
+            background: '#241E17',
+            borderRadius: '8px',
+            border: '1px solid rgba(242,193,78,.25)',
+            padding: 'var(--spacing-component-xl)',
+            marginBottom: 'var(--spacing-component-lg)',
+          }}
+        >
+          <GameCodeDisplay
+            code={gameCode}
+            size="large"
+            label="Share this code with your friend:"
           />
         </div>
 
@@ -140,7 +190,7 @@ export function LobbyWaiting({
         </div>
 
         {/* Status Message */}
-        <WaitingStatus phase={phase} currentPlayerId={currentPlayerId} />
+        <WaitingStatus phase={effectivePhase} currentPlayerId={currentPlayerId} />
       </div>
     </div>
   );
