@@ -67,12 +67,8 @@ for lobby, gameplay, and stats.
   **native structured output** for reliable play. See
   [AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md) for the
   full architecture.
-- **Charge Efficiency Tracking**: Monitors Charge usage per turn
-  to analyze AI performance and strategy effectiveness.
 - **Persistent Stats**: PostgreSQL-backed tracking of game results and
   high-level stats.
-- **Deterministic Gameplay**: No random draws – only visible information
-  and player decisions.
 - **Data-Driven Cards**: Card stats and effects defined in CSV,
   parsed by a generic effect system.
 - **Type-Safe Architecture**: TypeScript frontend and
@@ -141,7 +137,7 @@ graph TD
 - Game state management with JSON serialization
 - AI player powered by Google Gemini
   (free tier available)
-- **Deployed on Render.com** (free tier)
+- **Deployed on Render.com** (hobby tier)
 
 ### Frontend
 
@@ -182,7 +178,7 @@ cd backend/src
 python -m simulation.cli baseline --iterations 10
 ```
 
-This runs a baseline AI-vs-AI test across standard decks. For detailed documentation, see [Simulation System Guide](docs/development/SIMULATION_SYSTEM.md) and the [CLI README](backend/src/simulation/README.md).
+This runs a baseline AI-vs-AI test across standard decks. For detailed documentation, see [Simulation System Guide](docs/development/SIMULATION_SYSTEM.md) and the [CLI README](backend/src/simulation/README.md). Note: make sure you are familiar with your Google AI Studio rate limits.
 
 ## Play Now
 
@@ -198,13 +194,34 @@ load (free tier hosting).*
 
 **Screenshots:**
 
-![GGLTCG Game Modes](https://github.com/user-attachments/assets/18c38998-77d2-4e56-822e-a8f0e5412a25)
+The UI got a refresh in July 2026 — a mobile-first "Paper & Ink" redesign
+across the lobby, deck builder, and game board. For reference, here's the
+game board in the previous UI:
 
-![GGLTCG Deck Selected](https://github.com/user-attachments/assets/5aeafad3-fdbc-4c49-a997-15b5591ad325)
+![GGLTCG Game Board (previous UI)](https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49)
 
-![GGLTCG Game Board](https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49)
+And the current UI:
 
-![GGLTCG Game Summary Story](https://github.com/user-attachments/assets/5a2feb10-6041-426a-9cec-536259e61d17)
+![Server wake screen](docs/screenshots/00-server-wake.png)
+*First visit of the day — the free-tier backend is cold-starting.*
+
+![Game mode selection](docs/screenshots/01-mode-select.png)
+*Landing screen: Create Game, Join Game, Play vs AI, or Quick Play.*
+
+![Deck builder](docs/screenshots/02-deck-builder.png)
+*Choosing 6 unique cards, with sortable card browsing and deck slots.*
+
+![Opening hand](docs/screenshots/03-opening-hand.png)
+*Turn 1, waiting on the AI opponent's move.*
+
+![Game board, mobile](docs/screenshots/04-board-mobile.png)
+*Mid-game board state on mobile, with Break Zones and game log.*
+
+![Target selection modal](docs/screenshots/05-target-modal.png)
+*Choosing targets when playing a card with an effect.*
+
+![Game board, desktop](docs/screenshots/06-board-desktop.png)
+*The same board layout at desktop width — compare against the previous UI above.*
 
 ## Project Structure
 
