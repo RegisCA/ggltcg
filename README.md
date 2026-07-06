@@ -195,33 +195,32 @@ load (free tier hosting).*
 **Screenshots:**
 
 The UI got a refresh in July 2026 — a mobile-first "Paper & Ink" redesign
-across the lobby, deck builder, and game board. For reference, here's the
-game board in the previous UI:
+across the lobby, deck builder, and game board.
 
-![GGLTCG Game Board (previous UI)](https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49)
+**Before → after** (same board layout, desktop width):
 
-And the current UI:
+<img src="https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49" width="420" alt="GGLTCG Game Board, previous UI"> <img src="docs/screenshots/06-board-desktop.png" width="420" alt="GGLTCG Game Board, current UI">
 
-![Server wake screen](docs/screenshots/00-server-wake.png)
-*First visit of the day — the free-tier backend is cold-starting.*
+*Previous UI (left) vs. current UI (right).*
 
-![Game mode selection](docs/screenshots/01-mode-select.png)
-*Landing screen: Create Game, Join Game, Play vs AI, or Quick Play.*
+**Current UI walkthrough (mobile):**
 
-![Deck builder](docs/screenshots/02-deck-builder.png)
-*Choosing 6 unique cards, with sortable card browsing and deck slots.*
+<img src="docs/screenshots/00-server-wake.png" width="240" alt="Server wake screen">
+<img src="docs/screenshots/01-mode-select.png" width="240" alt="Game mode selection">
+<img src="docs/screenshots/02-deck-builder.png" width="240" alt="Deck builder">
+<img src="docs/screenshots/03-opening-hand.png" width="240" alt="Opening hand">
+<img src="docs/screenshots/04-board-mobile.png" width="240" alt="Game board, mobile">
+<img src="docs/screenshots/05-target-modal.png" width="240" alt="Target selection modal">
 
-![Opening hand](docs/screenshots/03-opening-hand.png)
-*Turn 1, waiting on the AI opponent's move.*
-
-![Game board, mobile](docs/screenshots/04-board-mobile.png)
-*Mid-game board state on mobile, with Break Zones and game log.*
-
-![Target selection modal](docs/screenshots/05-target-modal.png)
-*Choosing targets when playing a card with an effect.*
-
-![Game board, desktop](docs/screenshots/06-board-desktop.png)
-*The same board layout at desktop width — compare against the previous UI above.*
+1. Server wake screen — first visit of the day, while the free-tier
+   backend is cold-starting.
+2. Game mode selection — Create Game, Join Game, Play vs AI, or Quick Play.
+3. Deck builder — choosing 6 unique cards, with sortable card browsing
+   and deck slots.
+4. Opening hand — turn 1, waiting on the AI opponent's move.
+5. Game board, mobile — mid-game state with Break Zones and game log.
+6. Target selection modal — choosing targets when playing a card with
+   an effect.
 
 ## Project Structure
 
