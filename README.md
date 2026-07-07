@@ -1,112 +1,85 @@
-# GGLTCG - Googooland Trading Card Game
+# GGLTCG — Googooland Trading Card Game
 
-![CI Status](https://github.com/RegisCA/ggltcg/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.13-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg?logo=postgresql&logoColor=white)
-![React](https://img.shields.io/badge/react-19-61DAFB.svg?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06B6D4.svg?logo=tailwindcss&logoColor=white)
-![AI Provider](https://img.shields.io/badge/AI-Gemini-4285F4.svg?logo=google&logoColor=white)
-![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-EB5424.svg)
+![CI](https://github.com/RegisCA/ggltcg/actions/workflows/ci.yml/badge.svg)
+![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
+[![Live](https://img.shields.io/badge/play-ggltcg.vercel.app-black.svg)](https://ggltcg.vercel.app)
 
-A tactical two-player card game with no randomness in draws—only skill
-and strategy.
+A tactical two-player card game with no randomness in draws — only skill and
+strategy. **[Play it live](https://ggltcg.vercel.app)** (the free-tier backend
+may take ~50s to wake on first load).
 
-> **New here?** This is a solo project. In two weekends it went from a codebase
-> audit to a full AI-player and UI rebuild — see the
-> **[retrospective](docs/RETROSPECTIVE.md)** for the before/after and an honest
-> account of how it was made.
+GGLTCG is a full web app: a backend game engine with the rules and cards fully
+implemented, a React frontend for lobby, gameplay, and stats, and an
+LLM-powered AI opponent.
 
-## Project Overview
+**Before → after** — the same board, three weeks apart, after a July 2026
+"Paper & Ink" redesign:
 
-GGLTCG is a web application for playing the Googooland Trading Card Game,
-either against an AI opponent or with friends online. The rules and cards
-are fully implemented in the backend game engine, with a React frontend
-for lobby, gameplay, and stats.
+<img src="https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49" width="420" alt="GGLTCG Game Board, previous UI"> <img src="docs/screenshots/06-board-desktop.png" width="420" alt="GGLTCG Game Board, current UI">
 
-### Who is this for?
+*Previous UI (left) vs. current UI (right).*
 
-- **TCG Enthusiasts**: Explore a deterministic, skill-based card game engine.
-- **AI Developers**: See how LLMs (Google Gemini) can be integrated
-  as game agents.
-- **Full-Stack Engineers**: A reference for modern Python/React apps
-  with enterprise-grade practices.
+**Who is this for?**
 
-## 5-Minute Quickstart
+- **TCG enthusiasts** — a deterministic, skill-based card game engine.
+- **AI developers** — a worked example of integrating an LLM (Google Gemini) as a game agent.
+- **Full-stack engineers** — a reference for a modern Python/React app: typed end to end, migration-managed, CI-gated.
 
-1. **Clone & Setup Backend**:
+## How this was built
 
-   ```bash
-   git clone https://github.com/RegisCA/ggltcg.git
-   cd ggltcg
-   python3.13 -m venv .venv && source .venv/bin/activate
-   pip install -r backend/requirements.txt
-   cp backend/.env.example backend/.env  # Add your GOOGLE_API_KEY
-   cd backend && python run_server.py
-   ```
+I didn't hand-write this code. I directed its construction — the architecture,
+the scope, and the engineering decisions — using AI coding agents under a
+structured workflow ([AGENTS.md](AGENTS.md)).
 
-2. **Setup Frontend**:
+What makes that work rather than "an AI generating code" is matching a
+specialized tool to each kind of thinking — planning, implementing, play-testing,
+visual design, multi-resolution verification — and holding dozens of small,
+reviewed changes pointed in one direction. The full account, with before/after
+screenshots and the tool-to-task breakdown, is in the retrospective:
+[**From Audit to Rebuild, in Two Weekends**](docs/RETROSPECTIVE.md).
 
-   ```bash
-   cd ../frontend
-   npm install
-   cp .env.example .env.local  # Add VITE_GOOGLE_CLIENT_ID
-   npm run dev
-   ```
+The clearest example of the judgment involved is the AI opponent. It went through
+four architectures before settling on one:
 
-3. **Play**: Open <http://localhost:5173>
+```
+enumerate every engine-legal sequence  →  1 Gemini call picks the best  →  execute
+```
 
-## Key Features
+Because every sequence is engine-legal by construction, illegal moves became
+impossible rather than merely caught — so the elaborate validator that used to
+guard against bad model output had nothing left to reject, and was deleted along
+with the multi-provider abstraction and the mode flags no one could keep
+straight. The subsystem that was the project's biggest liability became its most
+predictable, at exactly one model call per turn. The decision trail is in
+[AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md).
 
-- **1v1 Online Multiplayer**: Lobby system to create and join private games by code.
-- **Quick Play vs AI**: Start a game against the AI with a single click.
-- **Google OAuth Authentication**: Secure sign-in with Google, user
-  profiles, and display names.
-- **LLM-Powered AI Opponent**: Whole-turn planning—a deterministic enumerator
-  computes every engine-legal action sequence for the turn, then a single
-  **Google Gemini** call picks the best one (strategic selection), and
-  heuristic matching executes the chosen actions on the server. Uses
-  **native structured output** for reliable play. See
-  [AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md) for the
-  full architecture.
-- **Persistent Stats**: PostgreSQL-backed tracking of game results and
-  high-level stats.
-- **Data-Driven Cards**: Card stats and effects defined in CSV,
-  parsed by a generic effect system.
-- **Type-Safe Architecture**: TypeScript frontend and
-  Pydantic-validated FastAPI backend.
+## Who built this
 
-## Documentation
+Engineer by training — Diplôme d'Ingénieur (ENSIIE, France) and MSc in Computer
+Science (University of Hull) — who architects and directs software rather than
+hand-writing it. Alongside the building: fifteen-plus years delivering software
+and scaling the client-facing side of it, including product ownership on an
+Innovative Solutions Canada (ISED) contract and building and running global
+client-services organizations.
 
-For detailed documentation, see the
-**[Documentation Index](docs/README.md)**. Key guides include:
+GGLTCG is one exhibit — proof I can take a system from nothing to deployed,
+making the architectural and AI-engineering calls by directing agents and tools.
+It's a slice of a larger track record: [LinkedIn](http://linkedin.com/in/regiseloi).
 
-- [Architecture](docs/development/ARCHITECTURE.md)
-- [Effect System](docs/development/EFFECT_SYSTEM_ARCHITECTURE.md)
-- [Authentication](docs/development/AUTH_IMPLEMENTATION.md)
+## Highlights
 
-## Security
-
-- **Authentication**: Google OAuth only (no passwords stored).
-- **Secrets**: Managed via environment variables.
-- **Reporting**: See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
-- **Guidelines**: See [Security Instructions](.github/instructions/security-and-owasp.instructions.md).
-
-## Production Engineering
-
-This project demonstrates professional software engineering practices:
-
-- **Database Migrations**: Uses **Alembic** for reliable schema evolution
-  and version control of the database.
-- **Automated Maintenance**: Background tasks automatically clean up
-  abandoned games and stale logs to keep the database healthy.
-- **Operational Security**: Maintenance endpoints are secured with API
-  keys; user data is protected via OAuth 2.0.
-- **Scalable Architecture**: Stateless backend design allows for
-  horizontal scaling (deployed on Render).
+- **LLM-powered AI opponent** — plans a whole turn via a deterministic
+  enumerator plus a single Google Gemini call, using native structured output.
+  See [How this was built](#how-this-was-built) for the architecture.
+- **1v1 online multiplayer** — a lobby system to create and join private games
+  by code, plus one-click Quick Play against the AI.
+- **Google OAuth authentication** — secure sign-in, user profiles, and display
+  names; no passwords stored.
+- **Data-driven cards** — card stats and effects defined in CSV, parsed by a
+  generic effect system.
+- **Persistent stats** — PostgreSQL-backed tracking of game results.
+- **Type-safe throughout** — a TypeScript frontend and a Pydantic-validated
+  FastAPI backend.
 
 ## Architecture
 
@@ -118,116 +91,46 @@ graph TD
     Backend <-->|Prompt/Response| LLM[Google Gemini API]
     Backend <-->|Read/Write| DB[(PostgreSQL DB)]
     Frontend <-->|OAuth| Google[Google Identity Services]
-    
+
     subgraph "Backend Services"
         Backend
         CSV
         DB
     end
-    
+
     subgraph "External"
         LLM
         Google
     end
 ```
 
-## Tech Stack
+### Tech stack
 
-### Backend
+**Backend**
 
 - **Python 3.13** with FastAPI 0.115.6
-- **PostgreSQL** database with SQLAlchemy & Alembic
+- **PostgreSQL** with SQLAlchemy & Alembic migrations
 - Uvicorn 0.34.0 ASGI server
-- Card data stored in CSV format (Single Source of Truth)
+- Card data stored in CSV format (single source of truth)
 - Game state management with JSON serialization
-- AI player powered by Google Gemini
-  (free tier available)
-- **Deployed on Render.com** (hobby tier)
+- AI player powered by Google Gemini (free tier available)
+- Deployed on Render.com (free tier)
 
-### Frontend
+**Frontend**
 
 - **React 19** with TypeScript
 - **Vite 7.2.2** for fast development
-- **React Query** (@tanstack/react-query) for server state management
-- **Axios** for HTTP client
+- **React Query** (@tanstack/react-query) for server-state management
+- **Axios** for the HTTP client
 - **TailwindCSS 4.1** for styling
-- **"Paper & Ink" design system** — hand-drawn, crayon-accented card game
-  aesthetic with a token-based theme (`frontend/src/index.css`), responsive
-  at phone/tablet/desktop widths
+- **"Paper & Ink" design system** — a hand-drawn, crayon-accented card-game
+  aesthetic with a token-based theme (`frontend/src/index.css`), responsive at
+  phone/tablet/desktop widths
 - **Design-preview harness** (`/design.html`) — every screen renders against
   canned fixtures with no backend, for fast visual iteration
-- **Deployed on Vercel** (free tier)
+- Deployed on Vercel (free tier)
 
-## Game Rules
-
-- **Objective:** Put all opponent's cards into their Break Zone.
-- **Turn Start:** Gain 4 Charge (Player 1 on Turn 1 gains only 2).
-- **Charge Cap:** Maximum 7 Charge per player at any time.
-- **Tussle:** Pay Charge to have two Toys fight. Higher speed strikes first.
-
-See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for complete rules.
-
-## Simulation System
-
-The simulation system enables automated AI vs AI gameplay for testing and analysis. Key use cases:
-
-- **AI Testing**: Validate AI performance and identify bugs across many games
-- **Model Comparison**: Compare different LLM models (e.g., Gemini 2.0 Flash vs 2.5 Flash Lite)
-- **Deck Balancing**: Test deck matchups to identify imbalances
-- **Performance Analysis**: Track Charge efficiency and turn-by-turn decisions
-
-**Quick Example:**
-
-```bash
-cd backend/src
-python -m simulation.cli baseline --iterations 10
-```
-
-This runs a baseline AI-vs-AI test across standard decks. For detailed documentation, see [Simulation System Guide](docs/development/SIMULATION_SYSTEM.md) and the [CLI README](backend/src/simulation/README.md). Note: make sure you are familiar with your Google AI Studio rate limits.
-
-## Play Now
-
-**Live Game:** <https://ggltcg.vercel.app>
-
-*Note: The backend may take up to 50 seconds to wake up on first
-load (free tier hosting).*
-
-**Backend API:** <https://ggltcg.onrender.com>
-
-- API docs: <https://ggltcg.onrender.com/docs>
-- Health check: <https://ggltcg.onrender.com/health>
-
-**Screenshots:**
-
-The UI got a refresh in July 2026 — a mobile-first "Paper & Ink" redesign
-across the lobby, deck builder, and game board.
-
-**Before → after** (same board layout, desktop width):
-
-<img src="https://github.com/user-attachments/assets/d46c3d17-b7b5-4e63-95ae-c997518a6a49" width="420" alt="GGLTCG Game Board, previous UI"> <img src="docs/screenshots/06-board-desktop.png" width="420" alt="GGLTCG Game Board, current UI">
-
-*Previous UI (left) vs. current UI (right).*
-
-**Current UI walkthrough (mobile):**
-
-<img src="docs/screenshots/00-server-wake.png" width="240" alt="Server wake screen">
-<img src="docs/screenshots/01-mode-select.png" width="240" alt="Game mode selection">
-<img src="docs/screenshots/02-deck-builder.png" width="240" alt="Deck builder">
-<img src="docs/screenshots/03-opening-hand.png" width="240" alt="Opening hand">
-<img src="docs/screenshots/04-board-mobile.png" width="240" alt="Game board, mobile">
-<img src="docs/screenshots/05-target-modal.png" width="240" alt="Target selection modal">
-
-1. Server wake screen — first visit of the day, while the free-tier
-   backend is cold-starting.
-2. Game mode selection — Create Game, Join Game, Play vs AI, or Quick Play.
-3. Deck builder — choosing 6 unique cards, with sortable card browsing
-   and deck slots.
-4. Opening hand — turn 1, waiting on the AI opponent's move.
-5. Game board, mobile — mid-game state with Break Zones and game log.
-6. Target selection modal — choosing targets when playing a card with
-   an effect.
-
-## Project Structure
+### Repository layout
 
 ```text
 ggltcg/
@@ -236,12 +139,12 @@ ggltcg/
 │   │   ├── game_engine/
 │   │   │   ├── models/          # Card, Player, GameState classes
 │   │   │   ├── rules/           # Game logic, turn management, tussles
-│   │   │   │   └── effects/     # Card effect system (30 cards)
-│   │   │   ├── ai/              # LLM player integration (multi-provider)
+│   │   │   │   └── effects/     # Card effect system (40 cards)
+│   │   │   ├── ai/              # LLM player (single enumerate→choose path)
 │   │   │   └── data/            # Card loader, CSV handling
 │   │   └── api/                 # FastAPI routes
 │   ├── data/
-│   │   └── cards.csv            # 30-card set (SINGLE SOURCE OF TRUTH)
+│   │   └── cards.csv            # 40-card set (SINGLE SOURCE OF TRUTH)
 │   ├── tests/
 │   └── requirements.txt
 ├── frontend/
@@ -261,136 +164,173 @@ ggltcg/
 └── README.md
 ```
 
-## Development Setup
+## Simulation system
+
+Automated AI-vs-AI gameplay for testing and analysis. Key use cases:
+
+- **AI testing** — validate AI performance and surface bugs across many games
+- **Model comparison** — compare LLM models (e.g. Gemini 2.0 Flash vs 2.5 Flash Lite)
+- **Deck balancing** — test matchups to identify imbalances
+- **Performance analysis** — track Charge efficiency and turn-by-turn decisions
+
+```bash
+cd backend/src
+python -m simulation.cli baseline --iterations 10
+```
+
+This runs a baseline AI-vs-AI test across standard decks. For details, see the
+[Simulation System Guide](docs/development/SIMULATION_SYSTEM.md) and the
+[CLI README](backend/src/simulation/README.md). Mind your Google AI Studio rate
+limits.
+
+## Game rules
+
+- **Objective** — put all of the opponent's cards into their Break Zone.
+- **Turn start** — gain 4 Charge (Player 1 on Turn 1 gains only 2).
+- **Charge cap** — a maximum of 7 Charge per player at any time.
+- **Tussle** — pay Charge to have two Toys fight; higher speed strikes first.
+
+See [GGLTCG Rules v1_1.md](docs/rules/GGLTCG%20Rules%20v1_1.md) for the complete rules.
+
+## Run it locally
 
 ### Prerequisites
 
 - Python 3.13+
 - Node.js 18+
-- Google Gemini API key (get one free at
-  <https://aistudio.google.com/api-keys>)
+- A Google Gemini API key (free at <https://aistudio.google.com/api-keys>)
 
-### Backend Setup
+### Quick start
 
 ```bash
-# From the repo root — the venv lives at the root, not in backend/
-python -m venv .venv
-source .venv/bin/activate  # On macOS/Linux; use .venv\Scripts\activate on Windows
+# 1. Backend — from the repo root (the venv lives at the root, not in backend/)
+git clone https://github.com/RegisCA/ggltcg.git
+cd ggltcg
+python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
-
-# Copy example env files if present, then configure auth and DB
-cp backend/.env.example backend/.env 2>/dev/null || true
+cp backend/.env.example backend/.env   # add at least GOOGLE_API_KEY
+cd backend && python run_server.py      # http://localhost:8000  (API docs at /docs)
 ```
 
-Then set at minimum:
-
-- `DATABASE_URL` – PostgreSQL connection string
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` – OAuth credentials
-- `JWT_SECRET_KEY` – random secret for JWTs
-- `ALLOWED_ORIGINS` – allowed frontend origins
-
-For details, see `docs/development/DATABASE_SCHEMA.md` and
-`docs/development/AUTH_IMPLEMENTATION.md`.
-
-### Frontend Setup
-
 ```bash
+# 2. Frontend — in a second terminal
 cd frontend
 npm install
+cp .env.example .env.local              # add VITE_GOOGLE_CLIENT_ID
+npm run dev                             # http://localhost:5173
 ```
 
-Create a `.env` file in `frontend/` with at least:
+Then open <http://localhost:5173> to play.
 
-- `VITE_API_URL` – URL of the backend (e.g. `http://localhost:8000`)
-- `VITE_GOOGLE_CLIENT_ID` – OAuth client ID
+### Configuration
 
-See `docs/development/AUTH_IMPLEMENTATION.md` and
-`docs/development/FRONTEND_OVERVIEW.md` for more context.
+For online play and OAuth (beyond a local AI-only game), set the full
+environment:
 
-### Running the Application
+**Backend** (`backend/.env`)
 
-**Backend:**
+- `DATABASE_URL` — PostgreSQL connection string
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` — OAuth credentials
+- `JWT_SECRET_KEY` — random secret for JWTs
+- `ALLOWED_ORIGINS` — allowed frontend origins
+- `GOOGLE_API_KEY` — Gemini API key (for the AI opponent)
 
-```bash
-source .venv/bin/activate  # From project root, if not already active
+**Frontend** (`frontend/.env` or `.env.local`)
 
-cd backend
-python run_server.py
+- `VITE_API_URL` — backend URL (e.g. `http://localhost:8000`)
+- `VITE_GOOGLE_CLIENT_ID` — OAuth client ID
 
-# Server runs at http://localhost:8000
-# API docs at http://localhost:8000/docs
-```
+For more, see `docs/development/DATABASE_SCHEMA.md`,
+`docs/development/AUTH_IMPLEMENTATION.md`, and
+`docs/development/FRONTEND_OVERVIEW.md`.
 
-**Command Line Options:**
+### Command-line options
 
-The backend server supports the following command-line arguments:
+`run_server.py` accepts:
 
-- `--deck PATH`: Path to a custom deck CSV file (default: `backend/data/cards.csv`)
-- `--host HOST`: Host to bind the server to (default: `0.0.0.0`)
-- `--port PORT`: Port to bind the server to (default: `8000`)
-- `--no-reload`: Disable auto-reload on code changes
-
-Example with custom deck and different port:
+- `--deck PATH` — custom deck CSV (default: `backend/data/cards.csv`)
+- `--host HOST` — host to bind (default: `0.0.0.0`)
+- `--port PORT` — port to bind (default: `8000`)
+- `--no-reload` — disable auto-reload on code changes
 
 ```bash
 python run_server.py --deck my_custom_deck.csv --port 8080
 ```
 
-**Frontend:**
+## Live app & API
 
-```bash
-cd frontend
-npm run dev
-# App runs at http://localhost:5173
-```
+**Live game:** <https://ggltcg.vercel.app> — the backend may take up to 50
+seconds to wake on first load (free-tier hosting).
 
-Open <http://localhost:5173> in your browser to play.
+**Backend API:** <https://ggltcg.onrender.com>
 
-## Card Data
+- API docs: <https://ggltcg.onrender.com/docs>
+- Health check: <https://ggltcg.onrender.com/health>
 
-Card definitions live in `backend/data/cards.csv` and are the single
-source of truth for card stats, colors, and effect strings. The effect
-system is data-driven and parses the `effects` column into runtime
-effect objects.
+**Current UI walkthrough (mobile):**
 
-For details on adding or modifying cards, see:
+<img src="docs/screenshots/00-server-wake.png" width="240" alt="Server wake screen">
+<img src="docs/screenshots/01-mode-select.png" width="240" alt="Game mode selection">
+<img src="docs/screenshots/02-deck-builder.png" width="240" alt="Deck builder">
+<img src="docs/screenshots/03-opening-hand.png" width="240" alt="Opening hand">
+<img src="docs/screenshots/04-board-mobile.png" width="240" alt="Game board, mobile">
+<img src="docs/screenshots/05-target-modal.png" width="240" alt="Target selection modal">
 
-- `docs/development/ADDING_NEW_CARDS.md`
-- `docs/development/EFFECT_SYSTEM_ARCHITECTURE.md`
+1. Server wake screen — first visit of the day, while the free-tier backend is cold-starting.
+2. Game mode selection — Create Game, Join Game, Play vs AI, or Quick Play.
+3. Deck builder — choosing 6 unique cards, with sortable browsing and deck slots.
+4. Opening hand — turn 1, waiting on the AI opponent's move.
+5. Game board (mobile) — mid-game state with Break Zones and the game log.
+6. Target selection modal — choosing targets when playing a card with an effect.
+
+## Card data
+
+Card definitions live in `backend/data/cards.csv` and are the single source of
+truth for card stats, colors, and effect strings. The effect system is
+data-driven and parses the `effects` column into runtime effect objects.
+
+For adding or modifying cards, see `docs/development/ADDING_NEW_CARDS.md` and
+`docs/development/EFFECT_SYSTEM_ARCHITECTURE.md`.
+
+## Documentation
+
+See the **[Documentation Index](docs/README.md)**. Key guides:
+
+- [Architecture](docs/development/ARCHITECTURE.md)
+- [Effect System](docs/development/EFFECT_SYSTEM_ARCHITECTURE.md)
+- [Authentication](docs/development/AUTH_IMPLEMENTATION.md)
 
 ## Deployment
 
 For deploying your own instance:
 
-- [DEPLOYMENT.md](docs/deployment/DEPLOYMENT.md) – Complete deployment guide
-- [DEPLOYMENT_QUICKSTART.md](docs/deployment/DEPLOYMENT_QUICKSTART.md) – Quick reference
+- [DEPLOYMENT.md](docs/deployment/DEPLOYMENT.md) — complete deployment guide
+- [DEPLOYMENT_QUICKSTART.md](docs/deployment/DEPLOYMENT_QUICKSTART.md) — quick reference
 
-The live instance runs on:
+The live instance runs on Vercel (frontend, free tier) and Render.com (backend,
+free tier).
 
-- **Frontend:** Vercel (free tier)
-- **Backend:** Render.com (free tier)
+## Security
+
+- **Authentication** — Google OAuth only (no passwords stored).
+- **Secrets** — managed via environment variables.
+- **Reporting** — see [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+- **Guidelines** — see [Security Instructions](.github/instructions/security-and-owasp.instructions.md).
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
-
-- Development setup instructions
-- Coding standards and guidelines
-- Pull request process
-- Security best practices
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development
+setup, coding standards, the pull-request process, and security practices.
 
 ## License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. You are
+free to use, modify, and distribute this software, provided modifications are
+released open-source under the same license; if you run it on a network server,
+you must provide the source to that server's users.
 
-This means you are free to use, modify, and distribute this software,
-provided that any modifications are also made open source under the
-same license. If you run this software on a network server, you must
-provide the source code to users of that server.
-
-**Commercial Licensing:**
-If you wish to use this software in a proprietary product or without
-the obligations of the AGPL-3.0, commercial licenses are available.
-Please contact the maintainers for more information.
+**Commercial licensing:** if you wish to use this software in a proprietary
+product or without the AGPL-3.0 obligations, commercial licenses are available —
+contact the maintainers.
 
 See the [LICENSE](LICENSE) file for details.
