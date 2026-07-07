@@ -15,6 +15,11 @@
 A tactical two-player card game with no randomness in draws—only skill
 and strategy.
 
+> **New here?** This is a solo project. In two weekends it went from a codebase
+> audit to a full AI-player and UI rebuild — see the
+> **[retrospective](docs/RETROSPECTIVE.md)** for the before/after and an honest
+> account of how it was made.
+
 ## Project Overview
 
 GGLTCG is a web application for playing the Googooland Trading Card Game,
