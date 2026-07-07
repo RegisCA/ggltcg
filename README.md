@@ -1,24 +1,10 @@
 # GGLTCG - Googooland Trading Card Game
-
-![CI Status](https://github.com/RegisCA/ggltcg/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.13-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg?logo=postgresql&logoColor=white)
-![React](https://img.shields.io/badge/react-19-61DAFB.svg?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06B6D4.svg?logo=tailwindcss&logoColor=white)
-![AI Provider](https://img.shields.io/badge/AI-Gemini-4285F4.svg?logo=google&logoColor=white)
-![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-EB5424.svg)
+![CI](https://github.com/RegisCA/ggltcg/actions/workflows/ci.yml/badge.svg)
+![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
+[![Live](https://img.shields.io/badge/play-ggltcg.vercel.app-black.svg)](https://ggltcg.vercel.app)
 
 A tactical two-player card game with no randomness in draws—only skill
 and strategy.
-
-> **New here?** This is a solo project. In two weekends it went from a codebase
-> audit to a full AI-player and UI rebuild — see the
-> **[retrospective](docs/RETROSPECTIVE.md)** for the before/after and an honest
-> account of how it was made.
 
 ## Project Overview
 
@@ -34,6 +20,26 @@ for lobby, gameplay, and stats.
   as game agents.
 - **Full-Stack Engineers**: A reference for modern Python/React apps
   with enterprise-grade practices.
+
+### Key Features
+
+- **1v1 Online Multiplayer**: Lobby system to create and join private games by code.
+- **Quick Play vs AI**: Start a game against the AI with a single click.
+- **Google OAuth Authentication**: Secure sign-in with Google, user
+  profiles, and display names.
+- **LLM-Powered AI Opponent**: Whole-turn planning—a deterministic enumerator
+  computes every engine-legal action sequence for the turn, then a single
+  **Google Gemini** call picks the best one (strategic selection), and
+  heuristic matching executes the chosen actions on the server. Uses
+  **native structured output** for reliable play. See
+  [AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md) for the
+  full architecture.
+- **Persistent Stats**: PostgreSQL-backed tracking of game results and
+  high-level stats.
+- **Data-Driven Cards**: Card stats and effects defined in CSV,
+  parsed by a generic effect system.
+- **Type-Safe Architecture**: TypeScript frontend and
+  Pydantic-validated FastAPI backend.
 
 ## 5-Minute Quickstart
 
@@ -59,26 +65,6 @@ for lobby, gameplay, and stats.
 
 3. **Play**: Open <http://localhost:5173>
 
-## Key Features
-
-- **1v1 Online Multiplayer**: Lobby system to create and join private games by code.
-- **Quick Play vs AI**: Start a game against the AI with a single click.
-- **Google OAuth Authentication**: Secure sign-in with Google, user
-  profiles, and display names.
-- **LLM-Powered AI Opponent**: Whole-turn planning—a deterministic enumerator
-  computes every engine-legal action sequence for the turn, then a single
-  **Google Gemini** call picks the best one (strategic selection), and
-  heuristic matching executes the chosen actions on the server. Uses
-  **native structured output** for reliable play. See
-  [AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md) for the
-  full architecture.
-- **Persistent Stats**: PostgreSQL-backed tracking of game results and
-  high-level stats.
-- **Data-Driven Cards**: Card stats and effects defined in CSV,
-  parsed by a generic effect system.
-- **Type-Safe Architecture**: TypeScript frontend and
-  Pydantic-validated FastAPI backend.
-
 ## Documentation
 
 For detailed documentation, see the
@@ -94,19 +80,6 @@ For detailed documentation, see the
 - **Secrets**: Managed via environment variables.
 - **Reporting**: See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 - **Guidelines**: See [Security Instructions](.github/instructions/security-and-owasp.instructions.md).
-
-## Production Engineering
-
-This project demonstrates professional software engineering practices:
-
-- **Database Migrations**: Uses **Alembic** for reliable schema evolution
-  and version control of the database.
-- **Automated Maintenance**: Background tasks automatically clean up
-  abandoned games and stale logs to keep the database healthy.
-- **Operational Security**: Maintenance endpoints are secured with API
-  keys; user data is protected via OAuth 2.0.
-- **Scalable Architecture**: Stateless backend design allows for
-  horizontal scaling (deployed on Render).
 
 ## Architecture
 
