@@ -41,6 +41,34 @@ for lobby, gameplay, and stats.
 - **Type-Safe Architecture**: TypeScript frontend and
   Pydantic-validated FastAPI backend.
 
+## How this was built
+
+I didn't hand-write this code. I directed its construction — the architecture,
+the scope, and the engineering decisions — using AI coding agents under a
+structured workflow ([AGENTS.md](AGENTS.md)).
+
+What makes that work rather than "an AI generating code" is matching a
+specialized tool to each kind of thinking — planning, implementing, play-testing,
+visual design, multi-resolution verification — and holding dozens of small,
+reviewed changes pointed in one direction. The full account, with before/after
+screenshots and the tool-to-task breakdown, is in the retrospective:
+[**From Audit to Rebuild, in Two Weekends**](docs/RETROSPECTIVE.md).
+
+The clearest example of the judgment involved is the AI opponent. It went through
+four architectures before settling on one:
+
+```
+enumerate every engine-legal sequence  →  1 Gemini call picks the best  →  execute
+```
+
+Because every sequence is engine-legal by construction, illegal moves became
+impossible rather than merely caught — so the elaborate validator that used to
+guard against bad model output had nothing left to reject, and was deleted along
+with the multi-provider abstraction and the mode flags no one could keep
+straight. The subsystem that was the project's biggest liability became its most
+predictable, at exactly one model call per turn. The decision trail is in
+[AI_CURRENT_STATE.md](docs/development/ai/AI_CURRENT_STATE.md).
+
 ## 5-Minute Quickstart
 
 1. **Clone & Setup Backend**:
