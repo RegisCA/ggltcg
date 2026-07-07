@@ -6,6 +6,7 @@ Welcome to the GGLTCG documentation.
 
 | Need | Document |
 |------|----------|
+| **Project story** | [RETROSPECTIVE.md](RETROSPECTIVE.md) — audit → two-weekend rebuild, with before/after |
 | **Start coding** | [AGENTS.md](../AGENTS.md) (root context) |
 | **Game rules** | [rules/QUICK_REFERENCE.md](rules/QUICK_REFERENCE.md) |
 | **AI architecture** | [development/ai/AI_CURRENT_STATE.md](development/ai/AI_CURRENT_STATE.md) |
