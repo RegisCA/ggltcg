@@ -26,6 +26,7 @@ from .config import (
     GameResult,
     GameOutcome,
     TurnCharge,
+    default_simulation_model,
 )
 from game_engine.ai.rate_limiter import BudgetExhaustedError
 
@@ -45,8 +46,8 @@ class SimulationRunner:
 
     def __init__(
         self,
-        player1_model: str = "gemini-2.5-flash-lite",
-        player2_model: str = "gemini-2.5-flash-lite",
+        player1_model: Optional[str] = None,
+        player2_model: Optional[str] = None,
         max_turns: int = 20,
         log_level: str = "WARNING",
         rate_limiter: Optional[object] = None,
@@ -55,16 +56,17 @@ class SimulationRunner:
         Initialize the simulation runner.
 
         Args:
-            player1_model: Gemini model for player 1
-            player2_model: Gemini model for player 2
+            player1_model: Gemini model for player 1 (default: GEMINI_MODEL
+                env var, then the provider default — same as live games)
+            player2_model: Gemini model for player 2 (same default)
             max_turns: Maximum turns before declaring draw
             log_level: Logging level for simulation-related loggers (default: WARNING)
             rate_limiter: Optional rate/budget limiter forwarded to both AI
                 players' Gemini provider. Defaults to a no-op limiter (no
                 behavior change).
         """
-        self.player1_model = player1_model
-        self.player2_model = player2_model
+        self.player1_model = player1_model or default_simulation_model()
+        self.player2_model = player2_model or default_simulation_model()
         self.max_turns = max_turns
         self.rate_limiter = rate_limiter
 
