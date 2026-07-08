@@ -442,8 +442,8 @@ class SimulationRunModel(Base):
         nullable=False,
         default="pending",
         index=True
-    )  # pending, running, completed, failed, cancelled
-    
+    )  # pending, running, completed, failed, cancelled, paused, budget_exhausted
+
     # Configuration (JSON for flexibility)
     # Structure: {
     #   "deck_names": ["Aggro_Rush", "Control_Ka", ...],
@@ -480,7 +480,8 @@ class SimulationRunModel(Base):
     
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'running', 'completed', 'failed', 'cancelled')",
+            "status IN ('pending', 'running', 'completed', 'failed', 'cancelled', "
+            "'paused', 'budget_exhausted')",
             name="simulation_runs_status_check"
         ),
     )
