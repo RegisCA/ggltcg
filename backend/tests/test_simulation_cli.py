@@ -255,3 +255,34 @@ class TestListRunsRegression:
         mock_orch.list_runs.assert_called_once_with(limit=5)
         assert "Run #1" in result.output
         assert "completed" in result.output
+
+
+class TestDefaultModelResolution:
+    """Simulations must default to the same model resolution as live games
+    (GEMINI_MODEL env -> provider DEFAULT_MODEL), not a hardcoded snapshot."""
+
+    def test_default_follows_gemini_model_env(self, monkeypatch):
+        from simulation.config import SimulationConfig, default_simulation_model
+
+        monkeypatch.setenv("GEMINI_MODEL", "test-model-from-env")
+        assert default_simulation_model() == "test-model-from-env"
+        config = SimulationConfig(deck_names=["A", "B"])
+        assert config.player1_model == "test-model-from-env"
+        assert config.player2_model == "test-model-from-env"
+
+    def test_default_falls_back_to_provider_default(self, monkeypatch):
+        from game_engine.ai.providers import DEFAULT_MODEL
+        from simulation.config import SimulationConfig, default_simulation_model
+
+        monkeypatch.delenv("GEMINI_MODEL", raising=False)
+        assert default_simulation_model() == DEFAULT_MODEL
+        config = SimulationConfig(deck_names=["A", "B"])
+        assert config.player1_model == DEFAULT_MODEL
+
+    def test_runner_resolves_default_model(self, monkeypatch):
+        from simulation.runner import SimulationRunner
+
+        monkeypatch.setenv("GEMINI_MODEL", "runner-env-model")
+        runner = SimulationRunner()
+        assert runner.player1_model == "runner-env-model"
+        assert runner.player2_model == "runner-env-model"

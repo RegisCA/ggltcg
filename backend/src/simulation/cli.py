@@ -31,7 +31,7 @@ import click
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from simulation.orchestrator import SimulationOrchestrator
-from simulation.config import SimulationConfig, SimulationStatus
+from simulation.config import SimulationConfig, SimulationStatus, default_simulation_model
 from simulation.deck_loader import load_simulation_decks_dict
 from simulation.reporter import SimulationReporter
 
@@ -86,7 +86,7 @@ def cli(verbose):
 @cli.command()
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
-@click.option('--model', '-m', default='gemini-2.5-flash-lite', help='AI model to use')
+@click.option('--model', '-m', default=None, help='AI model to use (default: GEMINI_MODEL env or provider default)')
 @click.option('--decks', '-d', default='baseline', help='Deck preset: baseline, top2, all')
 @_throttle_options
 def baseline(iterations, parallel, model, decks, rpm, daily_budget, wait):
@@ -100,7 +100,7 @@ def baseline(iterations, parallel, model, decks, rpm, daily_budget, wait):
         python -m simulation.cli baseline --iterations 20
     """
     click.echo(f"🎮 Running baseline simulation")
-    click.echo(f"   Model: {model}")
+    click.echo(f"   Model: {model or default_simulation_model()}")
     click.echo(f"   Decks: {decks}")
     click.echo(f"   Iterations: {iterations} per matchup")
     click.echo()
@@ -111,8 +111,8 @@ def baseline(iterations, parallel, model, decks, rpm, daily_budget, wait):
     # Create configuration
     config = SimulationConfig(
         deck_names=deck_names,
-        player1_model=model,
-        player2_model=model,
+        player1_model=model or default_simulation_model(),
+        player2_model=model or default_simulation_model(),
         iterations_per_matchup=iterations,
         rpm=rpm,
         daily_request_budget=daily_budget,
@@ -123,8 +123,8 @@ def baseline(iterations, parallel, model, decks, rpm, daily_budget, wait):
 
 
 @cli.command()
-@click.option('--model1', default='gemini-flash-lite-latest', help='Player 1 model')
-@click.option('--model2', default='gemini-2.5-flash-lite', help='Player 2 model')
+@click.option('--model1', default=None, help='Player 1 model (default: GEMINI_MODEL env or provider default)')
+@click.option('--model2', default=None, help='Player 2 model (default: GEMINI_MODEL env or provider default)')
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
 @click.option('--decks', '-d', default='baseline', help='Deck preset: baseline, top2, all')
@@ -152,8 +152,8 @@ def compare(model1, model2, iterations, parallel, decks, rpm, daily_budget, wait
     # Create configuration
     config = SimulationConfig(
         deck_names=deck_names,
-        player1_model=model1,
-        player2_model=model2,
+        player1_model=model1 or default_simulation_model(),
+        player2_model=model2 or default_simulation_model(),
         iterations_per_matchup=iterations,
         rpm=rpm,
         daily_request_budget=daily_budget,
@@ -168,7 +168,7 @@ def compare(model1, model2, iterations, parallel, decks, rpm, daily_budget, wait
 @click.option('--against', '-a', default='baseline', help='Decks to test against (preset name)')
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
-@click.option('--model', '-m', default='gemini-2.5-flash-lite', help='AI model to use')
+@click.option('--model', '-m', default=None, help='AI model to use (default: GEMINI_MODEL env or provider default)')
 @_throttle_options
 def test_deck(deck_names, against, iterations, parallel, model, rpm, daily_budget, wait):
     """
@@ -195,8 +195,8 @@ def test_deck(deck_names, against, iterations, parallel, model, rpm, daily_budge
     # Create configuration
     config = SimulationConfig(
         deck_names=all_decks,
-        player1_model=model,
-        player2_model=model,
+        player1_model=model or default_simulation_model(),
+        player2_model=model or default_simulation_model(),
         iterations_per_matchup=iterations,
         rpm=rpm,
         daily_request_budget=daily_budget,
@@ -210,7 +210,7 @@ def test_deck(deck_names, against, iterations, parallel, model, rpm, daily_budge
 @click.argument('deck1')
 @click.argument('deck2')
 @click.option('--iterations', '-i', default=5, help='Number of games (default: 5)')
-@click.option('--model', '-m', default='gemini-2.5-flash-lite', help='AI model to use')
+@click.option('--model', '-m', default=None, help='AI model to use (default: GEMINI_MODEL env or provider default)')
 @_throttle_options
 def quick(deck1, deck2, iterations, model, rpm, daily_budget, wait):
     """
@@ -229,8 +229,8 @@ def quick(deck1, deck2, iterations, model, rpm, daily_budget, wait):
     # Create configuration
     config = SimulationConfig(
         deck_names=[deck1, deck2],
-        player1_model=model,
-        player2_model=model,
+        player1_model=model or default_simulation_model(),
+        player2_model=model or default_simulation_model(),
         iterations_per_matchup=iterations,
         rpm=rpm,
         daily_request_budget=daily_budget,

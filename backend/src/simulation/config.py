@@ -22,6 +22,18 @@ def is_valid_model_name(model_name: str) -> bool:
     return bool(model_name and model_name.strip())
 
 
+def default_simulation_model() -> str:
+    """The model simulations use when none is specified.
+
+    Follows the same resolution as live games (GEMINI_MODEL env var, then the
+    provider default) so benchmarking runs against the model players actually
+    face, not a hardcoded snapshot.
+    """
+    from game_engine.ai.providers import DEFAULT_MODEL
+
+    return os.getenv("GEMINI_MODEL") or DEFAULT_MODEL
+
+
 class SimulationStatus(str, Enum):
     """Status of a simulation run."""
     PENDING = "pending"
@@ -120,8 +132,8 @@ class GameResult:
 class SimulationConfig:
     """Configuration for a simulation run."""
     deck_names: list[str]  # List of deck names to use (will run all combinations)
-    player1_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
-    player2_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+    player1_model: str = field(default_factory=default_simulation_model)
+    player2_model: str = field(default_factory=default_simulation_model)
     iterations_per_matchup: int = 10  # Games per deck matchup
     max_turns: int = 20  # Turn limit before declaring draw
     parallel_games: int = 10  # Number of games to run concurrently

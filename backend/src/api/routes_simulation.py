@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
-from simulation.config import SimulationConfig, SUPPORTED_MODELS, is_valid_model_name
+from simulation.config import SimulationConfig, SUPPORTED_MODELS, is_valid_model_name, default_simulation_model
 from simulation.orchestrator import SimulationOrchestrator
 from simulation.deck_loader import load_simulation_decks
 from simulation.reporter import SimulationReporter
@@ -114,11 +114,11 @@ class StartSimulationRequest(BaseModel):
         min_length=1
     )
     player1_model: str = Field(
-        default="gemini-flash-lite-latest",
+        default_factory=default_simulation_model,
         description="Model identifier for player 1"
     )
     player2_model: str = Field(
-        default="gemini-flash-lite-latest",
+        default_factory=default_simulation_model,
         description="Model identifier for player 2"
     )
     iterations_per_matchup: int = Field(
