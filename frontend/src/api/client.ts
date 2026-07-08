@@ -13,6 +13,14 @@ export const apiClient = axios.create({
   timeout: 90000, // 90 seconds (health checks during cold start + AI turns with Gemini retries)
 });
 
+// admin.html is a separate Vite entry sharing this client + localStorage keys
+// (see components/admin/AdminAuthGate.tsx). On an unrecoverable auth failure,
+// send an admin.html visitor back to its own sign-in gate instead of bouncing
+// them into the main game SPA.
+const redirectToSignIn = () => {
+  window.location.href = window.location.pathname.includes('admin.html') ? '/admin.html' : '/';
+};
+
 // Track if we're currently refreshing the token to avoid multiple simultaneous refresh attempts
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
@@ -63,7 +71,7 @@ apiClient.interceptors.response.use(
           // Clear auth state and reload
           localStorage.removeItem('ggltcg_auth_token');
           localStorage.removeItem('ggltcg_user');
-          window.location.href = '/';
+          redirectToSignIn();
           return Promise.reject(error);
         }
 
@@ -132,7 +140,7 @@ apiClient.interceptors.response.use(
           refreshSubscribers = [];
           localStorage.removeItem('ggltcg_auth_token');
           localStorage.removeItem('ggltcg_user');
-          window.location.href = '/';
+          redirectToSignIn();
           return Promise.reject(refreshError);
         }
       }

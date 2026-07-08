@@ -243,6 +243,32 @@ curl -X PUT http://localhost:8000/auth/profile \
 - Consider implementing refresh tokens for longer sessions
 - Add 2FA for admin accounts (future)
 
+## Admin Access
+
+`/admin.html` and the `/admin/*` + `/admin/simulation/*` API routes reuse
+this same Google sign-in flow, but require an extra check: the signed-in
+account's email must be in the `ADMIN_EMAILS` allowlist.
+
+- Set `ADMIN_EMAILS` as a comma-separated, case-insensitive list of Google
+  account emails (see `backend/.env.example`). Locally, add it to
+  `backend/.env`. In production it's a Render env var set directly in the
+  dashboard (`sync: false` in `render.yaml`, like `DATABASE_URL` and
+  `GOOGLE_API_KEY`) — **not** committed, and not something `render.yaml`
+  pushes a value for.
+- **Fails closed**: if `ADMIN_EMAILS` is unset or empty, every request to an
+  admin route is rejected (403), even for an otherwise-valid signed-in user.
+  There is no "everyone is admin" fallback.
+- A visitor to `admin.html` with no session sees a sign-in screen; signed in
+  but not allowlisted sees "Not Authorized"; allowlisted sees the dashboard.
+  See `frontend/src/components/admin/AdminAuthGate.tsx` and
+  `backend/src/api/admin_auth.py`.
+- The email is embedded as a claim on the JWT at login/refresh time (the app
+  doesn't otherwise persist email anywhere — `UserModel` only stores
+  `google_id`/`first_name`). A token issued before this feature shipped won't
+  carry an email claim; signing out and back in reissues one that does.
+- `/maintenance/*` (used by the scheduled cleanup GitHub Action) is a
+  **separate** mechanism — an `X-API-Key` header, unrelated to `ADMIN_EMAILS`.
+
 ## Troubleshooting
 
 ### "Invalid token" errors

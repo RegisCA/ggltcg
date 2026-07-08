@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
+from .admin_auth import get_current_admin_user
 from .database import SessionLocal
 from .db_models import (
     AIDecisionLogModel,
@@ -22,7 +23,11 @@ from .db_models import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(get_current_admin_user)],
+)
 
 
 def get_db():

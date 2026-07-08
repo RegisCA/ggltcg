@@ -17,12 +17,25 @@ import {
 } from '../api/adminService';
 import type { SummaryStats } from '../components/admin/types';
 
+/**
+ * A 401/403 means the session is unauthenticated/unauthorized, not a
+ * transient failure -- retrying it is never correct (and AdminAuthGate's
+ * admin-access check depends on this settling into `isError` immediately
+ * rather than sitting through a retry backoff).
+ */
+function shouldRetry(failureCount: number, error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  if (status === 401 || status === 403) return false;
+  return failureCount < 1;
+}
+
 // Fetch summary stats
 export function useSummary() {
   return useQuery<SummaryStats>({
     queryKey: ['admin-summary'],
     queryFn: getAdminSummary,
     refetchInterval: 30000, // Refresh every 30 seconds
+    retry: shouldRetry,
   });
 }
 
@@ -32,6 +45,7 @@ export function useAiLogs(gameIdFilter: string | null, isActive: boolean) {
     queryKey: ['admin-ai-logs', gameIdFilter],
     queryFn: () => getAiLogs({ limit: 100, gameId: gameIdFilter }),
     refetchInterval: isActive ? 10000 : 30000, // Faster refresh when viewing
+    retry: shouldRetry,
   });
 }
 
@@ -54,6 +68,7 @@ export function useGames(isActive: boolean) {
     queryKey: ['admin-games'],
     queryFn: () => getAdminGames(50),
     refetchInterval: isActive ? 10000 : 30000,
+    retry: shouldRetry,
   });
 }
 
@@ -63,6 +78,7 @@ export function usePlaybacks(isActive: boolean) {
     queryKey: ['admin-playbacks'],
     queryFn: () => getGamePlaybacks(30),
     refetchInterval: isActive ? 10000 : 30000,
+    retry: shouldRetry,
   });
 }
 
@@ -72,5 +88,6 @@ export function useUsers(isActive: boolean) {
     queryKey: ['admin-users'],
     queryFn: () => getAdminUsers(50),
     refetchInterval: isActive ? 10000 : 30000,
+    retry: shouldRetry,
   });
 }

@@ -65,54 +65,75 @@ class UserService:
             raise ValueError(f"Invalid token: {e}")
     
     @staticmethod
-    def create_jwt_token(google_id: str) -> str:
+    def create_jwt_token(google_id: str, email: Optional[str] = None) -> str:
         """
         Create JWT token for authenticated user sessions.
-        
+
         Args:
             google_id: User's Google ID (subject identifier)
-            
+            email: User's Google account email, if known. Embedded as an
+                "email" claim so callers (e.g. admin-access gating) can check
+                it without a second round-trip to Google or a DB column —
+                the app does not otherwise persist email anywhere.
+
         Returns:
             str: JWT token string
         """
         expiration = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
-        
+
         payload = {
             "sub": google_id,  # Subject - user's Google ID
+            "email": email,
             "exp": expiration,  # Expiration time
             "iat": datetime.utcnow()  # Issued at time
         }
-        
+
         token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
         return token
-    
+
     @staticmethod
-    def verify_jwt_token(token: str) -> str:
+    def decode_jwt_payload(token: str) -> dict:
         """
-        Verify JWT token and extract user's Google ID.
-        
+        Verify a JWT token and return its full decoded payload.
+
         Args:
             token: JWT token string
-            
+
         Returns:
-            str: User's Google ID
-            
+            dict: Decoded payload (at least "sub"; "email" may be None for
+                tokens issued before the email claim existed)
+
         Raises:
             ValueError: If token is invalid or expired
         """
         try:
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-            google_id = payload.get("sub")
-            
-            if not google_id:
+
+            if not payload.get("sub"):
                 raise ValueError("Invalid token payload")
-            
-            return google_id
-            
+
+            return payload
+
         except jwt.ExpiredSignatureError:
             raise ValueError("Token has expired")
         except jwt.InvalidTokenError as e:
             raise ValueError(f"Invalid token: {e}")
+
+    @staticmethod
+    def verify_jwt_token(token: str) -> str:
+        """
+        Verify JWT token and extract user's Google ID.
+
+        Args:
+            token: JWT token string
+
+        Returns:
+            str: User's Google ID
+
+        Raises:
+            ValueError: If token is invalid or expired
+        """
+        return UserService.decode_jwt_payload(token)["sub"]
     
     @staticmethod
     def get_or_create_user(db: Session, google_id: str, first_name: str) -> UserModel:

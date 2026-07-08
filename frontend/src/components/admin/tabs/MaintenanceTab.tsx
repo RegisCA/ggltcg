@@ -2,13 +2,11 @@
  * Maintenance tab — surfaces the /maintenance/stats and /maintenance/cleanup
  * backend endpoints (the same ones the scheduled GitHub Actions job hits).
  *
- * Both endpoints require an X-API-Key header. The key is entered in the
- * browser and held only in sessionStorage for this tab (cleared on tab
+ * Both endpoints require an X-API-Key header — a separate secret from the
+ * admin-page sign-in gate (AdminAuthGate), since /maintenance/* is also hit
+ * unattended by the scheduled cleanup GitHub Action. The key is entered in
+ * the browser and held only in sessionStorage for this tab (cleared on tab
  * close) — never hardcoded, never persisted to localStorage or a cookie.
- *
- * Note on the security tradeoff: the admin page itself has no auth today,
- * so entering the maintenance key here doesn't weaken anything further —
- * but it's still a secret sitting in browser storage, worth flagging.
  */
 
 import React, { useState } from 'react';

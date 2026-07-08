@@ -93,6 +93,26 @@ class FavoriteDecksResponse(BaseModel):
     favorite_decks: List[List[str]] = Field(..., description="Array of 3 favorite decks")
 
 
+def extract_bearer_token(authorization: Optional[str]) -> str:
+    """
+    Extract the raw token from an "Authorization: Bearer <token>" header.
+
+    Shared by get_current_user and admin_auth.get_current_admin_user so both
+    dependencies parse the header identically.
+
+    Raises:
+        HTTPException: 401 if the header is missing or malformed
+    """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+
+    return parts[1]
+
+
 # Dependency for JWT authentication
 async def get_current_user(
     authorization: Annotated[str, Header()] = None,
@@ -100,33 +120,25 @@ async def get_current_user(
 ) -> str:
     """
     Dependency to extract and verify JWT token from Authorization header.
-    
+
     Returns:
         str: User's Google ID
-        
+
     Raises:
         HTTPException: If token is missing or invalid
     """
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing authorization header")
-    
-    # Extract token from "Bearer <token>" format
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=401, detail="Invalid authorization header format")
-    
-    token = parts[1]
-    
+    token = extract_bearer_token(authorization)
+
     try:
         google_id = UserService.verify_jwt_token(token)
-        
+
         # Verify user exists in database
         user = UserService.get_user_by_google_id(db, google_id)
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        
+
         return google_id
-        
+
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
@@ -155,15 +167,17 @@ async def authenticate_with_google(
         # Extract user information
         google_id = google_info.get("sub")
         first_name = google_info.get("given_name", "User")
-        
+        email = google_info.get("email")
+
         if not google_id:
             raise HTTPException(status_code=400, detail="Invalid token: missing user ID")
-        
+
         # Get or create user
         user = UserService.get_or_create_user(db, google_id, first_name)
-        
-        # Create JWT token for our API
-        jwt_token = UserService.create_jwt_token(google_id)
+
+        # Create JWT token for our API (embeds email so admin-access gating
+        # doesn't need a second Google round-trip or a DB email column)
+        jwt_token = UserService.create_jwt_token(google_id, email=email)
         
         return AuthResponse(
             jwt_token=jwt_token,
@@ -207,12 +221,12 @@ async def verify_token(
 @router.post("/refresh")
 async def refresh_token(
     request: Request,
-    google_id: str = Depends(get_current_user),
+    authorization: Annotated[str, Header()] = None,
     db: Session = Depends(get_db)
 ):
     """
     Refresh JWT token for authenticated user.
-    
+
     Issues a new token with extended expiration time.
     The old token must still be valid to refresh.
     """
@@ -220,14 +234,27 @@ async def refresh_token(
     client_ip = request.client.host
     if not auth_rate_limiter.is_allowed(client_ip):
         raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
-    
+
+    token = extract_bearer_token(authorization)
+
+    # Decode the full payload (not just get_current_user's google_id) so the
+    # "email" claim carries over into the reissued token instead of being
+    # dropped on every refresh.
+    try:
+        payload = UserService.decode_jwt_payload(token)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    google_id = payload["sub"]
+    email = payload.get("email")
+
     user = UserService.get_user_by_google_id(db, google_id)
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Issue new JWT token
-    new_token = UserService.create_jwt_token(google_id)
+    new_token = UserService.create_jwt_token(google_id, email=email)
     
     return {
         "jwt_token": new_token
