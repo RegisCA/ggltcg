@@ -48,13 +48,15 @@ describe('StatusBadge', () => {
     expect(screen.getByText('active')).toBeInTheDocument();
   });
 
-  it('applies a color class for known statuses', () => {
-    render(<StatusBadge status="completed" />);
-    expect(screen.getByText('completed').className).toMatch(/bg-blue-600/);
+  it('uses theme tokens for known statuses (no saturated palette colors)', () => {
+    render(<StatusBadge status="active" />);
+    const badge = screen.getByText('active');
+    expect(badge.style.color).toBe('var(--gold)');
+    expect(badge.className).not.toMatch(/bg-(green|blue|yellow|red)-\d/);
   });
 
-  it('falls back to a neutral class for unknown statuses', () => {
+  it('falls back to a neutral ink tone for unknown statuses', () => {
     render(<StatusBadge status="mystery" />);
-    expect(screen.getByText('mystery').className).toMatch(/bg-white\/10/);
+    expect(screen.getByText('mystery').style.color).toBe('var(--ink-faint)');
   });
 });

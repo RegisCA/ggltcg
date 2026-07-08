@@ -34,7 +34,7 @@ const ADMIN_TABS: readonly AdminTab[] = ['summary', 'ai-logs', 'games', 'playbac
 
 const AdminApp: React.FC = () => {
   const { tab: activeTab, filter: aiLogsGameIdFilter, setTab: setActiveTab, setTabAndFilter, setFilter } =
-    useHashTab<AdminTab>(ADMIN_TABS, 'summary', 'game_id');
+    useHashTab<AdminTab>(ADMIN_TABS, 'summary', 'game_id', 'ai-logs');
 
   const summaryQuery = useSummary();
   const aiLogsQuery = useAiLogs(aiLogsGameIdFilter, activeTab === 'ai-logs');

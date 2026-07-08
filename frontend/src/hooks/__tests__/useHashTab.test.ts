@@ -42,6 +42,12 @@ describe('serializeHash', () => {
   it('serializes a tab with a filter as a query string', () => {
     expect(serializeHash('ai-logs', 'abc123', 'game_id')).toBe('#ai-logs?game_id=abc123');
   });
+
+  it('includes the filter only when the active tab is the filter tab', () => {
+    expect(serializeHash('ai-logs', 'abc123', 'game_id', 'ai-logs')).toBe('#ai-logs?game_id=abc123');
+    expect(serializeHash('games', 'abc123', 'game_id', 'ai-logs')).toBe('#games');
+    expect(serializeHash('summary', 'abc123', 'game_id', 'ai-logs')).toBe('#summary');
+  });
 });
 
 describe('parseHash / serializeHash round trip', () => {
@@ -82,5 +88,16 @@ describe('useHashTab', () => {
     expect(window.location.hash).toBe('#ai-logs?game_id=game-42');
     expect(result.current.tab).toBe('ai-logs');
     expect(result.current.filter).toBe('game-42');
+  });
+
+  it('drops the filter param from the hash when switching away from the filter tab', () => {
+    window.location.hash = '#ai-logs?game_id=game-42';
+    const { result } = renderHook(() => useHashTab(TABS, 'summary', 'game_id', 'ai-logs'));
+    act(() => result.current.setTab('games'));
+    expect(window.location.hash).toBe('#games');
+    // The filter itself stays in memory so returning to the tab restores it.
+    expect(result.current.filter).toBe('game-42');
+    act(() => result.current.setTab('ai-logs'));
+    expect(window.location.hash).toBe('#ai-logs?game_id=game-42');
   });
 });

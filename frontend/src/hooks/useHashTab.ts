@@ -5,7 +5,10 @@
  * hash string is parsed/serialized by hand.
  *
  * Hash shape: `#<tab>` or `#<tab>?<key>=<value>` (single filter param only —
- * that's all the admin viewer currently needs).
+ * that's all the admin viewer currently needs). The filter param is only
+ * meaningful for one tab (`filterTab`), so it is serialized into the hash
+ * only while that tab is active — the filter itself stays in memory, so
+ * returning to that tab still shows it.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -38,9 +41,13 @@ export const parseHash = <Tab extends string>(
 export const serializeHash = <Tab extends string>(
   tab: Tab,
   filter: string | null,
-  filterKey: string
+  filterKey: string,
+  filterTab?: Tab
 ): string => {
-  if (filter) {
+  // The filter param only belongs in the hash for the tab it applies to —
+  // other tabs get a bare hash even while a filter is held in memory.
+  const filterAppliesToTab = filterTab === undefined || tab === filterTab;
+  if (filter && filterAppliesToTab) {
     const params = new URLSearchParams({ [filterKey]: filter });
     return `#${tab}?${params.toString()}`;
   }
@@ -56,7 +63,8 @@ export const serializeHash = <Tab extends string>(
 export function useHashTab<Tab extends string>(
   validTabs: readonly Tab[],
   defaultTab: Tab,
-  filterKey: string = 'game_id'
+  filterKey: string = 'game_id',
+  filterTab?: Tab
 ): {
   tab: Tab;
   filter: string | null;
@@ -70,7 +78,7 @@ export function useHashTab<Tab extends string>(
   });
 
   useEffect(() => {
-    const hash = serializeHash(state.tab, state.filter, filterKey);
+    const hash = serializeHash(state.tab, state.filter, filterKey, filterTab);
     if (typeof window !== 'undefined' && window.location.hash !== hash) {
       window.location.hash = hash;
     }
