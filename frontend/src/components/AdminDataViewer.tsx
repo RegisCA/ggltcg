@@ -6,248 +6,38 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { plannerModeLabel } from '../utils/plannerMode';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-interface SummaryStats {
-  users: { total: number };
-  games: {
-    total: number;
-    active: number;
-    completed: number;
-    recent_24h: number;
-  };
-  ai_logs: {
-    total: number;
-    recent_1h: number;
-  };
-  playbacks: {
-    total: number;
-  };
-}
-
-interface AILog {
-  id: number;
-  game_id: string;
-  turn_number: number;
-  player_id: string;
-  model_name: string;
-  prompts_version: string;
-  prompt: string;
-  response: string;
-  action_number: number | null;
-  reasoning: string | null;
-  created_at: string;
-  // ai_version is a legacy column, no longer written (kept inert so old rows
-  // don't lose their historical label); turn_plan.planner is the current key
-  // ("enum" for every live log).
-  ai_version: number | null;
-  turn_plan: {
-    planner?: string | null;
-    strategy: string;
-    total_actions: number;
-    current_action: number;
-    charge_start: number;
-    charge_after_plan: number;
-    expected_cards_broken: number;
-    // Full action sequence
-    action_sequence?: Array<{
-      action_type: string;
-      card_name: string | null;
-      target_names: string[] | null;
-      charge_cost: number;
-      reasoning: string;
-    }>;
-    // Planning prompt/response (alias of selection_prompt/response below —
-    // enum has no separate "planning" LLM call, just the one selection call)
-    planning_prompt?: string;
-    planning_response?: string;
-    // Strategic-selection request (the planner's one LLM call)
-    selection_prompt?: string | null;
-    selection_response?: string | null;
-    selection_system_instruction?: string | null;
-    // Per-turn enumerator/selection diagnostics
-    enum_debug?: unknown;
-    // Execution tracking
-    execution_log?: Array<{
-      action_index: number;
-      planned_action: string;
-      status: 'success' | 'failed' | 'fallback_to_llm' | 'execution_failed';
-      method?: 'heuristic' | 'llm';
-      reason?: string;
-      execution_confirmed?: boolean;
-    }>;
-  } | null;
-  plan_execution_status: 'complete' | 'fallback' | null;
-  fallback_reason: string | null;
-  planned_action_index: number | null;
-}
-
-interface GamePlayback {
-  id: number;
-  game_id: string;
-  player1_id: string;
-  player1_name: string;
-  player2_id: string;
-  player2_name: string;
-  winner_id: string | null;
-  turn_count: number;
-  created_at: string;
-  completed_at: string | null;
-}
-
-interface GamePlaybackDetail extends GamePlayback {
-  first_player_id: string;
-  starting_deck_p1: string[];
-  starting_deck_p2: string[];
-  play_by_play: Array<{
-    turn: number;
-    player: string;
-    action_type: string;
-    description: string;
-  }>;
-  charge_tracking: TurnCharge[] | null;
-}
-
-interface Game {
-  id: string;
-  status: string;
-  player1_id: string;
-  player1_name: string;
-  player2_id: string;
-  player2_name: string;
-  game_code: string | null;
-  turn_number: number;
-  phase: string;
-  winner_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface User {
-  google_id: string;
-  first_name: string;
-  display_name: string;
-  created_at: string;
-  updated_at: string;
-  games_played: number;
-  games_won: number;
-  win_rate: number;
-  avg_turns: number;
-  avg_game_duration_seconds: number;
-  last_game_at: string | null;
-  last_game_status: string | null;
-  favorite_decks: string[][];
-}
-
-// Charge Tracking interface
-interface TurnCharge {
-  turn: number;
-  player_id: string;
-  charge_start: number;
-  charge_gained: number;
-  charge_spent: number;
-  charge_end: number;
-}
-
-// Action log interface
-interface ActionLogEntry {
-  turn: number;
-  player: string;
-  action: string;
-  card: string | null;
-  description: string;
-  reasoning: string;
-}
-
-interface SimulationGameDetail {
-  game_number: number;
-  deck1_name: string;
-  deck2_name: string;
-  outcome: string;
-  winner_deck: string | null;
-  turn_count: number;
-  duration_ms: number;
-  error_message: string | null;
-  charge_tracking: TurnCharge[];
-  action_log: ActionLogEntry[];
-  player1_model: string;
-  player2_model: string;
-}
-
-// Simulation interfaces
-interface SimulationDeck {
-  name: string;
-  description: string;
-  cards: string[];
-}
-
-interface SimulationRun {
-  run_id: number;
-  status: string;
-  total_games: number;
-  completed_games: number;
-  config: {
-    deck_names: string[];
-    player1_model: string;
-    player2_model: string;
-    iterations_per_matchup: number;
-    max_turns: number;
-  };
-  created_at: string;
-  completed_at: string | null;
-}
-
-interface MatchupStats {
-  deck1_name: string;
-  deck2_name: string;
-  games_played: number;
-  deck1_wins: number;
-  deck2_wins: number;
-  draws: number;
-  deck1_win_rate: number;
-  deck2_win_rate: number;
-  avg_turns: number;
-  avg_duration_ms: number;
-}
-
-interface SimulationResults {
-  run_id: number;
-  status: string;
-  config: SimulationRun['config'];
-  total_games: number;
-  completed_games: number;
-  matchup_stats: Record<string, MatchupStats>;
-  aggregate?: {
-    max_turns: number;
-    avg_turns: number | null;
-    turn_limit_hits: number;
-    turn_limit_hit_pct: number;
-    avg_p1_charge_end_active: number | null;
-    avg_p2_charge_end_active: number | null;
-  };
-  games: Array<{
-    game_number: number;
-    deck1_name: string;
-    deck2_name: string;
-    outcome: string;
-    winner_deck: string | null;
-    turn_count: number;
-    duration_ms: number;
-    p1_charge_spent: number;
-    p2_charge_spent: number;
-    p1_charge_gained: number;
-    p2_charge_gained: number;
-    p1_avg_charge_end_active?: number | null;
-    p2_avg_charge_end_active?: number | null;
-    hit_turn_limit?: boolean;
-    error_message: string | null;
-  }>;
-  created_at: string;
-  completed_at: string | null;
-}
+import {
+  getAdminSummary,
+  getAiLogs,
+  getAdminGames,
+  getGamePlaybacks,
+  getPlaybackDetail,
+  getAdminUsers,
+} from '../api/adminService';
+import {
+  getSimulationDecks,
+  getSupportedModels,
+  listSimulationRuns,
+  startSimulation as startSimulationRequest,
+  getRunStatus,
+  getRunResults,
+  getGameDetail as getSimulationGameDetail,
+} from '../api/simulationService';
+import type {
+  SummaryStats,
+  AILog,
+  GamePlayback,
+  GamePlaybackDetail,
+  Game,
+  User,
+  TurnCharge,
+  SimulationGameDetail,
+  SimulationDeck,
+  SimulationRun,
+  MatchupStats,
+  SimulationResults,
+} from './admin/types';
 
 const AdminDataViewer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users' | 'simulation'>('summary');
@@ -286,24 +76,14 @@ const AdminDataViewer: React.FC = () => {
   // Fetch summary stats
   const { data: summary } = useQuery<SummaryStats>({
     queryKey: ['admin-summary'],
-    queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/stats/summary`);
-      return response.data;
-    },
+    queryFn: getAdminSummary,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch AI logs
   const { data: aiLogsData } = useQuery({
     queryKey: ['admin-ai-logs', aiLogsGameIdFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams({ limit: '100' });
-      if (aiLogsGameIdFilter) {
-        params.append('game_id', aiLogsGameIdFilter);
-      }
-      const response = await axios.get(`${API_BASE_URL}/admin/ai-logs?${params}`);
-      return response.data;
-    },
+    queryFn: () => getAiLogs({ limit: 100, gameId: aiLogsGameIdFilter }),
     refetchInterval: activeTab === 'ai-logs' ? 10000 : 30000, // Faster refresh when viewing
   });
 
@@ -312,10 +92,7 @@ const AdminDataViewer: React.FC = () => {
     queryKey: ['admin-ai-logs-for-playback', selectedPlayback?.game_id],
     queryFn: async () => {
       if (!selectedPlayback?.game_id) return { count: 0, logs: [] };
-      const params = new URLSearchParams({ limit: '200' });
-      params.append('game_id', selectedPlayback.game_id);
-      const response = await axios.get(`${API_BASE_URL}/admin/ai-logs?${params}`);
-      return response.data;
+      return getAiLogs({ limit: 200, gameId: selectedPlayback.game_id });
     },
     enabled: !!selectedPlayback?.game_id,
     refetchInterval: false,
@@ -324,60 +101,42 @@ const AdminDataViewer: React.FC = () => {
   // Fetch games
   const { data: gamesData } = useQuery({
     queryKey: ['admin-games'],
-    queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/games?limit=50`);
-      return response.data;
-    },
+    queryFn: () => getAdminGames(50),
     refetchInterval: activeTab === 'games' ? 10000 : 30000,
   });
 
   // Fetch playbacks
   const { data: playbacksData } = useQuery({
     queryKey: ['admin-playbacks'],
-    queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/game-playbacks?limit=30`);
-      return response.data;
-    },
+    queryFn: () => getGamePlaybacks(30),
     refetchInterval: activeTab === 'playbacks' ? 10000 : 30000,
   });
 
   // Fetch users
   const { data: usersData } = useQuery({
     queryKey: ['admin-users'],
-    queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/users?limit=50`);
-      return response.data;
-    },
+    queryFn: () => getAdminUsers(50),
     refetchInterval: activeTab === 'users' ? 10000 : 30000,
   });
 
   // Fetch simulation decks
   const { data: simulationDecks } = useQuery<SimulationDeck[]>({
     queryKey: ['simulation-decks'],
-    queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/simulation/decks`);
-      return response.data;
-    },
+    queryFn: getSimulationDecks,
     enabled: activeTab === 'simulation',
   });
 
   // Fetch supported models
   const { data: supportedModels } = useQuery<string[]>({
     queryKey: ['simulation-models'],
-    queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/simulation/models`);
-      return response.data;
-    },
+    queryFn: getSupportedModels,
     enabled: activeTab === 'simulation',
   });
 
   // Fetch simulation runs
   const { data: simulationRuns, refetch: refetchSimulationRuns } = useQuery<SimulationRun[]>({
     queryKey: ['simulation-runs'],
-    queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/admin/simulation/runs?limit=20`);
-      return response.data;
-    },
+    queryFn: () => listSimulationRuns(20),
     refetchInterval: activeTab === 'simulation' ? 5000 : 30000,
     enabled: activeTab === 'simulation',
   });
@@ -751,8 +510,8 @@ const AdminDataViewer: React.FC = () => {
 
   const loadPlaybackDetails = async (gameId: string) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/admin/game-playbacks/${gameId}`);
-      setSelectedPlayback(response.data);
+      const detail = await getPlaybackDetail(gameId);
+      setSelectedPlayback(detail);
     } catch (error) {
       console.error('Failed to load playback details:', error);
       alert('Failed to load playback details');
@@ -789,29 +548,26 @@ const AdminDataViewer: React.FC = () => {
     
     try {
       // Start simulation (returns immediately with run_id)
-      const response = await axios.post(`${API_BASE_URL}/admin/simulation/start`, {
+      const startResponse = await startSimulationRequest({
         deck_names: selectedDecks,
         player1_model: player1Model,
         player2_model: player2Model,
         iterations_per_matchup: iterationsPerMatchup,
         max_turns: 20,
       });
-      
-      const runId = response.data.run_id;
+
+      const runId = startResponse.run_id;
       setActiveRunId(runId);
       setRunProgress({
         completed: 0,
-        total: response.data.total_games,
+        total: startResponse.total_games,
         status: 'pending',
       });
-      
+
       // Poll for progress until completed (with cleanup ref)
       pollIntervalRef.current = setInterval(async () => {
         try {
-          const statusResponse = await axios.get(
-            `${API_BASE_URL}/admin/simulation/runs/${runId}`
-          );
-          const status = statusResponse.data;
+          const status = await getRunStatus(runId);
           pollErrorCountRef.current = 0; // Reset on success
           
           setRunProgress({
@@ -831,10 +587,8 @@ const AdminDataViewer: React.FC = () => {
             
             if (status.status === 'completed') {
               // Load full results
-              const resultsResponse = await axios.get(
-                `${API_BASE_URL}/admin/simulation/runs/${runId}/results`
-              );
-              setSelectedSimulation(resultsResponse.data);
+              const results = await getRunResults(runId);
+              setSelectedSimulation(results);
             } else {
               alert(`Simulation ${status.status}: ${status.error_message || 'Unknown error'}`);
             }
@@ -870,8 +624,8 @@ const AdminDataViewer: React.FC = () => {
 
   const loadSimulationResults = async (runId: number) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/admin/simulation/runs/${runId}/results`);
-      setSelectedSimulation(response.data);
+      const results = await getRunResults(runId);
+      setSelectedSimulation(results);
       setSelectedGameDetail(null); // Clear any game detail when switching runs
     } catch (error) {
       console.error('Failed to load simulation results:', error);
@@ -882,8 +636,8 @@ const AdminDataViewer: React.FC = () => {
   const loadGameDetail = async (runId: number, gameNumber: number) => {
     setLoadingGameDetail(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/admin/simulation/runs/${runId}/games/${gameNumber}`);
-      setSelectedGameDetail(response.data);
+      const detail = await getSimulationGameDetail(runId, gameNumber);
+      setSelectedGameDetail(detail);
     } catch (error) {
       console.error('Failed to load game detail:', error);
       alert('Failed to load game detail');
