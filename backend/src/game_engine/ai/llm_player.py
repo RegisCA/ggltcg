@@ -27,6 +27,7 @@ except ImportError:
 from game_engine.models.game_state import GameState
 from api.schemas import ValidAction
 from .providers import build_provider
+from .rate_limiter import BudgetExhaustedError
 
 
 class LLMPlayer:
@@ -187,6 +188,10 @@ class LLMPlayer:
                 logger.warning("Failed to create plan, will use fallback")
                 self._current_plan = None
 
+        except BudgetExhaustedError:
+            # Daily API budget spent — propagate so the simulation pauses
+            # instead of silently playing on without the LLM.
+            raise
         except Exception as e:
             logger.exception(f"Error creating turn plan: {e}")
             self._current_plan = None
@@ -369,6 +374,8 @@ class LLMPlayer:
             logger.debug(f"✅ Matched action (LLM): {selected_action.description}")
             return (action_index, f"[plan] {reasoning}")
 
+        except BudgetExhaustedError:
+            raise
         except Exception as e:
             logger.exception(f"Error executing planned action: {e}")
             # Update execution log with failure

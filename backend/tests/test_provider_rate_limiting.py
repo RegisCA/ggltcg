@@ -344,3 +344,67 @@ class TestSimulationRunnerRateLimiterForwarding:
                 deck2=SimpleNamespace(name="deck2", cards=[]),
                 game_number=1,
             )
+
+
+class TestBudgetExhaustionNotSwallowedByPlanner:
+    """Regression: the E2E run on 2026-07-08 showed BudgetExhaustedError being
+    swallowed by TurnPlanner/LLMPlayer broad except handlers ("Strategic
+    selection failed"), so exhausted runs finished with heuristic no-LLM games
+    instead of pausing. These pin the raise at the planner/player layer."""
+
+    def test_turn_planner_create_plan_propagates_budget_exhaustion(self):
+        from conftest import create_game_with_cards
+        from game_engine.ai.turn_planner import TurnPlanner
+
+        class ExhaustedSelector:
+            def generate_json(self, prompt, schema, **kwargs):
+                raise BudgetExhaustedError(resets_at=datetime.now(timezone.utc))
+
+            def get_display_name(self, model):  # pragma: no cover - cosmetic
+                return "stub"
+
+        setup, _ = create_game_with_cards(
+            player1_in_play=["Raggy"],
+            player2_in_play=["Gibbers"],
+            player2_hand=["Ka"],
+            player1_charge=2,
+            player2_charge=0,
+            active_player="player1",
+            turn_number=3,
+        )
+        planner = TurnPlanner(
+            client=None, model_name="m", fallback_model="f",
+            provider_client=ExhaustedSelector(),
+        )
+
+        with pytest.raises(BudgetExhaustedError):
+            planner.create_plan(setup.game_state, "player1", setup.engine)
+
+    def test_generic_selection_failure_still_falls_back(self):
+        """The broad-except fallback must keep working for non-budget errors."""
+        from conftest import create_game_with_cards
+        from game_engine.ai.turn_planner import TurnPlanner
+
+        class BrokenSelector:
+            def generate_json(self, prompt, schema, **kwargs):
+                raise ValueError("parse boom")
+
+            def get_display_name(self, model):  # pragma: no cover - cosmetic
+                return "stub"
+
+        setup, _ = create_game_with_cards(
+            player1_in_play=["Raggy"],
+            player2_in_play=["Gibbers"],
+            player2_hand=["Ka"],
+            player1_charge=2,
+            player2_charge=0,
+            active_player="player1",
+            turn_number=3,
+        )
+        planner = TurnPlanner(
+            client=None, model_name="m", fallback_model="f",
+            provider_client=BrokenSelector(),
+        )
+
+        plan = planner.create_plan(setup.game_state, "player1", setup.engine)
+        assert plan is not None, "non-budget failures must still fall back to first sequence"
