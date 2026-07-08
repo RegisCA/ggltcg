@@ -4,13 +4,14 @@
  * and expanded-turn state.
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { plannerModeLabel } from '../../../utils/plannerMode';
 import type { AiLogsResponse } from '../../../api/adminService';
 import type { AILog } from '../types';
 import {
   groupLogsByTurn,
   formatDate,
+  formatRelativeTime,
   countSymptoms,
   totalCount,
   formatCountsInline,
@@ -26,9 +27,17 @@ interface AiLogsTabProps {
   onClearFilter: () => void;
 }
 
+const ALL_PLAYERS = '__all_players__';
+const ALL_DECISION_TYPES = '__all_decision_types__';
+
+const decisionTypeOf = (item: ReturnType<typeof groupLogsByTurn>[number]): string =>
+  'logs' in item ? plannerModeLabel(item.planner, item.ai_version) : 'v2 (legacy)';
+
 const AiLogsTab: React.FC<AiLogsTabProps> = ({ aiLogsData, gameIdFilter, onClearFilter }) => {
   const [selectedLog, setSelectedLog] = useState<AILog | null>(null);
   const [expandedTurns, setExpandedTurns] = useState<Set<string>>(new Set());
+  const [playerFilter, setPlayerFilter] = useState<string>(ALL_PLAYERS);
+  const [decisionTypeFilter, setDecisionTypeFilter] = useState<string>(ALL_DECISION_TYPES);
 
   const toggleTurnExpanded = (key: string) => {
     setExpandedTurns(prev => {
@@ -41,6 +50,40 @@ const AiLogsTab: React.FC<AiLogsTabProps> = ({ aiLogsData, gameIdFilter, onClear
       return next;
     });
   };
+
+  const allItems = useMemo(
+    () => (aiLogsData?.logs ? groupLogsByTurn(aiLogsData.logs) : []),
+    [aiLogsData]
+  );
+
+  const playerOptions = useMemo(
+    () => Array.from(new Set(allItems.map(item => item.player_id))).sort(),
+    [allItems]
+  );
+  const decisionTypeOptions = useMemo(
+    () => Array.from(new Set(allItems.map(decisionTypeOf))).sort(),
+    [allItems]
+  );
+
+  const items = useMemo(
+    () =>
+      allItems.filter(item => {
+        if (playerFilter !== ALL_PLAYERS && item.player_id !== playerFilter) return false;
+        if (decisionTypeFilter !== ALL_DECISION_TYPES && decisionTypeOf(item) !== decisionTypeFilter) return false;
+        return true;
+      }),
+    [allItems, playerFilter, decisionTypeFilter]
+  );
+
+  const expandAll = () => {
+    const keys: string[] = [];
+    for (const item of items) {
+      if ('logs' in item) keys.push(item.key);
+    }
+    setExpandedTurns(new Set(keys));
+  };
+
+  const collapseAll = () => setExpandedTurns(new Set());
 
   return (
     <div className="flex flex-col" style={{ gap: 'var(--spacing-component-md)' }}>
@@ -66,7 +109,56 @@ const AiLogsTab: React.FC<AiLogsTabProps> = ({ aiLogsData, gameIdFilter, onClear
           </p>
         )}
       </div>
-      {aiLogsData?.logs && groupLogsByTurn(aiLogsData.logs).map((item) => {
+
+      {/* Filters + expand/collapse controls */}
+      <div className="flex flex-wrap items-center bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-md)', gap: 'var(--spacing-component-md)' }}>
+        <label className="flex items-center text-sm" style={{ gap: 'var(--spacing-component-xs)' }}>
+          <span className="text-[var(--ink-faint)]">Player:</span>
+          <select
+            value={playerFilter}
+            onChange={(e) => setPlayerFilter(e.target.value)}
+            className="bg-black/20 border border-white/10 rounded text-sm text-[var(--ink-text)]"
+            style={{ padding: '4px var(--spacing-component-sm)' }}
+          >
+            <option value={ALL_PLAYERS}>All players</option>
+            {playerOptions.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center text-sm" style={{ gap: 'var(--spacing-component-xs)' }}>
+          <span className="text-[var(--ink-faint)]">Decision type:</span>
+          <select
+            value={decisionTypeFilter}
+            onChange={(e) => setDecisionTypeFilter(e.target.value)}
+            className="bg-black/20 border border-white/10 rounded text-sm text-[var(--ink-text)]"
+            style={{ padding: '4px var(--spacing-component-sm)' }}
+          >
+            <option value={ALL_DECISION_TYPES}>All decision types</option>
+            {decisionTypeOptions.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </label>
+        <div className="flex" style={{ gap: 'var(--spacing-component-xs)', marginLeft: 'auto' }}>
+          <button
+            onClick={expandAll}
+            className="bg-white/10 hover:bg-white/15 text-[var(--ink-text)] rounded text-xs"
+            style={{ padding: '4px var(--spacing-component-sm)' }}
+          >
+            Expand all
+          </button>
+          <button
+            onClick={collapseAll}
+            className="bg-white/10 hover:bg-white/15 text-[var(--ink-text)] rounded text-xs"
+            style={{ padding: '4px var(--spacing-component-sm)' }}
+          >
+            Collapse all
+          </button>
+        </div>
+      </div>
+
+      {items.map((item) => {
         // Turn Group (has a turn_plan)
         if ('logs' in item) {
           const turnGroup = item;
@@ -94,6 +186,9 @@ const AiLogsTab: React.FC<AiLogsTabProps> = ({ aiLogsData, gameIdFilter, onClear
                   <span className="font-semibold">Turn {turnGroup.turn_number}</span>
                   <span className="text-[var(--ink-faint)] text-sm">Game: {turnGroup.game_id.substring(0, 8)}...</span>
                   <span className="text-[var(--ink-faint)] text-sm">{turnGroup.model_name}</span>
+                  <span className="text-[var(--ink-faint)] text-xs" title={formatDate(turnGroup.created_at)}>
+                    {formatRelativeTime(turnGroup.created_at)}
+                  </span>
                   {planCompleted ? (
                     <span className="text-xs rounded bg-green-600" style={{ padding: '2px var(--spacing-component-xs)' }}>
                       ✓ {completedActions} actions
@@ -335,8 +430,8 @@ const AiLogsTab: React.FC<AiLogsTabProps> = ({ aiLogsData, gameIdFilter, onClear
                   <span className="text-[var(--ink-faint)] text-sm">Game: {log.game_id.substring(0, 8)}...</span>
                   <span className="text-[var(--ink-faint)] text-sm">{log.model_name}</span>
                 </div>
-                <p className="text-sm text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                  {formatDate(log.created_at)}
+                <p className="text-sm text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }} title={formatDate(log.created_at)}>
+                  {formatRelativeTime(log.created_at)}
                 </p>
               </div>
               <button
