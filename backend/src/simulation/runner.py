@@ -27,7 +27,7 @@ from .config import (
     GameOutcome,
     TurnCharge,
 )
-from .rate_limiter import BudgetExhaustedError
+from game_engine.ai.rate_limiter import BudgetExhaustedError
 
 logger = logging.getLogger(__name__)
 

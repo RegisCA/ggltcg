@@ -26,11 +26,12 @@ import GamesTab from './tabs/GamesTab';
 import PlaybacksTab from './tabs/PlaybacksTab';
 import UsersTab from './tabs/UsersTab';
 import SimulationTab from './tabs/SimulationTab';
+import MaintenanceTab from './tabs/MaintenanceTab';
 import RefreshBar from './shared/RefreshBar';
 
-type AdminTab = 'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users' | 'simulation';
+type AdminTab = 'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users' | 'simulation' | 'maintenance';
 
-const ADMIN_TABS: readonly AdminTab[] = ['summary', 'ai-logs', 'games', 'playbacks', 'users', 'simulation'];
+const ADMIN_TABS: readonly AdminTab[] = ['summary', 'ai-logs', 'games', 'playbacks', 'users', 'simulation', 'maintenance'];
 
 const AdminApp: React.FC = () => {
   const { tab: activeTab, filter: aiLogsGameIdFilter, setTab: setActiveTab, setTabAndFilter, setFilter } =
@@ -143,6 +144,9 @@ const AdminApp: React.FC = () => {
             <button className={tabButtonClass('simulation')} onClick={() => setActiveTab('simulation')}>
               Simulation
             </button>
+            <button className={tabButtonClass('maintenance')} onClick={() => setActiveTab('maintenance')}>
+              Maintenance
+            </button>
           </div>
           {activeRefresh && (
             <RefreshBar
@@ -168,6 +172,7 @@ const AdminApp: React.FC = () => {
         )}
         {activeTab === 'users' && <UsersTab usersData={usersData} />}
         {activeTab === 'simulation' && <SimulationTab />}
+        {activeTab === 'maintenance' && <MaintenanceTab />}
       </div>
     </div>
   );
