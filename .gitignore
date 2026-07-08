@@ -94,3 +94,6 @@ backend/scripts/_*.py
 .github/instructions/snyk_rules.instructions.md
 .markdownlint-cli2.json
 .markdownlintignore
+
+# Simulation CLI reports (generated artifacts)
+backend/src/reports/
