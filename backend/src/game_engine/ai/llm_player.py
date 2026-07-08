@@ -38,6 +38,7 @@ class LLMPlayer:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
+        rate_limiter: Optional[Any] = None,
     ):
         """
         Initialize the AI player.
@@ -45,8 +46,10 @@ class LLMPlayer:
         Args:
             api_key: Gemini API key (reads from GOOGLE_API_KEY if not provided)
             model: Model to use (defaults to GEMINI_MODEL / providers.DEFAULT_MODEL)
+            rate_limiter: Optional rate/budget limiter forwarded to the Gemini
+                provider. Defaults to a no-op limiter (no behavior change).
         """
-        self.provider_client, config = build_provider(api_key=api_key, model=model)
+        self.provider_client, config = build_provider(api_key=api_key, model=model, rate_limiter=rate_limiter)
         self.api_key = config.api_key
         self.model_name = config.model
         self.fallback_model = config.fallback_model
