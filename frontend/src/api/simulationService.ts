@@ -7,6 +7,7 @@ import { apiClient } from './client';
 import type {
   SimulationDeck,
   SimulationRun,
+  SimulationRunBudget,
   SimulationResults,
   SimulationGameDetail,
 } from '../components/admin/types';
@@ -17,6 +18,12 @@ export interface StartSimulationRequest {
   player2_model: string;
   iterations_per_matchup: number;
   max_turns: number;
+  /** Optional AI request-per-minute cap for this run's rate limiter. */
+  rpm?: number | null;
+  /** Optional daily AI request budget; the run pauses (budget_exhausted) when exceeded. */
+  daily_request_budget?: number | null;
+  /** Number of games to run concurrently (1-20, default 10). */
+  parallel_games?: number;
 }
 
 export interface StartSimulationResponse {
@@ -30,6 +37,7 @@ export interface SimulationRunStatus {
   total_games: number;
   completed_games: number;
   error_message: string | null;
+  budget?: SimulationRunBudget;
 }
 
 /**
@@ -101,4 +109,20 @@ export async function cancelRun(runId: number): Promise<void> {
 export async function getRunReport(runId: number): Promise<string> {
   const response = await apiClient.get<string>(`/admin/simulation/runs/${runId}/report`);
   return response.data;
+}
+
+/**
+ * Resume a paused, budget-exhausted, or failed simulation run. 409s if the
+ * run isn't in a resumable status (e.g. already resumed elsewhere).
+ */
+export async function resumeRun(runId: number): Promise<void> {
+  await apiClient.post(`/admin/simulation/runs/${runId}/resume`);
+}
+
+/**
+ * Best-effort pause of a running simulation run. 409s if the run isn't
+ * currently running.
+ */
+export async function pauseRun(runId: number): Promise<void> {
+  await apiClient.post(`/admin/simulation/runs/${runId}/pause`);
 }

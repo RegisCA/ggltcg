@@ -18,6 +18,8 @@ import {
   useSimulationRunsList,
   useRunStatus,
   useStartSimulation,
+  useResumeRun,
+  usePauseRun,
   isTerminalRunStatus,
 } from '../../../hooks/useSimulationRuns';
 import type {
@@ -29,12 +31,23 @@ import type {
 import {
   formatDate,
   formatRelativeTime,
+  formatCountdown,
   formatMaybeNumber,
   countSymptoms,
   totalCount,
   formatCountsInline,
   computeActiveTurnChargeAveragesFromSimulation,
 } from '../utils';
+import StatusBadge from '../shared/StatusBadge';
+
+// Rough est. requests = total games x 6 turns x ~1.3 AI calls/turn, rounded
+// up. This is a coarse planning number, not a guarantee — actual call
+// counts vary with deck/strategy and card effects.
+const CALLS_PER_TURN_ESTIMATE = 1.3;
+const TURNS_PER_GAME_ESTIMATE = 6;
+
+const estimateRequests = (totalGames: number): number =>
+  Math.ceil(totalGames * TURNS_PER_GAME_ESTIMATE * CALLS_PER_TURN_ESTIMATE);
 
 const SimulationTab: React.FC = () => {
   // Simulation state
@@ -42,12 +55,18 @@ const SimulationTab: React.FC = () => {
   const [player1Model, setPlayer1Model] = useState('gemini-2.5-flash-lite');
   const [player2Model, setPlayer2Model] = useState('gemini-2.0-flash');
   const [iterationsPerMatchup, setIterationsPerMatchup] = useState(10);
+  // Optional batch throttle controls — blank means unlimited/default.
+  const [rpm, setRpm] = useState('');
+  const [dailyRequestBudget, setDailyRequestBudget] = useState('');
+  const [parallelGames, setParallelGames] = useState('10');
   const [isRunningSimulation, setIsRunningSimulation] = useState(false);
   const [activeRunId, setActiveRunId] = useState<number | null>(null);
   const [runProgress, setRunProgress] = useState<{ completed: number; total: number; status: string } | null>(null);
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationResults | null>(null);
   const [selectedGameDetail, setSelectedGameDetail] = useState<SimulationGameDetail | null>(null);
   const [loadingGameDetail, setLoadingGameDetail] = useState(false);
+  // Per-run inline error (e.g. 409 "already resumed elsewhere") keyed by run_id
+  const [runActionErrors, setRunActionErrors] = useState<Record<number, string>>({});
 
   // Fetch simulation decks / models / runs (tab is only mounted when active)
   const { data: simulationDecks } = useSimulationDecks(true);
@@ -55,9 +74,47 @@ const SimulationTab: React.FC = () => {
   const { data: simulationRuns, refetch: refetchSimulationRuns } = useSimulationRunsList(true);
 
   const startSimulationMutation = useStartSimulation();
+  const resumeRunMutation = useResumeRun();
+  const pauseRunMutation = usePauseRun();
 
-  // Poll active run status (stops on its own once the status is terminal)
+  // Poll active run status (stops on its own once the status is terminal;
+  // slows to 30s while paused/budget_exhausted)
   const { data: runStatus } = useRunStatus(activeRunId);
+
+  const clearRunActionError = (runId: number) => {
+    setRunActionErrors(prev => {
+      if (!(runId in prev)) return prev;
+      const next = { ...prev };
+      delete next[runId];
+      return next;
+    });
+  };
+
+  const extractErrorDetail = (error: unknown): string => {
+    const axiosError = error as { response?: { status?: number; data?: { detail?: string } } };
+    if (axiosError.response?.status === 409) {
+      return axiosError.response?.data?.detail || 'Run already resumed/paused elsewhere';
+    }
+    return axiosError.response?.data?.detail || 'Unknown error';
+  };
+
+  const handleResumeRun = (runId: number) => {
+    clearRunActionError(runId);
+    resumeRunMutation.mutate(runId, {
+      onError: (error) => {
+        setRunActionErrors(prev => ({ ...prev, [runId]: extractErrorDetail(error) }));
+      },
+    });
+  };
+
+  const handlePauseRun = (runId: number) => {
+    clearRunActionError(runId);
+    pauseRunMutation.mutate(runId, {
+      onError: (error) => {
+        setRunActionErrors(prev => ({ ...prev, [runId]: extractErrorDetail(error) }));
+      },
+    });
+  };
 
   useEffect(() => {
     if (!activeRunId || !runStatus) return;
@@ -109,12 +166,19 @@ const SimulationTab: React.FC = () => {
 
     try {
       // Start simulation (returns immediately with run_id)
+      const parsedRpm = rpm.trim() === '' ? null : parseInt(rpm, 10);
+      const parsedDailyBudget = dailyRequestBudget.trim() === '' ? null : parseInt(dailyRequestBudget, 10);
+      const parsedParallelGames = parallelGames.trim() === '' ? 10 : parseInt(parallelGames, 10);
+
       const startResponse = await startSimulationMutation.mutateAsync({
         deck_names: selectedDecks,
         player1_model: player1Model,
         player2_model: player2Model,
         iterations_per_matchup: iterationsPerMatchup,
         max_turns: 20,
+        rpm: parsedRpm,
+        daily_request_budget: parsedDailyBudget,
+        parallel_games: parsedParallelGames,
       });
 
       const runId = startResponse.run_id;
@@ -272,6 +336,72 @@ const SimulationTab: React.FC = () => {
             })()}
           </div>
 
+          {/* Batch Throttle Controls */}
+          <div className="grid grid-cols-3" style={{ gap: 'var(--spacing-component-md)', marginBottom: 'var(--spacing-component-lg)' }}>
+            <div>
+              <label className="block font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                RPM (optional)
+              </label>
+              <input
+                type="number"
+                min="1"
+                placeholder="unlimited"
+                value={rpm}
+                onChange={e => setRpm(e.target.value)}
+                className="w-full bg-black/20 border border-white/15 rounded text-[var(--ink-text)]"
+                style={{ padding: 'var(--spacing-component-sm)' }}
+              />
+            </div>
+            <div>
+              <label className="block font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                Daily request budget (optional)
+              </label>
+              <input
+                type="number"
+                min="1"
+                placeholder="unlimited"
+                value={dailyRequestBudget}
+                onChange={e => setDailyRequestBudget(e.target.value)}
+                className="w-full bg-black/20 border border-white/15 rounded text-[var(--ink-text)]"
+                style={{ padding: 'var(--spacing-component-sm)' }}
+              />
+            </div>
+            <div>
+              <label className="block font-semibold" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
+                Parallel games
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={parallelGames}
+                onChange={e => setParallelGames(e.target.value)}
+                className="w-full bg-black/20 border border-white/15 rounded text-[var(--ink-text)]"
+                style={{ padding: 'var(--spacing-component-sm)' }}
+              />
+            </div>
+          </div>
+
+          {/* Rough request/duration estimate */}
+          {(() => {
+            const numDecks = selectedDecks.length;
+            if (numDecks < 1) return null;
+            const totalGames = numDecks * numDecks * iterationsPerMatchup;
+            const estRequests = estimateRequests(totalGames);
+            const parsedDailyBudget = dailyRequestBudget.trim() === '' ? null : parseInt(dailyRequestBudget, 10);
+            const estDays = parsedDailyBudget && parsedDailyBudget > 0
+              ? Math.ceil(estRequests / parsedDailyBudget)
+              : null;
+
+            return (
+              <div className="text-xs text-[var(--ink-faint)]" style={{ marginBottom: 'var(--spacing-component-lg)' }}>
+                Rough estimate: ~{estRequests} AI requests ({totalGames} games × {TURNS_PER_GAME_ESTIMATE} turns × ~{CALLS_PER_TURN_ESTIMATE} calls/turn)
+                {estDays !== null && <> · ~{estDays} {estDays === 1 ? 'day' : 'days'} at the configured daily budget</>}
+                . Actual usage varies with deck/strategy.
+              </div>
+            );
+          })()}
+
           {/* Start Button */}
           {(() => {
             const totalGames = selectedDecks.length * selectedDecks.length * iterationsPerMatchup;
@@ -300,7 +430,8 @@ const SimulationTab: React.FC = () => {
             <div className="bg-blue-900/30 border border-blue-500 rounded" style={{ marginTop: 'var(--spacing-component-md)', padding: 'var(--spacing-component-md)' }}>
               <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-component-xs)' }}>
                 <span className="font-semibold">
-                  Simulation {runProgress.status === 'pending' ? 'starting' : 'in progress'}...
+                  Simulation {runProgress.status === 'pending' ? 'starting' : runProgress.status === 'running' ? 'in progress' : runProgress.status.replace('_', ' ')}...
+                  <StatusBadge status={runProgress.status} className="ml-2" />
                 </span>
                 <span className="text-blue-400">
                   {runProgress.completed} / {runProgress.total} games
@@ -316,6 +447,39 @@ const SimulationTab: React.FC = () => {
                 {runProgress.total > 0 ? Math.round(runProgress.completed / runProgress.total * 100) : 0}% complete
                 {activeRunId && <span> (Run #{activeRunId})</span>}
               </div>
+
+              {activeRunId && runStatus?.budget && runProgress.status === 'budget_exhausted' && (
+                <div className="text-xs text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                  Budget used: {runStatus.budget.used_today ?? '—'}/{runStatus.budget.daily_budget ?? '—'}
+                  {formatCountdown(runStatus.budget.resets_at) && <span> · {formatCountdown(runStatus.budget.resets_at)}</span>}
+                </div>
+              )}
+
+              {activeRunId && runProgress.status === 'running' && (
+                <button
+                  onClick={() => handlePauseRun(activeRunId)}
+                  disabled={pauseRunMutation.isPending}
+                  className="text-xs rounded bg-white/10 hover:bg-white/20 disabled:opacity-50"
+                  style={{ marginTop: 'var(--spacing-component-sm)', padding: '2px var(--spacing-component-sm)' }}
+                >
+                  {pauseRunMutation.isPending ? 'Pausing...' : 'Pause'}
+                </button>
+              )}
+              {activeRunId && (runProgress.status === 'budget_exhausted' || runProgress.status === 'paused') && (
+                <button
+                  onClick={() => handleResumeRun(activeRunId)}
+                  disabled={resumeRunMutation.isPending}
+                  className="text-xs rounded bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                  style={{ marginTop: 'var(--spacing-component-sm)', padding: '2px var(--spacing-component-sm)' }}
+                >
+                  {resumeRunMutation.isPending ? 'Resuming...' : 'Resume'}
+                </button>
+              )}
+              {activeRunId && runActionErrors[activeRunId] && (
+                <div className="text-xs text-red-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                  {runActionErrors[activeRunId]}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -335,14 +499,7 @@ const SimulationTab: React.FC = () => {
           <div className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
             <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-md)' }}>
               Simulation Results
-              <span className={`text-sm rounded ${
-                selectedSimulation.status === 'completed' ? 'bg-green-600' :
-                selectedSimulation.status === 'running' ? 'bg-yellow-600' :
-                selectedSimulation.status === 'failed' ? 'bg-red-600' :
-                'bg-white/10'
-              }`} style={{ marginLeft: 'var(--spacing-component-sm)', padding: '4px var(--spacing-component-xs)' }}>
-                {selectedSimulation.status}
-              </span>
+              <StatusBadge status={selectedSimulation.status} className="ml-2" />
             </h2>
 
             {/* Config Summary */}
@@ -698,38 +855,81 @@ const SimulationTab: React.FC = () => {
           <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-card-name)', marginBottom: 'var(--spacing-component-md)' }}>
             Past Simulations
           </h2>
+          <div className="text-xs text-[var(--ink-faint)]" style={{ marginBottom: 'var(--spacing-component-md)' }}>
+            Runs started from the CLI appear here too, when the backend points at the same database.
+          </div>
           <div className="flex flex-col" style={{ gap: 'var(--spacing-component-sm)' }}>
-            {simulationRuns.map((run: SimulationRun) => (
-              <div
-                key={run.run_id}
-                className="bg-black/20 rounded-lg cursor-pointer hover:bg-white/5"
-                style={{ padding: 'var(--spacing-component-md)' }}
-                onClick={() => loadSimulationResults(run.run_id)}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-semibold">
-                      Run #{run.run_id}
-                      <span className={`text-xs rounded ${
-                        run.status === 'completed' ? 'bg-green-600' :
-                        run.status === 'running' ? 'bg-yellow-600' :
-                        run.status === 'failed' ? 'bg-red-600' :
-                        'bg-white/10'
-                      }`} style={{ marginLeft: 'var(--spacing-component-xs)', padding: '2px 6px' }}>
-                        {run.status}
-                      </span>
+            {simulationRuns.map((run: SimulationRun) => {
+              const isNonTerminalNonCompleted = run.status !== 'completed';
+              const progressPct = run.total_games > 0 ? (run.completed_games / run.total_games) * 100 : 0;
+
+              return (
+                <div
+                  key={run.run_id}
+                  className="bg-black/20 rounded-lg"
+                  style={{ padding: 'var(--spacing-component-md)' }}
+                >
+                  <div
+                    className="flex justify-between items-center cursor-pointer hover:bg-white/5 -m-1 p-1 rounded"
+                    onClick={() => loadSimulationResults(run.run_id)}
+                  >
+                    <div className="flex-1">
+                      <div className="font-semibold">
+                        Run #{run.run_id}
+                        <StatusBadge status={run.status} className="ml-2" />
+                      </div>
+                      <div className="text-sm text-[var(--ink-faint)]">
+                        {run.config.deck_names.join(', ')} • {run.completed_games}/{run.total_games} games
+                      </div>
+                      <div className="text-xs text-[var(--ink-faint)]">
+                        {formatRelativeTime(run.created_at)}
+                      </div>
+                      {isNonTerminalNonCompleted && (
+                        <div className="w-full bg-white/10 rounded-full h-2" style={{ marginTop: 'var(--spacing-component-xs)', maxWidth: '240px' }}>
+                          <div
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                      )}
+                      {run.status === 'budget_exhausted' && run.budget && (
+                        <div className="text-xs text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
+                          Budget used: {run.budget.used_today ?? '—'}/{run.budget.daily_budget ?? '—'}
+                          {formatCountdown(run.budget.resets_at) && <span> · {formatCountdown(run.budget.resets_at)}</span>}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-sm text-[var(--ink-faint)]">
-                      {run.config.deck_names.join(', ')} • {run.completed_games}/{run.total_games} games
-                    </div>
-                    <div className="text-xs text-[var(--ink-faint)]">
-                      {formatRelativeTime(run.created_at)}
-                    </div>
+                    <div className="text-blue-400">View →</div>
                   </div>
-                  <div className="text-blue-400">View →</div>
+
+                  <div className="flex items-center" style={{ gap: 'var(--spacing-component-sm)', marginTop: 'var(--spacing-component-xs)' }}>
+                    {run.status === 'running' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handlePauseRun(run.run_id); }}
+                        disabled={pauseRunMutation.isPending}
+                        className="text-xs rounded bg-white/10 hover:bg-white/20 disabled:opacity-50"
+                        style={{ padding: '2px var(--spacing-component-sm)' }}
+                      >
+                        {pauseRunMutation.isPending ? 'Pausing...' : 'Pause'}
+                      </button>
+                    )}
+                    {(run.status === 'paused' || run.status === 'budget_exhausted') && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleResumeRun(run.run_id); }}
+                        disabled={resumeRunMutation.isPending}
+                        className="text-xs rounded bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        style={{ padding: '2px var(--spacing-component-sm)' }}
+                      >
+                        {resumeRunMutation.isPending ? 'Resuming...' : 'Resume'}
+                      </button>
+                    )}
+                    {runActionErrors[run.run_id] && (
+                      <span className="text-xs text-red-400">{runActionErrors[run.run_id]}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
