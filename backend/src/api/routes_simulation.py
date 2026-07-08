@@ -50,16 +50,16 @@ def get_db():
 def _run_simulation_background(run_id: int):
     """
     Background worker to execute simulation.
-    
+
     Creates its own DB session and runs games, updating DB after each game.
     This runs in a separate thread to not block the HTTP response.
     """
     logger.info(f"[Background] Starting simulation run {run_id}")
-    
+
     if SessionLocal is None:
         logger.error(f"[Background] Database not configured for run {run_id}")
         return
-    
+
     # Create new session for this thread
     db = SessionLocal()
     try:
@@ -71,6 +71,33 @@ def _run_simulation_background(run_id: int):
     finally:
         db.close()
         # Clean up thread tracking
+        with _simulations_lock:
+            _active_simulations.pop(run_id, None)
+
+
+def _resume_simulation_background(run_id: int):
+    """
+    Background worker to resume a paused/budget_exhausted/failed simulation.
+
+    Mirrors _run_simulation_background but calls resume_simulation(), which
+    reconstructs config + in-memory aggregates from persisted rows before
+    delegating to run_simulation() (which skips already-persisted games).
+    """
+    logger.info(f"[Background] Resuming simulation run {run_id}")
+
+    if SessionLocal is None:
+        logger.error(f"[Background] Database not configured for run {run_id}")
+        return
+
+    db = SessionLocal()
+    try:
+        orchestrator = SimulationOrchestrator(db)
+        orchestrator.resume_simulation(run_id)
+        logger.info(f"[Background] Simulation run {run_id} resume completed")
+    except Exception as e:
+        logger.exception(f"[Background] Simulation run {run_id} resume failed: {e}")
+    finally:
+        db.close()
         with _simulations_lock:
             _active_simulations.pop(run_id, None)
 
@@ -105,6 +132,22 @@ class StartSimulationRequest(BaseModel):
         ge=10,
         le=100,
         description="Maximum turns before declaring draw"
+    )
+    rpm: int | None = Field(
+        default=None,
+        ge=1,
+        description="Optional AI request-per-minute cap for this run's rate limiter"
+    )
+    daily_request_budget: int | None = Field(
+        default=None,
+        ge=1,
+        description="Optional daily AI request budget; the run pauses (budget_exhausted) when exceeded"
+    )
+    parallel_games: int = Field(
+        default=10,
+        ge=1,
+        le=20,
+        description="Number of games to run concurrently"
     )
 
 
@@ -167,11 +210,18 @@ async def start_simulation(
     thread to execute the games. Returns immediately with the run_id.
     
     Use GET /runs/{run_id} to poll for progress.
-    
+
+    Note: this is a server-hosted run. If a daily request budget is
+    configured (via `daily_request_budget`) and gets exhausted, the run
+    parks in "budget_exhausted" status until POST /runs/{run_id}/resume
+    is called (or the CLI resumes it) -- the route layer never sleeps
+    across budget windows waiting for a reset. Multi-day sleep-wait mode
+    is a CLI-only feature.
+
     Args:
         request: Simulation configuration
         db: Database session
-        
+
     Returns:
         run_id and initial status (status will be "pending" or "running")
     """
@@ -197,6 +247,9 @@ async def start_simulation(
         player2_model=request.player2_model,
         iterations_per_matchup=request.iterations_per_matchup,
         max_turns=max_turns,
+        rpm=request.rpm,
+        daily_request_budget=request.daily_request_budget,
+        parallel_games=request.parallel_games,
     )
     
     total_games = config.total_games()
@@ -370,6 +423,110 @@ async def cancel_simulation(
         )
     
     return {"status": "cancelled", "run_id": run_id}
+
+
+@router.post("/runs/{run_id}/resume")
+async def resume_simulation(
+    run_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Resume a paused, budget-exhausted, or failed simulation run.
+
+    Spawns a background thread that reconstructs the run's config and
+    in-memory aggregates from persisted game rows, then continues
+    executing the remaining games (already-persisted games are skipped).
+
+    Note: this is a server-hosted resume. If the run hits its daily
+    request budget again, it parks back in "budget_exhausted" until this
+    endpoint is called again -- the route never sleeps waiting for a
+    budget reset. Multi-day sleep-wait mode is CLI-only.
+
+    Args:
+        run_id: Simulation run ID to resume
+        db: Database session
+
+    Returns:
+        run_id and status confirming the resume was spawned
+    """
+    orchestrator = SimulationOrchestrator(db)
+
+    try:
+        status = orchestrator.get_status(run_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    resumable_statuses = {"paused", "budget_exhausted", "failed"}
+    if status["status"] not in resumable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Cannot resume simulation run {run_id} with status "
+                f"'{status['status']}'; must be one of {sorted(resumable_statuses)}"
+            ),
+        )
+
+    with _simulations_lock:
+        if run_id in _active_simulations:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Simulation run {run_id} is already active",
+            )
+
+        thread = threading.Thread(
+            target=_resume_simulation_background,
+            args=(run_id,),
+            name=f"simulation-resume-{run_id}",
+            daemon=False,
+        )
+        _active_simulations[run_id] = thread
+        thread.start()
+
+    logger.info(f"Spawned background resume thread for simulation {run_id}")
+
+    return {
+        "run_id": run_id,
+        "status": "running",
+        "message": f"Simulation resume started. Poll GET /admin/simulation/runs/{run_id} for progress.",
+    }
+
+
+@router.post("/runs/{run_id}/pause")
+async def pause_simulation(
+    run_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Best-effort pause of a running simulation.
+
+    Args:
+        run_id: Simulation run ID to pause
+        db: Database session
+
+    Returns:
+        Success status
+    """
+    orchestrator = SimulationOrchestrator(db)
+
+    try:
+        status = orchestrator.get_status(run_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if status["status"] not in ("pending", "running"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot pause: run {run_id} is not running (status '{status['status']}')",
+        )
+
+    paused = orchestrator.pause_simulation(run_id)
+    if not paused:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot pause: run {run_id} not found or not in a pausable state",
+        )
+
+    return {"status": "pause_requested", "run_id": run_id}
 
 
 @router.get("/runs/{run_id}/report", response_class=PlainTextResponse)
