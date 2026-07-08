@@ -10,6 +10,12 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
+# NOTE: simulation.rate_limiter (BudgetExhaustedError, NoopLimiter) is
+# imported lazily inside the functions/methods below rather than at module
+# scope, to avoid a circular import: simulation/__init__.py imports
+# runner.py, which imports llm_player.py, which imports this module — so a
+# module-level import here would try to import the still-initializing
+# `simulation` package.
 
 DEFAULT_MODEL = "gemini-flash-lite-latest"  # Stable alias for latest Flash Lite; no geographic restriction
 DEFAULT_FALLBACK_MODEL = "gemini-2.5-flash-lite"
@@ -47,13 +53,18 @@ def resolve_provider_config(
 class GeminiProvider:
     """Google Gemini provider using the google-genai SDK."""
 
-    def __init__(self, config: AIProviderConfig, client: Any | None = None):
+    def __init__(self, config: AIProviderConfig, client: Any | None = None, rate_limiter: Any | None = None):
         self.config = config
         if client is None:
             from google import genai
 
             client = genai.Client(api_key=config.api_key)
         self.client = client
+        if rate_limiter is None:
+            from simulation.rate_limiter import NoopLimiter
+
+            rate_limiter = NoopLimiter()
+        self.rate_limiter = rate_limiter
 
     def generate_json(
         self,
@@ -69,6 +80,7 @@ class GeminiProvider:
         system_instruction: Optional[str] = None,
     ) -> str:
         from google.genai import types
+        from simulation.rate_limiter import BudgetExhaustedError
 
         current_model = model or self.config.model
         resolved_fallback = fallback_model or self.config.fallback_model
@@ -76,6 +88,7 @@ class GeminiProvider:
 
         for attempt in range(retry_count):
             try:
+                self.rate_limiter.acquire()
                 response = self.client.models.generate_content(
                     model=current_model,
                     contents=[
@@ -102,6 +115,8 @@ class GeminiProvider:
                     )
 
                 return response.text.strip()
+            except BudgetExhaustedError:
+                raise
             except Exception as exc:
                 last_exception = exc
                 if self._is_location_precondition(exc):
@@ -162,6 +177,7 @@ class GeminiProvider:
         system_instruction: Optional[str] = None,
     ) -> str:
         from google.genai import types
+        from simulation.rate_limiter import BudgetExhaustedError
 
         current_model = model or self.config.model
         resolved_fallback = fallback_model or self.config.fallback_model
@@ -169,6 +185,7 @@ class GeminiProvider:
 
         for attempt in range(retry_count):
             try:
+                self.rate_limiter.acquire()
                 response = self.client.models.generate_content(
                     model=current_model,
                     contents=[
@@ -193,6 +210,8 @@ class GeminiProvider:
                     )
 
                 return response.text.strip()
+            except BudgetExhaustedError:
+                raise
             except Exception as exc:
                 last_exception = exc
                 if self._is_location_precondition(exc):
@@ -276,7 +295,8 @@ def build_provider(
     model: Optional[str] = None,
     fallback_model: Optional[str] = None,
     client: Any | None = None,
+    rate_limiter: Any | None = None,
 ) -> tuple[GeminiProvider, AIProviderConfig]:
     """Build a Gemini provider instance and return it with its resolved config."""
     config = resolve_provider_config(api_key=api_key, model=model, fallback_model=fallback_model)
-    return GeminiProvider(config, client=client), config
+    return GeminiProvider(config, client=client, rate_limiter=rate_limiter), config

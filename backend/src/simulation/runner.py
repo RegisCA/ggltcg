@@ -27,6 +27,7 @@ from .config import (
     GameOutcome,
     TurnCharge,
 )
+from .rate_limiter import BudgetExhaustedError
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ class SimulationRunner:
         player2_model: str = "gemini-2.5-flash-lite",
         max_turns: int = 20,
         log_level: str = "WARNING",
+        rate_limiter: Optional[object] = None,
     ):
         """
         Initialize the simulation runner.
@@ -57,10 +59,14 @@ class SimulationRunner:
             player2_model: Gemini model for player 2
             max_turns: Maximum turns before declaring draw
             log_level: Logging level for simulation-related loggers (default: WARNING)
+            rate_limiter: Optional rate/budget limiter forwarded to both AI
+                players' Gemini provider. Defaults to a no-op limiter (no
+                behavior change).
         """
         self.player1_model = player1_model
         self.player2_model = player2_model
         self.max_turns = max_turns
+        self.rate_limiter = rate_limiter
 
         # Configure logging for simulation
         self._configure_simulation_logging(log_level)
@@ -103,8 +109,8 @@ class SimulationRunner:
             engine = GameEngine(game_state)
 
             # Create AI players with specified models (enum-based turn planning)
-            self._player1_ai = LLMPlayer(model=self.player1_model)
-            self._player2_ai = LLMPlayer(model=self.player2_model)
+            self._player1_ai = LLMPlayer(model=self.player1_model, rate_limiter=self.rate_limiter)
+            self._player2_ai = LLMPlayer(model=self.player2_model, rate_limiter=self.rate_limiter)
 
             logger.info(
                 f"Starting game {game_number}: {deck1.name} ({self.player1_model}) vs "
@@ -255,7 +261,10 @@ class SimulationRunner:
             
             # Mark successful initialization
             game_initialized = True
-        
+
+        except BudgetExhaustedError:
+            raise
+
         except Exception as e:
             logger.exception(f"Error in game {game_number}: {e}")
             error_message = str(e)
