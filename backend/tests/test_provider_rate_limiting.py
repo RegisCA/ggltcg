@@ -30,7 +30,7 @@ from game_engine.ai.providers import (  # noqa: E402
     build_provider,
 )
 from game_engine.ai.llm_player import LLMPlayer  # noqa: E402
-from simulation.rate_limiter import BudgetExhaustedError, NoopLimiter  # noqa: E402
+from game_engine.ai.rate_limiter import BudgetExhaustedError, NoopLimiter  # noqa: E402
 import simulation.runner as runner_module  # noqa: E402
 from simulation.runner import SimulationRunner  # noqa: E402
 

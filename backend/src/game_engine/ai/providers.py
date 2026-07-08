@@ -8,14 +8,9 @@ import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from game_engine.ai.rate_limiter import BudgetExhaustedError, NoopLimiter
 
-# NOTE: simulation.rate_limiter (BudgetExhaustedError, NoopLimiter) is
-# imported lazily inside the functions/methods below rather than at module
-# scope, to avoid a circular import: simulation/__init__.py imports
-# runner.py, which imports llm_player.py, which imports this module — so a
-# module-level import here would try to import the still-initializing
-# `simulation` package.
+logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "gemini-flash-lite-latest"  # Stable alias for latest Flash Lite; no geographic restriction
 DEFAULT_FALLBACK_MODEL = "gemini-2.5-flash-lite"
@@ -60,11 +55,7 @@ class GeminiProvider:
 
             client = genai.Client(api_key=config.api_key)
         self.client = client
-        if rate_limiter is None:
-            from simulation.rate_limiter import NoopLimiter
-
-            rate_limiter = NoopLimiter()
-        self.rate_limiter = rate_limiter
+        self.rate_limiter = rate_limiter if rate_limiter is not None else NoopLimiter()
 
     def generate_json(
         self,
@@ -80,7 +71,6 @@ class GeminiProvider:
         system_instruction: Optional[str] = None,
     ) -> str:
         from google.genai import types
-        from simulation.rate_limiter import BudgetExhaustedError
 
         current_model = model or self.config.model
         resolved_fallback = fallback_model or self.config.fallback_model
@@ -177,7 +167,6 @@ class GeminiProvider:
         system_instruction: Optional[str] = None,
     ) -> str:
         from google.genai import types
-        from simulation.rate_limiter import BudgetExhaustedError
 
         current_model = model or self.config.model
         resolved_fallback = fallback_model or self.config.fallback_model

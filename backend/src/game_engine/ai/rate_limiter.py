@@ -11,8 +11,7 @@ Two independent controls, both optional:
   counter reaches the budget, `acquire()` raises `BudgetExhaustedError`
   instead of blocking. Disabled entirely when `daily_budget` is None.
 
-This module is intentionally standalone: it is not wired into any AI
-provider or orchestrator yet. Callers construct a `RateBudgetLimiter` (or a
+Callers construct a `RateBudgetLimiter` (or a
 `NoopLimiter` when no limiting is configured) and call `acquire()` before
 each external request, then `flush()` when done (e.g. at process shutdown)
 to ensure the last few requests are persisted.

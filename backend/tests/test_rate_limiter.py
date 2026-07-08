@@ -1,5 +1,5 @@
 """
-Tests for simulation.rate_limiter: RateBudgetLimiter, NoopLimiter,
+Tests for game_engine.ai.rate_limiter: RateBudgetLimiter, NoopLimiter,
 BudgetExhaustedError.
 
 Uses an injectable fake clock/sleep so no test actually sleeps, and an
@@ -20,7 +20,7 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from api.db_models import Base, ApiUsageModel  # noqa: E402
-from simulation.rate_limiter import (  # noqa: E402
+from game_engine.ai.rate_limiter import (  # noqa: E402
     RateBudgetLimiter,
     NoopLimiter,
     BudgetExhaustedError,
