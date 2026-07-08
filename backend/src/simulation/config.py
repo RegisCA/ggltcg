@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 from enum import Enum
 
@@ -28,6 +29,8 @@ class SimulationStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    PAUSED = "paused"
+    BUDGET_EXHAUSTED = "budget_exhausted"
 
 
 class GameOutcome(str, Enum):
@@ -121,7 +124,10 @@ class SimulationConfig:
     player2_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
     iterations_per_matchup: int = 10  # Games per deck matchup
     max_turns: int = 20  # Turn limit before declaring draw
-    
+    parallel_games: int = 10  # Number of games to run concurrently
+    rpm: Optional[int] = None  # Requests-per-minute limit forwarded to the rate limiter
+    daily_request_budget: Optional[int] = None  # Daily API request budget (None = unlimited)
+
     def get_matchups(self) -> list[tuple[str, str]]:
         """
         Generate all deck matchups (n² total: all pairs including mirrors and both directions).
@@ -150,6 +156,9 @@ class SimulationConfig:
             "player2_model": self.player2_model,
             "iterations_per_matchup": self.iterations_per_matchup,
             "max_turns": self.max_turns,
+            "parallel_games": self.parallel_games,
+            "rpm": self.rpm,
+            "daily_request_budget": self.daily_request_budget,
         }
 
 
@@ -220,7 +229,8 @@ class SimulationResult:
     matchup_stats: dict[str, MatchupStats] = field(default_factory=dict)  # key: "deck1_vs_deck2"
     game_results: list[GameResult] = field(default_factory=list)
     error_message: Optional[str] = None
-    
+    resets_at: Optional[datetime] = None  # when a budget exhaustion resets (if paused for that reason)
+
     def add_game_result(self, result: GameResult) -> None:
         """Add a game result and update matchup stats."""
         self.game_results.append(result)
@@ -257,4 +267,5 @@ class SimulationResult:
             "matchup_stats": {k: v.to_dict() for k, v in self.matchup_stats.items()},
             "game_results": [g.to_dict() for g in self.game_results],
             "error_message": self.error_message,
+            "resets_at": self.resets_at.isoformat() if self.resets_at else None,
         }
