@@ -96,6 +96,32 @@ describe('useRunStatus', () => {
     expect(mockGetRunStatus).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps fast-polling while the run is still pending', async () => {
+    mockGetRunStatus
+      .mockResolvedValueOnce(status('pending'))
+      .mockResolvedValueOnce(status('pending'))
+      .mockResolvedValue(status('completed'));
+
+    const { result } = renderHook(() => useRunStatus(1), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.data?.status).toBe('pending'));
+    expect(mockGetRunStatus).toHaveBeenCalledTimes(1);
+
+    // Still pending after the first 3s tick: polling must not stop
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    await waitFor(() => expect(mockGetRunStatus).toHaveBeenCalledTimes(2));
+    expect(result.current.data?.status).toBe('pending');
+
+    // Next 3s tick picks up the completed status
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    await waitFor(() => expect(result.current.data?.status).toBe('completed'));
+    expect(mockGetRunStatus).toHaveBeenCalledTimes(3);
+  });
+
   it('slows to a 30s cadence once the run is paused', async () => {
     mockGetRunStatus
       .mockResolvedValueOnce(status('running'))

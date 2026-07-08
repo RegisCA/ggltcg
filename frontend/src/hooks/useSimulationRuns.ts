@@ -83,8 +83,14 @@ export function useRunStatus(runId: number | null) {
       const status = query.state.data?.status;
       if (isTerminalRunStatus(status)) return false;
       if (isSlowRunStatus(status)) return 30000;
+      // pending, running, unknown, or not yet fetched: fast poll. "pending"
+      // must keep polling — the first snapshot is taken right at start and
+      // would otherwise freeze the active-run panel forever.
       return 3000;
     },
+    // Keep polling even when the admin tab is in a background window —
+    // batch runs are long-lived and the operator often switches away.
+    refetchIntervalInBackground: true,
   });
 }
 

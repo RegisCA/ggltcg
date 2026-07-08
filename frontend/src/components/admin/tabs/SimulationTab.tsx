@@ -52,8 +52,10 @@ const estimateRequests = (totalGames: number): number =>
 const SimulationTab: React.FC = () => {
   // Simulation state
   const [selectedDecks, setSelectedDecks] = useState<string[]>([]);
-  const [player1Model, setPlayer1Model] = useState('gemini-2.5-flash-lite');
-  const [player2Model, setPlayer2Model] = useState('gemini-2.0-flash');
+  // Model selects initialize from the fetched models list (first entry) so
+  // an untouched form always submits exactly what the dropdowns display.
+  const [player1Model, setPlayer1Model] = useState('');
+  const [player2Model, setPlayer2Model] = useState('');
   const [iterationsPerMatchup, setIterationsPerMatchup] = useState(10);
   // Optional batch throttle controls — blank means unlimited/default.
   const [rpm, setRpm] = useState('');
@@ -80,6 +82,14 @@ const SimulationTab: React.FC = () => {
   // Poll active run status (stops on its own once the status is terminal;
   // slows to 30s while paused/budget_exhausted)
   const { data: runStatus } = useRunStatus(activeRunId);
+
+  // Default both model selects to the first fetched model once the list
+  // loads (backend's default_simulation_model resolution puts it first).
+  useEffect(() => {
+    if (!supportedModels || supportedModels.length === 0) return;
+    setPlayer1Model(prev => (prev === '' ? supportedModels[0] : prev));
+    setPlayer2Model(prev => (prev === '' ? supportedModels[0] : prev));
+  }, [supportedModels]);
 
   const clearRunActionError = (runId: number) => {
     setRunActionErrors(prev => {
@@ -158,6 +168,10 @@ const SimulationTab: React.FC = () => {
   const startSimulation = async () => {
     if (selectedDecks.length < 1) {
       alert('Please select at least 1 deck');
+      return;
+    }
+    if (!player1Model || !player2Model) {
+      alert('Models are still loading — try again in a moment');
       return;
     }
 
@@ -407,7 +421,8 @@ const SimulationTab: React.FC = () => {
             const totalGames = selectedDecks.length * selectedDecks.length * iterationsPerMatchup;
             const MAX_GAMES = 500;
             const exceedsLimit = totalGames > MAX_GAMES;
-            const isDisabled = isRunningSimulation || selectedDecks.length < 1 || exceedsLimit;
+            const modelsReady = player1Model !== '' && player2Model !== '';
+            const isDisabled = isRunningSimulation || selectedDecks.length < 1 || exceedsLimit || !modelsReady;
 
             return (
               <button
