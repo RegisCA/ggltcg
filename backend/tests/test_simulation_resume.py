@@ -372,3 +372,48 @@ class TestConfigRoundTrip:
         assert config.rpm is None
         assert config.daily_request_budget is None
         assert config.parallel_games == 10
+
+
+class TestStatusPersistsWithoutInjectedSession:
+    """Regression (found by the 2026-07-08 E2E run): the CLI constructs the
+    orchestrator WITHOUT a db session, so _get_db() hands out a fresh session
+    per call. run_simulation used the run object cached by start_simulation
+    (bound to a different session) and committed the new session -- terminal
+    statuses (completed/budget_exhausted) were never persisted; runs stayed
+    "pending" in the DB forever."""
+
+    def test_terminal_status_persists_via_fresh_sessions(
+        self, monkeypatch, db_session_factory
+    ):
+        # Mimic the CLI: no injected session; every _get_db() call is fresh.
+        monkeypatch.setattr(orchestrator_module, "get_db", lambda: iter([db_session_factory()]))
+
+        def fake_run_game(self, deck1, deck2, game_number=1):
+            return _fake_game_result(
+                {"game_number": game_number, "deck1_name": deck1.name, "deck2_name": deck2.name},
+                _deterministic_outcome(game_number),
+            )
+
+        monkeypatch.setattr(
+            orchestrator_module.SimulationRunner, "run_game", fake_run_game
+        )
+
+        orch = SimulationOrchestrator(
+            db=None, rate_limiter_session_factory=db_session_factory
+        )
+        config = SimulationConfig(
+            deck_names=DECK_NAMES, iterations_per_matchup=1, player1_model="m", player2_model="m"
+        )
+        run_id = orch.start_simulation(config)
+        orch.run_simulation(run_id, parallel_games=2)
+
+        # Read back through a completely independent session.
+        with db_session_factory() as verify:
+            row = verify.query(SimulationRunModel).filter(
+                SimulationRunModel.id == run_id
+            ).one()
+            assert row.status == "completed", (
+                f"terminal status must be persisted (got '{row.status}'); "
+                "run_simulation must mutate the run via its own session"
+            )
+            assert row.completed_games == row.total_games

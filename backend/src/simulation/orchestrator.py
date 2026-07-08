@@ -226,23 +226,30 @@ class SimulationOrchestrator:
         """
         db = self._get_db()
 
-        # Load run from database if needed
-        if self._current_run is None or self._current_run.id != run_id:
-            run = db.query(SimulationRunModel).filter(
-                SimulationRunModel.id == run_id
-            ).first()
-            if run is None:
-                raise ValueError(f"Simulation run {run_id} not found")
-            self._current_run = run
+        # ALWAYS load the run through this call's session. _get_db() returns a
+        # fresh session when no session was injected (the CLI path), so a run
+        # object cached by start_simulation() belongs to a different session --
+        # mutating it and committing `db` silently persists nothing (status
+        # stuck at "pending" while per-game threads, which use their own
+        # sessions, persisted fine).
+        run = db.query(SimulationRunModel).filter(
+            SimulationRunModel.id == run_id
+        ).first()
+        if run is None:
+            raise ValueError(f"Simulation run {run_id} not found")
 
+        # Rebuild the in-memory result only when this orchestrator has no
+        # context for the run (resume in a new process); a same-process
+        # start->run flow keeps the tracker created by start_simulation().
+        if self._current_run is None or self._current_run.id != run_id or self._result is None:
             # Reconstruct config (old rows without new keys keep working since
             # every new SimulationConfig field has a default).
             config = SimulationConfig(**run.config)
             self._result = self._rehydrate_result_from_db(
                 run_id, config, SimulationStatus.RUNNING
             )
+        self._current_run = run
 
-        run = self._current_run
         config = self._result.config
 
         if parallel_games is None:

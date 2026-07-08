@@ -25,6 +25,7 @@ from .prompts.strategic_selector import (
 )
 from .quality_metrics import TurnMetrics, record_turn_metrics
 from .providers import GeminiProvider, build_provider
+from .rate_limiter import BudgetExhaustedError
 from .enumerator import enumerate_sequences
 
 logger = logging.getLogger(__name__)
@@ -237,6 +238,10 @@ class TurnPlanner:
 
             return plan
 
+        except BudgetExhaustedError:
+            # Not a selection failure: the daily API budget is spent. Never
+            # fall back to heuristic play — propagate so the run pauses.
+            raise
         except Exception as e:
             logger.error(f"Strategic selection failed: {e}")
             TurnPlanner._metrics["selection_parse_error"] += 1
