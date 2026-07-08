@@ -21,6 +21,8 @@ const STATUS_TONES: Record<string, StatusTone> = {
   error: 'danger',
   cancelled: 'neutral',
   abandoned: 'neutral',
+  paused: 'warn',
+  budget_exhausted: 'warn',
 };
 
 // Muted, on-ink styles: faint tinted text + hairline border on a translucent

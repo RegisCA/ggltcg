@@ -31,6 +31,8 @@ vi.mock('../../../api/simulationService', () => ({
   getRunResults: vi.fn(),
   getGameDetail: vi.fn(),
   cancelRun: vi.fn(),
+  resumeRun: vi.fn(),
+  pauseRun: vi.fn(),
 }));
 
 const renderWithQuery = (ui: React.ReactElement) => {
@@ -122,5 +124,62 @@ describe('SimulationTab', () => {
     expect(screen.getByText('New Simulation')).toBeInTheDocument();
     expect(await screen.findByText('Aggro')).toBeInTheDocument();
     expect(screen.getByText('Start Simulation')).toBeInTheDocument();
+  });
+
+  it('shows a Pause button for a running run in the past-runs list', async () => {
+    const { listSimulationRuns } = await import('../../../api/simulationService');
+    vi.mocked(listSimulationRuns).mockResolvedValueOnce([
+      {
+        run_id: 1,
+        status: 'running',
+        total_games: 20,
+        completed_games: 5,
+        config: { deck_names: ['Aggro'], player1_model: 'm1', player2_model: 'm2', iterations_per_matchup: 5, max_turns: 20 },
+        created_at: '2026-07-01T00:00:00Z',
+        completed_at: null,
+      },
+    ]);
+    renderWithQuery(<SimulationTab />);
+    expect(await screen.findByText('Pause')).toBeInTheDocument();
+    expect(screen.queryByText('Resume')).not.toBeInTheDocument();
+  });
+
+  it('shows budget info and a Resume button for a budget_exhausted run', async () => {
+    const { listSimulationRuns } = await import('../../../api/simulationService');
+    vi.mocked(listSimulationRuns).mockResolvedValueOnce([
+      {
+        run_id: 2,
+        status: 'budget_exhausted',
+        total_games: 20,
+        completed_games: 8,
+        config: { deck_names: ['Aggro'], player1_model: 'm1', player2_model: 'm2', iterations_per_matchup: 5, max_turns: 20 },
+        created_at: '2026-07-01T00:00:00Z',
+        completed_at: null,
+        budget: { used_today: 100, daily_budget: 100, rpm: null, resets_at: '2099-01-01T00:00:00Z' },
+      },
+    ]);
+    renderWithQuery(<SimulationTab />);
+    expect(await screen.findByText('Resume')).toBeInTheDocument();
+    expect(screen.getByText(/Budget used: 100\/100/)).toBeInTheDocument();
+    expect(screen.queryByText('Pause')).not.toBeInTheDocument();
+  });
+
+  it('shows no pause/resume buttons for a completed run', async () => {
+    const { listSimulationRuns } = await import('../../../api/simulationService');
+    vi.mocked(listSimulationRuns).mockResolvedValueOnce([
+      {
+        run_id: 3,
+        status: 'completed',
+        total_games: 20,
+        completed_games: 20,
+        config: { deck_names: ['Aggro'], player1_model: 'm1', player2_model: 'm2', iterations_per_matchup: 5, max_turns: 20 },
+        created_at: '2026-07-01T00:00:00Z',
+        completed_at: '2026-07-01T01:00:00Z',
+      },
+    ]);
+    renderWithQuery(<SimulationTab />);
+    expect(await screen.findByText(/Run #3/)).toBeInTheDocument();
+    expect(screen.queryByText('Pause')).not.toBeInTheDocument();
+    expect(screen.queryByText('Resume')).not.toBeInTheDocument();
   });
 });

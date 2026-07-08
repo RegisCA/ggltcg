@@ -118,6 +118,21 @@ export const SYMPTOM_PATTERNS: Record<string, string> = {
   v4_r2_invalid_index_flag: '"request2_invalid_index": true',
 };
 
+// Countdown to a future ISO timestamp, e.g. "resumes in ~2h 14m". Used for
+// budget_exhausted runs to show when the daily budget resets.
+export const formatCountdown = (dateString: string | null | undefined): string | null => {
+  if (!dateString) return null;
+  const target = new Date(dateString);
+  const now = new Date();
+  const diffMs = target.getTime() - now.getTime();
+  if (diffMs <= 0) return 'resumes soon';
+  const diffMins = Math.ceil(diffMs / 60000);
+  const hours = Math.floor(diffMins / 60);
+  const mins = diffMins % 60;
+  if (hours <= 0) return `resumes in ~${mins}m`;
+  return `resumes in ~${hours}h ${mins}m`;
+};
+
 export const formatMaybeNumber = (n: number | null | undefined, digits: number): string =>
   typeof n === 'number' && Number.isFinite(n) ? n.toFixed(digits) : '—';
 

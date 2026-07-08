@@ -178,6 +178,15 @@ export interface SimulationDeck {
   cards: string[];
 }
 
+// Rate-limiter / daily-budget info for a run (values may be null when no
+// budget/rpm cap is configured, or not yet known for a not-yet-started run).
+export interface SimulationRunBudget {
+  used_today: number | null;
+  daily_budget: number | null;
+  rpm: number | null;
+  resets_at: string | null;
+}
+
 export interface SimulationRun {
   run_id: number;
   status: string;
@@ -189,9 +198,13 @@ export interface SimulationRun {
     player2_model: string;
     iterations_per_matchup: number;
     max_turns: number;
+    rpm?: number | null;
+    daily_request_budget?: number | null;
+    parallel_games?: number;
   };
   created_at: string;
   completed_at: string | null;
+  budget?: SimulationRunBudget;
 }
 
 export interface MatchupStats {
