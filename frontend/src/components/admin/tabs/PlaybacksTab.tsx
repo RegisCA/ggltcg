@@ -21,6 +21,7 @@ import {
   buildLogTextForSymptoms,
   computeActiveTurnChargeAveragesFromPlayback,
 } from '../utils';
+import DataTable, { type DataTableColumn } from '../shared/DataTable';
 
 interface PlaybacksTabProps {
   playbacksData: AdminPlaybacksResponse | undefined;
@@ -343,34 +344,68 @@ const PlaybacksTab: React.FC<PlaybacksTabProps> = ({ playbacksData, onNavigateTo
           </div>
         </div>
       ) : (
-        playbacksData?.games.map((playback: GamePlayback) => (
-          <div key={playback.id} className="bg-panel rounded-lg border border-white/10" style={{ padding: 'var(--spacing-component-lg)' }}>
-            <h3 className="text-xl font-semibold">
-              {playback.player1_name} vs {playback.player2_name}
-            </h3>
-            <p className="text-sm text-[var(--ink-faint)] font-mono" style={{ marginTop: '4px' }}>
-              Game ID: {playback.game_id}
-            </p>
-            <p className="text-sm text-[var(--ink-faint)]">
-              {playback.turn_count} turns · {formatDuration(playback.created_at, playback.completed_at)}
-            </p>
-            {playback.winner_id && (
-              <p className="text-sm text-green-400" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-                Winner: {playback.winner_id === playback.player1_id ? playback.player1_name : playback.player2_name}
-              </p>
-            )}
-            <p className="text-sm text-[var(--ink-faint)]" style={{ marginTop: 'var(--spacing-component-xs)' }}>
-              Completed: {playback.completed_at ? formatDate(playback.completed_at) : 'In progress'}
-            </p>
-            <button
-              onClick={() => loadPlaybackDetails(playback.game_id)}
-              className="inline-block bg-blue-600 hover:bg-blue-700 rounded text-sm"
-              style={{ marginTop: 'var(--spacing-component-sm)', padding: '4px var(--spacing-component-sm)' }}
-            >
-              View Playback Details
-            </button>
-          </div>
-        ))
+        (() => {
+          const columns: DataTableColumn<GamePlayback>[] = [
+            {
+              key: 'players',
+              header: 'Players',
+              render: (playback) => (
+                <div>
+                  <span className="font-semibold">{playback.player1_name} vs {playback.player2_name}</span>
+                  {playback.winner_id && (
+                    <div className="text-xs text-green-400">
+                      Winner: {playback.winner_id === playback.player1_id ? playback.player1_name : playback.player2_name}
+                    </div>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: 'game_id',
+              header: 'Game ID',
+              render: (playback) => <span className="text-xs font-mono text-[var(--ink-faint)]">{playback.game_id}</span>,
+            },
+            {
+              key: 'duration',
+              header: 'Turns / Duration',
+              render: (playback) => (
+                <span className="text-[var(--ink-faint)] text-xs">
+                  {playback.turn_count} turns · {formatDuration(playback.created_at, playback.completed_at)}
+                </span>
+              ),
+            },
+            {
+              key: 'completed',
+              header: 'Completed',
+              render: (playback) => (
+                <span className="text-[var(--ink-faint)] text-xs">
+                  {playback.completed_at ? formatDate(playback.completed_at) : 'In progress'}
+                </span>
+              ),
+            },
+            {
+              key: 'actions',
+              header: '',
+              render: (playback) => (
+                <button
+                  onClick={() => loadPlaybackDetails(playback.game_id)}
+                  className="inline-block bg-blue-600 hover:bg-blue-700 rounded text-xs"
+                  style={{ padding: '4px var(--spacing-component-sm)' }}
+                >
+                  View Playback Details
+                </button>
+              ),
+            },
+          ];
+          return (
+            <DataTable
+              columns={columns}
+              rows={playbacksData?.games || []}
+              rowKey={(playback) => playback.id}
+              emptyMessage="No playbacks to display."
+            />
+          );
+        })()
       )}
     </div>
   );
