@@ -6,7 +6,7 @@ Defines the database schema using SQLAlchemy declarative models.
 
 from datetime import datetime
 from sqlalchemy import (
-    Column, String, Integer, DateTime, Text, CheckConstraint, Index, ForeignKey, JSON
+    Column, String, Integer, DateTime, Date, Text, CheckConstraint, Index, ForeignKey, JSON
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
@@ -558,3 +558,24 @@ class SimulationGameModel(Base):
     
     def __repr__(self):
         return f"<SimulationGame(id={self.id}, run_id={self.run_id}, {self.deck1_name} vs {self.deck2_name})>"
+
+
+class ApiUsageModel(Base):
+    """
+    Database model for tracking daily external API usage.
+
+    Persists a per-provider, per-day request count so a process restart
+    doesn't lose the running total needed to enforce a daily budget
+    (e.g. the Gemini API). Row is upserted as requests are made.
+    """
+    __tablename__ = "api_usage_daily"
+
+    # Composite primary key - one row per provider per calendar day
+    provider = Column(String(50), primary_key=True)
+    day = Column(Date, primary_key=True)
+
+    # Number of requests made to this provider on this day
+    request_count = Column(Integer, nullable=False, default=0)
+
+    def __repr__(self):
+        return f"<ApiUsage(provider={self.provider}, day={self.day}, count={self.request_count})>"
