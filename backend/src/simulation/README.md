@@ -42,7 +42,14 @@ Options:
   -p, --parallel INTEGER     Parallel workers (default: 10)
   -m, --model TEXT          AI model (default: gemini-2.5-flash-lite)
   -d, --decks TEXT          Deck preset: baseline, top2, all (default: baseline)
+  --rpm INTEGER             Requests-per-minute cap for the AI rate limiter
+  --daily-budget INTEGER    Daily API request budget (pauses the run once reached)
+  --wait / --no-wait        Wait through budget pauses and auto-resume (default: --wait)
 ```
+
+`baseline`, `compare`, `test-deck`, and `quick` all accept `--rpm` / `--daily-budget` /
+`--wait`/`--no-wait` -- see
+[Multi-Day Throttled Batch Runs](#multi-day-throttled-batch-runs) below.
 
 **Example:**
 ```bash
@@ -109,6 +116,40 @@ Options:
 python -m simulation.cli quick Aggro_Rush Control_Ka --iterations 3
 ```
 
+### `resume`
+Resume a paused, budget-exhausted, or failed simulation run. Skips games already
+persisted (see `list-runs`/`status` for the run ID).
+
+```bash
+python -m simulation.cli resume RUN_ID [OPTIONS]
+
+Arguments:
+  RUN_ID                    ID of the simulation run to resume
+
+Options:
+  -p, --parallel INTEGER    Parallel workers override (default: config value)
+  --rpm INTEGER             Requests-per-minute cap (overrides the run's stored config)
+  --daily-budget INTEGER    Daily API request budget (overrides the run's stored config)
+  --wait / --no-wait        Wait through budget pauses and auto-resume (default: --wait)
+```
+
+**Example:**
+```bash
+python -m simulation.cli resume 42 --rpm 30 --daily-budget 2000
+```
+
+### `status`
+Show progress, status, and rate-limiter budget info for a run.
+
+```bash
+python -m simulation.cli status RUN_ID
+```
+
+**Example:**
+```bash
+python -m simulation.cli status 42
+```
+
 ### `list-runs`
 Show recent simulation runs with status and configuration.
 
@@ -125,6 +166,65 @@ Display all available simulation decks from `simulation_decks.csv`.
 ```bash
 python -m simulation.cli list-decks
 ```
+
+## Multi-Day Throttled Batch Runs
+
+Large simulation batches (hundreds of games) can exceed the Gemini API's daily quota
+in one sitting. `--rpm` and `--daily-budget` let a run throttle itself and pause
+cleanly (status `budget_exhausted`) instead of hammering the API or crashing, and
+`--wait`/`--no-wait` control whether the CLI process waits out the pause itself or
+hands off to something else (cron, launchd, you running the command again tomorrow).
+
+### Recommended: one long-lived process (`--wait`, the default)
+
+Run the CLI under `caffeinate` (macOS) so the Mac doesn't sleep mid-run, and let it
+sit through budget pauses on its own:
+
+```bash
+caffeinate -is python -m simulation.cli baseline \
+  --iterations 200 --rpm 30 --daily-budget 2000 --decks all
+```
+
+When the daily budget is hit, the CLI prints the used/limit numbers and the
+`resets_at` time, sleeps until then (plus a 2-minute slack), and calls
+`resume_simulation` automatically -- repeating until the run finishes, fails, or is
+cancelled. No supervision needed beyond keeping the terminal/process alive.
+
+### Alternative: cron / launchd with `--no-wait`
+
+If you'd rather not keep a process alive for days, use `--no-wait` and let a
+scheduler retry periodically. The CLI exits with code `75` (`EX_TEMPFAIL`) when a
+run pauses on budget exhaustion, so a wrapper script can distinguish "not done yet"
+from a real failure (exit `1`):
+
+```bash
+#!/bin/bash
+# run_batch.sh -- intended for cron/launchd, run once a day
+set -e
+
+RUN_ID_FILE="/tmp/ggltcg_sim_run_id"
+
+if [ -f "$RUN_ID_FILE" ]; then
+    RUN_ID=$(cat "$RUN_ID_FILE")
+    python -m simulation.cli resume "$RUN_ID" --rpm 30 --daily-budget 2000 --no-wait
+    STATUS=$?
+else
+    OUTPUT=$(python -m simulation.cli baseline --iterations 200 --rpm 30 --daily-budget 2000 --no-wait)
+    STATUS=$?
+    echo "$OUTPUT" | grep -oE 'resume [0-9]+' | awk '{print $2}' > "$RUN_ID_FILE"
+fi
+
+if [ "$STATUS" -eq 0 ]; then
+    rm -f "$RUN_ID_FILE"   # done -- clean up so the next scheduled run starts fresh
+elif [ "$STATUS" -eq 75 ]; then
+    exit 0                 # not done yet, try again at the next scheduled interval
+else
+    exit "$STATUS"          # real failure
+fi
+```
+
+A cron entry like `0 6 * * * /path/to/run_batch.sh` (once a day, after the daily
+budget resets) or an equivalent launchd `StartCalendarInterval` job works well.
 
 ## Understanding Results
 
