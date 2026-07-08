@@ -21,8 +21,9 @@ import GamesTab from './tabs/GamesTab';
 import PlaybacksTab from './tabs/PlaybacksTab';
 import UsersTab from './tabs/UsersTab';
 import SimulationTab from './tabs/SimulationTab';
+import MaintenanceTab from './tabs/MaintenanceTab';
 
-type AdminTab = 'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users' | 'simulation';
+type AdminTab = 'summary' | 'ai-logs' | 'games' | 'playbacks' | 'users' | 'simulation' | 'maintenance';
 
 const AdminApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('summary');
@@ -108,6 +109,9 @@ const AdminApp: React.FC = () => {
           <button className={tabButtonClass('simulation')} onClick={() => setActiveTab('simulation')}>
             Simulation
           </button>
+          <button className={tabButtonClass('maintenance')} onClick={() => setActiveTab('maintenance')}>
+            Maintenance
+          </button>
         </div>
 
         {/* Content */}
@@ -125,6 +129,7 @@ const AdminApp: React.FC = () => {
         )}
         {activeTab === 'users' && <UsersTab usersData={usersData} />}
         {activeTab === 'simulation' && <SimulationTab />}
+        {activeTab === 'maintenance' && <MaintenanceTab />}
       </div>
     </div>
   );
