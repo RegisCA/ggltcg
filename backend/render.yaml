@@ -21,3 +21,5 @@ services:
         value: gemini-flash-lite-latest
       - key: GEMINI_FALLBACK_MODEL
         value: gemini-2.5-flash-lite
+      - key: ADMIN_EMAILS
+        sync: false

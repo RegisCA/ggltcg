@@ -6,7 +6,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import AdminApp from './components/admin/AdminApp';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import AdminAuthGate from './components/admin/AdminAuthGate';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -18,10 +19,14 @@ const queryClient = new QueryClient({
   },
 });
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AdminApp />
-    </QueryClientProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <QueryClientProvider client={queryClient}>
+        <AdminAuthGate />
+      </QueryClientProvider>
+    </GoogleOAuthProvider>
   </React.StrictMode>
 );

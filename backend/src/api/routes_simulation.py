@@ -18,6 +18,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from .admin_auth import get_current_admin_user
 from .database import SessionLocal
 from simulation.config import SimulationConfig, SUPPORTED_MODELS, is_valid_model_name, default_simulation_model
 from simulation.orchestrator import SimulationOrchestrator
@@ -30,7 +31,11 @@ logger = logging.getLogger(__name__)
 _active_simulations: dict[int, threading.Thread] = {}
 _simulations_lock = threading.Lock()  # Protect concurrent access to _active_simulations
 
-router = APIRouter(prefix="/admin/simulation", tags=["simulation"])
+router = APIRouter(
+    prefix="/admin/simulation",
+    tags=["simulation"],
+    dependencies=[Depends(get_current_admin_user)],
+)
 
 
 def get_db():

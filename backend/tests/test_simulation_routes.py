@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from api.app import app  # noqa: E402
 from api import routes_simulation  # noqa: E402
+from api.admin_auth import get_current_admin_user  # noqa: E402
 
 
 client = TestClient(app)
@@ -50,6 +51,16 @@ def _override_get_db():
     app.dependency_overrides[routes_simulation.get_db] = _fake_get_db
     yield
     app.dependency_overrides.pop(routes_simulation.get_db, None)
+
+
+@pytest.fixture(autouse=True)
+def _override_admin_auth():
+    """These tests exercise route logic, not the admin-access gate (covered
+    separately in test_admin_auth.py) -- bypass it so requests reach the
+    handlers unauthenticated, as they did before the gate was added."""
+    app.dependency_overrides[get_current_admin_user] = lambda: "test-admin-google-id"
+    yield
+    app.dependency_overrides.pop(get_current_admin_user, None)
 
 
 def _budget_status(**overrides):
