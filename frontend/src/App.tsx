@@ -19,6 +19,12 @@ import { VictoryScreen } from './components/VictoryScreen';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { useCreateGame } from './hooks/useGame';
+import {
+  captureLobbyCreated,
+  captureLobbyJoined,
+  captureGameStarted,
+  captureGameCompleted,
+} from './analytics/posthog';
 import type { GameState } from './types/game';
 
 const queryClient = new QueryClient({
@@ -104,6 +110,7 @@ function GameApp() {
       setPlayer1Name(user.display_name || 'Player');
       setPlayer2Name('Gemiknight');
       setPlayerIds({ human: user.google_id, other: 'ai-gemiknight' });
+      captureGameStarted({ game_id: response.game_id, opponent_type: 'ai', quick_play: true });
       setGamePhase('playing');
     } catch (error) {
       console.error('Failed to start Quick Play:', error);
@@ -133,6 +140,7 @@ function GameApp() {
     if (user?.google_id) {
       setPlayerIds({ human: user.google_id, other: '' });
     }
+    captureLobbyCreated();
     setGamePhase('lobby-waiting');
   };
 
@@ -145,11 +153,13 @@ function GameApp() {
     if (user?.google_id) {
       setPlayerIds({ human: user.google_id, other: opponentId });
     }
+    captureLobbyJoined();
     setGamePhase('lobby-waiting');
   };
 
   const handleMultiplayerGameStarted = (startedGameId: string) => {
     setGameId(startedGameId);
+    captureGameStarted({ game_id: startedGameId, opponent_type: 'human' });
     setGamePhase('playing');
   };
 
@@ -187,6 +197,11 @@ function GameApp() {
       {
         onSuccess: (response) => {
           setGameId(response.game_id);
+          captureGameStarted({
+            game_id: response.game_id,
+            opponent_type: 'ai',
+            hidden_cards: hiddenCardsMode,
+          });
           setGamePhase('playing');
         },
         onError: (error) => {
@@ -199,6 +214,12 @@ function GameApp() {
   };
 
   const handleGameEnd = (_winnerName: string, finalGameState: GameState) => {
+    captureGameCompleted({
+      game_id: finalGameState.game_id,
+      opponent_type: gameMode === 'single-player' ? 'ai' : 'human',
+      turn_number: finalGameState.turn_number,
+      is_winner: finalGameState.winner !== null && finalGameState.winner === playerIds?.human,
+    });
     setGameState(finalGameState);
     setGamePhase('game-over');
   };

@@ -5,8 +5,12 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AuthProvider } from './contexts/AuthContext.tsx'
+import { initAnalytics } from './analytics/posthog.ts'
 import './index.css'
 import App from './App.tsx'
+
+// Initialize PostHog product analytics (no-op without VITE_POSTHOG_KEY)
+initAnalytics();
 
 // Initialize Sentry for error tracking (production only)
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
