@@ -471,11 +471,14 @@ class GameService:
                 SessionLocal = get_session_local()
                 db = SessionLocal()
                 try:
-                    game_model = db.query(GameModel).filter(GameModel.id == game_id).first()
+                    game_model = db.query(GameModel).filter(GameModel.id == uuid.UUID(game_id)).first()
                     if game_model:
                         game_started_at = game_model.created_at
                         # Calculate duration
                         from datetime import datetime, timezone
+                        # SQLite returns naive datetimes even for timezone=True columns
+                        if game_started_at and game_started_at.tzinfo is None:
+                            game_started_at = game_started_at.replace(tzinfo=timezone.utc)
                         now = datetime.now(timezone.utc)
                         if game_started_at:
                             game_duration_seconds = int((now - game_started_at).total_seconds())
