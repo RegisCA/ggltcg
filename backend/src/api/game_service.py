@@ -27,6 +27,7 @@ from api.serialization import (
     extract_metadata,
 )
 from api.stats_service import get_stats_service
+from api.analytics import capture_game_analyzed, is_ai_player
 
 
 class GameService:
@@ -559,12 +560,76 @@ class GameService:
                 f"Saved stats for game {game_id}: "
                 f"Winner {stats_data['winner_id']} in {stats_data['total_turns']} turns"
             )
+
+            # First (and only) stats save for this game — the existing_stats
+            # check above makes this the idempotent spot for the PostHog push
+            self._push_game_analyzed(
+                game_id,
+                engine,
+                stats_data,
+                {player1_id: starting_deck_p1, player2_id: starting_deck_p2},
+            )
         except Exception as e:
             db.rollback()
             logger.error(f"Failed to save stats for game {game_id}: {e}")
             # Don't raise - stats are optional, game should still save
         finally:
             db.close()
+
+    def _push_game_analyzed(
+        self,
+        game_id: str,
+        engine: GameEngine,
+        stats_data: dict,
+        starting_decks: dict[str, list[str]],
+    ) -> None:
+        """
+        Push a game_analyzed enrichment event to PostHog for each human player.
+
+        Runs once per game (guarded by the stats idempotency check in
+        _save_game_stats). Never raises — analytics failures are logged only.
+        """
+        try:
+            game_state = engine.game_state
+            winner_id = game_state.winner_id
+            player_ids = list(game_state.players.keys())
+            stats_service = get_stats_service()
+
+            for pid in player_ids:
+                if is_ai_player(pid):
+                    continue
+
+                opponent_id = next(o for o in player_ids if o != pid)
+                is_winner = pid == winner_id
+                side = "winner" if is_winner else "loser"
+
+                properties = {
+                    "game_id": game_id,
+                    "opponent_type": "ai" if is_ai_player(opponent_id) else "human",
+                    "total_turns": stats_data["total_turns"],
+                    "duration_seconds": stats_data.get("duration_seconds", 0),
+                    "is_winner": is_winner,
+                    "went_first": pid == game_state.first_player_id,
+                    "cards_played": stats_data[f"{side}_cards_played"],
+                    "tussles_initiated": stats_data[f"{side}_tussles_initiated"],
+                    "direct_attacks": stats_data[f"{side}_direct_attacks"],
+                    "deck": starting_decks.get(pid, []),
+                }
+
+                # Rollups from PlayerStatsModel (updated just above) → person
+                # profile, for cohorting (e.g. "players with win_rate > 0.5")
+                person_properties = None
+                player_stats = stats_service.get_player_stats(pid)
+                if player_stats:
+                    person_properties = {
+                        "games_played": player_stats["games_played"],
+                        "games_won": player_stats["games_won"],
+                        "win_rate": player_stats["win_rate"],
+                    }
+
+                capture_game_analyzed(pid, properties, person_properties)
+        except Exception as e:
+            logger.error(f"Failed to push game_analyzed for game {game_id}: {e}")
     
     # ===== LOBBY SYSTEM METHODS =====
     

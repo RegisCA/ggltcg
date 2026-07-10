@@ -29,6 +29,9 @@ PyJWT==2.13.0
 better-profanity==0.7.0
 sentry-sdk[fastapi]==2.20.0  # Error tracking and monitoring
 
+# Analytics
+posthog==7.22.0  # Server-side game_analyzed enrichment push
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0
