@@ -6,7 +6,8 @@ game_analyzed events.
 Joins games (real player IDs, winner, timestamps) with game_stats (turns,
 duration, action counts) — the two tables that survive the cleanup task —
 and emits one game_analyzed event per human player, timestamped at game
-completion. The event vocabulary matches the live push in
+completion. Players with legacy placeholder IDs (pre-auth 'human'/'ai'/
+'player1'/'player2'/test IDs) are skipped — see is_backfillable_human. The event vocabulary matches the live push in
 api/analytics.py + GameService._push_game_analyzed, with two differences:
 `went_first` and `deck` are omitted (only stored in game_playback, which
 has 24-hour retention) and `backfilled: true` is added so backfilled
@@ -36,6 +37,7 @@ load_dotenv()
 
 import argparse
 import os
+import re
 
 from api.database import SessionLocal
 from api.db_models import GameModel, GameStatsModel, PlayerStatsModel
@@ -44,6 +46,18 @@ from api.analytics import is_ai_player
 # Namespace for deterministic event UUIDs (random once, fixed forever —
 # changing it would break idempotency with previously backfilled events)
 BACKFILL_UUID_NAMESPACE = uuid.UUID("6f9619ff-8b86-4d01-b42d-00cf4fc964ff")
+
+# Pre-auth games (Nov 2025) used placeholder IDs: 'human', 'ai', 'player1',
+# 'player2', 'test-user-screenshots', 'human-<uuid>'. Those aren't stable
+# identities, so they'd create junk persons — only real ones get events:
+# Google IDs (15+ digits) and 'guest-<uuid>' (current guest format).
+def is_backfillable_human(player_id: str) -> bool:
+    return bool(re.fullmatch(r"\d{15,}", player_id)) or player_id.startswith("guest-")
+
+
+def opponent_is_ai(opponent_id: str) -> bool:
+    # Legacy games used bare 'ai' before the 'ai-' prefix convention
+    return opponent_id == "ai" or is_ai_player(opponent_id)
 
 
 def build_events(db) -> list[dict]:
@@ -64,7 +78,7 @@ def build_events(db) -> list[dict]:
             game.player2_id: game.player2_name,
         }
         for pid in players:
-            if is_ai_player(pid):
+            if not is_backfillable_human(pid):
                 continue
             opponent_id = next(o for o in players if o != pid)
             is_winner = pid == game.winner_id
@@ -76,7 +90,7 @@ def build_events(db) -> list[dict]:
                 "timestamp": game.updated_at,
                 "properties": {
                     "game_id": str(game.id),
-                    "opponent_type": "ai" if is_ai_player(opponent_id) else "human",
+                    "opponent_type": "ai" if opponent_is_ai(opponent_id) else "human",
                     "total_turns": stats.total_turns,
                     "duration_seconds": stats.duration_seconds or 0,
                     "is_winner": is_winner,
