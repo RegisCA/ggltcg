@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../types/auth';
+import { identifyUser, resetAnalytics } from '../analytics/posthog';
 
 interface AuthContextType {
   user: User | null;
@@ -62,6 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    resetAnalytics();
   }, []);
 
   const updateUser = useCallback((updatedUser: User) => {
@@ -111,6 +113,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     loadAuthState();
   }, []);
+
+  // Tie analytics to the user for both fresh logins and restored sessions
+  useEffect(() => {
+    if (user) {
+      identifyUser(user);
+    }
+  }, [user]);
 
   // Validate token periodically (every 5 minutes)
   useEffect(() => {
