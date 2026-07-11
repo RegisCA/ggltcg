@@ -3,8 +3,8 @@ Maintenance routes for database cleanup tasks.
 
 These endpoints are called by GitHub Actions on a schedule to:
 1. Mark abandoned games (active > 24 hours)
-2. Delete old AI decision logs (> 6 hours)
-3. Delete old game playback data (> 24 hours)
+2. Delete old AI decision logs (> 7 days)
+3. Delete old game playback data (> 7 days)
 """
 
 import logging
@@ -43,9 +43,9 @@ class CleanupStats(BaseModel):
     active_games_total: int
     active_games_stale: int  # Active but not updated in 24h
     ai_logs_total: int
-    ai_logs_stale: int  # Older than 6 hours
+    ai_logs_stale: int  # Older than 7 days
     playback_total: int
-    playback_stale: int  # Older than 24 hours
+    playback_stale: int  # Older than 7 days
     simulations_total: int = 0
     simulations_stale: int = 0  # Older than 7 days
 
@@ -67,37 +67,36 @@ async def get_cleanup_stats(x_api_key: Optional[str] = Header(None)):
     Useful for monitoring how much data would be cleaned up.
     """
     verify_api_key(x_api_key)
-    
+
     now = datetime.now(timezone.utc)
-    six_hours_ago = now - timedelta(hours=6)
     twenty_four_hours_ago = now - timedelta(hours=24)
-    
+    seven_days_ago = now - timedelta(days=7)
+
     db = SessionLocal()
     try:
         # Active games stats
         active_games_total = db.query(GameModel).filter(
             GameModel.status == "active"
         ).count()
-        
+
         active_games_stale = db.query(GameModel).filter(
             GameModel.status == "active",
             GameModel.updated_at < twenty_four_hours_ago
         ).count()
-        
-        # AI decision logs stats
+
+        # AI decision logs stats (7 day retention)
         ai_logs_total = db.query(AIDecisionLogModel).count()
         ai_logs_stale = db.query(AIDecisionLogModel).filter(
-            AIDecisionLogModel.created_at < six_hours_ago
+            AIDecisionLogModel.created_at < seven_days_ago
         ).count()
-        
-        # Game playback stats
+
+        # Game playback stats (7 day retention)
         playback_total = db.query(GamePlaybackModel).count()
         playback_stale = db.query(GamePlaybackModel).filter(
-            GamePlaybackModel.created_at < twenty_four_hours_ago
+            GamePlaybackModel.created_at < seven_days_ago
         ).count()
-        
+
         # Simulation stats (7 day retention)
-        seven_days_ago = now - timedelta(days=7)
         simulations_total = db.query(SimulationRunModel).count()
         simulations_stale = db.query(SimulationRunModel).filter(
             SimulationRunModel.created_at < seven_days_ago
@@ -127,15 +126,14 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
     
     Tasks:
     1. Mark games as 'abandoned' if active for > 24 hours
-    2. Delete AI decision logs older than 6 hours
-    3. Delete game playback data older than 24 hours
+    2. Delete AI decision logs older than 7 days
+    3. Delete game playback data older than 7 days
     4. Delete simulation runs older than 7 days
     """
     verify_api_key(x_api_key)
-    
+
     start_time = datetime.now(timezone.utc)
     now = start_time
-    six_hours_ago = now - timedelta(hours=6)
     twenty_four_hours_ago = now - timedelta(hours=24)
     seven_days_ago = now - timedelta(days=7)
     
@@ -162,21 +160,21 @@ async def run_cleanup(x_api_key: Optional[str] = Header(None)):
         # 2. Delete old AI decision logs
         result = db.execute(
             text("""
-                DELETE FROM ai_decision_logs 
+                DELETE FROM ai_decision_logs
                 WHERE created_at < :cutoff
             """),
-            {"cutoff": six_hours_ago}
+            {"cutoff": seven_days_ago}
         )
         ai_logs_deleted = result.rowcount
         logger.info(f"Deleted {ai_logs_deleted} AI decision logs")
-        
+
         # 3. Delete old game playback data
         result = db.execute(
             text("""
-                DELETE FROM game_playback 
+                DELETE FROM game_playback
                 WHERE created_at < :cutoff
             """),
-            {"cutoff": twenty_four_hours_ago}
+            {"cutoff": seven_days_ago}
         )
         playback_deleted = result.rowcount
         logger.info(f"Deleted {playback_deleted} game playback records")
