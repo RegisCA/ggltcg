@@ -243,7 +243,7 @@ class AIDecisionLogModel(Base):
     Database model for AI decision logs.
 
     Stores Gemini prompts and responses for debugging AI behavior.
-    Retention: 6 hours (cleaned up by scheduled task).
+    Retention: 7 days (cleaned up by scheduled task).
 
     Turn planning fields:
     - turn_plan: Full TurnPlan JSON (stored with each action log entry); the
@@ -302,7 +302,7 @@ class GamePlaybackModel(Base):
     Database model for game playback data.
     
     Stores completed game summaries with starting decks and play-by-play.
-    Retention: 24 hours (cleaned up by scheduled task).
+    Retention: 7 days (cleaned up by scheduled task).
     """
     __tablename__ = "game_playback"
     
