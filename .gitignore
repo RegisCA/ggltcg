@@ -48,6 +48,9 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Snyk digest reports (local working output)
+scripts/snyk/reports/
 .env.*.local
 
 # Simulation reports (generated output)
