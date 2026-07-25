@@ -24,9 +24,9 @@ pytest tests/test_ai_enum_scenario.py -v -s
 (the strategic-selection call hits Gemini). Without it, tests are skipped
 (not failed).
 
-> `scripts/run_standard_scenario.py` predates the enum architecture and is
-> currently broken (it constructs `TurnPlanner` with the removed `ai_version`
-> param). Use the pytest suite above for manual verification instead.
+> The old `scripts/run_standard_scenario.py` manual-verification script predated
+> the enum architecture and had been broken since `ai_version` was removed from
+> `TurnPlanner`. It's deleted — this pytest suite replaces it.
 
 ## Understanding Test Results
 
