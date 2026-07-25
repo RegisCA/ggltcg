@@ -34,8 +34,8 @@ sentry-sdk[fastapi]==2.20.0  # Error tracking and monitoring
 posthog==7.22.0  # Server-side game_analyzed enrichment push
 
 # Testing
-pytest==8.3.4
-pytest-asyncio==0.24.0
+pytest==9.0.3  # Security: fix GHSA-6w46-j5rx-g56g (tmpdir handling)
+pytest-asyncio==1.4.0  # required for pytest 9 support (0.24.0 pins pytest<9)
 httpx==0.28.1
 
 # Security: minimum safe versions for transitive runtime dependencies
