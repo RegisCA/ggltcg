@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SummaryTab from '../tabs/SummaryTab';
 import AiLogsTab from '../tabs/AiLogsTab';
@@ -115,6 +116,33 @@ describe('UsersTab', () => {
     render(<UsersTab usersData={{ count: 1, users: [user] }} />);
     expect(screen.getByText('RegisCA')).toBeInTheDocument();
     expect(screen.getByText('60.0%')).toBeInTheDocument();
+  });
+
+  it('sorts on a column header click, keeping never-played users last', async () => {
+    const base = {
+      created_at: '2026-06-01T10:00:00Z', updated_at: '2026-06-01T10:00:00Z',
+      last_game_at: null, last_game_status: null, favorite_decks: [],
+    };
+    const users: User[] = [
+      { ...base, google_id: 'u1', first_name: 'Bea', display_name: 'Bea',
+        games_played: 4, games_won: 1, win_rate: 25, avg_turns: 9, avg_game_duration_seconds: 200 },
+      { ...base, google_id: 'u2', first_name: 'Ada', display_name: 'Ada',
+        games_played: 0, games_won: 0, win_rate: 0, avg_turns: 0, avg_game_duration_seconds: 0 },
+      { ...base, google_id: 'u3', first_name: 'Cy', display_name: 'Cy',
+        games_played: 10, games_won: 8, win_rate: 80, avg_turns: 7, avg_game_duration_seconds: 300 },
+    ];
+    render(<UsersTab usersData={{ count: 3, users }} />);
+    const names = () =>
+      screen.getAllByRole('row').slice(1).map((row) => row.querySelectorAll('td')[0].textContent);
+
+    expect(names()).toEqual(['Bea', 'Ada', 'Cy']);
+
+    await userEvent.click(screen.getByRole('button', { name: /Win Rate/ }));
+    // Descending first for a numeric column; the 0-games user has no rate, so last.
+    expect(names()).toEqual(['Cy', 'Bea', 'Ada']);
+
+    await userEvent.click(screen.getByRole('button', { name: /Display Name/ }));
+    expect(names()).toEqual(['Ada', 'Bea', 'Cy']);
   });
 });
 

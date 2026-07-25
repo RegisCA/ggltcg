@@ -1,7 +1,9 @@
 deck_name,description,card1,card2,card3,card4,card5,card6
-Aggro_Rush,Fast aggressive deck with charge generation,Dream,Knight,Raggy,Umbruh,Rush,Surge
-Control_Ka,Board control with Ka strength boost,Ka,Wizard,Beary,Copy,Clean,Wake
-Tempo_Charge,Charge generation tempo deck,Belchaletta,Drum,Hind Leg Kicker,Violin,Jumpscare,Surge
-Disruption,Opponent disruption focus,Gibbers,Sock Sorcerer,Monster,Twist,Drop,Toynado
-User_Slot1,Beary Ka Knight control with Twist,Beary,Ka,Knight,Raggy,Twist,Wake
-User_Slot3,Archer Knight tempo with Paper Plane,Archer,Knight,Paper Plane,Umbruh,Surge,Wake
+D1,Based on high percentage cards for K,Belchaletta,Drum,Drop,Hind Leg Kicker,Sock Sorcerer,Violin
+D2,Based on high percentage cards for S,Belchaletta,Clone,Demideca,Sock Sorcerer,That was fun,Toynado
+D3,Based on S winning cards,Beary,Dream,Knight,Raggy,Rush,Umbruh
+D4,Based on R winning cards,Archer,Knight,Rush,Twist,Umbruh,Wake
+D5,Based on KB winning cards,Beary,Copy,Hind Leg Kicker,Surge,That was fun,Wake
+D6,K slot1,Copy,Dream,Raggy,Twist,Umbruh,Wake
+D7,S slot1,Car,Dino,Drum,Glue,Stomp,Violin
+D8,KB slot1,Ballaber,Knight,Rush,Sun,Umbruh,Wake
