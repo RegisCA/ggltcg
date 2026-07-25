@@ -7,7 +7,7 @@
  * Uses Framer Motion LayoutGroup for smooth card zone transitions.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { LayoutGroup } from 'framer-motion';
 import type { ValidAction, GameState, Card } from '../types/game';
 import { useGameState, useValidActions } from '../hooks/useGame';
@@ -115,12 +115,9 @@ export function GameBoard({ gameId, humanPlayerId, aiPlayerId, onGameEnd }: Game
   const isHumanTurn = gameState?.active_player_id === humanPlayerId;
 
   // Clear pendingAction (modal) when turn ends or active player changes
-  useEffect(() => {
-    if (!gameState) return;
-    if (gameState.active_player_id !== humanPlayerId && pendingAction) {
-      setPendingAction(null);
-    }
-  }, [gameState, humanPlayerId, pendingAction]);
+  if (gameState && gameState.active_player_id !== humanPlayerId && pendingAction) {
+    setPendingAction(null);
+  }
 
   // Handle action - check if needs target selection modal
   const handleAction = useCallback((action: ValidAction) => {

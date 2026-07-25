@@ -11,9 +11,8 @@
  * Respects reduced-motion (WCAG 2.1).
  */
 
-import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usePreviousValue } from '../hooks/usePreviousValue';
+import { useChangeFlash } from '../hooks/useChangeFlash';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface AnimatedStatProps {
@@ -66,29 +65,15 @@ export function AnimatedStat({
   damagedColor,
 }: AnimatedStatProps) {
   const prefersReducedMotion = useReducedMotion();
-  const previousValue = usePreviousValue(value);
-  const previousCurrent = usePreviousValue(currentValue);
+  const valueFlash = useChangeFlash(value);
+  const currentFlash = useChangeFlash(currentValue);
   const box = BOX[size];
 
-  const [flashType, setFlashType] = useState<'increase' | 'decrease' | null>(null);
-
-  const valueIncreased = previousValue !== undefined && value !== null && previousValue !== null && value > previousValue;
-  const valueDecreased = previousValue !== undefined && value !== null && previousValue !== null && value < previousValue;
-  const currentDecreased = previousCurrent !== undefined && currentValue !== undefined && currentValue !== null && previousCurrent !== null && currentValue < previousCurrent;
-  const currentIncreased = previousCurrent !== undefined && currentValue !== undefined && currentValue !== null && previousCurrent !== null && currentValue > previousCurrent;
-
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-    if (valueIncreased || currentIncreased) {
-      setFlashType('increase');
-      const timer = setTimeout(() => setFlashType(null), 500);
-      return () => clearTimeout(timer);
-    } else if (valueDecreased || currentDecreased) {
-      setFlashType('decrease');
-      const timer = setTimeout(() => setFlashType(null), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [valueIncreased, currentIncreased, valueDecreased, currentDecreased, prefersReducedMotion]);
+  let flashType: 'increase' | 'decrease' | null = null;
+  if (!prefersReducedMotion) {
+    if (valueFlash === 'increase' || currentFlash === 'increase') flashType = 'increase';
+    else if (valueFlash === 'decrease' || currentFlash === 'decrease') flashType = 'decrease';
+  }
 
   const animationKey = `${value}-${currentValue}`;
 
@@ -100,8 +85,8 @@ export function AnimatedStat({
   const displayColor = isDamaged ? damagedColor : isBuffed ? buffedColor : valueColor;
 
   let animateState: 'initial' | 'increased' | 'decreased' = 'initial';
-  if (valueIncreased || currentIncreased) animateState = 'increased';
-  else if (valueDecreased || currentDecreased) animateState = 'decreased';
+  if (flashType === 'increase') animateState = 'increased';
+  else if (flashType === 'decrease') animateState = 'decreased';
 
   const variants = prefersReducedMotion ? reducedMotionVariants : statVariants;
 

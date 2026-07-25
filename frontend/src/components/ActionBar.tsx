@@ -35,7 +35,6 @@ export function ActionBar({
   opponentName,
 }: ActionBarProps) {
   const [shouldBlink, setShouldBlink] = useState(false);
-  const [lastActionTime, setLastActionTime] = useState(Date.now());
 
   const endTurnAction = validActions.find(a => a.action_type === 'end_turn');
   const canEndTurn = !!endTurnAction && !isProcessing;
@@ -57,11 +56,13 @@ export function ActionBar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleEndTurn]);
 
-  // Reset the inactivity timer whenever the valid-action list changes.
-  useEffect(() => {
-    setLastActionTime(Date.now());
+  // Stop any in-flight blink as soon as the valid-action list changes; the
+  // timer effect below restarts the reminder schedule off the same change.
+  const [lastActions, setLastActions] = useState(validActions);
+  if (lastActions !== validActions) {
+    setLastActions(validActions);
     setShouldBlink(false);
-  }, [validActions]);
+  }
 
   // Inactivity reminders on the End Turn button.
   useEffect(() => {
@@ -85,7 +86,7 @@ export function ActionBar({
       timers.push(timer);
     });
     return () => timers.forEach(timer => clearTimeout(timer));
-  }, [lastActionTime, endTurnAction]);
+  }, [validActions, endTurnAction]);
 
   return (
     <div

@@ -22,7 +22,6 @@ interface UseGameMessagesReturn {
   messages: string[];
   addMessage: (msg: string, options?: { skipIfGameOver?: boolean; response?: unknown }) => void;
   clearMessages: () => void;
-  isProcessingMessage: boolean;
 }
 
 export function useGameMessages(
@@ -35,19 +34,18 @@ export function useGameMessages(
   
   // Track previous state for detecting transitions
   const lastPlayByPlayLength = useRef<number>(0);
-  const hasShownStartingPlayer = useRef(false);
-  const isProcessingMessage = useRef(false);
+
+  const playByPlay = gameState?.play_by_play;
+  const currentTurn = gameState?.turn_number;
 
   // Derive messages from play_by_play (current turn and previous turn)
   const playByPlayMessages = useMemo(() => {
-    if (!gameState?.play_by_play) return [];
-    
-    const currentTurn = gameState.turn_number;
-    
+    if (!playByPlay || currentTurn === undefined) return [];
+
     // Show messages from current turn AND previous turn
     // This ensures you can see what happened on the opponent's turn
     // when it switches back to your turn
-    return gameState.play_by_play
+    return playByPlay
       .filter((entry: PlayByPlayEntry) => entry.turn >= currentTurn - 1)
       .map((entry: PlayByPlayEntry) => {
         // The once-per-turn plan announcement reads as commentary, not an
@@ -59,16 +57,23 @@ export function useGameMessages(
         // Format: "PlayerName: Action description"
         return `${entry.player}: ${entry.description}`;
       });
-  }, [gameState?.play_by_play, gameState?.turn_number]);
+  }, [playByPlay, currentTurn]);
 
-  // Build starting player message
+  // "X goes first!" is shown only against the very first snapshot we see, then
+  // drops off once the game state advances. Tracked in state rather than a ref
+  // written during render — a render-phase ref write is skipped on StrictMode's
+  // second pass, which suppressed the message entirely.
+  const [firstSnapshot, setFirstSnapshot] = useState(gameState);
+  if (firstSnapshot === undefined && gameState !== undefined) {
+    setFirstSnapshot(gameState);
+  }
+
   const startingPlayerMessage = useMemo(() => {
-    if (!gameState || hasShownStartingPlayer.current) return null;
-    
+    if (!gameState || gameState !== firstSnapshot) return null;
+
     const firstPlayerName = gameState.players[gameState.first_player_id]?.name || 'Unknown';
-    hasShownStartingPlayer.current = true;
     return `${firstPlayerName} goes first!`;
-  }, [gameState]);
+  }, [gameState, firstSnapshot]);
 
   // Combined messages: starting player + play_by_play + local messages
   const messages = useMemo(() => {
@@ -127,6 +132,5 @@ export function useGameMessages(
     messages,
     addMessage,
     clearMessages,
-    isProcessingMessage: isProcessingMessage.current,
   };
 }

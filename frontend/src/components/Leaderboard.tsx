@@ -37,10 +37,10 @@ export function Leaderboard({ onClose, onViewPlayer, entriesOverride }: Leaderbo
   const [loading, setLoading] = useState(!entriesOverride);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLeaderboard = async () => {
+  // `loading` already initializes to true for the fetching case, so this does
+  // not raise the spinner itself — the retry handler below does that.
+  const loadLeaderboard = async () => {
     try {
-      setLoading(true);
-      setError(null);
       const data = await getLeaderboard(10, 3); // Top 10, min 3 games to match backend default
       setLeaderboard(data);
     } catch (err) {
@@ -51,9 +51,29 @@ export function Leaderboard({ onClose, onViewPlayer, entriesOverride }: Leaderbo
     }
   };
 
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    loadLeaderboard();
+  };
+
   useEffect(() => {
     if (entriesOverride) return; // preview/test harness supplies entries directly
-    fetchLeaderboard();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await getLeaderboard(10, 3); // Top 10, min 3 games to match backend default
+        if (!cancelled) setLeaderboard(data);
+      } catch (err) {
+        console.error('Failed to fetch leaderboard:', err);
+        if (!cancelled) setError('Failed to load leaderboard');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -160,7 +180,7 @@ export function Leaderboard({ onClose, onViewPlayer, entriesOverride }: Leaderbo
             <div className="text-center" style={{ padding: 'var(--spacing-component-xl) 0' }}>
               <p style={{ color: 'var(--danger)' }}>{error}</p>
               <button
-                onClick={fetchLeaderboard}
+                onClick={handleRetry}
                 style={{
                   marginTop: 'var(--spacing-component-md)',
                   padding: 'var(--spacing-component-xs) var(--spacing-component-md)',

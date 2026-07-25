@@ -69,24 +69,24 @@ export function VictoryScreen({ gameState, onPlayAgain, aiLogsOverride, localPla
     }
   }, [gameState.game_id, aiLogsOverride]);
 
-  // Load narrative when mode is switched
-  useEffect(() => {
-    if (narrativeMode && !narrative && playByPlay.length > 0) {
-      setIsLoadingNarrative(true);
-      generateNarrative(playByPlay)
-        .then((narrativeText) => {
-          setNarrative(narrativeText);
-        })
-        .catch((error) => {
-          console.error('Failed to generate narrative:', error);
-          alert('Failed to generate narrative story. Please try again.');
-          setNarrativeMode(false); // Fall back to factual mode
-        })
-        .finally(() => {
-          setIsLoadingNarrative(false);
-        });
-    }
-  }, [narrativeMode, narrative, playByPlay]);
+  // Switching to Story Mode loads the narrative on first use, then reuses it.
+  const handleStoryMode = () => {
+    setNarrativeMode(true);
+    if (narrative || playByPlay.length === 0) return;
+    setIsLoadingNarrative(true);
+    generateNarrative(playByPlay)
+      .then((narrativeText) => {
+        setNarrative(narrativeText);
+      })
+      .catch((error) => {
+        console.error('Failed to generate narrative:', error);
+        alert('Failed to generate narrative story. Please try again.');
+        setNarrativeMode(false); // Fall back to factual mode
+      })
+      .finally(() => {
+        setIsLoadingNarrative(false);
+      });
+  };
 
   // Group actions by turn and player, merging with AI logs
   // useMemo ensures this recomputes when aiLogs changes
@@ -231,7 +231,7 @@ export function VictoryScreen({ gameState, onPlayAgain, aiLogsOverride, localPla
                   Factual
                 </button>
                 <button
-                  onClick={() => setNarrativeMode(true)}
+                  onClick={handleStoryMode}
                   disabled={isLoadingNarrative}
                   style={{
                     borderRadius: '6px',

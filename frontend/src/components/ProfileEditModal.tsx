@@ -33,9 +33,11 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ isOpen, onCl
   // Re-sync the field when the modal opens (or the loaded user changes) —
   // AuthContext hydrates user/token from localStorage asynchronously, so the
   // initial useState value can be stale on first mount.
-  useEffect(() => {
+  const [lastSynced, setLastSynced] = useState({ isOpen, user });
+  if (lastSynced.isOpen !== isOpen || lastSynced.user !== user) {
+    setLastSynced({ isOpen, user });
     if (isOpen) setDisplayName(user?.custom_display_name || '');
-  }, [isOpen, user]);
+  }
 
   // Esc closes, matching the settled modal idiom (Leaderboard/PlayerStats).
   useEffect(() => {
