@@ -48,11 +48,13 @@ EX_TEMPFAIL = 75
 _RESET_SLACK_SECONDS = 120
 
 
-# Preset deck configurations
+# Deck presets. Both names mean "every deck in simulation_decks.csv" — the CSV
+# is the working set, rewritten per simulation batch, so hardcoding deck names
+# here just goes stale (it did: the pre-D1..D8 lists silently broke every
+# default `baseline`/`compare` invocation). Use `--decks D1,D3` for a subset.
 PRESET_DECKS = {
-    "baseline": ["Aggro_Rush", "Control_Ka", "Tempo_Charge", "Disruption"],
-    "top2": ["Aggro_Rush", "Tempo_Charge"],
-    "all": None,  # Will load all from CSV
+    "baseline": None,  # Loaded from CSV
+    "all": None,
 }
 
 
@@ -87,7 +89,7 @@ def cli(verbose):
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
 @click.option('--model', '-m', default=None, help='AI model to use (default: GEMINI_MODEL env or provider default)')
-@click.option('--decks', '-d', default='baseline', help='Deck preset: baseline, top2, all')
+@click.option('--decks', '-d', default='baseline', help='Deck preset (baseline/all = every deck in the CSV) or comma-separated deck names')
 @_throttle_options
 def baseline(iterations, parallel, model, decks, rpm, daily_budget, wait):
     """
@@ -127,7 +129,7 @@ def baseline(iterations, parallel, model, decks, rpm, daily_budget, wait):
 @click.option('--model2', default=None, help='Player 2 model (default: GEMINI_MODEL env or provider default)')
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
-@click.option('--decks', '-d', default='baseline', help='Deck preset: baseline, top2, all')
+@click.option('--decks', '-d', default='baseline', help='Deck preset (baseline/all = every deck in the CSV) or comma-separated deck names')
 @_throttle_options
 def compare(model1, model2, iterations, parallel, decks, rpm, daily_budget, wait):
     """
@@ -165,7 +167,7 @@ def compare(model1, model2, iterations, parallel, decks, rpm, daily_budget, wait
 
 @cli.command()
 @click.argument('deck_names', nargs=-1, required=True)
-@click.option('--against', '-a', default='baseline', help='Decks to test against (preset name)')
+@click.option('--against', '-a', default='baseline', help='Decks to test against: preset name or comma-separated deck names')
 @click.option('--iterations', '-i', default=10, help='Games per matchup (default: 10)')
 @click.option('--parallel', '-p', default=10, help='Parallel workers (default: 10)')
 @click.option('--model', '-m', default=None, help='AI model to use (default: GEMINI_MODEL env or provider default)')
@@ -177,8 +179,8 @@ def test_deck(deck_names, against, iterations, parallel, model, rpm, daily_budge
     Useful for testing new deck configurations or strategies.
 
     Example:
-        python -m simulation.cli test-deck Custom_Aggro --against baseline
-        python -m simulation.cli test-deck Deck1 Deck2 --against top2
+        python -m simulation.cli test-deck D1 --against baseline
+        python -m simulation.cli test-deck D1 D2 --against D3,D4
     """
     click.echo(f"🧪 Testing custom decks")
     click.echo(f"   Test decks: {', '.join(deck_names)}")
@@ -411,7 +413,7 @@ def _get_deck_names(preset: str) -> list[str]:
     Get deck names from a preset or load all decks.
 
     Args:
-        preset: Preset name (baseline, top2, all) or comma-separated deck names
+        preset: Preset name (baseline, all) or comma-separated deck names
 
     Returns:
         List of deck names

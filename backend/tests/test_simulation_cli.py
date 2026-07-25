@@ -29,6 +29,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from simulation import cli as cli_module  # noqa: E402
 from simulation.config import SimulationStatus  # noqa: E402
+from simulation.deck_loader import load_simulation_decks_dict  # noqa: E402
+
+# Bound at import time so the autouse _patch_deck_names fixture (which rebinds
+# the module attribute) can't shadow the real implementation for the preset
+# tests at the bottom of this file.
+_real_get_deck_names = cli_module._get_deck_names
 
 
 def _make_result(status, run_id=1, total_games=4, completed_games=4, resets_at=None, error_message=None):
@@ -286,3 +292,34 @@ class TestDefaultModelResolution:
         runner = SimulationRunner()
         assert runner.player1_model == "runner-env-model"
         assert runner.player2_model == "runner-env-model"
+
+
+class TestDeckPresets:
+    """
+    Guards against presets naming decks that don't exist.
+
+    The rest of this file stubs _get_deck_names out entirely, which is why a
+    stale hardcoded preset list (Aggro_Rush et al., long after those decks left
+    simulation_decks.csv) broke every default `baseline`/`compare` invocation
+    without failing CI. These tests deliberately use the real resolver and the
+    real CSV.
+    """
+
+    def test_every_preset_resolves_to_decks_that_exist(self):
+        available = set(load_simulation_decks_dict())
+        assert available, "simulation_decks.csv should define at least one deck"
+
+        for preset in cli_module.PRESET_DECKS:
+            resolved = _real_get_deck_names(preset)
+            assert resolved, f"preset '{preset}' resolved to no decks"
+            missing = set(resolved) - available
+            assert not missing, f"preset '{preset}' names decks not in the CSV: {sorted(missing)}"
+
+    def test_presets_track_the_csv(self):
+        expected = set(load_simulation_decks_dict())
+        assert set(_real_get_deck_names("baseline")) == expected
+        assert set(_real_get_deck_names("all")) == expected
+
+    def test_comma_separated_names_still_work(self):
+        assert _real_get_deck_names("D1,D3") == ["D1", "D3"]
+        assert _real_get_deck_names(" D1 , D3 ") == ["D1", "D3"]
