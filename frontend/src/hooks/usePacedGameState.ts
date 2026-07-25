@@ -142,6 +142,10 @@ export function usePacedGameState(
     scheduleRelease(handoffPending ? HANDOFF_FLUSH_INTERVAL_MS : remainingPaceDelay());
   };
 
+  // This hook exists to pace an external stream of polled snapshots into
+  // React state on a timer, so presenting from the effect is the whole point —
+  // there is no render-time derivation that preserves the pacing.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!gameState) return;
 
@@ -207,6 +211,7 @@ export function usePacedGameState(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, viewerPlayerId, minIntervalMs]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Clean up any pending timer on unmount.
   useEffect(() => {

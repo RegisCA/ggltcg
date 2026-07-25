@@ -23,7 +23,7 @@
 import { motion } from 'framer-motion';
 import type { Player } from '../types/game';
 import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
-import { usePreviousValue } from '../hooks/usePreviousValue';
+import { useChangeFlash } from '../hooks/useChangeFlash';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface PlayerInfoBarProps {
@@ -37,14 +37,14 @@ export function PlayerInfoBar({ player, isActivePlayer = false }: PlayerInfoBarP
   const localPlayerId = useLocalPlayerId();
   const isOwn = localPlayerId != null && player.player_id === localPlayerId;
   const prefersReducedMotion = useReducedMotion();
-  const previousCharge = usePreviousValue(player.charge);
+  const chargeFlash = useChangeFlash(player.charge);
 
   const handCount = player.hand_count ?? player.hand?.length ?? 0;
   const brokenCount = player.break_zone.length;
 
   const accent = isOwn ? 'var(--you)' : 'var(--them)';
 
-  const chargeChanged = isOwn && previousCharge !== undefined && previousCharge !== player.charge;
+  const chargeChanged = isOwn && chargeFlash !== null;
 
   // Active player: identity-color lift (--you/--them), never --gold — gold
   // stays reserved for charge/action per §2/§7.2. Inactive player dims.

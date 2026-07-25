@@ -92,9 +92,11 @@ export function GameMessages({
     return actor === humanPlayerName;
   };
 
-  useEffect(() => {
-    if (!isCollapsed) setLastSeenCount(messages.length);
-  }, [isCollapsed, messages.length]);
+  // While the log is expanded every message counts as seen, so the unread
+  // badge stays at zero.
+  if (!isCollapsed && lastSeenCount !== messages.length) {
+    setLastSeenCount(messages.length);
+  }
 
   useEffect(() => {
     if (!isCollapsed && scrollContainerRef.current) {

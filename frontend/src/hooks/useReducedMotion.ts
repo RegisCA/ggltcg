@@ -12,38 +12,27 @@
  *   const animationProps = prefersReducedMotion ? {} : { whileHover: { scale: 1.05 } };
  */
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+
+const QUERY = '(prefers-reduced-motion: reduce)';
+
+function subscribe(onChange: () => void): () => void {
+  const mediaQuery = window.matchMedia(QUERY);
+
+  // Modern browsers use addEventListener, older use addListener
+  if (mediaQuery.addEventListener) {
+    mediaQuery.addEventListener('change', onChange);
+    return () => mediaQuery.removeEventListener('change', onChange);
+  }
+  mediaQuery.addListener(onChange);
+  return () => mediaQuery.removeListener(onChange);
+}
 
 export function useReducedMotion(): boolean {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(QUERY).matches,
     // SSR-safe: default to false (animations enabled) on server
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  });
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    
-    // Set initial value
-    setPrefersReducedMotion(mediaQuery.matches);
-
-    // Listen for changes (user may toggle setting while app is open)
-    const handleChange = (event: MediaQueryListEvent) => {
-      setPrefersReducedMotion(event.matches);
-    };
-
-    // Modern browsers use addEventListener, older use addListener
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    } else {
-      // Fallback for older browsers
-      mediaQuery.addListener(handleChange);
-      return () => mediaQuery.removeListener(handleChange);
-    }
-  }, []);
-
-  return prefersReducedMotion;
+    () => false,
+  );
 }

@@ -11,11 +11,11 @@
  * Values from the signed-off mockup (6a break row).
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CardDisplay } from './CardDisplay';
 import { Modal } from './ui/Modal';
-import { usePreviousValue } from '../hooks/usePreviousValue';
+import { useChangeFlash } from '../hooks/useChangeFlash';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import type { Card } from '../types/game';
 
@@ -89,25 +89,8 @@ export function BreakZoneDisplay({ cards, playerName }: BreakZoneDisplayProps) {
   const cardList = cards || [];
   const [isListOpen, setIsListOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
-  const previousCount = usePreviousValue(cardList.length);
-
-  const [flashType, setFlashType] = useState<'increase' | 'decrease' | null>(null);
-
-  const countIncreased = previousCount !== undefined && cardList.length > previousCount;
-  const countDecreased = previousCount !== undefined && cardList.length < previousCount;
-
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-    if (countIncreased) {
-      setFlashType('increase');
-      const timer = setTimeout(() => setFlashType(null), 500);
-      return () => clearTimeout(timer);
-    } else if (countDecreased) {
-      setFlashType('decrease');
-      const timer = setTimeout(() => setFlashType(null), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [countIncreased, countDecreased, prefersReducedMotion]);
+  const countFlash = useChangeFlash(cardList.length);
+  const flashType = prefersReducedMotion ? null : countFlash;
 
   // Newest break first — the card players look for when reconstructing what
   // just happened.

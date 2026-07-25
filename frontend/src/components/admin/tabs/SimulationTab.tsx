@@ -63,7 +63,9 @@ const SimulationTab: React.FC = () => {
   const [parallelGames, setParallelGames] = useState('10');
   const [isRunningSimulation, setIsRunningSimulation] = useState(false);
   const [activeRunId, setActiveRunId] = useState<number | null>(null);
-  const [runProgress, setRunProgress] = useState<{ completed: number; total: number; status: string } | null>(null);
+  // Optimistic progress shown between "start" returning and the first poll
+  // landing; once runStatus arrives it is the source of truth (see below).
+  const [pendingProgress, setPendingProgress] = useState<{ completed: number; total: number; status: string } | null>(null);
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationResults | null>(null);
   const [selectedGameDetail, setSelectedGameDetail] = useState<SimulationGameDetail | null>(null);
   const [loadingGameDetail, setLoadingGameDetail] = useState(false);
@@ -85,11 +87,12 @@ const SimulationTab: React.FC = () => {
 
   // Default both model selects to the first fetched model once the list
   // loads (backend's default_simulation_model resolution puts it first).
-  useEffect(() => {
-    if (!supportedModels || supportedModels.length === 0) return;
+  const [modelDefaultsApplied, setModelDefaultsApplied] = useState(false);
+  if (!modelDefaultsApplied && supportedModels && supportedModels.length > 0) {
+    setModelDefaultsApplied(true);
     setPlayer1Model(prev => (prev === '' ? supportedModels[0] : prev));
     setPlayer2Model(prev => (prev === '' ? supportedModels[0] : prev));
-  }, [supportedModels]);
+  }
 
   const clearRunActionError = (runId: number) => {
     setRunActionErrors(prev => {
@@ -126,17 +129,18 @@ const SimulationTab: React.FC = () => {
     });
   };
 
+  const runProgress = runStatus
+    ? { completed: runStatus.completed_games, total: runStatus.total_games, status: runStatus.status }
+    : pendingProgress;
+
+  // Terminal-status handling has to stay an effect: it fires alerts, refetches
+  // the run list and pulls full results, none of which can happen in render.
   useEffect(() => {
     if (!activeRunId || !runStatus) return;
 
-    setRunProgress({
-      completed: runStatus.completed_games,
-      total: runStatus.total_games,
-      status: runStatus.status,
-    });
-
     // Check if simulation is done
     if (isTerminalRunStatus(runStatus.status)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- terminal transition, runs once per run
       setIsRunningSimulation(false);
       setActiveRunId(null);
 
@@ -176,7 +180,7 @@ const SimulationTab: React.FC = () => {
     }
 
     setIsRunningSimulation(true);
-    setRunProgress(null);
+    setPendingProgress(null);
 
     try {
       // Start simulation (returns immediately with run_id)
@@ -197,7 +201,7 @@ const SimulationTab: React.FC = () => {
 
       const runId = startResponse.run_id;
       setActiveRunId(runId);
-      setRunProgress({
+      setPendingProgress({
         completed: 0,
         total: startResponse.total_games,
         status: 'pending',
@@ -208,7 +212,7 @@ const SimulationTab: React.FC = () => {
       alert(`Failed to start simulation: ${axiosError.response?.data?.detail || 'Unknown error'}`);
       setIsRunningSimulation(false);
       setActiveRunId(null);
-      setRunProgress(null);
+      setPendingProgress(null);
     }
   };
 

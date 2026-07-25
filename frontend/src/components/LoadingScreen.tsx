@@ -52,7 +52,9 @@ export function LoadingScreen({ onReady, coldStartOverride }: LoadingScreenProps
   );
   const [dots, setDots] = useState('');
   const [coldStartProgress, setColdStartProgress] = useState(0);
-  const wakingStartRef = useRef<number | null>(coldStartOverride ? Date.now() : null);
+  // Stamped by the effect below on entering "waking" — Date.now() can't be
+  // called during render.
+  const wakingStartRef = useRef<number | null>(null);
 
   // Check backend health
   const healthCheck = useQuery({
@@ -107,12 +109,10 @@ export function LoadingScreen({ onReady, coldStartOverride }: LoadingScreenProps
   // retry-count-based (a real quick retry backoff doesn't line up with the
   // ~55s wake estimate).
   useEffect(() => {
-    if (status === 'waking' && wakingStartRef.current === null) {
-      wakingStartRef.current = Date.now();
-    }
-    if (status !== 'waking') {
+    if (status === 'waking') {
+      if (wakingStartRef.current === null) wakingStartRef.current = Date.now();
+    } else {
       wakingStartRef.current = null;
-      setColdStartProgress(0);
     }
   }, [status]);
 
@@ -130,18 +130,22 @@ export function LoadingScreen({ onReady, coldStartOverride }: LoadingScreenProps
     return () => clearInterval(interval);
   }, [status]);
 
+  // The two transitions below advance the startup state machine off query
+  // results. They have to stay effects — the queries are gated on `status`, so
+  // deriving it during render would be circular.
   useEffect(() => {
     if (coldStartOverride) return; // stay in the forced waking state
     if (healthCheck.isError) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- health-check result drives the state machine
       setStatus((current) => (current === 'checking' ? 'waking' : current));
     } else if (healthCheck.isSuccess && (status === 'checking' || status === 'waking')) {
-      setColdStartProgress(100);
       setStatus('loading');
     }
   }, [healthCheck.isError, healthCheck.isSuccess, status, coldStartOverride]);
 
   useEffect(() => {
     if (cardsQuery.isSuccess && cardsQuery.data) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- cards fetch completing is the ready signal
       setStatus('ready');
       setTimeout(() => onReady(cardsQuery.data), 500);
     } else if (cardsQuery.isError) {

@@ -32,19 +32,23 @@ const MaintenanceTab: React.FC = () => {
   const cleanupMutation = useRunCleanup(apiKey);
 
   // Whenever a request against the current key comes back 401/403, drop it
-  // and prompt for re-entry.
-  React.useEffect(() => {
-    if (statsQuery.error && isAuthError(statsQuery.error)) {
-      handleInvalidKey();
+  // and prompt for re-entry. Derived during render rather than in an effect so
+  // the re-entry form paints in the same commit as the failure.
+  const authFailed = !!statsQuery.error && isAuthError(statsQuery.error);
+  const [sawAuthFailure, setSawAuthFailure] = React.useState(false);
+  if (authFailed !== sawAuthFailure) {
+    setSawAuthFailure(authFailed);
+    if (authFailed) {
+      setApiKey(null);
+      setInvalidKey(true);
+      setLastResult(null);
     }
-  }, [statsQuery.error]);
+  }
 
-  const handleInvalidKey = () => {
-    sessionStorage.removeItem(STORAGE_KEY);
-    setApiKey(null);
-    setInvalidKey(true);
-    setLastResult(null);
-  };
+  // sessionStorage is an external system, so clearing it belongs in an effect.
+  React.useEffect(() => {
+    if (apiKey === null) sessionStorage.removeItem(STORAGE_KEY);
+  }, [apiKey]);
 
   const handleSubmitKey = (event: React.FormEvent) => {
     event.preventDefault();
@@ -53,6 +57,13 @@ const MaintenanceTab: React.FC = () => {
     setApiKey(keyInput.trim());
     setKeyInput('');
     setInvalidKey(false);
+  };
+
+  // Drops the key; the effect above clears it from sessionStorage.
+  const handleInvalidKey = () => {
+    setApiKey(null);
+    setInvalidKey(true);
+    setLastResult(null);
   };
 
   const handleCleanup = () => {

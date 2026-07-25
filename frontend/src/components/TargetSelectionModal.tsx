@@ -6,7 +6,7 @@
  * Refactored to use Modal component wrapper for consistent accessibility.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { CardDisplay } from './CardDisplay';
 import { useLocalPlayerId } from '../contexts/LocalPlayerContext';
@@ -103,19 +103,17 @@ export function TargetSelectionModal({
   const hasDirectAttackOption = action.action_type === 'tussle' && 
     action.target_options?.includes('direct_attack');
 
-  // Reset state when action changes
-  useEffect(() => {
+  // Reset state when the action (or what it can be paid with) changes.
+  const resetKey = `${action.card_id}|${hasAlternativeCost}|${hasCardsToBreak}|${canAffordCharge}`;
+  const [lastResetKey, setLastResetKey] = useState(resetKey);
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey);
     targetSelection.clear();
     altCostSelection.clear();
     setUseDirectAttack(false);
     // If alternative cost is available but no cards to break AND can afford Charge, auto-select "Pay Charge"
-    if (hasAlternativeCost && !hasCardsToBreak && canAffordCharge) {
-      setUseAlternativeCost(true);
-    } else {
-      setUseAlternativeCost(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action.card_id, hasAlternativeCost, hasCardsToBreak, canAffordCharge]);
+    setUseAlternativeCost(hasAlternativeCost && !hasCardsToBreak && canAffordCharge);
+  }
 
   // Toggle/replace a target card, using the shared selection primitive.
   const toggleTarget = (cardId: string) => {
