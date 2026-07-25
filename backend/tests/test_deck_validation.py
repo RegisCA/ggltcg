@@ -6,7 +6,12 @@ Issue #285.5: Validate decks before simulation starts to fail fast.
 
 import pytest
 from simulation.config import DeckConfig
-from simulation.deck_loader import validate_deck, validate_deck_names, _find_similar_names
+from simulation.deck_loader import (
+    load_simulation_decks,
+    validate_deck,
+    validate_deck_names,
+    _find_similar_names,
+)
 
 
 class TestDeckValidation:
@@ -75,37 +80,52 @@ class TestDeckValidation:
 
 
 class TestDeckNameValidation:
-    """Tests for validating deck names against available simulation decks."""
-    
+    """Tests for validating deck names against available simulation decks.
+
+    These pass an explicit `available_decks` rather than reading
+    simulation_decks.csv — the CSV is working data that gets rewritten
+    per simulation batch, so asserting against its contents makes these
+    tests fail whenever the decks under study change.
+    """
+
+    @staticmethod
+    def _available_decks() -> dict[str, DeckConfig]:
+        return {
+            name: DeckConfig(
+                name=name,
+                description="Test",
+                cards=["Ka", "Archer", "Knight", "Demideca", "Beary", "Wizard"],
+            )
+            for name in ("Aggro_Rush", "Control_Ka")
+        }
+
     def test_validate_existing_deck_names_passes(self):
         """Valid deck names should pass validation."""
-        # These should exist in simulation_decks.csv
-        deck_names = ["Aggro_Rush", "Control_Ka"]
-        
-        errors = validate_deck_names(deck_names)
-        # If these decks don't exist, test will fail - that's intentional
-        # to ensure test environment is properly configured
-        if errors:
-            pytest.skip(f"Test decks not found in simulation_decks.csv: {errors}")
-    
+        errors = validate_deck_names(["Aggro_Rush", "Control_Ka"], self._available_decks())
+        assert errors == []
+
+    def test_every_deck_in_the_csv_is_valid(self):
+        """The shipped simulation_decks.csv must always load and validate."""
+        decks = load_simulation_decks()
+        assert decks, "simulation_decks.csv should define at least one deck"
+
+        errors = [error for deck in decks for error in validate_deck(deck)]
+        assert errors == [], f"simulation_decks.csv has invalid decks: {errors}"
+
     def test_validate_nonexistent_deck_name_fails(self):
         """Non-existent deck name should fail validation."""
-        deck_names = ["ThisDeckDoesNotExist"]
-        
-        errors = validate_deck_names(deck_names)
+        errors = validate_deck_names(["ThisDeckDoesNotExist"], self._available_decks())
         assert len(errors) > 0
         assert any("not found" in error for error in errors)
-    
+
     def test_validate_deck_name_typo_provides_suggestions(self):
         """Typo in deck name should suggest similar names."""
-        # Assuming "Aggro_Rush" exists, try "Aggro_Rash"
-        deck_names = ["Aggro_Rash"]
-        
-        errors = validate_deck_names(deck_names)
+        errors = validate_deck_names(["Aggro_Rash"], self._available_decks())
         assert len(errors) > 0
         # Should suggest similar deck names
         error_text = " ".join(errors)
         assert "Did you mean" in error_text
+        assert "Aggro_Rush" in error_text
 
 
 class TestSimilarityMatching:
