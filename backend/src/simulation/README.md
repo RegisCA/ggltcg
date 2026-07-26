@@ -167,6 +167,40 @@ Display all available simulation decks from `simulation_decks.csv`.
 python -m simulation.cli list-decks
 ```
 
+## Scripted Sweeps (no API calls)
+
+Everything above plays with `LLMPlayer`, so games cost API requests. `simulation.sweep`
+plays the *same* engine, enumerator and plan-execution code with the single Gemini
+call — "pick one of these ≤12 enumerated sequences" — replaced by a local policy.
+Games become CPU-bound instead of quota-bound: ~18 games/sec on 6 workers, and no
+`GOOGLE_API_KEY` is needed.
+
+This exists to evaluate the **card pool** rather than a fixed deck list: it samples
+random legal decks, plays them, and `analyze_sweep.py` regresses outcomes onto card
+presence. See [`docs/development/CARD_EVALUATION_PLAN.md`](../../../docs/development/CARD_EVALUATION_PLAN.md).
+
+```bash
+# 20k games of random decks, greedy policy, 6 workers
+python -m simulation.sweep --games 20000 --policy greedy --workers 6 --seed 100
+
+# Same deck pairs under a stronger policy, for cross-checking the ranking
+python -m simulation.sweep --games 20000 --policy search2 --workers 6 --seed 100
+
+# Card values, seat effect, and cross-policy ranking agreement
+python ../scripts/analyze_sweep.py --compare 1 2
+```
+
+Options: `--policy` (`greedy` | `random` | `softmax` | `search2`, see `policies.py`),
+`--policy2` to pit one policy against another, `--deck-size`, `--min-toys`,
+`--no-both-seats`, `--max-turns`, `--db`, `--seed`.
+
+Reusing a `--seed` across policy runs replays the *same deck pairs*, which makes the
+cross-policy comparison paired. Each game's seed is stored, so any run replays exactly.
+
+> `greedy` is a single-turn heuristic and a biased judge of setup and value cards.
+> Never read a ranking from one policy alone — the disagreement between `greedy` and
+> `search2` is the signal worth acting on.
+
 ## Multi-Day Throttled Batch Runs
 
 Large simulation batches (hundreds of games) can exceed the Gemini API's daily quota

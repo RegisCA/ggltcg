@@ -39,6 +39,17 @@ class TurnPlanner:
     LLM call (see module docstring).
     """
 
+    # Enumerator limits. None means "use the enumerator's own defaults"
+    # (8 actions, 12 sequences), which is what live games run with.
+    #
+    # These exist because those defaults are a hard ceiling on what the AI can
+    # even conceive of: a turn longer than max_actions is never enumerated, so no
+    # selector — scripted or LLM — can ever choose it. Real players chain 8-10
+    # actions in a single turn via Charge-refund engines, which sit at or past the
+    # default cap. Combo analysis raises these; see simulation/combo.py.
+    enum_max_actions: Optional[int] = None
+    enum_max_sequences: Optional[int] = None
+
     # Class-level metrics (shared across instances)
     _metrics = {
         "total_turns": 0,
@@ -152,8 +163,13 @@ class TurnPlanner:
 
         # === Request 1: deterministic enumeration ===
         logger.debug("🧮 Enumerating action sequences (deterministic)...")
+        enum_kwargs: Dict[str, Any] = {}
+        if self.enum_max_actions is not None:
+            enum_kwargs["max_actions"] = self.enum_max_actions
+        if self.enum_max_sequences is not None:
+            enum_kwargs["max_sequences"] = self.enum_max_sequences
         try:
-            sequences = enumerate_sequences(game_state, player_id)
+            sequences = enumerate_sequences(game_state, player_id, **enum_kwargs)
         except Exception as e:
             logger.error(f"Enumeration failed: {e}", exc_info=True)
             self._enum_debug["enumeration_exception"] = str(e)
@@ -171,41 +187,12 @@ class TurnPlanner:
         # === Request 2: strategic selection ===
         logger.debug("🎯 Selecting best sequence...")
 
-        select_prompt = generate_strategic_prompt(game_state, player_id, sequences, game_engine)
-        select_system_instruction = get_strategic_selector_system_instruction()
-        self._last_prompt = select_prompt
-        self._selection_prompt = select_prompt
-        self._selection_system_instruction = select_system_instruction
-        logger.debug(
-            "Strategic selector prompt (%s chars, ~%s tokens)",
-            len(select_prompt),
-            self._estimate_prompt_tokens(select_prompt),
-        )
-
         try:
-            select_response = self.provider_client.generate_json(
-                select_prompt,
-                STRATEGIC_SELECTOR_SCHEMA,
-                temperature=get_strategic_selector_temperature(),
-                max_output_tokens=self._get_selector_output_budget(),
-                retry_count=3,
-                allow_fallback=True,
-                model=self.model_name,
-                fallback_model=self.fallback_model,
-                system_instruction=select_system_instruction,
+            selected_index, reasoning = self._select_sequence(
+                sequences, game_state, player_id, game_engine
             )
-            self._last_response = select_response
-            self._selection_response = select_response
-            selection = parse_selector_response(select_response)
 
-            selected_index = selection.get("selected_index", 0)
-            reasoning = selection.get("reasoning", "No reasoning provided")
-
-            if "Parse error" in reasoning:
-                TurnPlanner._metrics["selection_parse_error"] += 1
-                self._enum_debug["selection_parse_error"] = True
-
-            if selected_index >= len(sequences):
+            if selected_index < 0 or selected_index >= len(sequences):
                 selected_index = 0
                 logger.warning("Invalid sequence index, using 0")
                 self._enum_debug["selection_invalid_index"] = True
@@ -265,6 +252,58 @@ class TurnPlanner:
                 return plan
 
         return None
+
+    def _select_sequence(
+        self,
+        sequences: list,
+        game_state: GameState,
+        player_id: str,
+        game_engine=None,
+    ) -> tuple[int, str]:
+        """Pick which enumerated sequence to play, as ``(index, reasoning)``.
+
+        This is the only step of ``create_plan`` that is not deterministic engine
+        code: enumeration, plan conversion and execution all live outside it. The
+        default implementation is the Gemini strategic-selection call. Subclasses
+        override this to substitute a local policy (see
+        ``simulation.scripted_player``) and inherit the rest of the pipeline
+        unchanged — including the caller's out-of-range clamp, so an override may
+        return any int without risking an IndexError.
+        """
+        select_prompt = generate_strategic_prompt(game_state, player_id, sequences, game_engine)
+        select_system_instruction = get_strategic_selector_system_instruction()
+        self._last_prompt = select_prompt
+        self._selection_prompt = select_prompt
+        self._selection_system_instruction = select_system_instruction
+        logger.debug(
+            "Strategic selector prompt (%s chars, ~%s tokens)",
+            len(select_prompt),
+            self._estimate_prompt_tokens(select_prompt),
+        )
+
+        select_response = self.provider_client.generate_json(
+            select_prompt,
+            STRATEGIC_SELECTOR_SCHEMA,
+            temperature=get_strategic_selector_temperature(),
+            max_output_tokens=self._get_selector_output_budget(),
+            retry_count=3,
+            allow_fallback=True,
+            model=self.model_name,
+            fallback_model=self.fallback_model,
+            system_instruction=select_system_instruction,
+        )
+        self._last_response = select_response
+        self._selection_response = select_response
+        selection = parse_selector_response(select_response)
+
+        selected_index = selection.get("selected_index", 0)
+        reasoning = selection.get("reasoning", "No reasoning provided")
+
+        if "Parse error" in reasoning:
+            TurnPlanner._metrics["selection_parse_error"] += 1
+            self._enum_debug["selection_parse_error"] = True
+
+        return selected_index, reasoning
 
     def _estimate_prompt_tokens(self, prompt: str) -> int:
         return max(1, len(prompt) // PROMPT_TOKEN_ESTIMATE_DIVISOR)

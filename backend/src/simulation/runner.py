@@ -6,6 +6,7 @@ models and deck compositions, tracking Charge usage per turn for analysis.
 """
 
 import logging
+import random
 import time
 from copy import deepcopy
 from typing import Optional
@@ -19,6 +20,7 @@ from game_engine.data.card_loader import load_cards_dict
 from game_engine.ai.llm_player import LLMPlayer
 from game_engine.ai.turn_planner import TurnPlanner
 from game_engine.validation.action_validator import ActionValidator
+from game_engine.validation.action_executor import ActionExecutor
 from api.schemas import ValidAction
 
 from .config import (
@@ -51,6 +53,8 @@ class SimulationRunner:
         max_turns: int = 20,
         log_level: str = "WARNING",
         rate_limiter: Optional[object] = None,
+        player1_policy: Optional[str] = None,
+        player2_policy: Optional[str] = None,
     ):
         """
         Initialize the simulation runner.
@@ -64,11 +68,18 @@ class SimulationRunner:
             rate_limiter: Optional rate/budget limiter forwarded to both AI
                 players' Gemini provider. Defaults to a no-op limiter (no
                 behavior change).
+            player1_policy: If set, player 1 is a ``ScriptedPlayer`` running this
+                selection policy instead of an ``LLMPlayer`` — no API calls, no
+                key required. See ``simulation.policies``.
+            player2_policy: Same, for player 2. The two are independent so a
+                policy can be benchmarked against another one.
         """
         self.player1_model = player1_model or default_simulation_model()
         self.player2_model = player2_model or default_simulation_model()
         self.max_turns = max_turns
         self.rate_limiter = rate_limiter
+        self.player1_policy = player1_policy
+        self.player2_policy = player2_policy
 
         # Configure logging for simulation
         self._configure_simulation_logging(log_level)
@@ -85,18 +96,25 @@ class SimulationRunner:
         deck1: DeckConfig,
         deck2: DeckConfig,
         game_number: int = 1,
+        seed: Optional[int] = None,
     ) -> GameResult:
         """
         Run a single game between two decks.
-        
+
         Args:
             deck1: Deck configuration for player 1
             deck2: Deck configuration for player 2
             game_number: Game number within the simulation run
-            
+            seed: Seeds both the scripted players' RNGs and the engine's global
+                ``random`` (direct attack picks a random card from the defender's
+                hand — the only nondeterminism in the engine). Pass and record a
+                distinct seed per game to make a run exactly replayable.
+
         Returns:
             GameResult with outcome, turn count, Charge tracking, and action log
         """
+        if seed is not None:
+            random.seed(seed)
         start_time = time.time()
         charge_tracking: list[TurnCharge] = []
         action_log: list[dict] = []
@@ -111,8 +129,8 @@ class SimulationRunner:
             engine = GameEngine(game_state)
 
             # Create AI players with specified models (enum-based turn planning)
-            self._player1_ai = LLMPlayer(model=self.player1_model, rate_limiter=self.rate_limiter)
-            self._player2_ai = LLMPlayer(model=self.player2_model, rate_limiter=self.rate_limiter)
+            self._player1_ai = self._make_player(1, seed)
+            self._player2_ai = self._make_player(2, seed)
 
             logger.info(
                 f"Starting game {game_number}: {deck1.name} ({self.player1_model}) vs "
@@ -324,6 +342,20 @@ class SimulationRunner:
             no_sequences_count=no_sequences_count,
         )
     
+    def _make_player(self, seat: int, seed: Optional[int]):
+        """Build the AI for one seat: scripted if a policy was configured, else LLM."""
+        policy = self.player1_policy if seat == 1 else self.player2_policy
+        if policy is None:
+            model = self.player1_model if seat == 1 else self.player2_model
+            return LLMPlayer(model=model, rate_limiter=self.rate_limiter)
+
+        from .scripted_player import ScriptedPlayer
+
+        # Offset per seat so the two players don't draw an identical stream in a
+        # mirror match, which would correlate their choices under random policies.
+        player_seed = 0 if seed is None else seed * 2 + seat
+        return ScriptedPlayer(policy=policy, seed=player_seed)
+
     def _create_game_state(
         self,
         deck1: DeckConfig,
@@ -414,56 +446,45 @@ class SimulationRunner:
             True if the action ended the turn
         """
         player = game_state.get_active_player()
-        
+
         if action.action_type == "end_turn":
             self._execute_end_turn(engine, game_state)
             return True
-        
-        elif action.action_type == "play_card":
-            card = next(
-                (c for c in player.hand if c.id == action.card_id),
-                None
-            )
-            if card:
-                # Get target and alternative cost from AI
-                details = ai_player.get_action_details(action)
-                target_ids = details.get("target_ids") or []
-                alt_cost_card_id = details.get("alternative_cost_card_id")
-                
-                # Handle alternative cost
-                if alt_cost_card_id:
-                    alt_card = self._find_card_by_id(player, alt_cost_card_id)
-                    if alt_card:
-                        engine.play_card(
-                            player, card,
-                            alternative_cost_card=alt_card,
-                            target_ids=target_ids
-                        )
-                    else:
-                        engine.play_card(player, card, target_ids=target_ids)
-                else:
-                    engine.play_card(player, card, target_ids=target_ids)
-        
+
+        # play_card and tussle go through ActionExecutor, which is what
+        # api/routes_actions.py uses for live games AND what the enumerator uses
+        # to build plans. Calling engine.play_card/initiate_tussle directly here
+        # skipped ActionExecutor._handle_targets, so every targeted effect (Copy,
+        # Glue, Stomp, Drop, Twist, Sun, Jumpscare...) silently resolved with no
+        # target: the card was paid for, did nothing, and went to the break zone.
+        # That made plans built by the enumerator undeliverable — the desync that
+        # showed up as "LLM execution fallbacks" in scripted sweeps.
+        executor = ActionExecutor(engine)
+
+        if action.action_type == "play_card":
+            details = ai_player.get_action_details(action)
+            try:
+                executor.execute_play_card(
+                    player.player_id,
+                    action.card_id,
+                    target_card_ids=details.get("target_ids") or None,
+                    alternative_cost_card_id=details.get("alternative_cost_card_id"),
+                )
+            except ValueError as e:
+                logger.warning(f"play_card rejected: {e}")
+
         elif action.action_type == "tussle":
-            attacker = next(
-                (c for c in player.in_play if c.id == action.card_id),
-                None
-            )
-            if attacker:
-                # Get target from AI
-                details = ai_player.get_action_details(action)
-                defender_id = details.get("defender_id")
-                
-                defender = None
-                if defender_id and defender_id != "direct_attack":
-                    opponent = game_state.get_opponent(player.player_id)
-                    defender = next(
-                        (c for c in opponent.in_play if c.id == defender_id),
-                        None
-                    )
-                
-                engine.initiate_tussle(attacker, defender, player)
-        
+            details = ai_player.get_action_details(action)
+            defender_id = details.get("defender_id")
+            if defender_id == "direct_attack":
+                defender_id = None
+            try:
+                executor.execute_tussle(
+                    player.player_id, action.card_id, defender_id=defender_id
+                )
+            except ValueError as e:
+                logger.warning(f"tussle rejected: {e}")
+
         elif action.action_type == "activate_ability":
             card = next(
                 (c for c in player.in_play if c.id == action.card_id),
