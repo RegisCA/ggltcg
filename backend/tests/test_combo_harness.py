@@ -130,12 +130,12 @@ def test_max_actions_override_reaches_the_enumerator(monkeypatch):
     from simulation.deck_loader import load_simulation_decks_dict
     from simulation.runner import SimulationRunner
 
-    decks = load_simulation_decks_dict()
+    decks = [d for _, d in sorted(load_simulation_decks_dict().items())]
     runner = SimulationRunner(
         player1_policy="greedy", player2_policy="greedy",
         policy_max_actions=14, policy_max_sequences=24,
     )
-    runner.run_game(decks["D1"], decks["D3"], game_number=1, seed=1)
+    runner.run_game(decks[0], decks[2], game_number=1, seed=1)
 
     assert seen.get("max_actions") == 14
     assert seen.get("max_sequences") == 24
@@ -163,13 +163,13 @@ def test_search2_models_the_opponent_at_the_same_ceiling():
         seen.append(kwargs)
         return real_enum(game_state, player_id, **kwargs)
 
-    decks = load_simulation_decks_dict()
+    decks = [d for _, d in sorted(load_simulation_decks_dict().items())]
     with patch.object(enum_mod, "enumerate_sequences", spy):
         runner = SimulationRunner(
             player1_policy="search2", player2_policy="search2",
             policy_max_actions=11, policy_max_sequences=13,
         )
-        runner.run_game(decks["D1"], decks["D5"], game_number=1, seed=4)
+        runner.run_game(decks[0], decks[4], game_number=1, seed=4)
 
     assert seen, "search2 never enumerated an opponent reply"
     assert all(k.get("max_actions") == 11 for k in seen), seen[:3]

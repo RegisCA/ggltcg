@@ -321,5 +321,6 @@ class TestDeckPresets:
         assert set(_real_get_deck_names("all")) == expected
 
     def test_comma_separated_names_still_work(self):
-        assert _real_get_deck_names("D1,D3") == ["D1", "D3"]
-        assert _real_get_deck_names(" D1 , D3 ") == ["D1", "D3"]
+        # Arbitrary strings: this exercises splitting/trimming, not lookup.
+        assert _real_get_deck_names("Apex,Curve") == ["Apex", "Curve"]
+        assert _real_get_deck_names(" Apex , Curve ") == ["Apex", "Curve"]

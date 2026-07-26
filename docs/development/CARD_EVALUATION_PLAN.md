@@ -296,6 +296,69 @@ correctly much worse. Overall pre/post rank correlation: ρ = +0.88 (`greedy`),
 Pinned by `test_runner_resolves_targeted_effects_like_production` in
 `backend/tests/test_scripted_player.py`.
 
+## Stage 3 results: candidate decks
+
+Decks are derived from the fitted values by
+`backend/scripts/build_candidate_decks.py`, so the set is a function of the data
+rather than of taste. Two are controls whose job is to fail.
+
+**An additive card model has exactly one best deck.** The first attempt produced
+three identical decks (top-6 by greedy, by search2 and by consensus were the same
+six cards) — the same redundancy that made D1–D8 uninformative. Diversity has to
+be imposed: each rival is the best deck sharing at most 2 cards with everything
+chosen before it.
+
+Round-robin, 8 decks x 64 cells x 100 games = 6,400 games, `greedy`:
+
+| Deck | Win% | 95% CI | Σβ (predicted) |
+|---|---|---|---|
+| Rival_A | **67.9%** | [65.6, 70.2] | +2.93 |
+| Apex | 62.9% | [60.5, 65.3] | +3.48 |
+| Rival_B | 60.9% | [58.5, 63.2] | +2.53 |
+| Combo | 57.4% | [55.0, 59.8] | +1.79 |
+| Curve | 53.0% | [50.6, 55.4] | +3.16 |
+| Legacy_Best | 52.3% | [49.9, 54.8] | +2.51 |
+| Stat_Max *(control)* | 39.2% | [36.9, 41.7] | +2.16 |
+| Control_Worst *(control)* | **6.2%** | [5.2, 7.5] | −2.86 |
+
+**Both controls behaved.** `Control_Worst` won 6.2%, so the card model predicts
+decisively. `Stat_Max` — the best deck by raw speed+strength+stamina, ignoring the
+fit entirely — lost to `Apex` by 24 points, so the 220,000 games bought something
+that adding up the numbers on the card does not.
+
+**But the model's own best deck is not the best deck.** `Rival_A` (Σβ +2.93) beats
+`Apex` (Σβ +3.48). Spearman between predicted Σβ and measured win rate is **+0.69**,
+and only **+0.54** excluding the trivially-correct `Control_Worst`. The additive
+model sorts good from bad emphatically and ranks *among the good* weakly. The two
+large misses are informative:
+
+- `Curve` predicted 2nd, finished 5th — cheap deployment did not pay off.
+- `Combo` predicted 7th, finished 4th — the Hind Leg Kicker shell beating its
+  parts by three places, independently confirming the ablation's superadditivity
+  with a different instrument.
+
+`Legacy_Best` (the strongest of the original hand-made decks) finished 6th of 8.
+
+### Seat preference is deck-specific and huge
+
+| Deck | as P1 | as P2 | Delta |
+|---|---|---|---|
+| Rival_B | 45.8% | 76.0% | **−30.2p** |
+| Rival_A | 53.6% | 82.2% | **−28.6p** |
+| Combo | 67.9% | 47.0% | **+20.9p** |
+| Curve | 60.9% | 45.1% | +15.8p |
+| Apex | 69.9% | 56.0% | +13.9p |
+| Stat_Max | 39.8% | 38.8% | +1.0p |
+
+A **51-point spread**. The global "47% for player 1" is an average over decks that
+violently disagree, and the effect dwarfs most matchup differences. Mirror cells
+confirm it without any matchup confound: `Apex` mirror is 70% for P1, `Rival_A`
+mirror 32%, `Legacy_Best` mirror 17%. In `Rival_A` vs `Rival_B`, whoever moves
+**second** wins ~93% in both directions.
+
+This is the hypothesis the original plan doc raised ("some decks are expected to
+prefer going first and others second"), now measured with large effects.
+
 ## Combos: declared, not discovered
 
 Multi-card combos need a different instrument. At 200,000 games:

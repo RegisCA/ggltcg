@@ -24,7 +24,16 @@ from simulation.scripted_player import ScriptedPlayer
 
 @pytest.fixture
 def decks():
-    return load_simulation_decks_dict()
+    """Decks by position, not by name.
+
+    simulation_decks.csv is working data that gets rewritten whenever the deck
+    set is revised; tests that hard-code names silently break on every such
+    revision. Index into a sorted list instead, and assert only that enough decks
+    exist.
+    """
+    loaded = load_simulation_decks_dict()
+    assert len(loaded) >= 4, f"need >=4 decks to exercise matchups, got {len(loaded)}"
+    return [loaded[name] for name in sorted(loaded)]
 
 
 @pytest.fixture
@@ -37,7 +46,7 @@ def no_api_key(monkeypatch):
 @pytest.mark.parametrize("policy", sorted(POLICIES))
 def test_every_policy_completes_a_game_without_credentials(policy, decks, no_api_key):
     runner = SimulationRunner(player1_policy=policy, player2_policy=policy)
-    result = runner.run_game(decks["D1"], decks["D3"], game_number=1, seed=99)
+    result = runner.run_game(decks[0], decks[2], game_number=1, seed=99)
 
     assert result.error_message is None
     assert result.outcome.value in {"player1_win", "player2_win", "draw"}
@@ -57,7 +66,7 @@ def test_no_llm_execution_fallbacks_on_a_normal_game(decks, no_api_key):
     regression that made fallbacks common would surface here.
     """
     runner = SimulationRunner(player1_policy="greedy", player2_policy="greedy")
-    runner.run_game(decks["D4"], decks["D6"], game_number=1, seed=7)
+    runner.run_game(decks[3], decks[5], game_number=1, seed=7)
 
     assert runner._player1_ai.execution_fallbacks == 0
     assert runner._player2_ai.execution_fallbacks == 0
@@ -71,7 +80,6 @@ def test_scripted_classes_mirror_every_upstream_attribute(decks):
     AttributeError deep inside a sweep, hours in, with logging disabled. Compare
     the attribute sets directly so the failure lands here instead.
     """
-    import os
 
     os.environ.setdefault("GOOGLE_API_KEY", "dummy-for-attribute-comparison")
     from game_engine.ai.llm_player import LLMPlayer
@@ -95,7 +103,7 @@ def test_scripted_classes_mirror_every_upstream_attribute(decks):
 def test_same_seed_reproduces_the_same_game(policy, decks, no_api_key):
     def play(seed):
         runner = SimulationRunner(player1_policy=policy, player2_policy=policy)
-        r = runner.run_game(decks["D2"], decks["D7"], game_number=1, seed=seed)
+        r = runner.run_game(decks[1], decks[6], game_number=1, seed=seed)
         return r.outcome.value, r.turn_count, len(r.action_log)
 
     assert play(2024) == play(2024)
@@ -127,7 +135,7 @@ def test_out_of_range_policy_index_is_clamped(decks, no_api_key, monkeypatch):
     monkeypatch.setitem(policies_module.POLICIES, "rogue", rogue)
 
     runner = SimulationRunner(player1_policy="rogue", player2_policy="greedy")
-    result = runner.run_game(decks["D1"], decks["D5"], game_number=1, seed=3)
+    result = runner.run_game(decks[0], decks[4], game_number=1, seed=3)
 
     assert result.error_message is None
     assert result.turn_count > 0
