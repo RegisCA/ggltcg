@@ -100,3 +100,6 @@ backend/scripts/_*.py
 
 # Simulation CLI reports (generated artifacts)
 backend/src/reports/
+
+# Simulation sweep run artifacts (regenerate with simulation.sweep / simulation.combo)
+backend/data/combo_*.json
