@@ -9,9 +9,12 @@ grades well under every policy is genuinely strong, whereas one that grades well
 only under ``greedy`` is an artifact of that heuristic's myopia. See
 ``docs/development/CARD_EVALUATION_PLAN.md``.
 
-Every policy takes ``(sequences, game_state, player_id, rng)`` and returns an
-index. ``rng`` is a per-game seeded ``random.Random`` — policies must never touch
-the global ``random`` module, or runs stop being reproducible.
+Every policy takes ``(sequences, game_state, player_id, rng, enum_kwargs)`` and
+returns an index. ``rng`` is a per-game seeded ``random.Random`` — policies must
+never touch the global ``random`` module, or runs stop being reproducible.
+``enum_kwargs`` carries the caller's enumerator ceilings so a policy that
+enumerates further (``search2``) models the opponent under the same limits it
+plays under; policies that do not look ahead simply ignore it.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ class SelectionPolicy(Protocol):
         game_state: Any,
         player_id: str,
         rng: Any,
+        enum_kwargs: Dict[str, Any] | None = None,
     ) -> int: ...
 
 
@@ -45,7 +49,7 @@ def _named(name: str) -> Callable:
 
 
 @_named("greedy")
-def greedy(sequences, game_state, player_id, rng) -> int:
+def greedy(sequences, game_state, player_id, rng, enum_kwargs=None) -> int:
     """Take the enumerator's own top-ranked line.
 
     ``enumerator._rank_key`` orders by: wins first, then most opponent breaks,
@@ -59,7 +63,7 @@ def greedy(sequences, game_state, player_id, rng) -> int:
 
 
 @_named("random")
-def random_policy(sequences, game_state, player_id, rng) -> int:
+def random_policy(sequences, game_state, player_id, rng, enum_kwargs=None) -> int:
     """Uniform over legal sequences — the null model.
 
     Every line here is engine-legal and the enumerator already filters absurd
@@ -71,7 +75,7 @@ def random_policy(sequences, game_state, player_id, rng) -> int:
 
 
 @_named("softmax")
-def softmax(sequences, game_state, player_id, rng) -> int:
+def softmax(sequences, game_state, player_id, rng, enum_kwargs=None) -> int:
     """Greedy with jitter: uniform over the top 3 ranked lines.
 
     Cheap way to get variance out of an almost-deterministic engine without
@@ -102,8 +106,8 @@ def _score_state(game_state, player_id: str) -> float:
     # Opponent cards in their break zone are progress for us, and vice versa.
     score = 10.0 * (len(opp.break_zone) - len(me.break_zone))
 
-    me_board = [c for c in me.in_play]
-    opp_board = [c for c in opp.in_play]
+    me_board = me.in_play
+    opp_board = opp.in_play
     score += 3.0 * (len(me_board) - len(opp_board))
 
     # Surviving stats are worth something beyond raw card count.
@@ -115,14 +119,27 @@ def _score_state(game_state, player_id: str) -> float:
     return score
 
 
+MAX_REPLIES_CONSIDERED = 6
+
+
 @_named("search2")
-def search2(sequences, game_state, player_id, rng) -> int:
+def search2(sequences, game_state, player_id, rng, enum_kwargs=None) -> int:
     """Depth-2: for each of my lines, assume the opponent answers with theirs.
 
     Scores each candidate by the value of the position *after the opponent's best
     reply*, so lines that hand over a winning board rank below lines that do not
-    — the specific blind spot ``greedy`` has. With at most 12 sequences a side
-    this is ~144 nodes per turn, which is affordable in bulk.
+    — the specific blind spot ``greedy`` has.
+
+    Cost is one full ``enumerate_sequences`` per candidate line (not a single node
+    expansion), plus a replay per reply considered, so it runs roughly 20x slower
+    than ``greedy``. Only the top ``MAX_REPLIES_CONSIDERED`` replies are scored;
+    they arrive pre-ranked by the enumerator, so this keeps the opponent's most
+    dangerous answers and drops the tail.
+
+    ``enum_kwargs`` carries the caller's enumerator ceilings. Without it the reply
+    model would silently stay at the 8-action default while our own lines ran to a
+    raised ceiling — understating what the opponent can do back, in exactly the
+    combo runs where long turns are the whole point.
 
     Falls back to ``greedy`` if the search cannot run (the enumerator raising
     mid-search must not abort a sweep game).
@@ -157,11 +174,13 @@ def search2(sequences, game_state, player_id, rng) -> int:
                     best_index, best_score = index, score
                 continue
 
-            # Opponent's best single-turn reply, scored from our seat.
-            replies = enumerate_sequences(state, opponent_id)
+            # Opponent's best single-turn reply, scored from our seat. Same
+            # ceilings as our own enumeration, or the reply model is weaker than
+            # the position it is meant to evaluate.
+            replies = enumerate_sequences(state, opponent_id, **(enum_kwargs or {}))
             if replies:
                 worst = float("inf")
-                for reply in replies[:6]:
+                for reply in replies[:MAX_REPLIES_CONSIDERED]:
                     reply_state = clone_game_state(state)
                     reply_engine = GameEngine(reply_state)
                     if not _replay(reply_engine, reply_state, opponent_id, reply):

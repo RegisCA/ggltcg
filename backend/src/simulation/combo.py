@@ -38,7 +38,7 @@ import os
 import random
 import sys
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, Iterator, Optional, Sequence
+from typing import Iterator, Optional, Sequence
 
 DECK_SIZE = 6
 
@@ -106,14 +106,20 @@ def plan_trials(base_seed: int, trials: int, slots: list[list[str]],
     for t in range(trials):
         variants = build_variants(slots, rng, pool)
         # Opponent is a plain random legal deck: the combo is being measured
-        # against the field, not against one hand-picked foil.
+        # against the field, not against one hand-picked foil. Raise rather than
+        # fall through with a floor-violating deck, matching sweep.sample_deck --
+        # a silently illegal opponent would quietly bias every variant.
         for _ in range(200):
             opponent = sorted(rng.sample(list(pool), DECK_SIZE))
             if sum(1 for c in opponent if c in toys) >= min_toys:
                 break
+        else:
+            raise RuntimeError(f"could not sample an opponent with >= {min_toys} toys")
         out.append({
+            # Stride wide enough that trial t seat 2 cannot collide with a later
+            # trial's seat 1 (seats are offset by 101 in run_combo).
+            "seed": base_seed * 7_919 + t * 1_000,
             "trial": t,
-            "seed": base_seed * 7_919 + t,
             "variants": variants,
             "opponent": opponent,
         })
@@ -121,34 +127,22 @@ def plan_trials(base_seed: int, trials: int, slots: list[list[str]],
 
 
 _RUNNER = None
-_OPTS: dict = {}
 
 
 def _init_worker(policy: str, max_turns: int, max_actions, max_sequences) -> None:
     global _RUNNER
     logging.disable(logging.CRITICAL)
-    os.environ.setdefault("GOOGLE_API_KEY", "unused-combo-harness")
     from .runner import SimulationRunner
-    from .scripted_player import ScriptedPlayer
 
-    _OPTS.update(max_actions=max_actions, max_sequences=max_sequences)
-
-    runner = SimulationRunner(
-        max_turns=max_turns, player1_policy=policy, player2_policy=policy
-    )
     # Raise the enumerator ceiling for both seats. Real combo turns run past the
     # 8-action default, and a turn that is never enumerated can never be played.
-    original = runner._make_player
-
-    def _make(seat, seed):
-        player = original(seat, seed)
-        if isinstance(player, ScriptedPlayer):
-            player.turn_planner.enum_max_actions = _OPTS["max_actions"]
-            player.turn_planner.enum_max_sequences = _OPTS["max_sequences"]
-        return player
-
-    runner._make_player = _make
-    _RUNNER = runner
+    _RUNNER = SimulationRunner(
+        max_turns=max_turns,
+        player1_policy=policy,
+        player2_policy=policy,
+        policy_max_actions=max_actions,
+        policy_max_sequences=max_sequences,
+    )
 
 
 def _play_chunk(chunk: list[tuple]) -> list[dict]:

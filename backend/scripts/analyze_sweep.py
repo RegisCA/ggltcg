@@ -12,7 +12,9 @@ card appearing on both sides cancels, and the intercept absorbs seat advantage o
 its own rather than smearing it across the card estimates.
 
 Fitted by Newton-Raphson (IRLS). Rows are sparse (at most 12 nonzero features),
-so this stays fast in pure Python and the backend gains no numpy dependency.
+so it stays fast enough in pure Python (~18 s at 200k games) to not be worth a new
+dependency: numpy is not currently installed, and adding it to requirements.txt
+would grow the Render build for a script the app never imports.
 
     python backend/scripts/analyze_sweep.py --db backend/data/sweep.db
     python backend/scripts/analyze_sweep.py --compare 1 2 3
@@ -62,6 +64,10 @@ def fit_logistic(rows: list[tuple[list[tuple[int, float]], int]], n_features: in
     by the caller's reference coding, not here.
     """
     beta = [0.0] * n_features
+    # Bound before the loop: a first-iteration `invert` failure breaks out before
+    # `cov` would otherwise be assigned, turning a singular fit into an
+    # UnboundLocalError instead of a usable (if uninformative) result.
+    cov = [[0.0] * n_features for _ in range(n_features)]
     for _ in range(iters):
         grad = [0.0] * n_features
         hess = [[0.0] * n_features for _ in range(n_features)]
@@ -185,7 +191,7 @@ def analyze(run_id: int, meta, games, top: int) -> dict[str, float]:
         ), 0.0))
 
     ranked = sorted(cards, key=lambda c: beta[c], reverse=True)
-    print(f"\nCard values are relative to an average card (they sum to zero).")
+    print("\nCard values are relative to an average card (they sum to zero).")
     print(f"Reference level: {reference}\n")
     print(f"{'card':<20}{'beta':>8}{'95% CI':>18}{'win% vs avg':>13}")
     print("-" * 62)
@@ -197,9 +203,12 @@ def analyze(run_id: int, meta, games, top: int) -> dict[str, float]:
             flag = "" if lo * hi > 0 else "   (ns)"
             print(f"{c:<20}{beta[c]:>+8.3f}  [{lo:>+7.3f},{hi:>+7.3f}]{wr:>12.1f}%{flag}")
 
-    show(ranked[:top])
-    print(f"{'...':<20}")
-    show(ranked[-top:])
+    head = ranked[:top]
+    tail = [c for c in ranked[-top:] if c not in set(head)]
+    show(head)
+    if tail:
+        print(f"{'...':<20}")
+        show(tail)
     print("\n(ns) = 95% interval spans zero; card value not distinguishable from average")
     return beta
 
@@ -228,9 +237,19 @@ def main(argv=None) -> int:
     p.add_argument("--top", type=int, default=10)
     a = p.parse_args(argv)
 
+    if not a.db.exists():
+        raise SystemExit(
+            f"no sweep database at {a.db}\n"
+            "Run one first, e.g.:  python -m simulation.sweep --games 8000"
+        )
     conn = sqlite3.connect(a.db)
-    run_ids = a.compare or [a.run or conn.execute(
-        "SELECT MAX(id) FROM sweep_runs").fetchone()[0]]
+    try:
+        latest = conn.execute("SELECT MAX(id) FROM sweep_runs").fetchone()[0]
+    except sqlite3.OperationalError:
+        raise SystemExit(f"{a.db} has no sweep_runs table -- not a sweep database")
+    if latest is None and not a.compare:
+        raise SystemExit(f"{a.db} contains no runs yet")
+    run_ids = a.compare or [a.run or latest]
 
     fits, labels = {}, {}
     for rid in run_ids:
@@ -256,7 +275,7 @@ def main(argv=None) -> int:
         rb = {c: i for i, c in enumerate(sorted(shared, key=lambda c: base[c]))}
         ro = {c: i for i, c in enumerate(sorted(shared, key=lambda c: other[c]))}
         movers = sorted(shared, key=lambda c: -abs(rb[c] - ro[c]))[:8]
-        print(f"\n{'card':<20}{'rank ' + labels[ids[0]]:>18}{'rank ' + labels[ids[-1]]:>18}{'shift':>8}")
+        print(f"\n{"card":<20}{"rank " + labels[ids[0]]:>18}{'rank ' + labels[ids[-1]]:>18}{'shift':>8}")
         print("-" * 66)
         for c in movers:
             print(f"{c:<20}{len(shared)-rb[c]:>18}{len(shared)-ro[c]:>18}{rb[c]-ro[c]:>+8}")

@@ -48,14 +48,47 @@ def test_every_policy_completes_a_game_without_credentials(policy, decks, no_api
 
 
 def test_no_llm_execution_fallbacks_on_a_normal_game(decks, no_api_key):
-    """Plans are built from engine-enumerated sequences, so heuristic action
-    matching should always find the planned action. A nonzero count means plan
-    execution has drifted and sweep games are silently degrading to end_turn."""
+    """Spot check on one fixed seed that a clean game needs no LLM fallback.
+
+    Plans are built from engine-enumerated sequences, so heuristic matching
+    normally finds the planned action. It is not zero in general -- a multi-step
+    plan can desync from the board mid-turn (measured ~0.8% of games under
+    greedy), which is inherent, not a defect. This pins the clean case so a
+    regression that made fallbacks common would surface here.
+    """
     runner = SimulationRunner(player1_policy="greedy", player2_policy="greedy")
     runner.run_game(decks["D4"], decks["D6"], game_number=1, seed=7)
 
     assert runner._player1_ai.execution_fallbacks == 0
     assert runner._player2_ai.execution_fallbacks == 0
+
+
+def test_scripted_classes_mirror_every_upstream_attribute(decks):
+    """ScriptedPlayer/ScriptedTurnPlanner deliberately skip super().__init__ to
+    avoid building a network-capable provider, re-declaring each field by hand.
+
+    That is a drift risk: a new attribute added upstream would only surface as an
+    AttributeError deep inside a sweep, hours in, with logging disabled. Compare
+    the attribute sets directly so the failure lands here instead.
+    """
+    import os
+
+    os.environ.setdefault("GOOGLE_API_KEY", "dummy-for-attribute-comparison")
+    from game_engine.ai.llm_player import LLMPlayer
+
+    live = LLMPlayer()
+    scripted = ScriptedPlayer(policy="greedy", seed=0)
+
+    missing = set(vars(live)) - set(vars(scripted))
+    assert not missing, (
+        f"ScriptedPlayer is missing attribute(s) added to LLMPlayer: {sorted(missing)}"
+    )
+
+    missing_planner = set(vars(live.turn_planner)) - set(vars(scripted.turn_planner))
+    assert not missing_planner, (
+        "ScriptedTurnPlanner is missing attribute(s) added to TurnPlanner: "
+        f"{sorted(missing_planner)}"
+    )
 
 
 @pytest.mark.parametrize("policy", ["greedy", "random", "softmax", "search2"])

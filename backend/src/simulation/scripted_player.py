@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any, Optional
+from typing import Optional
 
 from game_engine.ai.llm_player import LLMPlayer
 from game_engine.ai.turn_planner import TurnPlanner
@@ -55,7 +55,16 @@ class ScriptedTurnPlanner(TurnPlanner):
         self._enum_debug: dict = {}
 
     def _select_sequence(self, sequences, game_state, player_id, game_engine=None):
-        index = self.policy(sequences, game_state, player_id, self.rng)
+        # Hand the policy the same enumerator ceilings this planner used, so a
+        # look-ahead policy models the opponent under the limits it plays under.
+        enum_kwargs = {}
+        if self.enum_max_actions is not None:
+            enum_kwargs["max_actions"] = self.enum_max_actions
+        if self.enum_max_sequences is not None:
+            enum_kwargs["max_sequences"] = self.enum_max_sequences
+
+        index = self.policy(sequences, game_state, player_id, self.rng,
+                            enum_kwargs=enum_kwargs)
         return index, f"[{self.policy.name}] sequence {index}"
 
 

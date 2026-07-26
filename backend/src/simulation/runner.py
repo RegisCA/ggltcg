@@ -55,6 +55,8 @@ class SimulationRunner:
         rate_limiter: Optional[object] = None,
         player1_policy: Optional[str] = None,
         player2_policy: Optional[str] = None,
+        policy_max_actions: Optional[int] = None,
+        policy_max_sequences: Optional[int] = None,
     ):
         """
         Initialize the simulation runner.
@@ -73,6 +75,11 @@ class SimulationRunner:
                 key required. See ``simulation.policies``.
             player2_policy: Same, for player 2. The two are independent so a
                 policy can be benchmarked against another one.
+            policy_max_actions: Enumerator action ceiling for scripted players.
+                None keeps the engine default (8), which is what live games use.
+                Combo analysis raises it because real turns run longer, and a turn
+                that is never enumerated can never be played.
+            policy_max_sequences: Enumerator sequence ceiling, same convention.
         """
         self.player1_model = player1_model or default_simulation_model()
         self.player2_model = player2_model or default_simulation_model()
@@ -80,6 +87,15 @@ class SimulationRunner:
         self.rate_limiter = rate_limiter
         self.player1_policy = player1_policy
         self.player2_policy = player2_policy
+        self.policy_max_actions = policy_max_actions
+        self.policy_max_sequences = policy_max_sequences
+
+        # Actions the engine refused (insufficient Charge, invalid target).
+        # ActionExecutor reports these via ExecutionResult.success rather than
+        # raising, so without an explicit counter a rejected action leaves no
+        # trace at all — no log (workers disable logging), no row, no column.
+        # That is the same silent-failure mode the ActionExecutor fix removed.
+        self.rejected_actions = 0
 
         # Configure logging for simulation
         self._configure_simulation_logging(log_level)
@@ -110,11 +126,17 @@ class SimulationRunner:
                 hand — the only nondeterminism in the engine). Pass and record a
                 distinct seed per game to make a run exactly replayable.
 
+                Note this reseeds the *process-global* ``random``, so concurrent
+                calls within one process would interleave streams and break
+                replay. Sweep workers are single-threaded, which is what makes it
+                safe; parallelism comes from processes, not threads.
+
         Returns:
             GameResult with outcome, turn count, Charge tracking, and action log
         """
         if seed is not None:
             random.seed(seed)
+        self.rejected_actions = 0  # per-game: workers reuse one runner
         start_time = time.time()
         charge_tracking: list[TurnCharge] = []
         action_log: list[dict] = []
@@ -201,7 +223,7 @@ class SimulationRunner:
                     
                     if result is None:
                         # AI failed to select, end turn
-                        logger.warning(f"AI failed to select action, ending turn")
+                        logger.warning("AI failed to select action, ending turn")
                         self._execute_end_turn(engine, game_state)
                         break
                     
@@ -342,6 +364,18 @@ class SimulationRunner:
             no_sequences_count=no_sequences_count,
         )
     
+    def _note_rejection(self, result, what: str) -> None:
+        """Record an action the engine declined.
+
+        ``ActionExecutor`` signals "legal-looking but refused" (not enough Charge,
+        target no longer valid) through ``ExecutionResult.success``, not an
+        exception. Dropping that return value on the floor is how a sweep ends up
+        reporting clean runs while quietly playing fewer actions than it planned.
+        """
+        if result is not None and not getattr(result, "success", True):
+            self.rejected_actions += 1
+            logger.warning("%s rejected: %s", what, getattr(result, "message", ""))
+
     def _make_player(self, seat: int, seed: Optional[int]):
         """Build the AI for one seat: scripted if a policy was configured, else LLM."""
         policy = self.player1_policy if seat == 1 else self.player2_policy
@@ -354,7 +388,12 @@ class SimulationRunner:
         # Offset per seat so the two players don't draw an identical stream in a
         # mirror match, which would correlate their choices under random policies.
         player_seed = 0 if seed is None else seed * 2 + seat
-        return ScriptedPlayer(policy=policy, seed=player_seed)
+        return ScriptedPlayer(
+            policy=policy,
+            seed=player_seed,
+            max_actions=self.policy_max_actions,
+            max_sequences=self.policy_max_sequences,
+        )
 
     def _create_game_state(
         self,
@@ -464,14 +503,16 @@ class SimulationRunner:
         if action.action_type == "play_card":
             details = ai_player.get_action_details(action)
             try:
-                executor.execute_play_card(
+                result = executor.execute_play_card(
                     player.player_id,
                     action.card_id,
                     target_card_ids=details.get("target_ids") or None,
                     alternative_cost_card_id=details.get("alternative_cost_card_id"),
                 )
+                self._note_rejection(result, "play_card")
             except ValueError as e:
-                logger.warning(f"play_card rejected: {e}")
+                self.rejected_actions += 1
+                logger.warning(f"play_card raised: {e}")
 
         elif action.action_type == "tussle":
             details = ai_player.get_action_details(action)
@@ -479,11 +520,13 @@ class SimulationRunner:
             if defender_id == "direct_attack":
                 defender_id = None
             try:
-                executor.execute_tussle(
+                result = executor.execute_tussle(
                     player.player_id, action.card_id, defender_id=defender_id
                 )
+                self._note_rejection(result, "tussle")
             except ValueError as e:
-                logger.warning(f"tussle rejected: {e}")
+                self.rejected_actions += 1
+                logger.warning(f"tussle raised: {e}")
 
         elif action.action_type == "activate_ability":
             card = next(

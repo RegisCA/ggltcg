@@ -110,8 +110,12 @@ def test_opponent_decks_respect_the_toy_floor(pool_and_toys):
 
 
 def test_max_actions_override_reaches_the_enumerator(monkeypatch):
-    """A silently-ignored ceiling would make every long-turn combo look worthless."""
-    from simulation.scripted_player import ScriptedPlayer
+    """A silently-ignored ceiling would make every long-turn combo look worthless.
+
+    Drives the ceiling the way the harness does -- through SimulationRunner's
+    constructor -- so this exercises the production path rather than a patch the
+    test applied itself.
+    """
     import game_engine.ai.turn_planner as tp
 
     seen = {}
@@ -127,21 +131,49 @@ def test_max_actions_override_reaches_the_enumerator(monkeypatch):
     from simulation.runner import SimulationRunner
 
     decks = load_simulation_decks_dict()
-    runner = SimulationRunner(player1_policy="greedy", player2_policy="greedy")
-    original = runner._make_player
-
-    def _make(seat, seed):
-        player = original(seat, seed)
-        if isinstance(player, ScriptedPlayer):
-            player.turn_planner.enum_max_actions = 14
-            player.turn_planner.enum_max_sequences = 24
-        return player
-
-    runner._make_player = _make
+    runner = SimulationRunner(
+        player1_policy="greedy", player2_policy="greedy",
+        policy_max_actions=14, policy_max_sequences=24,
+    )
     runner.run_game(decks["D1"], decks["D3"], game_number=1, seed=1)
 
     assert seen.get("max_actions") == 14
     assert seen.get("max_sequences") == 24
+
+
+def test_search2_models_the_opponent_at_the_same_ceiling():
+    """The reply model must use the caller's ceilings.
+
+    Left at defaults, our own lines enumerate to a raised cap while the opponent's
+    reply is modelled at 8 -- understating the counterattack in exactly the runs
+    where long turns are the point, and biasing every combo measurement.
+    """
+    from unittest.mock import patch
+
+    from simulation.deck_loader import load_simulation_decks_dict
+    from simulation.runner import SimulationRunner
+
+
+    seen: list[dict] = []
+
+    import game_engine.ai.enumerator as enum_mod
+    real_enum = enum_mod.enumerate_sequences
+
+    def spy(game_state, player_id, **kwargs):
+        seen.append(kwargs)
+        return real_enum(game_state, player_id, **kwargs)
+
+    decks = load_simulation_decks_dict()
+    with patch.object(enum_mod, "enumerate_sequences", spy):
+        runner = SimulationRunner(
+            player1_policy="search2", player2_policy="search2",
+            policy_max_actions=11, policy_max_sequences=13,
+        )
+        runner.run_game(decks["D1"], decks["D5"], game_number=1, seed=4)
+
+    assert seen, "search2 never enumerated an opponent reply"
+    assert all(k.get("max_actions") == 11 for k in seen), seen[:3]
+    assert all(k.get("max_sequences") == 13 for k in seen), seen[:3]
 
 
 def test_default_planner_leaves_enumerator_limits_untouched():

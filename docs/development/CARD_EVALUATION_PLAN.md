@@ -283,6 +283,13 @@ correctly much worse. Overall pre/post rank correlation: ρ = +0.88 (`greedy`),
 - **The 782 historical LLM simulation games have the same flaw**, since they ran
   through the same runner. Any card-level reading of them is unsafe — though the
   seat-advantage figures proved insensitive to the fix.
+
+  > **Do not use `simulation_games` rows created before 2026-07-26 for card-level
+  > analysis.** Nothing in the schema marks them, so a future reader will find
+  > them and reasonably assume they are sound. They remain valid for turn counts,
+  > draw rates and seat effects, which do not depend on targeted effects
+  > resolving. Anything about a specific card's strength does. The cleanest fix is
+  > a `runner_version` column on `simulation_runs`, tracked separately.
 - Fixing it dropped the `random` fallback rate from **10.8% → 3.0%** and left
   `greedy` at 0.8%.
 

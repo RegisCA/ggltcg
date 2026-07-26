@@ -27,7 +27,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Iterator, Sequence
 
 DEFAULT_DB = Path(__file__).resolve().parents[2] / "data" / "sweep.db"
 
@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS sweep_games (
     turns       INTEGER NOT NULL,
     duration_ms INTEGER NOT NULL,
     fallbacks   INTEGER NOT NULL DEFAULT 0,
+    rejected    INTEGER NOT NULL DEFAULT 0,
     error       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sweep_games_run ON sweep_games(run_id);
@@ -116,10 +117,26 @@ def plan_games(base_seed: int, games: int, pool: Sequence[str], toys: set[str],
 _RUNNER = None
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns introduced after a database was first created.
+
+    ``CREATE TABLE IF NOT EXISTS`` is a no-op on an existing table, so a new
+    column has to be added explicitly or every INSERT against an older sweep.db
+    fails on arity.
+    """
+    have = {row[1] for row in conn.execute("PRAGMA table_info(sweep_games)")}
+    if have and "rejected" not in have:
+        conn.execute("ALTER TABLE sweep_games ADD COLUMN rejected INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+
+
 def _init_worker(policy1: str, policy2: str, max_turns: int) -> None:
     global _RUNNER
     logging.disable(logging.CRITICAL)
-    os.environ.setdefault("GOOGLE_API_KEY", "unused-scripted-sweep")
+    # Deliberately no GOOGLE_API_KEY shim: ScriptedPlayer never builds a provider,
+    # and test_every_policy_completes_a_game_without_credentials pins that. A shim
+    # would let a regression that *does* build one fail late and quietly instead of
+    # immediately and loudly.
     from .runner import SimulationRunner
 
     _RUNNER = SimulationRunner(
@@ -144,10 +161,11 @@ def _play_chunk(chunk: list[tuple]) -> list[tuple]:
             )
             outcome = res.outcome.value if hasattr(res.outcome, "value") else str(res.outcome)
             out.append((pair_id, seed, json.dumps(d1), json.dumps(d2), outcome,
-                        res.turn_count, res.duration_ms, fallbacks, res.error_message))
+                        res.turn_count, res.duration_ms, fallbacks,
+                        _RUNNER.rejected_actions, res.error_message))
         except Exception as e:  # a single bad game must not kill the sweep
             out.append((pair_id, seed, json.dumps(d1), json.dumps(d2), "error",
-                        0, 0, 0, f"{type(e).__name__}: {e}"))
+                        0, 0, 0, 0, f"{type(e).__name__}: {e}"))
     return out
 
 
@@ -166,6 +184,7 @@ def run_sweep(games: int, policy1: str, policy2: str, workers: int, db_path: Pat
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA)
+    _migrate(conn)
     cur = conn.execute(
         "INSERT INTO sweep_runs (created_at, policy1, policy2, games, deck_size,"
         " min_toys, pool_size, both_seats, base_seed, max_turns, notes)"
@@ -191,7 +210,8 @@ def run_sweep(games: int, policy1: str, policy2: str, workers: int, db_path: Pat
             rows = fut.result()
             conn.executemany(
                 "INSERT INTO sweep_games (run_id, pair_id, seed, deck1, deck2, outcome,"
-                " turns, duration_ms, fallbacks, error) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " turns, duration_ms, fallbacks, rejected, error)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 [(run_id, *r) for r in rows],
             )
             conn.commit()
@@ -209,13 +229,15 @@ def run_sweep(games: int, policy1: str, policy2: str, workers: int, db_path: Pat
         "SELECT COUNT(*) FROM sweep_games WHERE run_id=? AND (error IS NOT NULL OR outcome='error')",
         (run_id,),
     ).fetchone()[0]
-    fbs = conn.execute(
-        "SELECT COALESCE(SUM(fallbacks),0) FROM sweep_games WHERE run_id=?", (run_id,)
-    ).fetchone()[0]
+    fbs, rej = conn.execute(
+        "SELECT COALESCE(SUM(fallbacks),0), COALESCE(SUM(rejected),0)"
+        " FROM sweep_games WHERE run_id=?", (run_id,)
+    ).fetchone()
     dist = conn.execute(
         "SELECT outcome, COUNT(*) FROM sweep_games WHERE run_id=? GROUP BY outcome", (run_id,)
     ).fetchall()
-    print(f"  outcomes: {dict(dist)}   errors: {errs}   llm-fallbacks: {fbs}")
+    print(f"  outcomes: {dict(dist)}   errors: {errs}   "
+          f"llm-fallbacks: {fbs}   engine-rejected: {rej}")
     conn.close()
     return run_id
 
