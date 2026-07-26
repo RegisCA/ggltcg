@@ -101,7 +101,7 @@ def baseline(iterations, parallel, model, decks, rpm, daily_budget, wait):
     Example:
         python -m simulation.cli baseline --iterations 20
     """
-    click.echo("🎮 Running baseline simulation")
+    click.echo(f"🎮 Running baseline simulation")
     click.echo(f"   Model: {model or default_simulation_model()}")
     click.echo(f"   Decks: {decks}")
     click.echo(f"   Iterations: {iterations} per matchup")
@@ -141,7 +141,7 @@ def compare(model1, model2, iterations, parallel, decks, rpm, daily_budget, wait
     Example:
         python -m simulation.cli compare --model1 gemini-flash-lite-latest --model2 gemini-2.5-flash-lite --iterations 20
     """
-    click.echo("⚔️  Running comparison simulation")
+    click.echo(f"⚔️  Running comparison simulation")
     click.echo(f"   Player 1: {model1}")
     click.echo(f"   Player 2: {model2}")
     click.echo(f"   Decks: {decks}")
@@ -182,7 +182,7 @@ def test_deck(deck_names, against, iterations, parallel, model, rpm, daily_budge
         python -m simulation.cli test-deck D1 --against baseline
         python -m simulation.cli test-deck D1 D2 --against D3,D4
     """
-    click.echo("🧪 Testing custom decks")
+    click.echo(f"🧪 Testing custom decks")
     click.echo(f"   Test decks: {', '.join(deck_names)}")
     click.echo(f"   Against: {against}")
     click.echo(f"   Iterations: {iterations} per matchup")
@@ -223,7 +223,7 @@ def quick(deck1, deck2, iterations, model, rpm, daily_budget, wait):
     Example:
         python -m simulation.cli quick Aggro_Rush Control_Ka --iterations 3
     """
-    click.echo("⚡ Quick test")
+    click.echo(f"⚡ Quick test")
     click.echo(f"   {deck1} vs {deck2}")
     click.echo(f"   Iterations: {iterations}")
     click.echo()
@@ -575,7 +575,7 @@ def _execute_and_report(
 
     click.echo()
     click.echo(f"💾 Full results available via API: GET /admin/simulation/runs/{run_id}/results")
-    click.echo("📊 View in admin UI: http://localhost:8000/admin.html")
+    click.echo(f"📊 View in admin UI: http://localhost:8000/admin.html")
 
     if result.status == SimulationStatus.FAILED:
         sys.exit(1)

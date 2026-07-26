@@ -184,7 +184,7 @@ class SimulationReporter:
             "## First Player Advantage",
             "",
             f"- **Player 1 (always goes first) win rate**: {stats['p1_win_rate']:.1%}",
-            "- **Expected rate (no advantage)**: 50.0%",
+            f"- **Expected rate (no advantage)**: 50.0%",
             f"- **Advantage**: {stats['advantage']:.1f} percentage points",
         ]
         
