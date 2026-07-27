@@ -505,6 +505,12 @@ def _execute_and_report(
         started: True if this run was just created (affects run vs. resume
             call for the first iteration)
     """
+    # Per-run accounting: totals are class-level so they persist across the
+    # per-game providers the orchestrator builds.
+    from game_engine.ai.providers import GeminiProvider
+
+    GeminiProvider.reset_usage()
+
     click.echo("Running simulation...")
     start_time = time.time()
 
@@ -611,6 +617,41 @@ def _display_summary(results: dict):
     avg_p1_charge = sum(g.get('p1_charge_gained', 0) for g in games) / total if games else 0
     avg_p2_charge = sum(g.get('p2_charge_gained', 0) for g in games) / total if games else 0
     click.echo(f"   Avg Charge Generated: P1={avg_p1_charge:.1f}, P2={avg_p2_charge:.1f}")
+
+    _display_token_usage(total)
+
+
+def _display_token_usage(games: int) -> None:
+    """Report measured API usage for the run.
+
+    Requests-per-game and cost were previously inferred from prompt structure;
+    this reports what was actually billed, so a short calibration run can size a
+    larger one instead of guessing at it.
+    """
+    from game_engine.ai.providers import GeminiProvider
+
+    usage = GeminiProvider.get_usage()
+    if not usage["requests"]:
+        return
+
+    requests = usage["requests"]
+    click.echo()
+    click.echo("💰 API Usage (measured):")
+    click.echo(f"   Requests: {requests}"
+               + (f"  ({requests / games:.2f} per game)" if games else ""))
+    click.echo(f"   Input tokens:  {usage['prompt_tokens']:,}"
+               f"  ({usage['prompt_tokens'] / requests:,.0f} per request)")
+    click.echo(f"   Output tokens: {usage['output_tokens']:,}"
+               f"  ({usage['output_tokens'] / requests:,.0f} per request)")
+    if usage["thinking_tokens"]:
+        click.echo(f"   Thinking tokens: {usage['thinking_tokens']:,}  (billed as output)")
+    if usage["cached_tokens"]:
+        click.echo(f"   Cached input: {usage['cached_tokens']:,}  (billed at a discount)")
+    click.echo(f"   Est. cost: ${usage['est_cost_usd']:.4f}"
+               + (f"  (${usage['est_cost_usd'] / games:.5f} per game)" if games else ""))
+    for model, counts in usage["by_model"].items():
+        click.echo(f"     {model}: {counts['requests']} req, ${counts['est_cost_usd']:.4f}")
+    click.echo(f"   Pricing: {usage['priced_from']}")
 
 
 if __name__ == '__main__':

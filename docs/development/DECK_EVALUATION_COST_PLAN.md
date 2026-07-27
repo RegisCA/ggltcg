@@ -232,7 +232,13 @@ object; capturing `prompt_token_count`, `candidates_token_count` and `thoughts_t
 future run into its own cost report and confirms the requests-per-game figure directly rather than by
 inference. Highest-value change in this document.
 
-**Reorder the prompt for implicit caching.** Gemini discounts input tokens matching a previously-seen
+**Reorder the prompt for implicit caching.** ⚠️ **Measured 2026-07-26: this does not
+work.** `<board_legend>` is not static (it renders the live board) and
+`<card_guidance>` is not stable even within a game (it excludes break zones, so it
+shrinks as cards break). Genuinely invariant content totals 646 tokens against a
+~1,024 minimum, so perfect ordering still falls short. See
+[`CARD_EVALUATION_PLAN.md`](CARD_EVALUATION_PLAN.md). Original reasoning below, kept
+for the record: Gemini discounts input tokens matching a previously-seen
 prefix by 75%, provided the shared prefix exceeds roughly 1,024 tokens. Your selector prompt is nearly
 ideal — the system instruction and card-guidance block are identical across every request in a run —
 but `generate_strategic_prompt` puts variable state (`opp_remaining`, the `<context>` line) near the

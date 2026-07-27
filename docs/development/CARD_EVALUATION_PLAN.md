@@ -221,7 +221,7 @@ cd backend/src && python -m simulation.sweep --decks all --iterations 100 --poli
 python backend/scripts/deck_matrix.py --run <id>
 ```
 
-**Stage 5 — targeted LLM validation.** Play the eight derived decks under the real
+**Stage 5 — targeted LLM validation. Done**, results below. Play the derived decks under the real
 Gemini player to confirm the ranking survives competent play. This is the original
 $2 run from `DECK_EVALUATION_COST_PLAN.md` — its model pinning, cost model and
 seat-analysis cuts all still apply — but spent on decks that were earned rather
@@ -236,13 +236,159 @@ Two things make it worth the money rather than a formality:
   since per-deck preference flipped between the two policies already. An LLM run is
   the only remaining instrument for it here.
 
+#### Measured cost (calibration, 20 games, 2026-07-26)
+
+`GeminiProvider` now records `response.usage_metadata`, so cost is measured rather
+than inferred. The old estimate was badly pessimistic:
+
+| | Estimated | **Measured** |
+|---|---|---|
+| Requests per game | 10 | **5.45** |
+| Input tokens / request | ~2,000 | **1,563** |
+| Output tokens / request | ~120 | **61** |
+| Cost per game | $0.0025 | **$0.00099** |
+
+Three findings:
+
+- **Thinking tokens: 2 in total.** Confirms `gemini-2.5-flash-lite` defaults to
+  `thinkingBudget: 0`. Pinning to 2.5 rather than a 3.x model was correct.
+- **Implicit caching barely engages** — 4,401 of 170,382 input tokens (2.6%).
+  The old plan blamed block ordering and proposed reordering the prompt. Measured,
+  that fix cannot work; see below.
+- **5.45 requests/game is a floor, not the expectation.** Calibration used
+  Apex vs Control_Worst, which is lopsided (5.5 turns vs 8.08 across stored
+  history). Requests track turns almost exactly (0.99 per turn), so budget ~7
+  requests/game for a balanced matrix.
+
+#### The run
+
+Five decks, not eight. Cells grow as n², so deck count is the expensive dial, and
+three of the eight answer questions already settled (`Rival_B` is mid-tier with no
+distinct question; `Curve` already underperformed; `Stat_Max` did its job). Keeping
+`Apex`, `Rival_A`, `Combo`, `Control_Worst` and `Legacy_Best` puts the whole budget
+on decks that each test something.
+
 ```bash
 export GEMINI_MODEL=gemini-2.5-flash-lite
 export GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
-python -m simulation.cli baseline --decks all -i 10 --parallel 10
+# Local SQLite: production already holds the pre-2026-07-26 rows flagged above,
+# and mixing experiment eras in one table is how they get trusted by accident.
+export DATABASE_URL="sqlite:///$(pwd)/../data/llm_validation.db"
+python -m simulation.cli baseline \
+  --decks Apex,Rival_A,Combo,Control_Worst,Legacy_Best -i 80 --parallel 10
 ```
 
-640 games, ~$1.60 at the plan's 10-requests-per-game budget.
+2,000 games (25 cells x 80), ~$2.60, ~70 min. Per-deck win rate ±3.5 pts; global
+seat ±2.2 pts — enough to separate 50% from 53%, which is the point of spending.
+
+Note the CLI assumes its database already exists. Against a fresh local file it
+fails with a raw SQLAlchemy `no such table` rather than "run migrations"; create
+the schema first via `Base.metadata.create_all`.
+
+#### Stage 5 results (2,000 games, $2.10, zero errors)
+
+Measured cost came in at 5.63 requests/game and $0.00105/game — within 3% of the
+calibration figure, so the accounting is trustworthy.
+
+**The deck ranking validates exactly: ρ = +1.000 against both scripted policies.**
+
+| Deck | greedy | search2 | **LLM** |
+|---|---|---|---|
+| Rival_A | 67.9% | 72.4% | **75.5%** |
+| Apex | 62.9% | 70.3% | **61.3%** |
+| Legacy_Best | 52.3% | 50.1% | 51.6% |
+| Combo | 57.4% | 53.3% | 51.6% |
+| Control_Worst | 6.2% | 6.2% | 10.0% |
+
+`Rival_A` (Dino, Dream, Hind Leg Kicker, Ka, Knight, Umbruh) wins under a greedy
+bot, a depth-2 search bot and a real LLM, and gets *stronger* as the player
+improves (67.9 → 72.4 → 75.5).
+
+The consequence that matters beyond this experiment: **the free scripted harness
+predicts LLM outcomes.** Deck questions can now be answered in nine minutes for
+nothing, and an LLM run is only needed for questions about the model itself.
+
+**Seat advantage: none. P1 wins 49.0% ± 2.2** (interval [46.9, 51.2], includes 50).
+
+| Player | P1 win % |
+|---|---|
+| `random` | 45.8% |
+| `greedy` | 47.1% |
+| `search2` | 53.1% |
+| **LLM** | **49.0%** |
+| Historical LLM V4 (different decks) | 54.5% |
+
+The monotone "seat advantage grows with skill" reading built from the scripted
+ladder does **not** survive a real LLM, and is retracted. The game is
+seat-balanced; no compensation rule is warranted.
+
+**But mirrors are violently deck-specific**, and this is the finding that survives:
+
+| Mirror | P1 win % (LLM) | P1 win % (greedy) |
+|---|---|---|
+| Control_Worst | 83.8% | — |
+| Apex | 67.5% | 70.0% |
+| Combo | 55.0% | — |
+| Rival_A | 50.0% | 32.0% |
+| Legacy_Best | **10.0%** | 17.0% |
+
+Same deck on both sides, so the only variable is who moves first. In the
+`Legacy_Best` mirror, moving first is close to a loss — and `greedy` found the
+same thing independently (17%), as it did for `Apex` (70.0 vs 67.5). These large
+effects **cancel in aggregate**, which is exactly why the global figure sits on
+50%.
+
+Per-deck *pooled* seat deltas still fail to replicate across policies (`Rival_A`
++9.0 under `search2`, −14.0 under the LLM). Trust the mirrors; do not trust the
+pooled per-deck numbers.
+
+#### Closed: prompt reordering for implicit caching will not work
+
+`DECK_EVALUATION_COST_PLAN.md` proposed moving `<card_guidance>`, `<board_legend>`
+and `<task>` ahead of the volatile blocks so most input would bill at the cached
+rate. Measuring the actual prompt shows the fix cannot reach the threshold, and
+the premise was wrong in two places.
+
+Selector prompt, typical mid-game turn (~1,530 input tokens including the system
+instruction):
+
+| Block | ~tokens | Changes |
+|---|---|---|
+| system_instruction | 597 | never |
+| `<valid_sequences>` | 369 | every turn |
+| `<card_guidance>` | 216 | **every turn** (see below) |
+| `<board_legend>` | 175 | every turn |
+| `<task>` | 41 | never |
+| `<context>` | 26 | every turn |
+| `<goal>` | 28 | every turn (`opp_remaining`) |
+| `<threat_priorities>` | 14 | every turn |
+| `<system>` | 7 | never |
+
+- `<board_legend>` is **not** static, as the old plan assumed — it is a live
+  rendering of both boards.
+- `<card_guidance>` is **not** even stable within a game: `get_relevant_card_names`
+  draws from hand plus both in-play zones and deliberately excludes break zones, so
+  the block shrinks as cards break.
+
+That leaves system_instruction + `<system>` + `<task>` = **646 tokens** of content
+that is genuinely invariant, against Gemini's ~1,024-token minimum for implicit
+caching. Perfect ordering still falls ~35% short, which is why caching engages on
+only a handful of requests today.
+
+Not worth pursuing: the change cannot achieve its goal, and it would alter prompt
+behaviour and so invalidate cross-run comparisons. For reference the whole question
+is worth about $1 per 2,000-game run, since input is 86% of a $2.10 spend.
+
+If prompt cost ever does matter, the lever is size rather than caching:
+`<valid_sequences>` alone is 39% of the prompt, and `DEFAULT_MAX_SEQUENCES` is 12.
+
+#### Open: target hallucinations
+
+382 occurrences across 2,000 games — roughly one every five games — where the model
+names a card id absent from the action's `target_options`. `_filter_to_valid_targets`
+drops every one, so no game was corrupted, but the frequency is a real
+prompt-quality signal. It is invisible to scripted sweeps by construction, since a
+scripted player cannot hallucinate. Worth its own investigation.
 
 ## Carried over from the old plan
 
