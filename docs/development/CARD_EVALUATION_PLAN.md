@@ -221,7 +221,7 @@ cd backend/src && python -m simulation.sweep --decks all --iterations 100 --poli
 python backend/scripts/deck_matrix.py --run <id>
 ```
 
-**Stage 5 — targeted LLM validation.** Play the eight derived decks under the real
+**Stage 5 — targeted LLM validation. Done**, results below. Play the derived decks under the real
 Gemini player to confirm the ranking survives competent play. This is the original
 $2 run from `DECK_EVALUATION_COST_PLAN.md` — its model pinning, cost model and
 seat-analysis cuts all still apply — but spent on decks that were earned rather
@@ -286,6 +286,71 @@ seat ±2.2 pts — enough to separate 50% from 53%, which is the point of spendi
 Note the CLI assumes its database already exists. Against a fresh local file it
 fails with a raw SQLAlchemy `no such table` rather than "run migrations"; create
 the schema first via `Base.metadata.create_all`.
+
+#### Stage 5 results (2,000 games, $2.10, zero errors)
+
+Measured cost came in at 5.63 requests/game and $0.00105/game — within 3% of the
+calibration figure, so the accounting is trustworthy.
+
+**The deck ranking validates exactly: ρ = +1.000 against both scripted policies.**
+
+| Deck | greedy | search2 | **LLM** |
+|---|---|---|---|
+| Rival_A | 67.9% | 72.4% | **75.5%** |
+| Apex | 62.9% | 70.3% | **61.3%** |
+| Legacy_Best | 52.3% | 50.1% | 51.6% |
+| Combo | 57.4% | 53.3% | 51.6% |
+| Control_Worst | 6.2% | 6.2% | 10.0% |
+
+`Rival_A` (Dino, Dream, Hind Leg Kicker, Ka, Knight, Umbruh) wins under a greedy
+bot, a depth-2 search bot and a real LLM, and gets *stronger* as the player
+improves (67.9 → 72.4 → 75.5).
+
+The consequence that matters beyond this experiment: **the free scripted harness
+predicts LLM outcomes.** Deck questions can now be answered in nine minutes for
+nothing, and an LLM run is only needed for questions about the model itself.
+
+**Seat advantage: none. P1 wins 49.0% ± 2.2** (interval [46.9, 51.2], includes 50).
+
+| Player | P1 win % |
+|---|---|
+| `random` | 45.8% |
+| `greedy` | 47.1% |
+| `search2` | 53.1% |
+| **LLM** | **49.0%** |
+| Historical LLM V4 (different decks) | 54.5% |
+
+The monotone "seat advantage grows with skill" reading built from the scripted
+ladder does **not** survive a real LLM, and is retracted. The game is
+seat-balanced; no compensation rule is warranted.
+
+**But mirrors are violently deck-specific**, and this is the finding that survives:
+
+| Mirror | P1 win % (LLM) | P1 win % (greedy) |
+|---|---|---|
+| Control_Worst | 83.8% | — |
+| Apex | 67.5% | 70.0% |
+| Combo | 55.0% | — |
+| Rival_A | 50.0% | 32.0% |
+| Legacy_Best | **10.0%** | 17.0% |
+
+Same deck on both sides, so the only variable is who moves first. In the
+`Legacy_Best` mirror, moving first is close to a loss — and `greedy` found the
+same thing independently (17%), as it did for `Apex` (70.0 vs 67.5). These large
+effects **cancel in aggregate**, which is exactly why the global figure sits on
+50%.
+
+Per-deck *pooled* seat deltas still fail to replicate across policies (`Rival_A`
++9.0 under `search2`, −14.0 under the LLM). Trust the mirrors; do not trust the
+pooled per-deck numbers.
+
+#### Open: target hallucinations
+
+382 occurrences across 2,000 games — roughly one every five games — where the model
+names a card id absent from the action's `target_options`. `_filter_to_valid_targets`
+drops every one, so no game was corrupted, but the frequency is a real
+prompt-quality signal. It is invisible to scripted sweeps by construction, since a
+scripted player cannot hallucinate. Worth its own investigation.
 
 ## Carried over from the old plan
 
