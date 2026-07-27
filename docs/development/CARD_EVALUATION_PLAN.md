@@ -236,13 +236,56 @@ Two things make it worth the money rather than a formality:
   since per-deck preference flipped between the two policies already. An LLM run is
   the only remaining instrument for it here.
 
+#### Measured cost (calibration, 20 games, 2026-07-26)
+
+`GeminiProvider` now records `response.usage_metadata`, so cost is measured rather
+than inferred. The old estimate was badly pessimistic:
+
+| | Estimated | **Measured** |
+|---|---|---|
+| Requests per game | 10 | **5.45** |
+| Input tokens / request | ~2,000 | **1,563** |
+| Output tokens / request | ~120 | **61** |
+| Cost per game | $0.0025 | **$0.00099** |
+
+Three findings:
+
+- **Thinking tokens: 2 in total.** Confirms `gemini-2.5-flash-lite` defaults to
+  `thinkingBudget: 0`. Pinning to 2.5 rather than a 3.x model was correct.
+- **Implicit caching barely engages** — 4,401 of 170,382 input tokens (2.6%),
+  exactly as predicted: variable state near the top of the selector prompt breaks
+  the shared prefix. Input is 86% of spend, so reordering would be worth real
+  money — but it changes prompt behaviour, so it belongs in a *separate*
+  experiment, never mid-comparison.
+- **5.45 requests/game is a floor, not the expectation.** Calibration used
+  Apex vs Control_Worst, which is lopsided (5.5 turns vs 8.08 across stored
+  history). Requests track turns almost exactly (0.99 per turn), so budget ~7
+  requests/game for a balanced matrix.
+
+#### The run
+
+Five decks, not eight. Cells grow as n², so deck count is the expensive dial, and
+three of the eight answer questions already settled (`Rival_B` is mid-tier with no
+distinct question; `Curve` already underperformed; `Stat_Max` did its job). Keeping
+`Apex`, `Rival_A`, `Combo`, `Control_Worst` and `Legacy_Best` puts the whole budget
+on decks that each test something.
+
 ```bash
 export GEMINI_MODEL=gemini-2.5-flash-lite
 export GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
-python -m simulation.cli baseline --decks all -i 10 --parallel 10
+# Local SQLite: production already holds the pre-2026-07-26 rows flagged above,
+# and mixing experiment eras in one table is how they get trusted by accident.
+export DATABASE_URL="sqlite:///$(pwd)/../data/llm_validation.db"
+python -m simulation.cli baseline \
+  --decks Apex,Rival_A,Combo,Control_Worst,Legacy_Best -i 80 --parallel 10
 ```
 
-640 games, ~$1.60 at the plan's 10-requests-per-game budget.
+2,000 games (25 cells x 80), ~$2.60, ~70 min. Per-deck win rate ±3.5 pts; global
+seat ±2.2 pts — enough to separate 50% from 53%, which is the point of spending.
+
+Note the CLI assumes its database already exists. Against a fresh local file it
+fails with a raw SQLAlchemy `no such table` rather than "run migrations"; create
+the schema first via `Base.metadata.create_all`.
 
 ## Carried over from the old plan
 

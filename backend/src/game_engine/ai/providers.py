@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -14,6 +15,19 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "gemini-flash-lite-latest"  # Stable alias for latest Flash Lite; no geographic restriction
 DEFAULT_FALLBACK_MODEL = "gemini-2.5-flash-lite"
+
+# USD per million tokens, as published 2026-07-26. Indicative only: this exists so
+# a run can report roughly what it cost instead of relying on a hand estimate, not
+# as a billing source of truth. Unlisted models fall back to the 2.5 Flash-Lite
+# rate, which is the cheapest tier, so an unknown model under-reports rather than
+# silently inventing a number.
+MODEL_PRICING_PER_MTOK: dict[str, tuple[float, float]] = {
+    "gemini-2.5-flash-lite": (0.10, 0.40),
+    "gemini-flash-lite-latest": (0.10, 0.40),
+    "gemini-2.0-flash": (0.10, 0.40),
+    "gemini-3.5-flash-lite": (0.30, 2.50),
+}
+_FALLBACK_PRICING = (0.10, 0.40)
 
 
 @dataclass(frozen=True)
@@ -47,6 +61,100 @@ def resolve_provider_config(
 
 class GeminiProvider:
     """Google Gemini provider using the google-genai SDK."""
+
+    # Class-level token accounting, shared across instances (simulations build a
+    # provider per game, so per-instance counters would be discarded every game).
+    #
+    # Nothing previously recorded response.usage_metadata, which is why every cost
+    # figure for this project has been an estimate inferred from prompt structure.
+    # Capturing it makes a run self-measuring: requests per game, tokens per
+    # request and approximate spend all become facts rather than assumptions.
+    _usage = {
+        "requests": 0,
+        "prompt_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0,
+        "cached_tokens": 0,
+        "by_model": {},
+    }
+    # Simulations fan out over a ThreadPoolExecutor, so accumulation is shared
+    # mutable state. `counter += n` on a dict value is a read-modify-write and is
+    # not atomic under the GIL; without this the totals would quietly run low
+    # exactly when parallelism is highest.
+    _usage_lock = threading.Lock()
+
+    @classmethod
+    def reset_usage(cls) -> None:
+        cls._usage = {
+            "requests": 0,
+            "prompt_tokens": 0,
+            "output_tokens": 0,
+            "thinking_tokens": 0,
+            "cached_tokens": 0,
+            "by_model": {},
+        }
+
+    @classmethod
+    def get_usage(cls) -> dict[str, Any]:
+        """Token totals plus an approximate cost, per model and overall."""
+        with cls._usage_lock:
+            snapshot = {k: (dict(v) if isinstance(v, dict) else v)
+                        for k, v in cls._usage.items()}
+            snapshot["by_model"] = {m: dict(c) for m, c in cls._usage["by_model"].items()}
+        usage = {k: v for k, v in snapshot.items() if k != "by_model"}
+        by_model = {}
+        total_cost = 0.0
+        for model, counts in snapshot["by_model"].items():
+            price_in, price_out = MODEL_PRICING_PER_MTOK.get(model, _FALLBACK_PRICING)
+            # Thinking tokens bill as output on models that emit them.
+            billable_out = counts["output_tokens"] + counts["thinking_tokens"]
+            cost = (counts["prompt_tokens"] * price_in
+                    + billable_out * price_out) / 1_000_000
+            by_model[model] = {**counts, "est_cost_usd": round(cost, 6)}
+            total_cost += cost
+        usage["by_model"] = by_model
+        usage["est_cost_usd"] = round(total_cost, 6)
+        usage["priced_from"] = "MODEL_PRICING_PER_MTOK (indicative, 2026-07-26)"
+        return usage
+
+    @classmethod
+    def _record_usage(cls, response: Any, model: str) -> None:
+        """Accumulate one response's token counts. Never raises.
+
+        Usage accounting must not be able to break a game: the SDK's field names
+        have changed before and some are absent on some models, so every read is
+        defensive and a failure here is swallowed.
+        """
+        try:
+            meta = getattr(response, "usage_metadata", None)
+            if meta is None:
+                return
+
+            def count(*names: str) -> int:
+                for name in names:
+                    value = getattr(meta, name, None)
+                    if isinstance(value, int):
+                        return value
+                return 0
+
+            fields = {
+                "prompt_tokens": count("prompt_token_count"),
+                "output_tokens": count("candidates_token_count"),
+                "thinking_tokens": count("thoughts_token_count", "thinking_token_count"),
+                "cached_tokens": count("cached_content_token_count"),
+            }
+            with cls._usage_lock:
+                entry = cls._usage["by_model"].setdefault(model, {
+                    "requests": 0, "prompt_tokens": 0,
+                    "output_tokens": 0, "thinking_tokens": 0, "cached_tokens": 0,
+                })
+                cls._usage["requests"] += 1
+                entry["requests"] += 1
+                for key, value in fields.items():
+                    cls._usage[key] += value
+                    entry[key] += value
+        except Exception:  # pragma: no cover - accounting must never break a game
+            logger.debug("failed to record token usage", exc_info=True)
 
     def __init__(self, config: AIProviderConfig, client: Any | None = None, rate_limiter: Any | None = None):
         self.config = config
@@ -95,6 +203,12 @@ class GeminiProvider:
                         system_instruction=system_instruction,
                     ),
                 )
+
+                # Recorded before validating: a truncated or empty response still
+                # consumed input tokens and still bills. Those calls are exactly
+                # the ones a cost report needs to show -- on models with thinking
+                # enabled they are the expensive failure mode.
+                self._record_usage(response, current_model)
 
                 if not response.candidates or not response.candidates[0].content.parts:
                     finish_reason = (
@@ -189,6 +303,12 @@ class GeminiProvider:
                         system_instruction=system_instruction,
                     ),
                 )
+
+                # Recorded before validating: a truncated or empty response still
+                # consumed input tokens and still bills. Those calls are exactly
+                # the ones a cost report needs to show -- on models with thinking
+                # enabled they are the expensive failure mode.
+                self._record_usage(response, current_model)
 
                 if not response.candidates or not response.candidates[0].content.parts:
                     finish_reason = (
