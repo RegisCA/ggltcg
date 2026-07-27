@@ -252,11 +252,9 @@ Three findings:
 
 - **Thinking tokens: 2 in total.** Confirms `gemini-2.5-flash-lite` defaults to
   `thinkingBudget: 0`. Pinning to 2.5 rather than a 3.x model was correct.
-- **Implicit caching barely engages** — 4,401 of 170,382 input tokens (2.6%),
-  exactly as predicted: variable state near the top of the selector prompt breaks
-  the shared prefix. Input is 86% of spend, so reordering would be worth real
-  money — but it changes prompt behaviour, so it belongs in a *separate*
-  experiment, never mid-comparison.
+- **Implicit caching barely engages** — 4,401 of 170,382 input tokens (2.6%).
+  The old plan blamed block ordering and proposed reordering the prompt. Measured,
+  that fix cannot work; see below.
 - **5.45 requests/game is a floor, not the expectation.** Calibration used
   Apex vs Control_Worst, which is lopsided (5.5 turns vs 8.08 across stored
   history). Requests track turns almost exactly (0.99 per turn), so budget ~7
@@ -343,6 +341,46 @@ effects **cancel in aggregate**, which is exactly why the global figure sits on
 Per-deck *pooled* seat deltas still fail to replicate across policies (`Rival_A`
 +9.0 under `search2`, −14.0 under the LLM). Trust the mirrors; do not trust the
 pooled per-deck numbers.
+
+#### Closed: prompt reordering for implicit caching will not work
+
+`DECK_EVALUATION_COST_PLAN.md` proposed moving `<card_guidance>`, `<board_legend>`
+and `<task>` ahead of the volatile blocks so most input would bill at the cached
+rate. Measuring the actual prompt shows the fix cannot reach the threshold, and
+the premise was wrong in two places.
+
+Selector prompt, typical mid-game turn (~1,530 input tokens including the system
+instruction):
+
+| Block | ~tokens | Changes |
+|---|---|---|
+| system_instruction | 597 | never |
+| `<valid_sequences>` | 369 | every turn |
+| `<card_guidance>` | 216 | **every turn** (see below) |
+| `<board_legend>` | 175 | every turn |
+| `<task>` | 41 | never |
+| `<context>` | 26 | every turn |
+| `<goal>` | 28 | every turn (`opp_remaining`) |
+| `<threat_priorities>` | 14 | every turn |
+| `<system>` | 7 | never |
+
+- `<board_legend>` is **not** static, as the old plan assumed — it is a live
+  rendering of both boards.
+- `<card_guidance>` is **not** even stable within a game: `get_relevant_card_names`
+  draws from hand plus both in-play zones and deliberately excludes break zones, so
+  the block shrinks as cards break.
+
+That leaves system_instruction + `<system>` + `<task>` = **646 tokens** of content
+that is genuinely invariant, against Gemini's ~1,024-token minimum for implicit
+caching. Perfect ordering still falls ~35% short, which is why caching engages on
+only a handful of requests today.
+
+Not worth pursuing: the change cannot achieve its goal, and it would alter prompt
+behaviour and so invalidate cross-run comparisons. For reference the whole question
+is worth about $1 per 2,000-game run, since input is 86% of a $2.10 spend.
+
+If prompt cost ever does matter, the lever is size rather than caching:
+`<valid_sequences>` alone is 39% of the prompt, and `DEFAULT_MAX_SEQUENCES` is 12.
 
 #### Open: target hallucinations
 
