@@ -1,9 +1,9 @@
 deck_name,description,card1,card2,card3,card4,card5,card6
-D1,Based on high percentage cards for K,Belchaletta,Drum,Drop,Hind Leg Kicker,Sock Sorcerer,Violin
-D2,Based on high percentage cards for S,Belchaletta,Clone,Demideca,Sock Sorcerer,That was fun,Toynado
-D3,Based on S winning cards,Beary,Dream,Knight,Raggy,Rush,Umbruh
-D4,Based on R winning cards,Archer,Knight,Rush,Twist,Umbruh,Wake
-D5,Based on KB winning cards,Beary,Copy,Hind Leg Kicker,Surge,That was fun,Wake
-D6,K slot1,Copy,Dream,Raggy,Twist,Umbruh,Wake
-D7,S slot1,Car,Dino,Drum,Glue,Stomp,Violin
-D8,KB slot1,Ballaber,Knight,Rush,Sun,Umbruh,Wake
+Apex,Top 6 by fitted value -- the model's single best guess.,Beary,Block,Car,Dream,MaBookBook,Umbruh
+Rival_A,Best deck sharing <=2 cards with Apex.,Dino,Dream,Hind Leg Kicker,Ka,Knight,Umbruh
+Rival_B,Best deck sharing <=2 cards with Apex and Rival_A.,Beary,Car,Demideca,Hind Leg Kicker,Knight,Raggy
+Curve,"Best value at total cost <=2 -- deploys free, spends everything on tussles.",Beary,Block,Car,Dino,MaBookBook,Umbruh
+Combo,"Forced HLK + Jumpscare + That was fun engine, best remaining slots.",Beary,Dream,Hind Leg Kicker,Jumpscare,That was fun,Umbruh
+Stat_Max,"CONTROL: highest raw speed+strength+stamina, ignoring fitted value.",Ballaber,Beary,Dream,Ka,MaBookBook,Umbruh
+Control_Worst,"CONTROL: bottom 6 by consensus. Must lose, or the model is wrong.",Ballaber,Clone,Paper Plane,Surge,Toynado,VeryVeryAppleJuice
+Legacy_Best,"Best of the original hand-made D1-D8 set (D3), as a fixed baseline.",Beary,Dream,Knight,Raggy,Rush,Umbruh

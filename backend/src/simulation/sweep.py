@@ -91,6 +91,34 @@ def sample_deck(rng: random.Random, pool: Sequence[str], toys: set[str],
     raise RuntimeError(f"could not sample a deck with >= {min_toys} toys")
 
 
+def plan_matrix(base_seed: int, deck_names: list[str], iterations: int) -> list[tuple]:
+    """Full n^2 round-robin over named decks from simulation_decks.csv.
+
+    Random sampling answers "which cards are good?"; this answers "is *this* deck
+    good?", which is the question once candidate decks exist. Player 1 always
+    moves first, so A-vs-B and B-vs-A are different cells and the matrix supplies
+    both seats for every pairing.
+    """
+    from .deck_loader import load_simulation_decks_dict
+
+    available = load_simulation_decks_dict()
+    unknown = [n for n in deck_names if n not in available]
+    if unknown:
+        raise ValueError(
+            f"unknown deck(s): {', '.join(unknown)}. "
+            f"Available: {', '.join(sorted(available))}"
+        )
+
+    work: list[tuple] = []
+    for pair_id, (a, b) in enumerate(
+        (a, b) for a in deck_names for b in deck_names
+    ):
+        for i in range(iterations):
+            work.append((pair_id, base_seed * 1_000_003 + len(work),
+                         sorted(available[a].cards), sorted(available[b].cards)))
+    return work
+
+
 def plan_games(base_seed: int, games: int, pool: Sequence[str], toys: set[str],
                deck_size: int, min_toys: int, both_seats: bool) -> list[tuple]:
     """Build the full work list up front, in the parent process.
@@ -177,9 +205,14 @@ def _chunks(items: list, size: int) -> Iterator[list]:
 
 def run_sweep(games: int, policy1: str, policy2: str, workers: int, db_path: Path,
               base_seed: int, deck_size: int, min_toys: int, both_seats: bool,
-              max_turns: int, notes: str | None) -> int:
+              max_turns: int, notes: str | None,
+              deck_names: list[str] | None = None,
+              iterations: int = 10) -> int:
     pool, toys = _card_pool()
-    work = plan_games(base_seed, games, pool, toys, deck_size, min_toys, both_seats)
+    if deck_names:
+        work = plan_matrix(base_seed, deck_names, iterations)
+    else:
+        work = plan_games(base_seed, games, pool, toys, deck_size, min_toys, both_seats)
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
@@ -255,13 +288,27 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-both-seats", action="store_true")
     p.add_argument("--max-turns", type=int, default=20)
     p.add_argument("--notes", default=None)
+    p.add_argument("--decks", default=None,
+                   help='named decks to round-robin (comma-separated, or "all"); '
+                        "omit to sample random decks instead")
+    p.add_argument("--iterations", type=int, default=10,
+                   help="games per matchup cell when --decks is used")
     a = p.parse_args(argv)
+
+    deck_names = None
+    if a.decks:
+        from .deck_loader import load_simulation_decks_dict
+
+        available = sorted(load_simulation_decks_dict())
+        deck_names = available if a.decks in ("all", "baseline") else [
+            n.strip() for n in a.decks.split(",") if n.strip()
+        ]
 
     run_sweep(
         games=a.games, policy1=a.policy, policy2=a.policy2 or a.policy,
         workers=a.workers, db_path=a.db, base_seed=a.seed, deck_size=a.deck_size,
         min_toys=a.min_toys, both_seats=not a.no_both_seats, max_turns=a.max_turns,
-        notes=a.notes,
+        notes=a.notes, deck_names=deck_names, iterations=a.iterations,
     )
     return 0
 

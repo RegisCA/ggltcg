@@ -1,7 +1,7 @@
 # Evaluating the 40-card pool by scripted simulation
 
 *Written 2026-07-25. Supersedes the deck-first approach in
-`DECK_EVALUATION_COST_PLAN.md`, which survives as Stage 4 below. Companion to
+`DECK_EVALUATION_COST_PLAN.md`, which survives as Stage 5 below. Companion to
 `backend/src/simulation/README.md`.*
 
 The goal is to understand the card pool well enough to build decks that are good
@@ -75,8 +75,9 @@ read as **value relative to an average card**. `backend/scripts/analyze_sweep.py
 does this; intervals land around ±0.18 at 8,000 games.
 
 The fit is Newton-Raphson (IRLS) in pure Python. Rows are sparse — at most 12
-nonzero features — so it runs in well under a second and the backend acquires no
-numpy dependency it would have to deploy to Render.
+nonzero features — so it stays fast enough (~18 s at 200k games) to not be worth a
+new dependency: numpy is not installed, and adding it to `requirements.txt` would
+grow the Render build for a script the app never imports.
 
 ### The policy ladder — the part that actually matters
 
@@ -107,7 +108,7 @@ disagreement: fit the same dataset under several policies and compare rankings.
 - Cards ranked the same everywhere are settled.
 - Cards that move a long way between `greedy` and `search2` are the ones whose
   value depends on being piloted well. That gap is the finding, not noise, and
-  those cards are the shortlist for Stage 4.
+  those cards are the shortlist for Stage 5.
 
 `search2` costs about the same as `greedy` per game — it plays better, so games
 end sooner — which makes the cross-check nearly free.
@@ -156,7 +157,7 @@ MaBookBook, Block and Ka rank top-8 under all three policies and appear in **non
 of D1–D8 — direct confirmation that the old deck set left real strength unmeasured.
 
 Biggest `greedy` → `search2` disagreements (the cards whose value depends most on
-being piloted well, and the shortlist for Stage 4): Archer (rank 37→22), Raggy
+being piloted well, and the shortlist for Stage 5): Archer (rank 37→22), Raggy
 (12→26), Cake (15→28), Copy (27→17), Bubble Blocker (24→15).
 
 ### Seat advantage flips with play strength — and survived the bug fix
@@ -187,7 +188,8 @@ pairwise synergies.
 
 **Stage 1 — validation. Done**, results above.
 
-**Stage 2 — the overnight run.** `search2` measured at 0.7 games/sec, ~20× slower
+**Stage 2 — the overnight run. Done** (runs 7-8: 200k `greedy` + 20k `search2`).
+`search2` measured at 0.7 games/sec, ~20× slower
 than `greedy` (the depth-2 search pays a full `end_turn` per node), so the earlier
 50,000-game figure was wrong: that would be 20 hours. Revised split for one night:
 
@@ -203,26 +205,50 @@ Reusing `--seed 100` across both makes the comparison paired. Given ρ ≈ 0.94,
 `search2` pass is now a confirmation step rather than a co-equal measurement, so
 truncating it costs little.
 
-**Stage 3 — analysis.** Card values with intervals, the greedy-vs-search2
-disagreement table, seat effect, and pairwise synergy terms for the cards that
-survive.
+**Stage 3 — analysis. Done.** Card values with intervals, the
+greedy-vs-search2 disagreement table and the seat effect. Pairwise synergy terms
+are still unbuilt; the data supports them (~7,700 co-occurrences per pair at 200k).
 
 ```bash
-python backend/scripts/analyze_sweep.py --compare 1 2 3
+python backend/scripts/analyze_sweep.py --compare 7 8
 ```
 
-**Stage 4 — targeted LLM validation.** Build a handful of decks from the top of
-the ranking plus the biggest disagreement cards, and play them under the real
+**Stage 4 — candidate decks. Done**, results above.
+
+```bash
+python backend/scripts/build_candidate_decks.py --write
+cd backend/src && python -m simulation.sweep --decks all --iterations 100 --policy greedy
+python backend/scripts/deck_matrix.py --run <id>
+```
+
+**Stage 5 — targeted LLM validation.** Play the eight derived decks under the real
 Gemini player to confirm the ranking survives competent play. This is the original
 $2 run from `DECK_EVALUATION_COST_PLAN.md` — its model pinning, cost model and
 seat-analysis cuts all still apply — but spent on decks that were earned rather
 than invented.
 
+Two things make it worth the money rather than a formality:
+
+- The deck ranking held between `greedy` and `search2` (ρ = 0.976), so if it also
+  holds under an LLM, it is a property of the game and the scripted harness can be
+  trusted for future questions without further LLM spend.
+- The **seat** question is unresolved and cannot be settled by a scripted policy,
+  since per-deck preference flipped between the two policies already. An LLM run is
+  the only remaining instrument for it here.
+
+```bash
+export GEMINI_MODEL=gemini-2.5-flash-lite
+export GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
+python -m simulation.cli baseline --decks all -i 10 --parallel 10
+```
+
+640 games, ~$1.60 at the plan's 10-requests-per-game budget.
+
 ## Carried over from the old plan
 
 Still true and still worth doing:
 
-- **Pin the model** to `gemini-2.5-flash-lite` for Stage 4; never mix AI versions
+- **Pin the model** to `gemini-2.5-flash-lite` for Stage 5; never mix AI versions
   across seats (runs 9, 10 and 12 did, poisoning their seat estimates).
 - **Log token usage.** Nothing captures `response.usage_metadata`, so LLM cost
   remains an estimate.
@@ -295,6 +321,99 @@ correctly much worse. Overall pre/post rank correlation: ρ = +0.88 (`greedy`),
 
 Pinned by `test_runner_resolves_targeted_effects_like_production` in
 `backend/tests/test_scripted_player.py`.
+
+## Stage 3 results: candidate decks
+
+Decks are derived from the fitted values by
+`backend/scripts/build_candidate_decks.py`, so the set is a function of the data
+rather than of taste. Two are controls whose job is to fail.
+
+**An additive card model has exactly one best deck.** The first attempt produced
+three identical decks (top-6 by greedy, by search2 and by consensus were the same
+six cards) — the same redundancy that made D1–D8 uninformative. Diversity has to
+be imposed: each rival is the best deck sharing at most 2 cards with everything
+chosen before it.
+
+Round-robin, 8 decks x 64 cells x 100 games = 6,400 games, `greedy`:
+
+| Deck | Win% | 95% CI | Σβ (predicted) |
+|---|---|---|---|
+| Rival_A | **67.9%** | [65.6, 70.2] | +2.93 |
+| Apex | 62.9% | [60.5, 65.3] | +3.48 |
+| Rival_B | 60.9% | [58.5, 63.2] | +2.53 |
+| Combo | 57.4% | [55.0, 59.8] | +1.79 |
+| Curve | 53.0% | [50.6, 55.4] | +3.16 |
+| Legacy_Best | 52.3% | [49.9, 54.8] | +2.51 |
+| Stat_Max *(control)* | 39.2% | [36.9, 41.7] | +2.16 |
+| Control_Worst *(control)* | **6.2%** | [5.2, 7.5] | −2.86 |
+
+**Both controls behaved.** `Control_Worst` won 6.2%, so the card model predicts
+decisively. `Stat_Max` — the best deck by raw speed+strength+stamina, ignoring the
+fit entirely — lost to `Apex` by 24 points, so the 220,000 games bought something
+that adding up the numbers on the card does not.
+
+**But the model's own best deck is not the best deck.** `Rival_A` (Σβ +2.93) beats
+`Apex` (Σβ +3.48). Spearman between predicted Σβ and measured win rate is **+0.69**,
+and only **+0.54** excluding the trivially-correct `Control_Worst`. The additive
+model sorts good from bad emphatically and ranks *among the good* weakly. The two
+large misses are informative:
+
+- `Curve` predicted 2nd, finished 5th — cheap deployment did not pay off.
+- `Combo` predicted 7th, finished 4th — the Hind Leg Kicker shell beating its
+  parts by three places, independently confirming the ablation's superadditivity
+  with a different instrument.
+
+`Legacy_Best` (the strongest of the original hand-made decks) finished 6th of 8.
+
+### The deck ranking survives a policy change; the seat effect does not
+
+Same matrix re-run under `search2` (3,840 games, 60 per cell, same decks and seed):
+
+| Deck | greedy | search2 | shift |
+|---|---|---|---|
+| Rival_A | 67.9% | **72.4%** | +4.5 |
+| Apex | 62.9% | **70.3%** | +7.4 |
+| Rival_B | 60.9% | 58.8% | −2.1 |
+| Combo | 57.4% | 53.3% | −4.1 |
+| Legacy_Best | 52.3% | 50.1% | −2.2 |
+| Curve | 53.0% | 46.0% | −7.0 |
+| Stat_Max | 39.2% | 42.9% | +3.7 |
+| Control_Worst | 6.2% | 6.2% | 0.0 |
+
+**Deck ranking: ρ = +0.976.** Only `Curve` and `Legacy_Best` swap. `Rival_A` wins
+under both policies, and `Apex`/`Rival_A` both improve under lookahead — good decks
+reward good piloting. `Combo` drops, consistent with the ablation's finding that
+Jumpscare and That was fun are net-negative and that greedy simply cannot punish
+them.
+
+**Per-deck seat preference: ρ = +0.333. Do not trust it.**
+
+| Deck | seat Δ greedy | seat Δ search2 | |
+|---|---|---|---|
+| Rival_A | −28.6p | +9.0p | **flipped** |
+| Combo | +20.9p | −9.2p | **flipped** |
+| Legacy_Best | −7.4p | +9.1p | **flipped** |
+| Rival_B | −30.2p | −13.9p | same sign |
+| Apex | +13.9p | +21.8p | same sign |
+| Curve | +15.8p | +19.1p | same sign |
+
+Three of eight flip sign and `Rival_A` swings 37.6 points, so the large per-deck
+seat preferences measured under `greedy` are **artifacts of that policy, not
+properties of the game**. An earlier revision of this document reported them as a
+finding; that was wrong and is retracted here.
+
+What survives: the *global* direction (P1 53.4% on this matrix, matching 53.1% from
+the random sweep), and three decks whose sign is stable (`Rival_B` prefers second;
+`Apex` and `Curve` prefer first). The original plan doc's hypothesis — that decks
+differ in seat preference — is neither confirmed nor refuted by a scripted sweep;
+it needs a policy whose seat behaviour is itself trustworthy.
+
+### Engine-rejected actions
+
+The fixed-deck matrices show ~0.2 engine-rejected actions per game (1,339 in the
+greedy run, 719 in `search2`), against ~0.06 in random-deck sweeps: stronger decks
+push Charge limits harder, so roughly a fifth of games contain an action the engine
+declined. Not an error, and invisible before the `rejected` counter existed.
 
 ## Combos: declared, not discovered
 
