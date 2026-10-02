@@ -5,7 +5,7 @@ fastapi==0.136.3  # Updated for starlette 1.x compatibility and security fixes
 uvicorn==0.34.0
 python-multipart==0.0.31  # Security: Fix CVE-2021-23336, CVE-2026-53540 (negative Content-Length memory exhaustion)
 starlette>=1.0.1  # Security: Fix CVE-2025-62727 (ReDoS) and CVE-2025-54121
-urllib3>=2.6.0  # Security: Fix CVE-2025-66471 and CVE-2025-66418
+urllib3>=2.8.0  # Security: Fix CVE-2025-66471 and CVE-2025-66418
 httplib2>=0.32.0  # not directly required, minimum safe version to avoid CVE-2026-59939 (decompression bomb DoS)
 
 # Data handling
@@ -26,7 +26,7 @@ google-genai>=1.0.0
 google-auth==2.28.0
 google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
-PyJWT==2.13.0
+pyjwt==2.15.0
 better-profanity==0.7.0
 sentry-sdk[fastapi]==2.20.0  # Error tracking and monitoring
 
