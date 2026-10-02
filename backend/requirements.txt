@@ -38,7 +38,6 @@ httpx==0.28.1
 # Security: minimum safe versions for transitive runtime dependencies
 pyasn1>=0.6.4  # not directly required, minimum safe version to avoid ReDoS and resource-exhaustion CVEs (CVE-2026-59884/-59885/-59886)
 anyio>=4.14.2  # not directly required, minimum safe version to avoid Race Condition / resource exhaustion
-zipp>=3.19.1  # not directly required, minimum safe version to avoid ReDoS vulnerability
 requests>=2.32.2  # not directly required, minimum safe version to avoid multiple CVEs
 
 # Development
