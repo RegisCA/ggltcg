@@ -183,3 +183,22 @@ describe('TargetSelectionModal — selection semantics', () => {
     expect(screen.getByRole('button', { name: /Play Source Card → Bravo/ })).toBeInTheDocument();
   });
 });
+
+describe('TargetSelectionModal — optional targeting (min_targets: 0)', () => {
+  // Regression: `min_targets || 1` coerced 0 to 1, so "you may" targets
+  // (Glue, When-played Toys) could never be confirmed with no selection.
+  it('min_targets 0: confirm is enabled with nothing selected and sends no targets', async () => {
+    const user = userEvent.setup();
+    const { onConfirm } = renderModal({ action: baseAction({ max_targets: 1, min_targets: 0 }) });
+    expect(screen.getByText(/\(optional\)/)).toBeInTheDocument();
+    const confirm = screen.getByRole('button', { name: 'Play Source Card' });
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    expect(onConfirm).toHaveBeenCalledWith([], undefined);
+  });
+
+  it('min_targets 1: confirm stays disabled until a target is chosen', () => {
+    renderModal({ action: baseAction({ max_targets: 1, min_targets: 1 }) });
+    expect(screen.getByRole('button', { name: 'Play Source Card' })).toBeDisabled();
+  });
+});

@@ -72,7 +72,8 @@ export function TargetSelectionModal({
   // ones); an all-Action target set stays content-height.
   const targetCardMinHeight = availableTargets.some((c) => c.card_type === 'Toy') ? MIXED_CARD_MIN_HEIGHT : undefined;
   const maxTargets = action.max_targets || 1;
-  const minTargets = action.min_targets || 1;
+  // `??` not `||`: min_targets === 0 means the targets are optional ("you may").
+  const minTargets = action.min_targets ?? 1;
   // Direct-attack/tussle target picking and the standard multi-target grid
   // share this selection: at most one card, replace-on-click when
   // maxTargets===1 (or when a direct-attack option exists — that path always

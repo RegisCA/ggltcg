@@ -202,3 +202,29 @@ def test_no_actions_returns_end_turn_line():
     sequences = enumerate_sequences(setup.game_state, "player1")
     assert len(sequences) == 1
     assert sequences[0]["actions"][0]["action_type"] == "end_turn"
+
+
+def test_optional_target_play_includes_no_target_branch():
+    """min_targets == 0 ("you may") must also branch on playing with no target.
+
+    Regression: ``va.min_targets or 1`` coerced 0 to 1, so the empty-target
+    combo was never generated.
+    """
+    from types import SimpleNamespace
+    from game_engine.ai.enumerator import _expand_action
+
+    def va(min_targets):
+        return SimpleNamespace(
+            action_type="play_card", card_id="src", card_name="Src",
+            target_options=["a", "b"], min_targets=min_targets, max_targets=1,
+        )
+
+    optional = [s["target_ids"] for s in _expand_action(va(0), None)]
+    assert optional == [(), ("a",), ("b",)]
+
+    required = [s["target_ids"] for s in _expand_action(va(1), None)]
+    assert required == [("a",), ("b",)]
+
+    unspecified = [s["target_ids"] for s in _expand_action(va(None), None)]
+    assert unspecified == [("a",), ("b",)]
+
