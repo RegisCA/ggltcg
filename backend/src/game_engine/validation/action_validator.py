@@ -274,7 +274,10 @@ class ActionValidator:
                 
             if isinstance(effect, PlayEffect) and effect.requires_targets():
                 max_targets = effect.get_max_targets()
-                min_targets = effect.get_min_targets()
+                # A Toy's targeted effect is its "When played" effect, and choosing
+                # its target is always optional ("you may") — the Toy can be played
+                # for its body alone. Actions keep their effect's own minimum.
+                min_targets = 0 if card.is_toy() else effect.get_min_targets()
                 valid_targets = effect.get_valid_targets(self.game_state, player)
                 
                 logger.debug(

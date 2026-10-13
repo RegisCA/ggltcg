@@ -132,6 +132,9 @@ class EffectFactory:
             elif effect_type == "damage_all_opponent_cards":
                 effect = cls._parse_damage_all_opponent_cards(parts, source_card)
                 effects.append(effect)
+            elif effect_type == "opponent_lose_all_charge":
+                effect = cls._parse_opponent_lose_all_charge(parts, source_card)
+                effects.append(effect)
             else:
                 raise ValueError(f"Unknown effect type: {effect_type}")
         
@@ -861,8 +864,10 @@ class EffectFactory:
         """
         Parse a break_target effect definition.
         
-        Format: "break_target:count"
+        Format: "break_target:count[:scope]"
         - count: Number of targets to break (typically 1)
+        - scope: optional, "any" (default, both sides) or "opponent"
+          (only cards the opponent controls)
         
         Targeted action: Break a card in play.
         
@@ -876,9 +881,9 @@ class EffectFactory:
         Raises:
             ValueError: If format is invalid
         """
-        if len(parts) != 2:
+        if len(parts) not in (2, 3):
             raise ValueError(
-                f"break_target effect requires exactly 1 parameter: count. "
+                f"break_target effect requires 1-2 parameters: count[:scope]. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -894,16 +899,23 @@ class EffectFactory:
                 f"Invalid count {count} for break_target. Must be at least 1."
             )
         
-        from .action_effects import BreakTargetEffect
-        return BreakTargetEffect(source_card, count=count)
+        from .action_effects import BreakTargetEffect, TARGET_SCOPES
+        scope = parts[2].strip() if len(parts) == 3 else "any"
+        if scope not in TARGET_SCOPES:
+            raise ValueError(
+                f"Invalid scope '{scope}' for break_target. Must be one of {TARGET_SCOPES}."
+            )
+        return BreakTargetEffect(source_card, count=count, scope=scope)
 
     @classmethod
     def _parse_return_target_to_hand(cls, parts: List[str], source_card: "Card") -> BaseEffect:
         """
         Parse a return_target_to_hand effect definition.
         
-        Format: "return_target_to_hand:count"
+        Format: "return_target_to_hand:count[:scope]"
         - count: Number of targets to return to hand (typically 1)
+        - scope: optional, "any" (default, both sides) or "opponent"
+          (only cards the opponent controls)
         
         Targeted action: Return a card in play to its owner's hand.
         
@@ -917,9 +929,9 @@ class EffectFactory:
         Raises:
             ValueError: If format is invalid
         """
-        if len(parts) != 2:
+        if len(parts) not in (2, 3):
             raise ValueError(
-                f"return_target_to_hand effect requires exactly 1 parameter: count. "
+                f"return_target_to_hand effect requires 1-2 parameters: count[:scope]. "
                 f"Got {len(parts) - 1} parameters: {':'.join(parts)}"
             )
         
@@ -935,8 +947,30 @@ class EffectFactory:
                 f"Invalid count {count} for return_target_to_hand. Must be at least 1."
             )
         
-        from .action_effects import ReturnTargetToHandEffect
-        return ReturnTargetToHandEffect(source_card, count=count)
+        from .action_effects import ReturnTargetToHandEffect, TARGET_SCOPES
+        scope = parts[2].strip() if len(parts) == 3 else "any"
+        if scope not in TARGET_SCOPES:
+            raise ValueError(
+                f"Invalid scope '{scope}' for return_target_to_hand. Must be one of {TARGET_SCOPES}."
+            )
+        return ReturnTargetToHandEffect(source_card, count=count, scope=scope)
+
+    @classmethod
+    def _parse_opponent_lose_all_charge(cls, parts: List[str], source_card: "Card") -> BaseEffect:
+        """
+        Parse an opponent_lose_all_charge effect definition.
+
+        Format: "opponent_lose_all_charge" (no parameters)
+
+        Laundry Lad: the opponent's Charge is set to 0.
+        """
+        if len(parts) != 1:
+            raise ValueError(
+                f"opponent_lose_all_charge takes no parameters. Got: {':'.join(parts)}"
+            )
+
+        from .action_effects import OpponentLosesAllChargeEffect
+        return OpponentLosesAllChargeEffect(source_card)
 
     @classmethod
     def _parse_team_opponent_immunity(cls, parts: List[str], source_card: "Card") -> BaseEffect:

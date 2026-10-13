@@ -50,6 +50,17 @@ class Player:
             return True
         return False
 
+    def lose_all_charge(self) -> int:
+        """
+        Lose all Charge (e.g. Laundry Lad).
+
+        Returns:
+            The amount of Charge lost
+        """
+        lost = self.charge
+        self.charge = 0
+        return lost
+
     def has_charge(self, amount: int) -> bool:
         """Check if player has at least the specified amount of Charge."""
         return self.charge >= amount

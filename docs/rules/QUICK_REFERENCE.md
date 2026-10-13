@@ -58,6 +58,17 @@
 
 **Key rule**: Toys can tussle the same turn they are played.
 
+## "When Played" Toys
+
+A Toy that says "When played, ..." resolves that effect once, right after it
+enters In Play from your hand.
+
+- Targeting is **optional** — pick a target while playing it, or none.
+- "A card your opponent has in play" = a card your opponent **controls** (incl.
+  one they took with Twist); it still goes to its owner's Break Zone / hand.
+- Copy/Clone copying it, or Twist taking it, does **not** trigger it.
+- Immunity protects cards, not Charge (Laundry Lad ignores it).
+
 ## Zone Changes
 
 When a card moves between zones, all modifications reset (stat changes, damage, temporary effects). Card enters new zone with original printed values.

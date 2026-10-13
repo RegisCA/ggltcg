@@ -433,11 +433,24 @@ class GameEngine:
         return True
     
     def _trigger_when_played_effects(self, card: Card, player: Player, **kwargs: Any) -> None:
-        """Trigger effects that activate when a card is played."""
+        """
+        Resolve a Toy's "When played" effects, once it has entered play.
+
+        Two forms:
+        - PlayEffects: the same effect codes Actions use (fix:1, gain_charge:4,
+          break_target:1:opponent, ...). On a Toy they resolve as its when-played
+          effect; any targeting is optional (see ActionValidator._get_target_info).
+        - WHEN_PLAYED TriggeredEffects (Monster).
+
+        Only playing the card from hand triggers these: a Copy that becomes a copy
+        of a Toy, or a Toy taken with Twist, was not itself played.
+        """
         kwargs = self._with_resolved_targets(kwargs)
         effects = EffectRegistry.get_effects(card)
         for effect in effects:
-            if isinstance(effect, TriggeredEffect):
+            if isinstance(effect, PlayEffect):
+                effect.apply(self.game_state, player=player, game_engine=self, **kwargs)
+            elif isinstance(effect, TriggeredEffect):
                 if effect.trigger == TriggerTiming.WHEN_PLAYED:
                     if effect.should_trigger(self.game_state, played_card=card):
                         # Pass game_engine so breaks go through _break_card (when-broken
