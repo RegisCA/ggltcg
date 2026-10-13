@@ -154,7 +154,8 @@ def _expand_action(va, game_state: "GameState") -> List[Dict[str, Any]]:
         if not opts:
             return [_step("play_card", va.card_id, va.card_name, ())]
 
-        min_t = va.min_targets or 1
+        # `is None`, not `or`: min_targets == 0 means optional ("you may") targeting.
+        min_t = 1 if va.min_targets is None else va.min_targets
         max_t = va.max_targets or 1
         opts = list(opts)[:DEFAULT_MAX_TARGET_OPTIONS]
 

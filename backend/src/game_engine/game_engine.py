@@ -434,12 +434,15 @@ class GameEngine:
     
     def _trigger_when_played_effects(self, card: Card, player: Player, **kwargs: Any) -> None:
         """Trigger effects that activate when a card is played."""
+        kwargs = self._with_resolved_targets(kwargs)
         effects = EffectRegistry.get_effects(card)
         for effect in effects:
             if isinstance(effect, TriggeredEffect):
                 if effect.trigger == TriggerTiming.WHEN_PLAYED:
                     if effect.should_trigger(self.game_state, played_card=card):
-                        effect.apply(self.game_state, player=player, **kwargs)
+                        # Pass game_engine so breaks go through _break_card (when-broken
+                        # triggers, stolen cards returning to their owner).
+                        effect.apply(self.game_state, player=player, game_engine=self, **kwargs)
     
     def _trigger_when_other_card_played_effects(self, played_card: Card, player: Player) -> None:
         """
@@ -481,18 +484,21 @@ class GameEngine:
                                     f"{card.name} triggered: gained Charge from card being played"
                                 )
 
-    def _resolve_action_card(self, card: Card, player: Player, **kwargs: Any) -> None:
-        """Resolve an Action card's effect."""
-        # Convert target_ids to targets if needed
+    def _with_resolved_targets(self, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """Return kwargs with ``target_ids`` resolved to ``targets`` Card objects (if not already)."""
         if "target_ids" in kwargs and "targets" not in kwargs:
-            target_ids = kwargs.get("target_ids", [])
             targets = []
-            for card_id in target_ids:
+            for card_id in kwargs.get("target_ids") or []:
                 target = self.game_state.find_card_by_id(card_id)
                 if target:
                     targets.append(target)
-            kwargs["targets"] = targets
-        
+            kwargs = {**kwargs, "targets": targets}
+        return kwargs
+
+    def _resolve_action_card(self, card: Card, player: Player, **kwargs: Any) -> None:
+        """Resolve an Action card's effect."""
+        kwargs = self._with_resolved_targets(kwargs)
+
         # Get and apply effects for all action cards (including Copy)
         effects = EffectRegistry.get_effects(card)
         for effect in effects:

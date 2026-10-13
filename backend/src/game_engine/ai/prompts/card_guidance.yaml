@@ -113,8 +113,8 @@ Drop:
   threat: "LOW"
 
 Wake:
-  trap: "ACTIVATED_ABILITY! Use action_type: activate_ability (NOT play_card after playing)"
-  reminder: "1 Charge cost. Must specify target_id → target returns to hand. Then play that card"
+  trap: "Returns 1 card from YOUR break zone to HAND. Must pay to play it again"
+  reminder: "Action, 1 Charge (play_card). Specify target_ids. Fix + replay costs 1 + that card's cost"
   threat: "LOW"
 
 Twist:

@@ -109,20 +109,17 @@ have cards in play
 #### Special Effects
 
 - `break_all` – Break all Toys in play
-- `damage_all_opponent_cards:N` – Deal N damage to every opponent card in play
+- `damage_all_opponent_cards:N` – Monster (Toy, when played): set **every** other
+  card in play (both sides) to 1 stamina; cards with a natural stamina of 1 are
+  broken instead. The name and `N` are legacy — `N` is ignored.
 - `return_all_to_hand` – Return all cards in play to owners' hands
 - `copy_card` – Action: copy the effects of another card
 - `take_control` – Action: take control of an opponent's Toy
-- `return_all_to_hand` – Return all cards in play to owners' hands
-- `break_target:N` – Break N target card(s) in play
-- `return_target_to_hand:N` – Return N target card(s) to owner's hand
-- `start_of_turn_gain_charge:N` – Gain N Charge at start of your turn
-- `on_card_played_gain_charge:N` – Gain N Charge when you play another card
-- `turn_stat_boost:all:N` – This turn only, +N to all stats
 
 #### Cost Modifiers
 
 - `reduce_cost_by_broken` – Cost reduced by 1 per card in your break zone
+- `self_cost_increase_by_broken` – Cost increased by 1 per card in your break zone
 - `alternative_cost_break_card` – May break one of your cards instead of paying
 Charge
 
@@ -273,10 +270,10 @@ Paper Plane:
   reminder: "Action types: direct_attack (2 Charge) OR regular tussle (2 Charge). Has NO activated ability"
   threat: "MEDIUM"
 
-Wake:
-  trap: "ACTIVATED_ABILITY! Use action_type: activate_ability (NOT play_card after playing)"
-  reminder: "1. play_card Wake → in play. 2. activate_ability Wake (1 Charge) → target returns to hand. Then play that card"
-  threat: "LOW"
+Archer:
+  trap: "0 STR = CANNOT tussle or direct_attack! Defensive only (blocks opponent attacks)"
+  reminder: "Only action: activate_ability (1 Charge, repeatable). Reduce enemy STA to 0 = auto-break"
+  threat: "MEDIUM"
 ```
 
 ### Strategic Use Categories
@@ -364,6 +361,7 @@ setup, cards = create_game_with_cards(
     player2_hand=["Card5"],
     player2_in_play=["Card6"],
     active_player="player1",  # or "player2"
+    turn_number=3,  # default is 2 — odd turns = player1, even = player2; keep them consistent
     player1_charge=5,  # Optional, default 10
     player2_charge=3,  # Optional, default 10
 )
@@ -386,8 +384,9 @@ pytest backend/tests/ -v
 
 ### Common Test Failures
 
-- `Expected N cards, got M` — Cause: Card count changed. Fix: Run
-`scripts/validate_new_cards.py`
+- `test_card_data_integrity.py` failures — Cause: a malformed CSV row (bad
+cost, partial stats, bad color), an unparseable `effects` string, or a card with
+an effect but no `card_guidance.yaml` entry. The test id names the card.
 - `Unknown effect` — Cause: Effect not registered. Fix: Check
 `EffectFactory.parse_effects` & spelling
 - `Card not found` — Cause: Card name mismatch. Fix: Verify CSV name matches test
@@ -409,20 +408,21 @@ pytest backend/tests/ -v
 
 ---
 
-## Validation Script
+## Card Data Validation
 
-Run the validation script to catch common issues:
+`backend/tests/test_card_data_integrity.py` runs in CI and checks every active
+row of `cards.csv` against the raw CSV (the card loader silently falls back on
+bad data, so the loaded `Card` can look fine when the row is not):
+
+- Names are unique; cost is an integer; stats are all-or-nothing integers
+- Colors are `#RRGGBB`
+- The `effects` string parses through `EffectFactory`
+- Every card with an effect has a `card_guidance.yaml` entry, and no guidance
+  entry is orphaned
 
 ```bash
-python scripts/validate_new_cards.py
-
+pytest backend/tests/test_card_data_integrity.py
 ```
-
-This checks:
-
-- Every active card in `cards.csv` has a `CARD_EFFECTS_LIBRARY` entry
-- All `effect_definitions` use recognized effect types
-- No orphaned library entries (cards in `CARD_EFFECTS_LIBRARY` that are absent from the CSV)
 
 ---
 
@@ -436,7 +436,7 @@ This checks:
 
 ### Effect doesn't work
 
-1. Check `effect_definitions` spelling exactly matches handler
+1. Check the `effects` column spelling exactly matches the parser
 1. Verify effect handler is properly registered
 1. Add logging to effect's `apply()` method
 1. Check if protection effects are blocking it
@@ -445,14 +445,11 @@ This checks:
 
 1. Verify a `card_guidance.yaml` entry exists for the card
 1. Check the guidance gives clear strategic direction
-1. If a Charge-gain or target-requirement effect, check the hardcoded card-name
-   lists noted in Step 3
 1. Test if AI understands when card is valuable
 
 ### Tests fail after adding card
 
-1. Run `scripts/validate_new_cards.py`
-1. Check if `test_card_loader.py` needs updated count
+1. Run `pytest backend/tests/test_card_data_integrity.py`
 1. Verify test fixtures use correct card names
 
 ---
@@ -482,20 +479,24 @@ Zap,18,1,Deal 1 damage to target card.,,,,,,#ff0000,#ff0000,damage_target:1
 
 ```python
 class DamageTargetEffect(PlayEffect):
-    def __init__(self, amount: int):
+    def __init__(self, source_card, amount: int):
+        super().__init__(source_card)
         self.amount = amount
 
-    def apply(self, game_state, card, player, **kwargs):
-        target = kwargs.get('target')
-        if target:
-            target.apply_damage(self.amount)
+    def apply(self, game_state, **kwargs):
+        # The engine resolves target_ids into Card objects under "targets".
+        for target in (kwargs.get("targets") or [])[:1]:
+            if not game_state.is_protected_from_effect(target, self):
+                target.apply_damage(self.amount)
 
     def requires_targets(self) -> bool:
         return True
 
-    def get_valid_targets(self, game_state, card, player):
+    def get_valid_targets(self, game_state, player=None):
+        player = player or game_state.get_active_player()
         opponent = game_state.get_opponent(player.player_id)
-        return [c for c in opponent.in_play if c.is_toy()]
+        return [c for c in opponent.in_play
+                if c.is_toy() and not game_state.is_protected_from_effect(c, self)]
 
 ```
 

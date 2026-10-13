@@ -641,7 +641,7 @@ class DamageAllOpponentCardsEffect(TriggeredEffect):
             for card in list(opponent.in_play):
                 all_cards_in_play.append((card, opponent))
         
-        for card, card_owner in all_cards_in_play:
+        for card, card_controller in all_cards_in_play:
             # Skip protected cards
             if game_state.is_protected_from_effect(card, self):
                 continue
@@ -654,7 +654,10 @@ class DamageAllOpponentCardsEffect(TriggeredEffect):
             if card.stamina == 1:
                 # Cards with natural 1 stamina are broken
                 if game_engine:
-                    game_engine._break_card(card, card_owner, was_in_play=True)
+                    # Broken cards go to their OWNER's break zone (differs from
+                    # the controller for a card stolen with Twist).
+                    owner = game_state.get_card_owner(card) or card_controller
+                    game_engine._break_card(card, owner, was_in_play=True)
                 else:
                     game_state.break_card(card, was_in_play=True)
             else:

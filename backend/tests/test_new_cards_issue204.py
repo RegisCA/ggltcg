@@ -1225,6 +1225,31 @@ class TestMonster:
         assert knight.zone == Zone.IN_PLAY, "Knight should NOT be broken (base stamina is 3)"
         assert knight.current_stamina == 1, "Knight stamina should remain at 1"
 
+    def test_monster_breaks_stolen_1_stamina_card_back_to_owner(self):
+        """A stolen (Twisted) 1-stamina card broken by Monster goes to its OWNER's break zone.
+
+        Regression: Monster's when-played trigger ran without game_engine, so it fell
+        back to GameState.break_card, which only looks in the owner's zones — the
+        stolen card stayed in its controller's play zone untouched.
+        """
+        setup, cards = create_game_with_cards(
+            player1_in_play=["Paper Plane"],  # 1 base stamina, owned by player1
+            player2_hand=["Monster"],
+            active_player="player2",
+            turn_number=2,
+            player2_charge=5,
+        )
+        paper_plane = cards["p1_inplay_Paper Plane"]
+        setup.game_state.change_control(paper_plane, setup.player2)  # player2 Twisted it
+        assert paper_plane in setup.player2.in_play
+
+        assert setup.engine.play_card(setup.player2, cards["p2_hand_Monster"])
+
+        assert paper_plane not in setup.player2.in_play
+        assert paper_plane in setup.player1.break_zone
+        assert paper_plane.zone == Zone.BREAK
+        assert paper_plane.controller == "player1"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
