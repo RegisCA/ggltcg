@@ -76,11 +76,15 @@ effect1;effect2;effect3
 - `start_of_turn_gain_charge:N` – Gain N Charge at start of your turn
 - `on_card_played_gain_charge:N` – Gain N Charge when you play another card
 - `gain_charge_when_broken:N` – Gain N Charge when this card is broken from play
+- `opponent_lose_all_charge` – Your opponent's Charge is set to 0 (Laundry Lad).
+  Not stopped by card immunity — Charge is not a card
 
 #### Targeting Effects
 
-- `break_target:N` – Break N target card(s) in play
-- `return_target_to_hand:N` – Return N target card(s) to owner's hand
+- `break_target:N[:opponent]` – Break N target card(s) in play. Default scope is
+  both sides; `:opponent` limits it to cards the opponent controls
+- `return_target_to_hand:N[:opponent]` – Return N target card(s) to their owner's
+  hand. Same optional `:opponent` scope
 - `fix:N` – Return N card(s) from your break zone to hand
 - `fix:actions:N` – Return N Action card(s) from your break zone to hand
 - `fix:toys:N` – Return N Toy card(s) from your break zone to hand
@@ -162,6 +166,34 @@ Drum,18,1,Your cards have 2 more speed.,1,3,2,,,#eb9113,#eb9113,stat_boost:speed
 Belchaletta,18,1,"At the start of your turn, gain 2 charge.",3,3,4,,,#eb9113,#eb9113,start_of_turn_gain_charge:2
 
 ```
+
+**Toy Card ("When played" effect)**:
+
+```csv
+Sock Serpent,18,3,"When played, you may break a card your opponent has in play.",4,6,4,,,#d8c7fa,#d8c7fa,break_target:1:opponent
+
+```
+
+### "When Played" Toys
+
+A "When played" Toy uses the **same effect codes as an Action** — no prefix.
+Any play effect (`fix`, `break_target`, `return_target_to_hand`, `gain_charge`,
+`opponent_lose_all_charge`, ...) on a Toy resolves once, after the Toy enters
+play from hand (`GameEngine._trigger_when_played_effects`). The rest comes for free:
+
+- Targeting is **always optional** on a Toy: `PlayEffect.get_min_targets`
+  returns 0 when the source card is a Toy, so the target modal offers "(optional)", the AI
+  enumerator also tries the no-target line, and a Toy with no legal target is
+  still playable for its stats.
+- Target options, executor validation and the play-by-play clause
+  ("Played Sock Serpent, broke Knight") are card-type agnostic.
+- `gain_charge:N` on a Toy feeds the AI's Charge table (`card_metadata.py`)
+  automatically.
+
+Only playing the card triggers it — Copy/Clone copying the Toy, or Twist taking
+it, does not. See "When Played" Effects in `docs/rules/GGLTCG Rules v1_1.md`.
+Monster predates this and uses a `WHEN_PLAYED` `TriggeredEffect` instead; both
+forms are resolved by the same engine method.
 
 ---
 

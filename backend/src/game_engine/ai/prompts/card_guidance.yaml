@@ -191,3 +191,28 @@ Toynado:
   trap: "Returns EVERY card in play (both sides) to hand — including your own board!"
   reminder: "Use when behind on board or to undo an opponent's Twist steal. No target needed"
   threat: "LOW"
+
+MA14:
+  trap: "Toy with a 'When played' fix: optional, YOUR break zone only. Fixed card goes to HAND and must be paid for again"
+  reminder: "2 Charge: 4/4/2 body + a free Wake. play_card with target_ids to fix, or with none. Only 2 STA"
+  threat: "MEDIUM"
+
+Sock Serpent:
+  trap: "Can only break a card your OPPONENT controls. Can't pick Beary, or any opponent card while they have Sock Sorcerer or Bubble Blocker in play"
+  reminder: "3 Charge: 4/6/4 body + a free Drop on an opponent toy. Specify target_ids (optional). Count the break in expected_cards_broken"
+  threat: "HIGH"
+
+Sir Scares a lot:
+  trap: "Bounce returns the card to its OWNER's hand — they can replay it. No break trigger (Umbruh won't fire). Only 1 STA"
+  reminder: "1 Charge: 5/3/1 body + a free Jumpscare on an opponent toy. Best on expensive toys (they must pay again). Target optional"
+  threat: "MEDIUM"
+
+Candy Golem:
+  trap: "Costs 6 — needs 6 Charge up front. Charge caps at 7, so gain above the cap is lost"
+  reminder: "Pay 6, get 4 back: effectively a 2-Charge 4/5/5. Play it FIRST, then spend the 4 Charge on tussles/cards"
+  threat: "MEDIUM"
+
+Laundry Lad:
+  trap: "Only wipes Charge the opponent BANKED; they still gain 4 at the start of their turn. Immunity (Beary, Sock Sorcerer) does NOT stop it"
+  reminder: "2 Charge: 5/4/1 body. Strongest when the opponent carried Charge over. Only 1 STA"
+  threat: "MEDIUM"

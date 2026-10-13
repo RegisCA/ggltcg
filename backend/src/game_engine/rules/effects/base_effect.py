@@ -257,10 +257,16 @@ class PlayEffect(BaseEffect):
         """
         Get the minimum number of targets this effect requires.
         
+        A Toy's targeted effect is its "When played" effect, and choosing its
+        target is always optional (rules: "When Played" Effects) — the Toy can be
+        played for its stats alone. An Action's targeting is required by default.
+
         Returns:
             Minimum number of targets (1 for required targeting, 0 for optional)
         """
-        return 1 if self.requires_targets() else 0
+        if not self.requires_targets() or self.source_card.is_toy():
+            return 0
+        return 1
     
     def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> list:
         """

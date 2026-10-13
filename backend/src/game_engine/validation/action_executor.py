@@ -8,14 +8,16 @@ AI player paths.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from game_engine.models.card import CardType, Zone
 from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.models.card import Card
 from game_engine.rules.effects.continuous_effects import BallaberCostEffect
-from game_engine.rules.effects.action_effects import FixEffect, CopyEffect, TwistEffect, BreakTargetEffect
+from game_engine.rules.effects.action_effects import (
+    FixEffect, CopyEffect, TwistEffect, BreakTargetEffect, ReturnTargetToHandEffect,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +152,8 @@ class ActionExecutor:
         # Ownership labels must be captured pre-play: breaking a target resets
         # its controller to its owner, hiding that it was a stolen card.
         target_labels = self._capture_target_labels(kwargs)
+        opponent = self.game_state.get_opponent(player.player_id)
+        opponent_charge_before = opponent.charge
 
         # Execute the play
         success = False
@@ -172,7 +176,10 @@ class ActionExecutor:
         self.engine.check_state_based_actions()
         
         # Build description
-        description = self._build_play_card_description(card, cost, kwargs, target_labels)
+        description = self._build_play_card_description(
+            card, cost, kwargs, target_labels,
+            opponent_charge_lost=(opponent.name, opponent_charge_before - opponent.charge),
+        )
 
         # Build target info for response message
         target_info = self._build_target_info(card, kwargs, target_labels)
@@ -455,10 +462,14 @@ class ActionExecutor:
         card: Card,
         cost: int,
         kwargs: Dict[str, Any],
-        target_labels: Optional[Dict[str, str]] = None
+        target_labels: Optional[Dict[str, str]] = None,
+        opponent_charge_lost: Optional[Tuple[str, int]] = None,
     ) -> str:
         """
         Build a concise description of playing a card.
+
+        ``opponent_charge_lost`` is (opponent name, amount) — a play that drains the
+        opponent (Laundry Lad) says so, rather than their Charge silently vanishing.
         
         Focuses on the action result rather than repeating effect text.
         Effect descriptions are removed as they're redundant - players can
@@ -469,23 +480,26 @@ class ActionExecutor:
         def name_of(t: Card) -> str:
             return labels.get(t.id, t.name)
 
-        # Effect clause — the meaningful part for Action cards, in the log's
-        # subject-verb-object voice (", broke Knight"). Appended before the
-        # trailing cost so the line reads "Played Drop, broke Knight (2 Charge)".
+        # Effect clause — the meaningful part for Action cards and Toys' targeted
+        # "When played" effects, in the log's subject-verb-object voice
+        # (", broke Knight"). Appended before the trailing cost so the line reads
+        # "Played Drop, broke Knight (2 Charge)".
         effect_clause = ""
-        if card.is_action():
-            if card.has_effect_type(BreakTargetEffect) and kwargs.get("target"):
-                effect_clause = f", broke {name_of(kwargs['target'])}"
-            elif card.has_effect_type(BreakTargetEffect) and kwargs.get("targets"):
-                effect_clause = f", broke {', '.join(name_of(t) for t in kwargs['targets'])}"
-            elif card.has_effect_type(FixEffect) and kwargs.get("target"):
-                effect_clause = f", fixed {name_of(kwargs['target'])}"
-            elif card.has_effect_type(FixEffect) and kwargs.get("targets"):
-                effect_clause = f", fixed {', '.join(name_of(t) for t in kwargs['targets'])}"
-            elif card.has_effect_type(CopyEffect) and kwargs.get("target"):
-                effect_clause = f", copied {name_of(kwargs['target'])}"
-            elif card.has_effect_type(TwistEffect) and kwargs.get("target"):
-                effect_clause = f", took control of {name_of(kwargs['target'])}"
+        targets = kwargs.get("targets") or ([kwargs["target"]] if kwargs.get("target") else [])
+        target_names = ", ".join(name_of(t) for t in targets)
+        if targets:
+            if card.has_effect_type(BreakTargetEffect):
+                effect_clause = f", broke {target_names}"
+            elif card.has_effect_type(ReturnTargetToHandEffect):
+                effect_clause = f", returned {target_names} to hand"
+            elif card.has_effect_type(FixEffect):
+                effect_clause = f", fixed {target_names}"
+            elif card.has_effect_type(CopyEffect):
+                effect_clause = f", copied {target_names}"
+            elif card.has_effect_type(TwistEffect):
+                effect_clause = f", took control of {target_names}"
+        if opponent_charge_lost and opponent_charge_lost[1] > 0:
+            effect_clause += f", {opponent_charge_lost[0]} lost {opponent_charge_lost[1]} Charge"
 
         # Alternative-cost plays (e.g. Ballaber) pay by breaking a card, not
         # Charge — the cost note goes in the trailing parens instead.
