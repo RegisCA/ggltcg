@@ -39,3 +39,8 @@ MaBookBook,18,0,This card costs 1 more for each of your broken cards.,4,5,4,,,#4
 Plane Plus,18,2,"This cards' tussles cost 1. This card can direct tussle, even if your opponent has cards in play.",4,2,2,,,#87CEEB,#87CEEB,direct_attack;set_self_tussle_cost:1
 Bubble Blocker,18,0,Your opponent's cards' effects don't affect your cards.,2,2,1,,,#87CEEB,#87CEEB,team_opponent_immunity
 Cake,18,3,Gain 5 Charge.,,,,,,#FFB6C1,#FFB6C1,gain_charge:5
+MA14,18,2,"When played, you may fix 1 of your cards.",4,4,2,,,#87CEEB,#87CEEB,fix:1
+Sock Serpent,18,3,"When played, you may break a card your opponent has in play.",4,6,4,,,#d8c7fa,#d8c7fa,break_target:1:opponent
+Sir Scares a lot,18,1,"When played, you may put a card your opponent has in play into their owner's hand.",5,3,1,,,#d8c7fa,#d8c7fa,return_target_to_hand:1:opponent
+Candy Golem,18,6,"When played, gain 4 Charge.",4,5,5,,,#87CEEB,#87CEEB,gain_charge:4
+Laundry Lad,18,2,"When played, your opponent loses all their Charge.",5,4,1,,,#79f279,#79f279,opponent_lose_all_charge

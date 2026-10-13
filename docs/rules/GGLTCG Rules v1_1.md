@@ -138,6 +138,27 @@ specifically says otherwise.
 **Exception in the 18-card set**: Beary can be played from your hand on your
 opponent's turn using its own triggered ability.
 
+### **"When Played" Effects**
+
+Some Toys say "When played, ..." (Monster, MA14, Sock Serpent, Sir Scares a lot,
+Candy Golem, Laundry Lad). The effect happens once, right after the Toy enters
+In Play from your hand.
+
+* **Choosing is optional.** If the effect picks a card ("you may fix / break /
+  put ..."), you choose the target as part of playing the Toy (step 2 above) —
+  or choose none and play the Toy for its stats alone. A Toy with no legal
+  target can still be played.
+* **"A card your opponent has in play"** means a card your opponent currently
+  controls — including one of your Toys they took with Twist. A broken or
+  returned card still goes to its **owner**'s Break Zone or hand.
+* **Only playing it counts.** Copy or Clone copying a "When played" Toy does not
+  trigger it — the Copy card was played, not the copied Toy. Taking a Toy with
+  Twist does not trigger it either. A Toy returned to hand (Toynado, Jumpscare)
+  triggers again when it is played again.
+* **Charge is not a card.** "Your opponent's cards' effects don't affect ..."
+  (Beary, Sock Sorcerer, Bubble Blocker) protects cards only, so it does not
+  stop Laundry Lad.
+
 ***
 
 ## **Special Card Mechanics**
