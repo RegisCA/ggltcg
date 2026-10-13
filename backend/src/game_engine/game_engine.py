@@ -205,7 +205,9 @@ class GameEngine:
         if not player.has_charge(cost):
             return False, f"Not enough Charge (need {cost}, have {player.charge})"
         
-        # Check card-specific restrictions
+        # Check card-specific restrictions. PlayEffect.can_apply is a restriction on
+        # playing the CARD (e.g. Rush's not_first_turn = "This card may not be played
+        # on your first turn"), so it gates Toys and Actions alike.
         effects = EffectRegistry.get_effects(card)
         for effect in effects:
             if isinstance(effect, PlayEffect):
@@ -439,7 +441,7 @@ class GameEngine:
         Two forms:
         - PlayEffects: the same effect codes Actions use (fix:1, gain_charge:4,
           break_target:1:opponent, ...). On a Toy they resolve as its when-played
-          effect; any targeting is optional (see ActionValidator._get_target_info).
+          effect; any targeting is optional (see PlayEffect.get_min_targets).
         - WHEN_PLAYED TriggeredEffects (Monster).
 
         Only playing the card from hand triggers these: a Copy that becomes a copy

@@ -23,6 +23,8 @@ from conftest import create_game_with_cards, steal_card
 from game_engine.ai.card_metadata import CHARGE_GAIN_ON_PLAY
 from game_engine.ai.enumerator import _expand_action
 from game_engine.models.card import Zone
+from game_engine.rules.effects.action_effects import BreakTargetEffect
+from game_engine.rules.effects.effect_registry import EffectRegistry
 from game_engine.validation.action_executor import ActionExecutor
 from game_engine.validation.action_validator import ActionValidator
 
@@ -334,3 +336,102 @@ class TestCopyDoesNotTrigger:
         )
         assert result.success
         assert cards["p2_inplay_Knight"].zone == Zone.IN_PLAY
+
+
+# ============================================================================
+# Resolution-time and HTTP-level coverage
+# ============================================================================
+
+class TestTargetChangesBeforeResolution:
+    def test_empty_target_list_declines(self):
+        setup, cards = _p1_game(player1_hand=["Sir Scares a lot"], player2_in_play=["Ka"])
+        result = ActionExecutor(setup.engine).execute_play_card(
+            "player1", cards["p1_hand_Sir Scares a lot"].id, target_card_ids=[]
+        )
+        assert result.success
+        assert cards["p2_inplay_Ka"].zone == Zone.IN_PLAY
+
+    def test_target_broken_after_enumeration_is_rejected(self):
+        """A target that left play between valid-actions and play-card is refused, not re-broken."""
+        setup, cards = _p1_game(player1_hand=["Sock Serpent"], player2_in_play=["Umbruh"], player2_charge=0)
+        serpent, umbruh = cards["p1_hand_Sock Serpent"], cards["p2_inplay_Umbruh"]
+        assert _play_action(setup, setup.player1, serpent).target_options == [umbruh.id]
+
+        setup.engine._break_card(umbruh, setup.player2, was_in_play=True)  # Umbruh: +1 Charge
+        assert setup.player2.charge == 1
+
+        with pytest.raises(ValueError, match="Invalid target"):
+            _play(setup, setup.player1, serpent, [umbruh])
+        # Bypassing the executor: resolution re-checks validity, so no second break / trigger.
+        assert setup.engine.play_card(setup.player1, serpent, target_ids=[umbruh.id])
+        assert setup.player2.break_zone.count(umbruh) == 1
+        assert setup.player2.charge == 1
+
+    def test_scope_holds_when_player_kwarg_missing(self):
+        """Resolution falls back to the source card's controller, never failing open."""
+        setup, cards = _p1_game(player1_in_play=["Sock Serpent", "Ka"])
+        serpent, ka = cards["p1_inplay_Sock Serpent"], cards["p1_inplay_Ka"]
+        effect = next(e for e in EffectRegistry.get_effects(serpent) if isinstance(e, BreakTargetEffect))
+        effect.apply(setup.game_state, targets=[ka], game_engine=setup.engine)  # no player=
+        assert ka.zone == Zone.IN_PLAY
+
+
+class TestRoutes:
+    """Through the real FastAPI handlers (game-action routes otherwise lack HTTP coverage)."""
+
+    @pytest.fixture
+    def client_for(self):
+        from fastapi.testclient import TestClient
+        from api.app import app
+        from api.game_service import get_game_service
+
+        service = get_game_service()
+        original_use_database = service.use_database
+        service.use_database = False  # no tables in CI's in-memory SQLite
+        injected = []
+
+        def _inject(setup):
+            service._cache[setup.game_state.game_id] = setup.engine
+            injected.append(setup.game_state.game_id)
+            return TestClient(app)
+
+        yield _inject
+        for game_id in injected:
+            service._cache.pop(game_id, None)
+        service.use_database = original_use_database
+
+    def test_valid_actions_and_optional_play(self, client_for):
+        setup, cards = _p1_game(player1_hand=["Sock Serpent"], player1_in_play=["Ka"], player2_in_play=["Knight"])
+        client = client_for(setup)
+        gid, serpent = setup.game_state.game_id, cards["p1_hand_Sock Serpent"]
+
+        actions = client.get(f"/games/{gid}/valid-actions", params={"player_id": "player1"}).json()["valid_actions"]
+        play = next(a for a in actions if a["action_type"] == "play_card" and a["card_id"] == serpent.id)
+        assert play["min_targets"] == 0
+        assert play["target_options"] == [cards["p2_inplay_Knight"].id]
+
+        response = client.post(f"/games/{gid}/play-card", json={"player_id": "player1", "card_id": serpent.id})
+        assert response.status_code == 200, response.text
+        assert serpent.zone == Zone.IN_PLAY
+        assert cards["p2_inplay_Knight"].zone == Zone.IN_PLAY
+
+    def test_targeted_play_and_own_card_rejected(self, client_for):
+        setup, cards = _p1_game(
+            player1_hand=["Sir Scares a lot", "Sock Serpent"], player1_in_play=["Ka"], player2_in_play=["Knight"],
+        )
+        client = client_for(setup)
+        gid = setup.game_state.game_id
+
+        bad = client.post(f"/games/{gid}/play-card", json={
+            "player_id": "player1", "card_id": cards["p1_hand_Sock Serpent"].id,
+            "target_card_id": cards["p1_inplay_Ka"].id,
+        })
+        assert bad.status_code == 400
+        assert cards["p1_inplay_Ka"].zone == Zone.IN_PLAY
+
+        ok = client.post(f"/games/{gid}/play-card", json={
+            "player_id": "player1", "card_id": cards["p1_hand_Sir Scares a lot"].id,
+            "target_card_ids": [cards["p2_inplay_Knight"].id],
+        })
+        assert ok.status_code == 200, ok.text
+        assert cards["p2_inplay_Knight"] in setup.player2.hand

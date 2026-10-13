@@ -198,7 +198,7 @@ MA14:
   threat: "MEDIUM"
 
 Sock Serpent:
-  trap: "Can only break a card your OPPONENT controls. Protected cards (Beary, Sock Sorcerer/Bubble Blocker side) can't be picked"
+  trap: "Can only break a card your OPPONENT controls. Can't pick Beary, or any opponent card while they have Sock Sorcerer or Bubble Blocker in play"
   reminder: "3 Charge: 4/6/4 body + a free Drop on an opponent toy. Specify target_ids (optional). Count the break in expected_cards_broken"
   threat: "HIGH"
 
@@ -209,7 +209,7 @@ Sir Scares a lot:
 
 Candy Golem:
   trap: "Costs 6 — needs 6 Charge up front. Charge caps at 7, so gain above the cap is lost"
-  reminder: "Net 2 Charge for a 4/5/5 body. Play it FIRST, then spend the 4 Charge it gives on tussles/cards"
+  reminder: "Pay 6, get 4 back: effectively a 2-Charge 4/5/5. Play it FIRST, then spend the 4 Charge on tussles/cards"
   threat: "MEDIUM"
 
 Laundry Lad:

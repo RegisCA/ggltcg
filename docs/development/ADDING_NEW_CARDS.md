@@ -181,8 +181,8 @@ Any play effect (`fix`, `break_target`, `return_target_to_hand`, `gain_charge`,
 `opponent_lose_all_charge`, ...) on a Toy resolves once, after the Toy enters
 play from hand (`GameEngine._trigger_when_played_effects`). The rest comes for free:
 
-- Targeting is **always optional** on a Toy: `ActionValidator._get_target_info`
-  reports `min_targets=0`, so the target modal offers "(optional)", the AI
+- Targeting is **always optional** on a Toy: `PlayEffect.get_min_targets`
+  returns 0 when the source card is a Toy, so the target modal offers "(optional)", the AI
   enumerator also tries the no-target line, and a Toy with no legal target is
   still playable for its stats.
 - Target options, executor validation and the play-by-play clause

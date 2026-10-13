@@ -240,162 +240,98 @@ class BreakAllEffect(PlayEffect):
 TARGET_SCOPES = ("any", "opponent")
 
 
-def _in_play_targets(effect: PlayEffect, game_state: "GameState",
-                     player: Optional["Player"], scope: str) -> List["Card"]:
-    """Cards in play an in-play-targeting effect may pick, honouring scope and protection.
+class InPlayTargetEffect(PlayEffect):
+    """
+    Base for effects that pick up to ``count`` cards in play (break, bounce).
 
     scope "any": every card in play, both sides. scope "opponent": only cards the
-    opponent of ``player`` currently *controls* (so a card they took with Twist counts).
+    caster's opponent currently *controls* — so a card they took with Twist counts.
+    Protected cards (Beary, Sock Sorcerer, Bubble Blocker) are never valid.
     """
-    if scope == "opponent":
-        if player is None:
-            player = game_state.get_card_controller(effect.source_card) or game_state.get_active_player()
-        opponent = game_state.get_opponent(player.player_id) if player else None
-        cards = list(opponent.in_play) if opponent else []
-    else:
-        cards = game_state.get_all_cards_in_play()
-    return [c for c in cards if not game_state.is_protected_from_effect(c, effect)]
+
+    def __init__(self, source_card: "Card", count: int = 1, scope: str = "any"):
+        """
+        Args:
+            source_card: The card providing this effect
+            count: Maximum number of targets (default 1)
+            scope: "any" (both sides) or "opponent" (cards the opponent controls)
+        """
+        super().__init__(source_card)
+        self.count = count
+        self.scope = scope
+
+    def requires_targets(self) -> bool:
+        return True
+
+    def get_max_targets(self) -> int:
+        return self.count
+
+    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
+        """Cards in play within scope, except protected ones."""
+        if self.scope == "opponent":
+            caster = player or game_state.get_card_controller(self.source_card)
+            opponent = game_state.get_opponent(caster.player_id) if caster else None
+            cards = list(opponent.in_play) if opponent else []
+        else:
+            cards = game_state.get_all_cards_in_play()
+        return [c for c in cards if not game_state.is_protected_from_effect(c, self)]
+
+    def _resolvable_targets(self, game_state: "GameState", **kwargs: Any) -> List["Card"]:
+        """The chosen targets that are still valid now.
+
+        Re-runs get_valid_targets at resolution, so a target that became protected,
+        changed control, or left play since it was chosen is skipped — even when the
+        caller bypassed ActionExecutor's validation.
+        """
+        valid = self.get_valid_targets(game_state, kwargs.get("player"))
+        return [t for t in (kwargs.get("targets") or [])[:self.count] if t in valid]
 
 
-def _outside_scope(target: "Card", game_state: "GameState",
-                   player: Optional["Player"], scope: str) -> bool:
-    """True if ``target`` is not a legal pick for ``scope`` (re-checked at resolution)."""
-    if scope != "opponent" or player is None:
-        return False
-    return game_state.get_card_controller(target) is player
-
-
-class BreakTargetEffect(PlayEffect):
+class BreakTargetEffect(InPlayTargetEffect):
     """
     Drop: "Break a card that is in play."
     Sock Serpent: "When played, you may break a card your opponent has in play."
 
-    Targeted break effect - player chooses one card from either player's
-    in-play zone (scope "any") or only the opponent's (scope "opponent") to
-    break. Triggers "when broken" effects.
-    Respects protection effects (e.g., Beary, Sock Sorcerer).
+    Breaks the chosen card(s); triggers "when broken" effects.
     """
-
-    def __init__(self, source_card: "Card", count: int = 1, scope: str = "any"):
-        """
-        Initialize targeted break effect.
-
-        Args:
-            source_card: The card providing this effect
-            count: Number of targets to break (default 1)
-            scope: "any" (both sides) or "opponent" (cards the opponent controls)
-        """
-        super().__init__(source_card)
-        self.count = count
-        self.scope = scope
-
-    def requires_targets(self) -> bool:
-        """Break target effect requires choosing cards to break."""
-        return True
-
-    def get_max_targets(self) -> int:
-        """Return the maximum number of cards that can be targeted."""
-        return self.count
-
-    def get_min_targets(self) -> int:
-        """At least 1 target required if any valid targets exist."""
-        return 1
-
-    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get cards in play within scope (except protected ones)."""
-        return _in_play_targets(self, game_state, player, self.scope)
 
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Break target cards."""
-        targets: Optional[List["Card"]] = kwargs.get("targets")
         game_engine = kwargs.get("game_engine")
 
-        if not targets:
-            return
-
-        for target in targets[:self.count]:
-            # Double-check protection and scope (in case state changed)
-            if game_state.is_protected_from_effect(target, self):
-                continue
-            if _outside_scope(target, game_state, kwargs.get("player"), self.scope):
-                continue
-
+        for target in self._resolvable_targets(game_state, **kwargs):
             owner = game_state.get_card_owner(target)
             if owner:
                 if game_engine:
                     game_engine._break_card(target, owner, was_in_play=True)
-                    game_state.log_event(f"{target.name} is broken by {self.source_card.name}!")
                 else:
                     game_state.break_card(target, was_in_play=True)
-                    game_state.log_event(f"{target.name} is broken by {self.source_card.name}!")
+                game_state.log_event(f"{target.name} is broken by {self.source_card.name}!")
 
 
-class ReturnTargetToHandEffect(PlayEffect):
+class ReturnTargetToHandEffect(InPlayTargetEffect):
     """
     Jumpscare: "Put a card that is in play into their owner's hand."
     Sir Scares a lot: "When played, you may put a card your opponent has in play
     into their owner's hand."
-    
-    Targeted bounce effect - player chooses one card from either player's
-    in-play zone (scope "any") or only the opponent's (scope "opponent") to
-    return to its OWNER's hand (not controller's).
+
+    Returns the chosen card(s) to their OWNER's hand (not controller's).
     Does NOT trigger "when broken" effects (card is bounced, not broken).
-    Respects protection effects.
     """
-    
-    def __init__(self, source_card: "Card", count: int = 1, scope: str = "any"):
-        """
-        Initialize targeted return-to-hand effect.
-        
-        Args:
-            source_card: The card providing this effect
-            count: Number of targets to bounce (default 1)
-            scope: "any" (both sides) or "opponent" (cards the opponent controls)
-        """
-        super().__init__(source_card)
-        self.count = count
-        self.scope = scope
-    
-    def requires_targets(self) -> bool:
-        """Return target effect requires choosing cards to bounce."""
-        return True
-    
-    def get_max_targets(self) -> int:
-        """Return the maximum number of cards that can be targeted."""
-        return self.count
-    
-    def get_min_targets(self) -> int:
-        """At least 1 target required if any valid targets exist."""
-        return 1
-    
-    def get_valid_targets(self, game_state: "GameState", player: Optional["Player"] = None) -> List["Card"]:
-        """Get cards in play within scope (except protected ones)."""
-        return _in_play_targets(self, game_state, player, self.scope)
-    
+
     def apply(self, game_state: "GameState", **kwargs: Any) -> None:
         """Return target cards to their owners' hands."""
-        targets: Optional[List["Card"]] = kwargs.get("targets")
-        
-        if not targets:
-            return
-        
-        for target in targets[:self.count]:
-            # Double-check protection and scope
-            if game_state.is_protected_from_effect(target, self):
-                continue
-            if _outside_scope(target, game_state, kwargs.get("player"), self.scope):
-                continue
-            
+        for target in self._resolvable_targets(game_state, **kwargs):
             owner = game_state.get_card_owner(target)
             if not owner:
                 continue
-            
+
             # Remove from current controller's in_play
             for p in game_state.players.values():
                 if target in p.in_play:
                     p.in_play.remove(target)
                     break
-            
+
             # Return to owner's hand (not controller's)
             game_state.return_card_to_hand(target, owner)
 

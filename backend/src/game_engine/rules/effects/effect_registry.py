@@ -899,13 +899,8 @@ class EffectFactory:
                 f"Invalid count {count} for break_target. Must be at least 1."
             )
         
-        from .action_effects import BreakTargetEffect, TARGET_SCOPES
-        scope = parts[2].strip() if len(parts) == 3 else "any"
-        if scope not in TARGET_SCOPES:
-            raise ValueError(
-                f"Invalid scope '{scope}' for break_target. Must be one of {TARGET_SCOPES}."
-            )
-        return BreakTargetEffect(source_card, count=count, scope=scope)
+        from .action_effects import BreakTargetEffect
+        return BreakTargetEffect(source_card, count=count, scope=cls._parse_scope(parts, "break_target"))
 
     @classmethod
     def _parse_return_target_to_hand(cls, parts: List[str], source_card: "Card") -> BaseEffect:
@@ -947,13 +942,19 @@ class EffectFactory:
                 f"Invalid count {count} for return_target_to_hand. Must be at least 1."
             )
         
-        from .action_effects import ReturnTargetToHandEffect, TARGET_SCOPES
+        from .action_effects import ReturnTargetToHandEffect
+        return ReturnTargetToHandEffect(source_card, count=count, scope=cls._parse_scope(parts, "return_target_to_hand"))
+
+    @classmethod
+    def _parse_scope(cls, parts: List[str], effect_name: str) -> str:
+        """Optional trailing scope for in-play targeting effects: "any" (default) or "opponent"."""
+        from .action_effects import TARGET_SCOPES
         scope = parts[2].strip() if len(parts) == 3 else "any"
         if scope not in TARGET_SCOPES:
             raise ValueError(
-                f"Invalid scope '{scope}' for return_target_to_hand. Must be one of {TARGET_SCOPES}."
+                f"Invalid scope '{scope}' for {effect_name}. Must be one of {TARGET_SCOPES}."
             )
-        return ReturnTargetToHandEffect(source_card, count=count, scope=scope)
+        return scope
 
     @classmethod
     def _parse_opponent_lose_all_charge(cls, parts: List[str], source_card: "Card") -> BaseEffect:
