@@ -30,6 +30,11 @@ BACKEND_DIR = REPO_ROOT / "backend"
 FRONTEND_DIR = REPO_ROOT / "frontend"
 VENV_PYTHON = REPO_ROOT / ".venv" / "bin" / "python"
 ENV_FILE = Path(__file__).resolve().parent / ".env"
+DEPENDENCY_FILES = [
+    "backend/requirements.txt",
+    "frontend/package.json",
+    "frontend/package-lock.json",
+]
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 
 
@@ -55,6 +60,8 @@ def snyk_frontend_findings(env):
     if not proc.stdout.strip():
         raise RuntimeError(f"snyk test produced no output: {proc.stderr[-2000:]}")
     data = json.loads(proc.stdout)
+    if data.get("error"):
+        raise RuntimeError(f"snyk test failed (expired/invalid token?): {data['error']}")
     findings = []
     for v in data.get("vulnerabilities", []):
         findings.append(
@@ -275,8 +282,9 @@ def apply_and_open_pr(safe_findings, env):
         run(["git", "branch", "-D", branch], cwd=REPO_ROOT)
         return
 
-    run(["git", "add", "-A"], cwd=REPO_ROOT)
-    summary = "\n".join(f"- {f['package']} {f['installed']} -> {f['fixed_in'][-1]}" for f in safe_findings)
+    # Stage only dependency manifests/lockfiles; never sweep in unrelated untracked files.
+    run(["git", "add", "--", *DEPENDENCY_FILES], cwd=REPO_ROOT)
+    summary = "\n".join(sorted({f"- {f['package']} {f['installed']} -> {f['fixed_in'][-1]}" for f in safe_findings}))
     run(["git", "commit", "-m", f"fix: weekly Snyk/OSV dependency bumps\n\n{summary}"], cwd=REPO_ROOT)
     run(["gh", "auth", "switch", "-u", "regisca-bot"], cwd=REPO_ROOT)
     run(["git", "push", "-u", "origin", branch], cwd=REPO_ROOT)
