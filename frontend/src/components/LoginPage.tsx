@@ -119,7 +119,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
             style={{ marginBottom: 'var(--spacing-component-lg)', lineHeight: '1.6', color: 'var(--ink-muted)' }}
           >
             <p style={{ marginBottom: 'var(--spacing-component-sm)' }}>
-              Build a 6-card deck from over 20 unique cards.
+              Build a 6-card deck from 45 unique cards.
               Play <span style={{ color: 'var(--you)', fontWeight: 700 }}>Toys</span> and{' '}
               <span style={{ color: 'var(--them)', fontWeight: 700 }}>Actions</span> to outmaneuver your opponent.
             </p>
@@ -168,6 +168,23 @@ const LoginPage: React.FC<LoginPageProps> = ({
               Learn How to Play
             </button>
           </div>
+
+          {/* Printed Edition Link */}
+          <p
+            className="text-center"
+            style={{ marginBottom: 'var(--spacing-component-md)', fontSize: '13px', color: 'var(--ink-faint)' }}
+          >
+            Prefer paper? GGLTCG is also a{' '}
+            <a
+              href="https://www.thegamecrafter.com/games/ggltcg"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--ink-muted)', textDecoration: 'underline' }}
+            >
+              printed card set
+            </a>
+            .
+          </p>
 
           {/* Sign In Section */}
           <div
