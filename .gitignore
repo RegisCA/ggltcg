@@ -103,3 +103,18 @@ backend/src/reports/
 
 # Simulation sweep run artifacts (regenerate with simulation.sweep / simulation.combo)
 backend/data/combo_*.json
+
+# Personal working notes (session logs, handoffs, raw drafts) — kept locally, not published
+docs/development/sessions/
+docs/development/archive/SESSION_NOTES_*.md
+docs/development/archive/DOCS_RESTRUCTURING_PLAN.md
+docs/development/archive/INSTRUCTION_FILES_MIGRATION_PLAN.md
+docs/development/archive/PR_DESCRIPTION.md
+docs/development/archive/MVP_PROGRESS.md
+docs/development/archive/SIMULATION_IMPROVEMENTS.md
+docs/development/archive/BACKEND_AUDIT_STATUS.md
+docs/development/archive/CRITICAL_BUG_TUSSLE_PARSING.md
+docs/development/archive/FRONTEND_KICKOFF.md
+docs/development/archive/ENV_VARS_AUTH.md
+docs/development/archive/GGLTCG design.md
+docs/dev-notes/

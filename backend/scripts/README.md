@@ -20,11 +20,24 @@ cd backend
 python scripts/backfill_posthog_events.py --dry-run
 ```
 
+## Simulation analysis
+
+These read the local SQLite database written by `python -m simulation.sweep`
+(`backend/data/sweep.db` by default). See
+[SIMULATION_SYSTEM.md](../../docs/development/SIMULATION_SYSTEM.md).
+
+| Script | Does |
+|---|---|
+| `analyze_sweep.py` | Fits per-card values from a random-deck sweep; `--compare` checks rank agreement between runs |
+| `build_candidate_decks.py` | Derives candidate decks from fitted card values; `--write` updates `data/simulation_decks.csv` |
+| `deck_matrix.py` | Win-rate matrix and seat effects for a fixed-deck round-robin |
+
 ## Where the other tooling lives
 
 | Task | Use |
 |---|---|
-| Run simulations, compare models, test a deck | `python -m simulation.cli --help` |
-| Verify AI turn quality | `pytest tests/test_ai_enum_scenario.py -v -s` |
+| LLM simulations, model comparison | `python -m simulation.cli --help` |
+| Scripted (LLM-free) sweeps and combo ablations | `python -m simulation.sweep --help`, `python -m simulation.combo --help` |
+| AI planner tests | `pytest tests/test_enumerator.py tests/test_enum_planner_integration.py` |
 | Inspect a production game's AI decisions | `render psql` against `ai_decision_logs` / `game_playback` |
 | Browse users, games, playbacks, simulation runs | `/admin.html` |
