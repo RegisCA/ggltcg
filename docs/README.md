@@ -19,14 +19,12 @@ docs/
 ├── plans/                 # Active plans (actionable)
 ├── development/           # Technical documentation
 │   ├── ai/               # AI system docs
-│   ├── sessions/         # Session notes & postmortems
 │   ├── archive/          # Completed/obsolete docs
 │   └── ...
 ├── rules/                 # Game rules
 │   ├── GGLTCG Rules v1_1.md
 │   └── QUICK_REFERENCE.md
 ├── deployment/            # Deployment guides
-├── setup/                 # Setup guides
 └── dev-notes/             # Historical context (legacy)
 ```
 
@@ -36,7 +34,6 @@ docs/
 
 - **[AI Current State](development/ai/AI_CURRENT_STATE.md)** - Current AI subsystem reference (enum + Gemini architecture, env vars)
 - **[AI V4 Design (archived)](development/ai/archive/AI_V4_DESIGN.md)** - Historical dual-request architecture design, superseded by enum
-- **[Session Postmortem](development/sessions/SESSION_POSTMORTEM_2026_01_05.md)** - January 5 disaster analysis
 
 ### For General Development
 
