@@ -24,8 +24,7 @@ docs/
 ├── rules/                 # Game rules
 │   ├── GGLTCG Rules v1_1.md
 │   └── QUICK_REFERENCE.md
-├── deployment/            # Deployment guides
-└── dev-notes/             # Historical context (legacy)
+└── deployment/            # Deployment guides
 ```
 
 ## Key Documentation
