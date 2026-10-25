@@ -190,7 +190,7 @@ class GameEngine:
                 card_to_break = self._find_alternative_cost_card(
                     player, alternative_cost_card_id
                 )
-                if card_to_break:
+                if card_to_break and card_to_break is not card:
                     # Alternative cost is valid, no Charge needed
                     return True, ""
                 else:
@@ -1034,6 +1034,11 @@ class GameEngine:
             owner: Player who OWNS the card (card goes to their break zone)
             was_in_play: Whether card was in play (vs broken from hand)
         """
+        # Look up "when broken" effects while the card is still what it was in
+        # play: leaving play resets a transformed Copy/Clone, which would drop
+        # the copied card's trigger (e.g. a Copy of Umbruh).
+        effects = EffectRegistry.get_effects(card) if was_in_play else []
+
         # For stolen cards, we need to remove from controller's zone, not owner's
         controller = self.game_state.players.get(card.controller)
         
@@ -1041,7 +1046,8 @@ class GameEngine:
             # Card is stolen - remove from controller's in_play
             if card in controller.in_play:
                 controller.in_play.remove(card)
-            # Add to owner's break zone
+            # Add to owner's break zone, resetting it like Player.move_card does
+            card.reset_modifications()
             card.zone = Zone.BREAK
             card.controller = owner.player_id  # Reset controller back to owner
             owner.break_zone.append(card)
@@ -1051,7 +1057,6 @@ class GameEngine:
         
         # Trigger "when broken" effects (only if was in play)
         if was_in_play:
-            effects = EffectRegistry.get_effects(card)
             for effect in effects:
                 if isinstance(effect, TriggeredEffect):
                     if effect.trigger == TriggerTiming.WHEN_BROKEN:
