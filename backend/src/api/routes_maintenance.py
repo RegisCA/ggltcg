@@ -7,6 +7,7 @@ These endpoints are called by GitHub Actions on a schedule to:
 3. Delete old game playback data (> 7 days)
 """
 
+import hmac
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -24,9 +25,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/maintenance", tags=["maintenance"])
 
 
-# Simple API key auth for maintenance endpoints
-# Set MAINTENANCE_API_KEY env var in production
-MAINTENANCE_API_KEY = os.getenv("MAINTENANCE_API_KEY", "dev-maintenance-key")
+# Simple API key auth for maintenance endpoints. Fails closed: with
+# MAINTENANCE_API_KEY unset, every request is rejected (no default key).
 
 
 class CleanupResult(BaseModel):
@@ -52,9 +52,13 @@ class CleanupStats(BaseModel):
 
 def verify_api_key(x_api_key: Optional[str] = Header(None)) -> bool:
     """Verify the maintenance API key."""
+    expected_key = os.getenv("MAINTENANCE_API_KEY", "")
+    if not expected_key:
+        logger.warning("Maintenance access denied: MAINTENANCE_API_KEY is not configured")
+        raise HTTPException(status_code=503, detail="Maintenance API is not configured")
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Missing X-API-Key header")
-    if x_api_key != MAINTENANCE_API_KEY:
+    if not hmac.compare_digest(x_api_key, expected_key):
         raise HTTPException(status_code=403, detail="Invalid API key")
     return True
 

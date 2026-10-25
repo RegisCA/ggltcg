@@ -343,6 +343,55 @@ class StatsService:
         finally:
             db.close()
     
+    def get_ai_plan_summaries(self, game_id: str) -> list[dict]:
+        """
+        Per-turn AI plan summaries for one game, oldest first.
+
+        Only the fields the victory-screen recap shows (strategy, planner,
+        execution status) — never the raw prompt or response, which the
+        admin-only /admin/ai-logs endpoint serves.
+
+        Args:
+            game_id: Game ID
+
+        Returns:
+            List of summary dicts (empty if the database is disabled)
+        """
+        if not self.use_database:
+            return []
+
+        SessionLocal = _get_session_local()
+        AIDecisionLogModel, _, _, _ = _get_models()
+
+        db = SessionLocal()
+        try:
+            logs = (
+                db.query(AIDecisionLogModel)
+                .filter(AIDecisionLogModel.game_id == uuid.UUID(game_id))
+                .order_by(AIDecisionLogModel.created_at, AIDecisionLogModel.id)
+                .all()
+            )
+            summaries = []
+            for log in logs:
+                plan = log.turn_plan if isinstance(log.turn_plan, dict) else None
+                summaries.append({
+                    "turn_number": log.turn_number,
+                    "player_id": log.player_id,
+                    "ai_version": log.ai_version,
+                    "turn_plan": (
+                        {"strategy": plan.get("strategy"), "planner": plan.get("planner")}
+                        if plan else None
+                    ),
+                    "plan_execution_status": log.plan_execution_status,
+                    "fallback_reason": log.fallback_reason,
+                })
+            return summaries
+        except Exception as e:
+            logger.error(f"Failed to get AI plan summaries for game {game_id}: {e}")
+            return []
+        finally:
+            db.close()
+
     def get_leaderboard(self, limit: int = 10, min_games: int = 3) -> list[dict]:
         """
         Get top players by win rate.

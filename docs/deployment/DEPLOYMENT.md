@@ -67,7 +67,7 @@ production:
 | `GEMINI_MODEL` | no | Primary model. Default `gemini-flash-lite-latest`. |
 | `GEMINI_FALLBACK_MODEL` | no | Used when the primary returns 429. Default `gemini-2.5-flash-lite`. |
 | `ADMIN_EMAILS` | no | Google accounts allowed into `/admin.html` and `/admin/*`. Empty means nobody (fails closed). |
-| `MAINTENANCE_API_KEY` | no | Shared secret for `/maintenance/*`, used by the scheduled cleanup job. |
+| `MAINTENANCE_API_KEY` | no | Shared secret for `/maintenance/*`, used by the scheduled cleanup job. Unset disables those endpoints (503). |
 | `ENVIRONMENT` | no | `production` in production; tags Sentry events. |
 | `SENTRY_DSN` | no | Backend error tracking. |
 | `POSTHOG_API_KEY`, `POSTHOG_HOST` | no | Server-side analytics events. Unset disables them. |

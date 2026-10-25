@@ -66,7 +66,7 @@ export async function getCardStats(
 // ============================================================================
 
 /**
- * AI Log data returned from the admin API
+ * Per-turn AI plan summary returned by GET /games/{id}/ai-plan-summary
  */
 export interface AILogData {
   turn_number: number;
@@ -86,15 +86,12 @@ interface AILogsResponse {
 }
 
 /**
- * Get AI decision logs for a specific game
+ * Get the AI plan summaries for a finished game (victory-screen recap).
+ * Public, unlike /admin/ai-logs; the backend returns 409 while the game is
+ * still in progress.
  */
 export async function fetchAILogsForGame(gameId: string): Promise<AILogData[]> {
-  const response = await apiClient.get<AILogsResponse>('/admin/ai-logs', {
-    params: {
-      game_id: gameId,
-      limit: 50, // Should be enough for any game
-    },
-  });
+  const response = await apiClient.get<AILogsResponse>(`/games/${gameId}/ai-plan-summary`);
   // Extract the logs array from the response object
   return response.data.logs || [];
 }
