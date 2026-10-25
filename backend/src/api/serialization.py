@@ -8,7 +8,7 @@ to Python objects.
 
 import logging
 from typing import Dict, Any, List
-from game_engine.models.game_state import GameState, Phase
+from game_engine.models.game_state import GameState, Phase, TurnChargeRecord
 from game_engine.models.player import Player
 from game_engine.models.card import Card, CardType, Zone
 from game_engine.data.card_loader import CardLoader
@@ -51,6 +51,8 @@ def serialize_card(card: Card) -> Dict[str, Any]:
         "controller": card.controller,
         "zone": card.zone.value,
         "modifications": modifications,
+        # Turn-scoped boosts (e.g. VeryVeryAppleJuice) — keyed by turn number
+        "turn_modifications": card.turn_modifications,
     }
     
     return serialized
@@ -87,6 +89,7 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
         controller=data["controller"],
         zone=Zone(data["zone"]),
         modifications=modifications,
+        turn_modifications=data.get("turn_modifications", {}),
     )
     
     # Restore transformation state for Copy cards
@@ -172,6 +175,11 @@ def serialize_game_state(game_state: GameState) -> Dict[str, Any]:
         "game_log": game_state.game_log,
         "play_by_play": game_state.play_by_play,
         "starting_decks": game_state.starting_decks,
+        "charge_history": [record.to_dict() for record in game_state.charge_history],
+        # In-progress turn's Charge tracking, so a reload mid-turn (games are
+        # saved after every action) doesn't reset the current turn's record
+        "turn_charge_snapshot": game_state._turn_charge_snapshot,
+        "turn_charge_gained": game_state._turn_charge_gained,
     }
 
 
@@ -187,7 +195,7 @@ def deserialize_game_state(data: Dict[str, Any]) -> GameState:
     Returns:
         GameState object
     """
-    return GameState(
+    game_state = GameState(
         game_id=data["game_id"],
         players={
             player_id: deserialize_player(player_data)
@@ -201,7 +209,14 @@ def deserialize_game_state(data: Dict[str, Any]) -> GameState:
         game_log=data.get("game_log", []),
         play_by_play=data.get("play_by_play", []),
         starting_decks=data.get("starting_decks", {}),
+        charge_history=[
+            TurnChargeRecord.from_dict(record)
+            for record in data.get("charge_history", [])
+        ],
     )
+    game_state._turn_charge_snapshot = data.get("turn_charge_snapshot", 0)
+    game_state._turn_charge_gained = data.get("turn_charge_gained", 0)
+    return game_state
 
 
 def extract_metadata(game_state: GameState) -> Dict[str, Any]:
