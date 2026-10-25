@@ -1,424 +1,336 @@
-# Simulation System Documentation
+# Simulation System
 
-## Overview
+GGLTCG has no shuffled deck: each player builds a 6-card deck and the whole
+hand is visible from the start. Once the decks are chosen, the outcome depends
+on the cards and on how well they are played. That makes the game a good fit
+for simulation. Play enough games with the cards varied systematically and you
+can measure how strong each card is, whether a new card is over- or
+under-costed, and whether moving first is an advantage.
 
-The Simulation System enables automated AI vs AI game testing. Its primary
-use today is **card-balance benchmarking**: running many games with a fixed
-model to surface out-of-balance cards and decks. It was implemented as part
-of GitHub Issue #243.
+The simulation system exists to answer those balance questions for the game's
+designer. It plays complete games with the real rules engine, records every
+result, and fits a statistical model that turns win/loss records into a
+strength score per card or per deck.
 
-**Key Features:**
+- [Two harnesses, one engine](#two-harnesses-one-engine)
+- [Scripted sweeps](#scripted-sweeps)
+- [LLM simulations](#llm-simulations)
+- [Findings](#findings)
+- [Limitations](#limitations)
+- [Further reading](#further-reading)
 
-- Parallel game execution (10 workers by default) for faster completion
-- N² matchup matrix (all deck permutations)
-- Charge tracking for both players per turn
-- Action logging with human-readable descriptions
-- **Rate/budget throttling** — an optional requests-per-minute cap and a
-  persisted daily request budget so long benchmarking campaigns stay within
-  Gemini quotas
-- **Resumable, multi-day runs** — when the daily budget is exhausted a run
-  pauses cleanly and resumes (next day, or on demand) without losing
-  completed games; runs can also be paused/resumed manually
-- Command-line interface (CLI) for easy local testing and long-running batches
-- Web-based Admin UI for browser-based simulations
+## Two harnesses, one engine
 
-**Quick Start:**
+The AI opponent plays a turn in three steps: the engine enumerates every legal
+action sequence, one Gemini call picks one, and the server executes it (see
+[AI_CURRENT_STATE.md](ai/AI_CURRENT_STATE.md)). Only the middle step involves
+a model. The simulation system keeps the first and last steps and offers two
+ways to do the middle one:
+
+```text
+                 enumerate legal sequences   →   choose one   →   execute
+                 (engine, deterministic)                         (engine)
+                                                    │
+                     ┌──────────────────────────────┴──────────────┐
+                     │                                             │
+          Scripted sweep: a local policy               LLM simulation: Gemini
+          (simulation.sweep, simulation.combo)         (simulation.cli, admin UI)
+          free, ~15 games/s on 6 cores                 ~$0.001 and 5–6 requests per game
+```
+
+| | Scripted sweeps | LLM simulations |
+| --- | --- | --- |
+| Chooser | A local policy (`greedy`, `search2`, ...) | Gemini, exactly as in live games |
+| Cost | CPU only, no API key | API requests, throttled against quota |
+| Typical run | 10,000–200,000 random-deck games | 100–2,000 fixed-deck games |
+| Storage | Local SQLite (`backend/data/sweep.db` by default) | `simulation_runs` / `simulation_games` tables |
+| Used for | Card values, cost experiments, deck ranking, combos | Model comparison, prompt changes, final validation |
+| Entry point | `python -m simulation.sweep` | `python -m simulation.cli`, Admin → Simulation |
+
+The scripted harness is the default instrument. A 2,000-game Gemini run
+reproduced its deck ranking exactly (see [Findings](#scripted-play-predicts-llm-play)),
+so an LLM run is only needed when the question is about the model itself.
+
+Both harnesses run games through `simulation/runner.py`, which uses the same
+`ActionExecutor` as the live API. Every game is seeded. The engine's only
+random event (a direct attack sends a random card from the defender's hand to
+the break zone) and each scripted player's choices use per-game seeds that are
+stored with the result, so any game can be replayed exactly.
+
+## Scripted sweeps
+
+### Measuring cards instead of decks
+
+Ranking a handful of hand-built decks only tells you about those decks: there
+are over 8 million possible 6-card decks from the current 45-card pool. A sweep
+turns this around. Decks become the measuring apparatus rather than the
+subject:
+
+1. **Sample random legal decks.** Six distinct cards, at least 2 of them Toys
+   (an all-Action deck can barely interact, so those games are noise).
+2. **Play each pair twice**, once with each deck moving first. This cancels
+   seat advantage out of the card estimates and measures it separately.
+3. **Fit one strength score per card** from the outcomes.
+
+Each card ends up observed in thousands of different decks, and no
+deck-building judgement enters the measurement.
+
+### The model
+
+`backend/scripts/analyze_sweep.py` fits a Bradley-Terry model with additive
+card strengths:
+
+```text
+logit P(player 1 wins) = seat + Σ_c β_c · (in_deck1[c] − in_deck2[c])
+```
+
+`β_c` is how much card *c* shifts the log-odds of winning, with the rest of
+the deck held fixed. The scores are centred so the average card is 0, and are
+reported as **win % against an average card**: `1 / (1 + e^−β)`. A card at 60%
+wins 60% of the time against an otherwise identical deck holding an average
+card instead.
+
+One identification detail matters. Every deck has exactly 6 cards, so the
+features on every row sum to zero and the coefficients are only defined up to
+a constant. A naive fit returns sensible-looking point estimates with useless
+±9.8 intervals. The script pins one reference card, fits, then recentres and
+propagates the variances, which gives intervals of about ±0.09 at 10,000
+games. The fit is plain Newton-Raphson in Python to avoid adding numpy to the
+backend's dependencies.
+
+### Policies
+
+The policy that replaces Gemini is the main threat to validity, so there are
+several (`simulation/policies.py`):
+
+| Policy | Behaviour | Role |
+| --- | --- | --- |
+| `greedy` | Takes the enumerator's top-ranked line: most cards broken this turn | Fast mass sweeps |
+| `search2` | Looks one turn ahead: scores each line after the opponent's best reply | Competence check |
+| `softmax` | Picks at random among the top 3 lines | Adds variance |
+| `random` | Picks uniformly among legal lines | Null model |
+
+`greedy` is myopic. It never saves Charge for a bigger turn and never values
+setup that pays off later. Running more games doesn't fix that, it just gives a
+tighter interval around a biased number. The defence is to run the same deck
+pairs under two policies and compare: reusing `--seed` replays identical deck
+pairs, so the comparison is paired. Cards that rank the same under both are
+settled; cards that move a long way are the ones whose value depends on being
+played well, and that gap is a finding in its own right.
+
+### Running a sweep
+
+From `backend/src`, with the virtualenv active:
+
+```bash
+# Card values: 10,000 random-deck games, both policies, same deck pairs
+python -m simulation.sweep --games 10000 --policy greedy  --seed 100
+python -m simulation.sweep --games 10000 --policy search2 --seed 100
+python ../scripts/analyze_sweep.py --compare 1 2   # values, seat effect, rank agreement
+
+# Cost experiment: same seed, alternative card data
+CARDS_CSV_PATH=~/ggltcg-sim/variant_A.csv \
+  python -m simulation.sweep --games 10000 --policy search2 --seed 100 --db variant.db
+
+# Fixed decks from simulation_decks.csv, round-robin
+python -m simulation.sweep --decks all --iterations 100 --policy greedy
+python ../scripts/deck_matrix.py --run <id>
+```
+
+`greedy` runs at roughly 15 games/second on 6 workers; `search2` is about 20
+times slower. Runs are CPU-bound and parallel across processes, so a laptop
+handles 20,000 `search2` games overnight. Partial runs analyse fine.
+
+**Cost experiments** reuse the seed so that every variant replays the exact
+same deck matchups and only the card's cost differs. Re-running the original
+costs with the same seed reproduces the original numbers to the decimal, which
+confirms the setup is paired.
+
+**Candidate decks** are derived from the fitted values by
+`backend/scripts/build_candidate_decks.py` rather than chosen by hand. It
+picks the best deck, then the best deck sharing at most 2 cards with it, and so
+on, plus two control decks that should lose. The output is
+`backend/data/simulation_decks.csv`.
+
+### Combos
+
+An additive model scores a combo card at its average value across decks that
+mostly can't use it. For declared combos, `simulation.combo` runs a paired
+leave-one-out ablation: force the combo into every deck, then drop one piece
+at a time against the same opponent and seed.
+
+```bash
+python -m simulation.combo \
+  --combo "Hind Leg Kicker,Jumpscare,That was fun,Car|Dino|Block|MaBookBook" \
+  --games 4000 --policy search2 --max-actions 16
+```
+
+`A|B|C` declares a role ("any 0-cost Toy") rather than a single card. Each game
+also records the longest turn on the combo side, which distinguishes "the
+combo is weak" from "the combo never fired".
+
+## LLM simulations
+
+The LLM harness plays fixed decks from `simulation_decks.csv` with the real
+Gemini player. Runs are stored in the application database, so they appear in
+the admin dashboard alongside runs started from the CLI.
 
 ```bash
 cd backend/src
-python -m simulation.cli baseline --iterations 10
-
-# Throttled, multi-day-safe campaign (stays within quotas, auto-resumes daily):
-python -m simulation.cli baseline --iterations 50 --rpm 60 --daily-budget 2000
-```
-
-For comprehensive CLI documentation, see [backend/src/simulation/README.md](../../backend/src/simulation/README.md).
-
-## Architecture
-
-### Components
-
-```bash
-backend/src/simulation/
-├── __init__.py
-├── __main__.py        # CLI entry point (python -m simulation.cli)
-├── cli.py             # Command-line interface with Click
-├── config.py          # Data classes (SimulationConfig, GameResult, DeckConfig)
-├── deck_loader.py     # Loads deck configurations from CSV
-├── orchestrator.py    # Manages batch runs, parallel execution, resume/pause, DB persistence
-├── runner.py          # Executes games; Charge tracking & action logging
-├── reporter.py        # Generates markdown reports (win rates, matchup matrix, charge analysis)
-└── README.md          # Comprehensive CLI documentation
-```
-
-The rate/budget limiter lives with the Gemini provider it throttles, at
-`backend/src/game_engine/ai/rate_limiter.py` (`RateBudgetLimiter`,
-`NoopLimiter`, `BudgetExhaustedError`), not under `simulation/`.
-
-### Parallel Execution
-
-Games run in parallel using a ThreadPoolExecutor (default: 10 workers).
-This significantly speeds up large simulation runs:
-
-- Sequential: ~20 seconds/game → 160 games = ~53 minutes
-- Parallel (10x): ~20 seconds/game → 160 games = ~5-6 minutes
-
-Each parallel worker:
-
-- Creates its own SimulationRunner instance
-- Makes independent Gemini API calls
-- Uses a separate database session for persistence
-- Progress updates are thread-safe via locking
-- Shares one `RateBudgetLimiter` across all workers, so the RPM cap and daily
-  budget are enforced globally for the run (the limiter's `acquire()` is
-  thread-safe)
-
-### API Routes
-
-Located in `backend/src/api/routes_simulation.py`:
-
-- `GET  /admin/simulation/decks` — List available simulation decks
-- `GET  /admin/simulation/models` — List suggested model names
-- `POST /admin/simulation/start` — Start a new simulation run
-- `GET  /admin/simulation/runs` — List all simulation runs
-- `GET  /admin/simulation/runs/{id}` — Get run status/progress
-  (includes a `budget` object: `used_today`, `daily_budget`, `rpm`, `resets_at`)
-- `GET  /admin/simulation/runs/{id}/results` —
-  Get results & matchup stats
-- `GET  /admin/simulation/runs/{id}/games/{num}` —
-  Get individual game details (Charge & action log)
-- `GET  /admin/simulation/runs/{id}/report` — Get the markdown report
-- `POST /admin/simulation/runs/{id}/cancel` — Cancel a run
-- `POST /admin/simulation/runs/{id}/pause` — Pause a running run
-- `POST /admin/simulation/runs/{id}/resume` — Resume a
-  paused/budget-exhausted/failed run
-
-> **Server-hosted runs never sleep across days.** On budget exhaustion a
-> server run parks in `budget_exhausted` and waits for a `resume` call (via
-> the API, CLI, or Admin UI). The multi-day sleep-and-auto-resume behavior is
-> CLI-only (see [Multi-Day Batch Runs](#multi-day-batch-runs)) — a Render web
-> worker is not held for days.
-
-### Database Models
-
-Located in `backend/src/api/db_models.py`:
-
-- `SimulationRunModel` - Tracks run metadata, status, config
-  (statuses: `pending`, `running`, `completed`, `failed`, `cancelled`,
-  `paused`, `budget_exhausted`)
-- `SimulationGameModel` - Individual game results with Charge tracking and action
-  log
-- `ApiUsageModel` (`api_usage_daily`) - Per-provider, per-day request counter
-  backing the daily budget; persisted so restarts don't reset the count
-
-## Configuration
-
-### Simulation Decks
-
-Decks are defined in `backend/data/simulation_decks.csv`:
-
-```csv
-deck_name,description,card1,card2,card3,card4,card5,card6
-Aggro_Rush,Fast aggressive deck with charge generation,Dream,Knight,Raggy,Umbruh,Rush,Surge
-Control_Ka,Board control with Ka strength boost,Ka,Wizard,Beary,Copy,Clean,Wake
-```
-
-**To add a new deck:**
-
-1. Add a row to `simulation_decks.csv`
-2. Use exact card names from `backend/data/cards.csv`
-3. Deck will appear automatically in the Admin UI
-
-### LLM Models
-
-Suggested model names (shown as presets in the Admin UI and returned by
-`GET /admin/simulation/models`) are defined in
-`backend/src/simulation/config.py`:
-
-```python
-SUPPORTED_MODELS = [
-    "gemini-flash-lite-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
-    "openai/gpt-oss-20b",
-]
-```
-
-> Only Gemini models are actually wired up — `build_provider` is Gemini-only,
-> so the non-Gemini entries are placeholders, not functional backends.
-
-**Default model.** When no model is specified, simulations resolve the same
-way live games do — `GEMINI_MODEL` env var, then the provider default
-(`gemini-flash-lite-latest`) — via `config.default_simulation_model()`. This
-keeps benchmarking honest: games run against the model players actually face,
-not a hardcoded snapshot. Explicit `--model` / API `player*_model` values
-still override, so cross-model comparison remains possible.
-
-## Usage
-
-### Starting a Simulation
-
-#### Via CLI (Recommended for Local Testing)
-
-The CLI provides a streamlined interface for running simulations locally:
-
-```bash
-cd backend/src
-
-# List available decks
 python -m simulation.cli list-decks
-
-# Run a baseline campaign (default model, mirror across the baseline decks)
-python -m simulation.cli baseline --iterations 10
-
-# Compare two models head-to-head
-python -m simulation.cli compare --model1 gemini-flash-lite-latest --model2 gemini-2.0-flash
-
-# Quick test between two decks
-python -m simulation.cli quick Aggro_Rush Control_Ka
-
-# Throttled run + resume/status for long campaigns
-python -m simulation.cli baseline --iterations 50 --rpm 60 --daily-budget 2000
-python -m simulation.cli status 42
-python -m simulation.cli resume 42
+python -m simulation.cli baseline --decks Apex,Rival_A --iterations 50
+python -m simulation.cli compare --model1 gemini-2.5-flash-lite --model2 gemini-flash-lite-latest
+python -m simulation.cli status <run_id>
+python -m simulation.cli resume <run_id>
 ```
 
-Throttle flags (`--rpm`, `--daily-budget`, `--wait/--no-wait`) are available on
-`baseline`, `compare`, `test-deck`, and `quick`. `resume` and `status` operate
-on an existing run id. For all CLI commands and options, see
-[backend/src/simulation/README.md](../../backend/src/simulation/README.md).
+The same runs can be started from **Admin → Simulation** (`/admin.html`) or
+`POST /admin/simulation/start`, which caps a request at 500 games. The admin
+tab shows a P1-win-rate matrix per matchup and a turn-by-turn Charge and
+action log for each game. The `/admin/simulation/*` routes require an
+allowlisted admin account.
 
-#### Via API
+**Pin the model** for comparable results. By default a simulation uses the
+same model resolution as live games (`GEMINI_MODEL`, then the provider
+default), which is a moving `-latest` alias. Set `GEMINI_MODEL` and
+`GEMINI_FALLBACK_MODEL` to the same pinned model, and never mix models across
+seats in a run meant to measure seat advantage.
 
-```bash
-curl -X POST http://localhost:8000/admin/simulation/start \
-  -H "Content-Type: application/json" \
-  -d '{
-    "deck_names": ["Aggro_Rush", "Control_Ka"],
-    "iterations_per_matchup": 3,
-    "parallel_games": 10,
-    "rpm": 60,
-    "daily_request_budget": 2000
-  }'
-```
+### Throttling and multi-day runs
 
-`player1_model` / `player2_model` are optional and default to the live-game
-model resolution (see [LLM Models](#llm-models)). `rpm`, `daily_request_budget`,
-and `parallel_games` are optional throttle controls.
+Long campaigns can exceed the Gemini daily quota. The run can throttle itself
+and pause instead of failing:
 
-Via Admin UI:
-
-1. Navigate to Admin Data Viewer → Simulation tab
-2. Select decks (1 for mirror match, 2+ for cross-deck testing)
-3. (Optional) Set RPM, daily request budget, and parallel games — an inline
-   estimate shows approximate total requests and days
-4. Set iterations per matchup
-5. Click "Start Simulation"; pause/resume running or parked runs from the run
-   list, with a progress bar that persists across pauses
-
-### Understanding Results
-
-**Matchup Generation:**
-
-- N decks generate N² matchups (all permutations)
-- This treats A vs B and B vs A as different matchups since Player 1 goes first
-- Single deck: 1 matchup (mirror)
-- Two decks: 4 matchups (A vs A, A vs B, B vs A, B vs B)
-- Three decks: 9 matchups
-
-**Game Limit:**
-
-- Maximum 500 total games per simulation run
-- If iterations × matchups exceeds 500, iterations are automatically reduced
-
-**Results Matrix:**
-
-- Results are displayed in a heatmap matrix format
-- Rows = Player 1 deck, Columns = Player 2 deck
-- Cell shows P1 Win% with color coding (green = P1 favored, red = P2 favored)
-- Diagonal cells are mirror matchups
-
-**Charge Tracking:**
-Each turn records both players' Charge state (the `TurnCharge` dataclass in
-`backend/src/simulation/config.py`):
-
-- `turn`: Turn number (odd = P1's turn, even = P2's turn)
-- For both `p1` and `p2`:
-  - `charge_start`: Charge at start of that player's action window
-  - `charge_gained`: Charge gained (from abilities like Umbruh's on-tussle effect)
-  - `charge_spent`: Charge spent on actions
-  - `charge_end`: Charge at end of turn
-
-Note: Players can gain Charge during their opponent's turn. For example, Umbruh
-can generate Charge when it is tussled.
-
-**Action Log:**
-Each action records:
-
-- `turn`: Turn number
-- `player`: Player identifier
-- `action`: Action type (play_card, tussle, activate_ability,
-  direct_attack, end_turn)
-- `card`: Card name (if applicable)
-- `target`: Target card (if applicable)
-- `description`: Human-readable action description
-  (e.g., "Spent 2 Charge for Knight to tussle Umbruh")
-- `reasoning`: AI's reasoning for the decision
-
-## Testing Protocol
-
-### Controlled Mirror Match Test
-
-To test first-player advantage with proper controls:
-
-1. Select **single deck** (e.g., Aggro_Rush only)
-2. Set **same model** for both players
-3. Run 10+ iterations for statistical significance
-4. Analyze P1 Win % - 50% indicates balanced, deviation indicates advantage
-
-### Cross-Deck Matchup Test
-
-To compare deck strength:
-
-1. Select multiple decks
-2. Use same model for both players
-3. Analyze matchup results to understand deck dynamics
-
-### Model Comparison Test
-
-To compare LLM performance:
-
-1. Select single deck (mirror match)
-2. Set different models for P1 and P2
-3. **Important**: Run both configurations (swap models) to control for
-   first-player effects
-4. Compare aggregate results
-
-## Multi-Day Batch Runs
-
-For card-balance benchmarking you often want hundreds or thousands of games
-spread over days without tripping Gemini rate limits or burning the daily
-quota. The throttle + resume machinery makes this a single long-lived command.
-
-**Throttle controls (all optional):**
-
-- `--rpm N` — token-bucket cap of N requests/minute, shared across all workers.
-- `--daily-budget N` — stop after N Gemini requests in a calendar day
+- `--rpm N` caps requests per minute across all parallel workers.
+- `--daily-budget N` stops starting new games after N requests in a day
   (Pacific time, matching Gemini's quota reset). The count is persisted in
-  `api_usage_daily`, so it survives restarts and is shared across processes.
-- `--wait` (default) / `--no-wait` — behavior when the daily budget is hit.
+  `api_usage_daily`, so it survives restarts.
+- `--wait` (default) sleeps until the budget resets and resumes automatically.
+  `--no-wait` exits with code 75 so cron or launchd can call `resume` later.
 
-**Sizing tip.** A game averages ~15–25 Gemini requests (~1.3 calls per
-player-turn). At Gemini Tier 1 (4K RPM / 150K RPD), a daily budget of ~2000
-requests (~1.3% of RPD) yields roughly 80–130 games/day while leaving live
-traffic untouched — comfortable for a weeks-long campaign.
+Completed games are persisted as they finish. On resume the orchestrator skips
+exactly the stored game numbers and rebuilds the aggregate statistics from the
+stored rows, so the final report covers the whole campaign. A run that runs out
+of budget is parked, never recorded as draws. Server-started runs park and
+wait for a resume call; only the CLI sleeps across days.
 
-**Long-lived process (recommended):**
+With a measured ~5.6 requests per game, a 2,000-game run costs about $2 on
+`gemini-2.5-flash-lite`. The full CLI reference, including a cron wrapper, is
+in [`backend/src/simulation/README.md`](../../backend/src/simulation/README.md).
 
-```bash
-# Runs until the whole campaign finishes, sleeping until the next daily
-# window each time the budget is exhausted. `caffeinate` keeps the Mac awake.
-caffeinate -is python -m simulation.cli baseline \
-  --iterations 100 --rpm 60 --daily-budget 2000
-```
+## Findings
 
-With `--wait`, when the budget is exhausted the run parks in
-`budget_exhausted`, prints the reset time, sleeps until then (+ a 2-minute
-slack), and resumes automatically — repeating until all games are done.
+Results from July to October 2026. Numbers are from the scripted harness unless
+marked otherwise. The research log, with every run and every retracted
+hypothesis, is [CARD_EVALUATION_PLAN.md](CARD_EVALUATION_PLAN.md).
 
-**Scheduler-driven (cron/launchd):**
+### Card rankings are robust to the choice of player
 
-```bash
-# --no-wait exits 75 (EX_TEMPFAIL) while more games remain, so a wrapper can
-# re-invoke `resume <run_id>` on the next scheduled tick.
-python -m simulation.cli baseline --iterations 100 --daily-budget 2000 --no-wait
-python -m simulation.cli resume <run_id> --no-wait
-```
+Across 22,000 games of the first validation sweep, the card rankings from
+`greedy`, `search2` and `random` correlated at Spearman ρ = 0.88–0.90. The same
+cards top every policy (Dream, Umbruh, MaBookBook, Car, Beary, Hind Leg Kicker,
+Block, Ka), and the same cards sit at the bottom (Ballaber, Toynado, Paper
+Plane, Clone, VeryVeryAppleJuice, Jumpscare). The original hand-built
+simulation decks contained none of MaBookBook, Block or Ka, so they had left
+real strength unmeasured.
 
-See [backend/src/simulation/README.md](../../backend/src/simulation/README.md)
-for a full launchd/cron example.
+### Scripted play predicts LLM play
 
-**How resume stays correct:**
+Eight candidate decks derived from 220,000 scripted games were ranked by
+round-robin under `greedy` and `search2` (ρ = 0.976). Five of them were then
+played 2,000 times by the real Gemini player, for $2.10.
 
-- Completed games are persisted per game as they finish. On resume the
-  orchestrator skips exactly the persisted `game_number`s (not a
-  count comparison — which would break under out-of-order parallel
-  completion) and runs only the remainder.
-- Aggregate stats (win rates, matchup matrix) are rehydrated from the
-  persisted game rows before continuing, so the final report reflects the
-  whole campaign, not just the last session.
-- `BudgetExhaustedError` is never swallowed mid-game and never recorded as a
-  draw — an exhausted run pauses cleanly with completed games intact.
+| Deck | `greedy` | `search2` | Gemini |
+| --- | --- | --- | --- |
+| Rival_A | 67.9% | 72.4% | 75.5% |
+| Apex | 62.9% | 70.3% | 61.3% |
+| Legacy_Best | 52.3% | 50.1% | 51.6% |
+| Combo | 57.4% | 53.3% | 51.6% |
+| Control_Worst | 6.2% | 6.2% | 10.0% |
 
-> **"Pause" means "stop starting new games."** In-flight games finish. If
-> `parallel_games` ≥ the number of games still queued, a pause may let the
-> run complete before it can park. This is irrelevant for real campaigns
-> (hundreds of games queued) but can surprise you in tiny tests.
+The ranking matched exactly (ρ = 1.0 against both policies). Deck questions
+can be answered in minutes for free, and LLM spend is reserved for questions
+about the model.
 
-## Troubleshooting
+### The game is seat-balanced
 
-### Simulation Stalls
+Under Gemini, player 1 won 49.0% ± 2.2 of decisive games: no measurable
+advantage for moving first. Scripted policies disagreed with each other here
+(`greedy` 47.1%, `search2` 53.6%), which is why the LLM run was needed.
+Individual decks do care a lot. In mirror matches the first player won 67.5%
+with Apex and only 10% with Legacy_Best, and `greedy` found the same direction
+independently. These effects cancel out across decks.
 
-If games don't complete:
+### The harness found a real bug
 
-1. Check server logs for API errors (429 rate limits, timeouts)
-2. Verify the model is working in regular game mode first
-3. Check the `error_message` field in game results
+Investigating unexplained plan-execution fallbacks showed that the simulation
+runner called the engine directly instead of going through `ActionExecutor`,
+so targeted effects resolved with no target. Copy and Twist were scored as the
+worst cards in the game while doing nothing for their cost. Production was
+never affected, since the live API always used `ActionExecutor`. The fix routes
+the runner through the same path, and a regression test pins it.
 
-### Rate Limiting
+### The AI's 8-action turn limit binds for combos
 
-Gemini API has rate limits. To stay within them:
+The enumerator caps a sequence at 8 actions. At that cap the 95th-percentile
+longest turn sits exactly at the ceiling; at 16 it rises to 11 real actions,
+and the Hind Leg Kicker combo deck wins more. The cap stays at 8 for live play
+as a speed trade-off on the free-tier backend. Sweeps at the default cap
+measure the game as the AI plays it; the combo harness raises the cap to
+measure what the game allows a human to do.
 
-- **Proactive (preferred):** set `--rpm` / `--daily-budget` (or the equivalent
-  API fields) — see [Multi-Day Batch Runs](#multi-day-batch-runs). This paces
-  requests and pauses cleanly instead of hammering the API.
-- **Reactive:** on a 429/`ResourceExhausted`, the provider retries with
-  exponential backoff and falls back to `GEMINI_FALLBACK_MODEL`
-  (`gemini-2.5-flash-lite` by default).
-- Reducing `iterations_per_matchup` or `parallel_games` also lowers pressure.
+### Batch 4: five "When played" Toys
 
-### Model Issues
+The October 2026 card batch (MA14, Sock Serpent, Sir Scares a lot, Candy Golem,
+Laundry Lad) was measured before release: 20,000 random-deck games over the
+45-card pool, then 50,000 more for a cost experiment requested by the
+designer. Values are win % against an average card under `search2`, with the
+rank out of 45.
 
-If a specific model isn't working:
+| Card | Cost | Win % | Rank |
+| --- | --- | --- | --- |
+| Sock Serpent | 3 | 65.1% | 2 |
+| MA14 | 2 | 59.6% | 9 |
+| Sir Scares a lot | 1 | 56.2% | 14 |
+| Laundry Lad | 2 | 55.0% | 16 |
+| Candy Golem | 6 | 46.2% | 28 |
 
-1. Test in regular AI game mode first (easier to debug)
-2. Check `backend/.env` for `GOOGLE_API_KEY`
-3. Verify model name matches Gemini API exactly (and that it is a Gemini
-   model — non-Gemini `SUPPORTED_MODELS` entries are not wired up)
+- **A Toy beats its Action twin.** Three of the new Toys copy an existing
+  Action's effect and then stay in play as a body. Sock Serpent scored 21 points
+  above Drop, which has the same effect.
+- **Candy Golem is held back by its up-front cost.** It nets out at 2 Charge
+  (pay 6, gain 4 back) but needs 6 Charge in hand, so it often waits turns to
+  be played. It ranks 9 places higher under `search2` than under `greedy`, so
+  it rewards planning, but is below average under both.
+- **Cost experiment.** Each extra Charge on Sock Serpent costs it roughly 6–14
+  points (65.1% → 58.9% → 44.7% at costs 3, 4, 5). Candy Golem at cost 5 jumps
+  to 57.0%; at cost 4 the body is effectively free and it becomes the strongest
+  card in the game at 75.5%. Its fair cost sits between two whole numbers.
 
-## Frontend
+The cards shipped at their original costs. The results went to the designer as
+a standalone report.
 
-The admin UI lives under `frontend/src/components/admin/` (an `AdminApp` shell
-plus one component per tab in `tabs/`; data fetching in `hooks/`, API calls in
-`frontend/src/api/`). The simulation tab is `tabs/SimulationTab.tsx`:
+## Limitations
 
-- **Configure and start runs**: deck selection, per-player model, iterations,
-  and optional RPM / daily budget / parallel-games controls with an inline
-  request-and-days estimate
-- **Run list**: past and active runs with status badges (including `paused`
-  and `budget_exhausted`); runs started from the CLI appear here too when the
-  backend points at the same database
-- **Pause/Resume controls**: pause a running run, resume a
-  paused/budget-exhausted one; parked runs show budget used/limit and a
-  countdown to the reset; the progress bar persists across pauses
-- **Results Matrix**: Heatmap showing P1 win rates for all deck matchups
-- **Individual Games Table**: List of all games with P1/P2 decks,
-  winner, and total Charge spent
-- **Game Detail Panel**: Inline below clicked game row, showing:
-  - Turn-by-turn Charge tracking for both players
-  - Color-coded actions (play-by-play descriptions)
-  - Turn highlighting (green for P1 turns, blue for P2 turns)
+- **Scripted players are not people.** `search2`'s evaluation is
+  material-flavoured (cards broken, board, stats, Charge). A human who banks
+  Charge or plans multi-turn combos may value some cards differently.
+- **Card values are additive.** Synergy needs explicit interaction terms or
+  the combo harness. The data supports all pairwise terms at 200,000 games, but
+  they are not built yet.
+- **The 2-Toy minimum** slightly biases Action-card estimates, since Actions
+  are only ever observed alongside enough Toys.
+- **Simulation rows created before 2026-07-26** came from the buggy runner and
+  should not be used for card-level analysis. They remain valid for turn
+  counts and seat effects.
 
-## Future Enhancements
+## Further reading
 
-Potential improvements identified:
-
-- [x] Parallel game execution (✅ implemented with 10 workers default)
-- [x] Command-line interface (✅ implemented via simulation.cli)
-- [x] Rate/budget throttling and multi-day resumable runs
-  (✅ `--rpm` / `--daily-budget`, pause/resume)
-- [ ] Aggregate statistics across multiple runs
-- [ ] Export results to CSV
-- [ ] Model performance metrics (tokens, latency)
+- [CARD_EVALUATION_PLAN.md](CARD_EVALUATION_PLAN.md): the full research log,
+  including every run, the harness bug, combo measurements and retractions.
+- [`backend/src/simulation/README.md`](../../backend/src/simulation/README.md):
+  CLI reference for both harnesses.
+- [DECK_EVALUATION_COST_PLAN.md](DECK_EVALUATION_COST_PLAN.md): cost model and
+  run design for the LLM validation.
+- [AI_CURRENT_STATE.md](ai/AI_CURRENT_STATE.md): the AI pipeline both harnesses
+  are built on.

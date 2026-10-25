@@ -1,382 +1,174 @@
-# GGLTCG Deployment Guide
+# Deployment
 
-## Overview
-
-This guide covers deploying the GGLTCG application to production:
-
-- **Backend:** Render.com (Free Tier)
-- **Frontend:** Vercel (Free Tier)
-
-## Prerequisites
-
-- GitHub account with the ggltcg repository
-- Render account (connected to GitHub)
-- Vercel account (connected to GitHub)
-- Google Gemini API key (free from <https://aistudio.google.com/apikey>)
-
-## Part 1: Backend Deployment (Render)
-
-### Step 1: Fix Your Render Configuration
-
-The error you're seeing is because Render is looking for the wrong module path.
-Here's how to fix it:
-
-1. **Go to your Render dashboard** → Your web service (`ggltcg-backend`)
-
-1. **Update the Start Command:**
-
-   - Find the "Start Command" field
-    - Change from: `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
-    - Change to:
-       **`alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`**
-
-1. **Update the Root Directory:**
-
-   - Set "Root Directory" to: `backend`
-
-1. **Update the Build Command:**
-
-   - Set "Build Command" to: `pip install -r requirements.txt`
-
-### Step 2: Configure Environment Variables
-
-In your Render service settings, add these environment variables:
-
-| Key | Value | Notes |
-| :--- | :--- | :--- |
-| `DATABASE_URL` | `postgresql://...` | Use the Render **External Database URL** (full hostname) |
-| `JWT_SECRET_KEY` | `your-random-secret` | Required for auth token signing |
-| `GOOGLE_CLIENT_ID` | `your-google-client-id` | Required for Google login token verification |
-| `GOOGLE_API_KEY` | `your-actual-api-key` | From Google AI Studio |
-| `GEMINI_MODEL` | `gemini-flash-lite-latest` | Primary model |
-| `GEMINI_FALLBACK_MODEL` | `gemini-2.5-flash-lite` | Fallback for capacity issues |
-| `PYTHON_VERSION` | `3.13.0` | Python version |
-| `ALLOWED_ORIGINS` | `http://localhost:5173` | Update after Vercel deployment |
-
-### Step 2.1: Region Migration Checklist (Render to Render)
-
-Use this when creating a second backend service in another region (for example,
-Ohio to Oregon).
-
-1. Create a new Render web service from the same repo/branch.
-1. Keep these service settings aligned:
-
-   - Root Directory: `backend`
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT`
-   - `PYTHON_VERSION=3.13.0`
-
-1. Copy env vars from the old service (export to a `.env` from old service and import into new one).
-1. **Replace `DATABASE_URL` with the DB External URL** from Render Postgres.
-
-   - Do not use partial/internal hosts like `dpg-...-a` without domain.
-   - Use full hostnames such as `dpg-...-a.ohio-postgres.render.com`.
-
-1. Deploy and verify:
-
-   - `/health` returns healthy
-   - login works
-   - AI turn endpoint succeeds
-
-1. Point frontend `VITE_API_URL` to the new backend URL.
-1. Keep old backend in a `suspended` state briefly for rollback, then decommission.
-
-### Step 3: Deploy Backend
-
-1. Click **"Manual Deploy"** → **"Deploy latest commit"**
-1. Wait for build to complete (3-5 minutes)
-1. Once deployed, note your backend URL: `https://ggltcg-backend-oregon.onrender.com`
-
-### Step 4: Update CORS After Frontend Deployment
-
-After you deploy to Vercel (Part 2), come back and update the `ALLOWED_ORIGINS`
-variable:
+GGLTCG runs on free tiers: the FastAPI backend and its PostgreSQL database on
+[Render](https://render.com), the React frontend on
+[Vercel](https://vercel.com). Both deploy automatically when `main` changes,
+so every merged pull request goes straight to production.
 
 ```text
-ALLOWED_ORIGINS=https://ggltcg.vercel.app,https://ggltcg-git-*.vercel.app,http://localhost:5173
-
+ push to main ──┬──► Render  (backend/)   pip install → alembic upgrade head → uvicorn
+                │      └── PostgreSQL (Render)
+                └──► Vercel  (frontend/)  npm install → tsc + vite build → static SPA
 ```
 
-This allows your Vercel frontend (and local dev) to call your backend API.
+This guide covers how production is set up and how to stand up your own copy.
+For local development, see the [README](../../README.md#run-it-locally).
 
-## Part 2: Frontend Deployment (Vercel)
+- [Backend on Render](#backend-on-render)
+- [Frontend on Vercel](#frontend-on-vercel)
+- [Google sign-in](#google-sign-in)
+- [Scheduled maintenance](#scheduled-maintenance)
+- [Verifying a deploy](#verifying-a-deploy)
+- [Troubleshooting](#troubleshooting)
+- [Moving the backend to another region](#moving-the-backend-to-another-region)
 
-### Step 1: Configure Vercel Project
+## Backend on Render
 
-1. **Go to Vercel dashboard** → **Add New Project**
-1. **Import your GitHub repository** (`RegisCA/ggltcg`)
-1. **Configure the project:**
+### Database
 
-   - **Framework Preset:** Vite
-   - **Root Directory:** `frontend`
-   - **Build Command:** `npm run build` (default is fine)
-   - **Output Directory:** `dist` (default is fine)
-   - **Install Command:** `npm install` (default is fine)
+Create a Render PostgreSQL instance first and copy its **External Database
+URL**. Use the full hostname (for example `dpg-xxxx-a.oregon-postgres.render.com`).
+The short internal form (`dpg-xxxx-a`) fails at startup with
+`could not translate host name`.
 
-### Step 2: Configure Environment Variables (Vercel)
+### Web service
 
-In Vercel project settings → Environment Variables, add:
+Create a Render web service from the repository with these settings. They are
+also captured as a Render Blueprint in
+[`backend/render.yaml`](../../backend/render.yaml).
 
-| Name | Value | Environment |
-| :--- | :--- | :--- |
-| `VITE_API_URL` | `https://ggltcg.onrender.com` | Production |
+| Setting | Value |
+| --- | --- |
+| Root directory | `backend` |
+| Runtime | Python, `PYTHON_VERSION=3.13.0` |
+| Build command | `pip install -r requirements.txt` |
+| Start command | `alembic upgrade head && cd src && uvicorn api.app:app --host 0.0.0.0 --port $PORT` |
+| Branch | `main`, auto-deploy on |
 
-**Important:** Replace `ggltcg.onrender.com` with your actual Render backend URL
-from Part 1.
+Migrations run as part of the start command because Render's free tier has no
+pre-deploy step. Every schema change therefore ships as an Alembic migration in
+`backend/alembic/versions/`; the database is never changed by hand.
 
-### Step 3: Deploy Frontend
+Pin `PYTHON_VERSION`. Without it Render may pick a newer Python than the pinned
+dependencies support, and the build fails while compiling `pydantic-core`.
 
-1. Click **"Deploy"**
-1. Wait for build to complete (2-3 minutes)
-1. Once deployed, note your frontend URL: `https://ggltcg.vercel.app` (or similar)
+### Environment variables
 
-### Step 4: Update Backend CORS
+`backend/.env.example` is the commented template for local development. In
+production:
 
-Go back to Render and update the `ALLOWED_ORIGINS` environment variable:
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | PostgreSQL External Database URL. A `sqlite:///` URL works for local development. |
+| `GOOGLE_API_KEY` | yes | Gemini API key for the AI opponent ([get one](https://aistudio.google.com/api-keys)). |
+| `GOOGLE_CLIENT_ID` | yes | OAuth client ID used to verify Google sign-in tokens. |
+| `JWT_SECRET_KEY` | yes | Signs session tokens. Generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. |
+| `ALLOWED_ORIGINS` | yes | Comma-separated CORS origins, e.g. `https://ggltcg.vercel.app,http://localhost:5173`. |
+| `GEMINI_MODEL` | no | Primary model. Default `gemini-flash-lite-latest`. |
+| `GEMINI_FALLBACK_MODEL` | no | Used when the primary returns 429. Default `gemini-2.5-flash-lite`. |
+| `ADMIN_EMAILS` | no | Google accounts allowed into `/admin.html` and `/admin/*`. Empty means nobody (fails closed). |
+| `MAINTENANCE_API_KEY` | no | Shared secret for `/maintenance/*`, used by the scheduled cleanup job. |
+| `ENVIRONMENT` | no | `production` in production; tags Sentry events. |
+| `SENTRY_DSN` | no | Backend error tracking. |
+| `POSTHOG_API_KEY`, `POSTHOG_HOST` | no | Server-side analytics events. Unset disables them. |
+| `LOG_LEVEL` | no | Python log level. |
+| `CARDS_CSV_PATH` | no | Alternative card data file (see below). |
 
-```text
-ALLOWED_ORIGINS=https://ggltcg.vercel.app,https://ggltcg-git-*.vercel.app,http://localhost:5173
+Change the AI model by editing `GEMINI_MODEL` in the Render dashboard rather
+than in `render.yaml`, so a model swap doesn't need a code change.
 
-```
+### Alternative card data
 
-**Note:** Replace `ggltcg.vercel.app` with your actual Vercel domain. Include
-preview deployment patterns if you want those to work.
+`CARDS_CSV_PATH` points the engine at a different card file with the same
+columns as `backend/data/cards.csv`. On Render, paths are relative to
+`/opt/render/project/src/`, so a file committed at `backend/data/custom.csv`
+is `/opt/render/project/src/backend/data/custom.csv`. The simulation harness
+uses the same variable to test cost changes without editing the real data.
 
-Then redeploy your backend for the CORS changes to take effect.
+## Frontend on Vercel
 
-## Verification & Testing
+Import the repository into Vercel, set the project's root directory to
+`frontend` and choose the Vite framework preset (`npm run build`, output
+`dist`). The build produces three entry points: `index.html` (the game),
+`admin.html` (the admin dashboard) and `design.html` (a component fixture
+harness). Screens inside the game are switched in React state rather than by
+URL path, so no rewrite rules are needed.
 
-### Test Backend
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `VITE_API_URL` | yes | Backend base URL, e.g. `https://<your-service>.onrender.com`. |
+| `VITE_GOOGLE_CLIENT_ID` | yes | Same OAuth client ID as the backend. Never the client secret. |
+| `VITE_SENTRY_DSN` | no | Frontend error tracking. |
+| `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` | no | Product analytics. Unset disables them. |
 
-Visit your Render URL directly:
+Vite inlines these at build time, so redeploy after changing one.
 
-```text
-https://ggltcg.onrender.com/
+After the first Vercel deploy, add its domain to the backend's
+`ALLOWED_ORIGINS`. Add preview domains too if you want preview deployments to
+reach the API.
 
-```
+## Google sign-in
 
-You should see:
+Players sign in with Google; the backend verifies the ID token and issues its
+own JWT. Create an OAuth 2.0 client in Google Cloud Console and add your
+Vercel domain and `http://localhost:5173` as authorised JavaScript origins.
+Step-by-step instructions are in
+[GOOGLE_OAUTH_SETUP.md](../development/GOOGLE_OAUTH_SETUP.md).
+
+## Scheduled maintenance
+
+[`.github/workflows/cleanup.yml`](../../.github/workflows/cleanup.yml) calls
+`POST /maintenance/cleanup` once a day, authenticated with the
+`MAINTENANCE_API_KEY` repository secret. It marks abandoned games and purges
+stale AI decision logs, playback data and simulation rows so the free-tier
+database stays small. It can also be run by hand from the Actions tab or the
+admin dashboard's Maintenance tab.
+
+## Verifying a deploy
+
+`GET /health` reports database connectivity, the applied migration, the
+deployed commit and the active AI models:
 
 ```json
 {
-  "name": "GGLTCG API",
-  "version": "0.1.0",
-  "status": "running"
+  "status": "healthy",
+  "database": { "connected": true, "migration_version": "014" },
+  "games": { "in_progress": 1, "total": 3113 },
+  "deploy": { "git_commit": "492422f…", "git_branch": "main" },
+  "ai": { "planner": "enum", "model": "gemini-flash-lite-latest", "fallback_model": "gemini-2.5-flash-lite" }
 }
-
 ```
 
-Test the cards endpoint:
-
-```text
-https://ggltcg.onrender.com/games/cards
-
-```
-
-### Test Frontend
-
-1. Visit your Vercel URL: `https://ggltcg.vercel.app`
-1. Start a new game
-1. Verify cards load correctly
-1. Play a few turns against the AI
-
-### Common Issues & Solutions
-
-#### Backend Issues
-
-### "Error loading ASGI app"
-
-- Verify Start Command is: `cd src && uvicorn api.app:app --host 0.0.0.0 --port
-
-$PORT`
-
-- Verify Root Directory is: `backend`
-
-### "Module not found" errors
-
-- Check that `requirements.txt` is in the `backend/` directory
-- Verify Build Command is: `pip install -r requirements.txt`
-
-### Build fails with pydantic-core metadata generation on Render
-
-- Verify `PYTHON_VERSION` is pinned to `3.13.0` in service env vars.
-- Render may otherwise use a newer Python runtime that is incompatible with
-   pinned dependencies.
-
-### Deploy fails at startup with database host resolution error
-
-- Symptom: `could not translate host name "dpg-..." to address`.
-- Cause: `DATABASE_URL` uses an internal/partial host value.
-- Fix: set `DATABASE_URL` to the full **External Database URL** from Render
-   Postgres settings.
-
-### AI not responding
-
-- Check `GOOGLE_API_KEY` is set correctly in Render
-- Check logs for API quota/capacity errors
-- Fallback model should activate automatically on 429 errors
-
-### Render free tier sleeping
-
-- Free tier spins down after 15 minutes of inactivity
-- First request after sleep takes ~50 seconds
-- Upgrade to paid tier for always-on service
-
-#### Frontend Issues
-
-### CORS errors in browser console
-
-- Verify `ALLOWED_ORIGINS` in Render includes your Vercel domain
-- Redeploy backend after updating CORS
-- Clear browser cache
-
-### Can't connect to API
-
-- Verify `VITE_API_URL` in Vercel matches your Render backend URL
-- Check backend is actually running (visit /health endpoint)
-- Redeploy frontend after changing environment variables
-
-### Cards not loading
-
-- Check Network tab in browser DevTools
-- Verify backend `/games/cards` endpoint works directly
-- Check for CORS errors
-
-## Free Tier Limitations
-
-### Render Free Tier
-
-- 750 hours/month compute time
-- Spins down after 15 minutes of inactivity
-- 50-second cold start on first request
-- 512MB RAM
-- Shared CPU
-
-**Workaround for sleeping:** Use a service like UptimeRobot to ping your backend
-every 14 minutes.
-
-### Vercel Free Tier
-
-- 100GB bandwidth/month
-- 100 deployments/day
-- Serverless function execution time: 10s max
-- Fast, no cold starts for static assets
-
-## Advanced Configuration
-
-### Using an Alternate Deck (Custom Cards)
-
-You can use a custom CSV file instead of the default `cards.csv` by setting the
-`CARDS_CSV_PATH` environment variable in Render:
-
-1. **Upload your custom deck CSV** to your repository (e.g.,
-
-`backend/data/custom_deck.csv`)
-
-1. **In Render** → Environment Variables, add:
-
-   - Key: `CARDS_CSV_PATH`
-   - Value: `/opt/render/project/src/backend/data/custom_deck.csv`
-
-1. **Redeploy** your backend
-
-The CSV must follow the same format as `backend/data/cards.csv`.
-
-Alternatively, you can modify the start command to use the `--deck` argument,
-but environment variables are cleaner for Render deployments.
-
-## Production Best Practices
-
-### Security
-
-- Never commit `.env` files to Git
-- Rotate API keys periodically
-- Monitor API usage and quotas
-- Use Render's secret environment variables
-
-### Monitoring
-
-- Check Render logs regularly for errors
-- Monitor Google API quota usage
-- Set up alerts for deployment failures
-- Use Vercel Analytics (free tier available)
-
-### Updates & Maintenance
-
-- Test changes locally first
-- Use feature branches and preview deployments
-- Monitor error rates after deployments
-- Keep dependencies updated (security patches)
-
-## Troubleshooting Commands
-
-### Check Backend Logs (Render)
-
-1. Go to Render dashboard → Your service
-1. Click "Logs" tab
-1. Look for errors during startup or requests
-
-### Check Frontend Build Logs (Vercel)
-
-1. Go to Vercel dashboard → Your project
-1. Click on a deployment
-1. View build and function logs
-
-### Test API Locally
-
-```bash
-cd backend
-source venv/bin/activate  # or your virtualenv
-uvicorn src.api.app:app --reload
-
-```
-
-Visit: <http://localhost:8000/docs>
-
-### Test Frontend Locally Against Production Backend
-
-```bash
-cd frontend
-echo "VITE_API_URL=https://ggltcg.onrender.com" > .env.local
-npm run dev
-
-```
-
-Visit: <http://localhost:5173>
-
-## Deployment Checklist
-
-- [ ] Backend deployed to Render with correct Start Command
-- [ ] All backend environment variables configured
-- [ ] Backend health check returns 200 OK
-- [ ] Frontend deployed to Vercel
-- [ ] Frontend `VITE_API_URL` points to Render backend
-- [ ] Backend CORS updated with Vercel domain
-- [ ] Can start a new game from Vercel frontend
-- [ ] AI opponent makes moves successfully
-- [ ] Cards display correctly
-- [ ] Victory screen works
-
-## Support & Resources
-
-- **Render Docs:** <https://render.com/docs>
-- **Vercel Docs:** <https://vercel.com/docs>
-- **FastAPI Deployment:** <https://fastapi.tiangolo.com/deployment/>
-- **Vite Deployment:** <https://vite.dev/guide/static-deploy.html>
-- **Google Gemini API:** <https://ai.google.dev/gemini-api/docs>
-
-## Next Steps
-
-Once deployed successfully:
-
-1. Test the full game flow in production
-1. Share the Vercel URL with friends for playtesting
-1. Monitor logs for any errors
-1. Consider adding analytics (Vercel Analytics, Google Analytics)
-1. Set up continuous deployment for automatic updates
-
----
-
-**Congratulations! Your GGLTCG app is now live!** 🎉
-
-Play at: `https://your-project.vercel.app`
+Compare `deploy.git_commit` with `git log origin/main` to confirm a merge is
+live. Free-tier builds can take several minutes after a push. Then open the
+frontend, start a game against the AI and play a turn.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| First request takes ~50 s | The free tier sleeps after 15 minutes idle. The frontend's loading screen waits on `/health` while the service wakes. |
+| `Error loading ASGI app` | The start command must `cd src` before `uvicorn api.app:app`, with root directory `backend`. |
+| Build fails compiling `pydantic-core` | `PYTHON_VERSION` is not pinned to `3.13.0`. |
+| `could not translate host name "dpg-..."` | `DATABASE_URL` uses the internal hostname. Use the External Database URL. |
+| CORS errors in the browser | The frontend's origin is missing from `ALLOWED_ORIGINS`. Update it and let Render restart. |
+| Frontend calls the wrong backend | `VITE_API_URL` is baked in at build time. Fix it in Vercel and redeploy. |
+| AI turns fail or stall | Check `GOOGLE_API_KEY`, then Render logs for quota errors. 429s fall back to `GEMINI_FALLBACK_MODEL` automatically. |
+| Admin dashboard says access denied | Your Google account is not in `ADMIN_EMAILS`. |
+
+Render logs are under the service's **Logs** tab; Vercel build logs are on each
+deployment's page.
+
+## Moving the backend to another region
+
+Production moved from Ohio to Oregon in May 2026 by running a second service
+alongside the first:
+
+1. Create a new Render web service from the same repository, with the settings
+   in [Web service](#web-service).
+2. Copy the environment variables from the old service, then set
+   `DATABASE_URL` to the External URL of the database you want to use.
+3. Deploy and check `/health`, Google sign-in and an AI turn.
+4. Point the frontend's `VITE_API_URL` and the cleanup workflow's `API_URL` at
+   the new service, and update `ALLOWED_ORIGINS` if the domain changed.
+5. Suspend the old service for a few days as a rollback path, then delete it.

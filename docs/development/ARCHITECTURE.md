@@ -1,1025 +1,359 @@
-# GGLTCG Architecture Documentation
+# Architecture
 
-**Version:** 3.0 **Date:** December 8, 2025
+GGLTCG is a two-player card game played in the browser, against an AI opponent
+or another person. This document describes how the system fits together: the
+rules engine at its centre, the API and persistence around it, the web client,
+and the AI and simulation layers built on top of the engine.
 
-**Major Changes:**
+- [System overview](#system-overview)
+- [Repository layout](#repository-layout)
+- [The game engine](#the-game-engine)
+- [Card effects](#card-effects)
+- [One path for every action](#one-path-for-every-action)
+- [API and persistence](#api-and-persistence)
+- [Multiplayer and synchronisation](#multiplayer-and-synchronisation)
+- [Authentication](#authentication)
+- [AI opponent and simulation](#ai-opponent-and-simulation)
+- [Operations](#operations)
+- [Testing](#testing)
+- [Design decisions](#design-decisions)
+- [Known limitations](#known-limitations)
 
-- Added ActionValidator and ActionExecutor classes
-- Eliminated ~457 lines of code duplication
-- Unified validation and execution logic for human and AI players
+## System overview
 
----
+```text
+ Browser (Vercel)                        Backend (Render)                          External
+┌──────────────────────┐   HTTPS/JSON   ┌───────────────────────────────────┐
+│ React SPA            │ ─────────────► │ FastAPI routers                   │
+│  game, lobby, stats  │  poll every 2s │   │                               │
+│  admin dashboard     │ ◄───────────── │   ▼                               │     ┌──────────────┐
+└──────────────────────┘                │ GameService ── cache + DB I/O ────┼───► │ PostgreSQL   │
+                                        │   │                               │     └──────────────┘
+                                        │   ▼                               │
+                                        │ ActionValidator / ActionExecutor  │
+                                        │   │                               │
+                                        │   ▼                               │
+                                        │ GameEngine ── GameState, effects  │
+                                        │   ▲                               │
+                                        │   │ same engine, cloned states    │     ┌──────────────┐
+                                        │ AI: enumerator + selector ────────┼───► │ Gemini API   │
+                                        └───────────────────────────────────┘     └──────────────┘
+```
 
-## Table of Contents
+The engine is the single authority on the rules. The browser holds no rules: it
+asks the backend which moves are legal, shows them, and sends back the player's
+choice. The AI and the simulation harness use the same engine and the same
+validation code as a human player, so there is exactly one implementation of the
+game.
 
-- System Overview
-- Backend Architecture
-- Effects System
-- Game State Management
-- Card Lifecycle
-- Target Selection System
-- API Layer
-- Frontend Architecture
-- Frontend Design System
-- Known Issues & Technical Debt
-- Database & Persistence
-- Recommendations
+| Layer | Technology |
+| --- | --- |
+| Engine and API | Python 3.13, FastAPI, Pydantic |
+| Persistence | SQLAlchemy, Alembic; PostgreSQL in production, SQLite locally and in CI |
+| Web client | React 19, TypeScript, TanStack Query, Vite, Tailwind CSS 4 |
+| AI | Google Gemini via `google-genai`, structured JSON output |
+| Hosting | Render (API, database), Vercel (client), both auto-deploying from `main` |
 
----
-
-## System Overview
-
-### Technology Stack
-
-**Backend:**
-
-- FastAPI (Python 3.13+)
-- Uvicorn (ASGI server)
-- PostgreSQL database with SQLAlchemy ORM
-- Alembic for database migrations
-
-**Frontend:**
-
-- React 19.2
-- TypeScript 5.9
-- Vite 7.2
-- TanStack Query (React Query)
-- Tailwind CSS 4.1
-
-**AI Integration:**
-
-- Google Gemini API with native structured output (via `google-genai` SDK)
-- Pydantic-based JSON schema for reliable AI responses
-
-### Architecture Pattern
-
-**Current:** Monolithic backend with RESTful API supporting:
-
-- Quick Play vs AI
-- 1v1 Online Multiplayer via lobby system (polling-based)
-- Google OAuth authentication
-- Persistent game state in PostgreSQL
-
----
-
-## Backend Architecture
-
-### Directory Structure
+## Repository layout
 
 ```text
 backend/
-├── src/
-│   ├── api/                    # FastAPI application layer
-│   │   ├── app.py             # Main FastAPI app, CORS config
-│   │   ├── routes_actions.py  # Game actions (play, tussle, AI turn)
-│   │   ├── routes_games.py    # Game management (create, get state)
-│   │   ├── routes_lobby.py    # Multiplayer lobby system
-│   │   ├── routes_auth.py     # Google OAuth authentication
-│   │   ├── routes_stats.py    # Player stats and leaderboard
-│   │   ├── routes_admin.py    # Admin endpoints (logs, playbacks)
-│   │   ├── routes_maintenance.py # Database cleanup tasks
-│   │   ├── schemas.py         # Pydantic models for API
-│   │   ├── game_service.py    # Game state management with DB persistence
-│   │   ├── database.py        # SQLAlchemy setup
-│   │   └── db_models.py       # Database models
-│   │
-│   └── game_engine/           # Core game logic (domain layer)
-│       ├── game_engine.py     # Main game orchestrator
-│       ├── ai/                # AI player implementation
-│       │   ├── llm_player.py # LLM-based AI decision making
-│       │   ├── turn_planner.py # Planner modes (single/dual) + execution
-│       │   ├── providers.py  # Gemini / Groq / OpenRouter abstraction
-│       │   └── prompts/      # Prompt-building package (formatters, schemas, examples)
-│       ├── data/
-│       │   └── card_loader.py # Load cards from CSV
-│       ├── models/
-│       │   ├── card.py       # Card data model
-│       │   ├── game_state.py # Game state container
-│       │   ├── player.py     # Player data model
-│       │   └── actions.py    # Structured action types
-│       ├── rules/
-│       │   ├── turn_manager.py
-│       │   └── effects/       # Card effects system
-│       │       ├── base_effect.py
-│       │       ├── action_effects.py
-│       │       ├── triggered_effects.py
-│       │       ├── continuous_effects.py
-│       │       └── effect_registry.py
-│       └── validation/        # Action validation and execution
-│           ├── __init__.py
-│           ├── action_validator.py  # Validates valid actions
-│           └── action_executor.py   # Executes actions
-
+  data/cards.csv            card definitions: stats, cost, effect DSL
+  src/game_engine/          rules, with no web or database code
+    models/                 Card, Player, GameState
+    rules/effects/          effect classes and the CSV effect parser
+    validation/             ActionValidator, ActionExecutor
+    ai/                     enumerator, Gemini selector, execution
+    game_engine.py          GameEngine: turns, costs, tussles, breaking
+  src/api/                  FastAPI routers, GameService, auth, serialization, DB models
+  src/simulation/           AI-vs-AI harnesses (LLM and scripted)
+  alembic/                  database migrations
+  tests/                    pytest suite
+frontend/src/               React app, admin dashboard, design fixture harness
+docs/                       rules, architecture, plans, research logs
 ```
 
-### Separation of Concerns
+## The game engine
 
-**✅ Well Separated:**
+### Rules in brief
 
-- API layer (`api/`) cleanly separated from game logic (`game_engine/`)
-- Effect types properly abstracted (base classes)
-- Turn management isolated in `turn_manager.py`
-- Validation logic centralized in `ActionValidator`
-- Execution logic centralized in `ActionExecutor`
-- Database layer abstracted through SQLAlchemy ORM
-- Authentication handled separately in `auth_routes.py`
+Each player brings 6 distinct cards, all of which start in hand; there is no
+draw. **Toys** have speed, strength and stamina and stay in play. **Actions**
+resolve and go to the break zone. Players spend **Charge** to play cards and to
+start tussles: they gain 2 on the first turn of the game and 4 on every later
+turn, carry unspent Charge over, and can hold at most 7. In a **tussle** the
+faster Toy strikes first (the active player's Toy gets +1 speed), dealing its
+strength as damage to the other's stamina. A Toy at 0 stamina is broken. With no
+Toys left to defend, a player can be **directly attacked**, which sends a
+random card from their hand to the break zone. A player wins when every one of
+the opponent's cards is in the break zone. The full rules are in
+[QUICK_REFERENCE.md](../rules/QUICK_REFERENCE.md).
 
-**Recent Improvements (Nov 2025):**
+### Models
 
-- Eliminated ~457 lines of code duplication with the ActionValidator/ActionExecutor refactor
-- Migrated from in-memory storage to PostgreSQL with Alembic migrations
-- Unified AI and human player code paths through structured actions
+| Class | File | Holds |
+| --- | --- | --- |
+| `Card` | `models/card.py` | Printed stats and cost, a unique `id`, the effect string, `owner` (never changes), `controller` (changes when a card is stolen), `zone`, current stamina and temporary modifications |
+| `Player` | `models/player.py` | Charge (with the cap enforced in `gain_charge`), hand, in-play and break-zone lists, per-turn counters |
+| `GameState` | `models/game_state.py` | Both players, turn number, active and first player, winner, play-by-play log, Charge history. Also zone transitions such as `change_control` and `find_card_by_id` |
+| `GameEngine` | `game_engine.py` | Rules: turn start and end, card costs, stat calculation, tussle resolution, breaking, state-based checks |
 
----
+Cards are always looked up by `id`, never by name. Copy can put two cards with
+the same name on the board, and a name lookup would pick the wrong one.
 
-## Effects System
+Zone changes go through methods (`player.move_card`, `engine._break_card`,
+`state.change_control`) rather than attribute assignment, because leaving play
+has side effects: damage and modifications reset, a transformed Copy reverts,
+and a stolen card returns to its owner's break zone.
 
-The effects system is the core of card behavior. It uses inheritance and
-polymorphism to handle different effect types.
-
-### Data-Driven Effects
-
-**Goal:** Enable adding new cards via CSV without writing Python code.
-
-**Architecture:**
-
-- **Generic Effect Classes** — Parameterized effects that work for multiple cards
-- **CSV Effect Definitions** — Card data includes `effects` column with effect
-  strings
-- **EffectFactory Parser** — Parses effect strings into effect instances; this
-  is the only effect-resolution path (the legacy name-based registry fallback
-  was removed in PR #347)
-
-**CSV Format:**
-
-```csv
-name,type,cost,effects,...
-Ka,Toy,1,stat_boost:strength:2,...
-Rush,Action,0,gain_charge:2:not_first_turn,...
-Wake,Action,1,fix:1,...
-
-```
-
-**Effect String Syntax:**
-
-- Format: `effect_type:param1:param2:...`
-- Multiple effects: `effect1:param1;effect2:param1:param2`
-- Examples:
-- `stat_boost:strength:2` — Ka gains +2 strength
-- `stat_boost:all:1` — Demideca gains +1 to all stats
-- `gain_charge:2:not_first_turn` — Rush gains 2 Charge (not on first turn)
-- `fix:2` — Sun fixes 2 cards
-- `break_all` - Clean breaks all cards in play
-
-**Implementation:**
-
-- All 40 cards in production are CSV-driven through ~25 generic effect types
-  (see `ADDING_NEW_CARDS.md` for the full list and syntax) — including
-  cards once thought "too complex" for the generic system, like Knight
-  (`auto_win_tussle_on_own_turn`), Copy (`copy_card`), and Twist
-  (`take_control`)
-
-### Effect Type Hierarchy
-
-Every effect is one of a fixed set of generic, parameterized classes — there
-is no per-card subclass. A card like Knight or Twist gets its specific
-behavior entirely from the parameters `EffectFactory` parses out of its
-`cards.csv` effect string, not from a `KnightEffect`/`TwistEffect` class.
+### Turn lifecycle
 
 ```text
-BaseEffect (abstract)
-├── ContinuousEffect          # checked during stat/cost calculations
-│   ├── StatBoostEffect
-│   ├── KnightWinConditionEffect
-│   ├── DirectAttackEffect
-│   ├── ArcherRestrictionEffect
-│   ├── CostModificationEffect
-│   │   ├── SetTussleCostEffect / SetSelfTussleCostEffect
-│   │   ├── ReduceCostByBrokenEffect / SelfCostIncreaseByBrokenEffect
-│   │   ├── OpponentCostIncreaseEffect
-│   │   └── BallaberCostEffect
-│   └── ProtectionEffect
-│       ├── OpponentImmunityEffect
-│       └── TeamOpponentImmunityEffect
-├── TriggeredEffect            # fires when its trigger condition is met
-│   ├── GainChargeWhenBrokenEffect
-│   ├── StartOfTurnGainChargeEffect
-│   ├── OnCardPlayedGainChargeEffect
-│   └── DamageAllOpponentCardsEffect
-├── PlayEffect                 # executed when an action card is played
-│   ├── GainChargeEffect / FixEffect / BreakAllEffect
-│   ├── BreakTargetEffect / ReturnTargetToHandEffect
-│   └── ToynadoEffect / TwistEffect / CopyEffect / TurnStatBoostEffect
-└── ActivatedEffect            # triggered by the player, not automatic
-    └── ArcherActivatedAbility
+start_turn ──► gain Charge (2 on turn 1, else 4; cap 7)
+           ──► start-of-turn triggers
+           ──► MAIN: play cards, tussle, activate abilities, in any order
+end_turn   ──► finalise Charge tracking ──► switch player ──► turn_number += 1 ──► start_turn
 ```
 
-(See `backend/src/game_engine/rules/effects/base_effect.py`,
-`continuous_effects.py`, and `action_effects.py` for the full, current set —
-~25 effect types total. `ADDING_NEW_CARDS.md` lists each one with its CSV
-syntax.)
+`turn_number` advances on every player's turn, so odd turns always belong to
+the first player. The first player is chosen at random when a game is created.
 
-### Effect Lifecycle
+After every action the engine runs `check_state_based_actions`, which breaks
+any Toy at 0 stamina, fires "when broken" triggers, and checks for a winner.
 
-#### 1. Parsing (Card Loading)
+### Stats and costs are computed, not stored
 
-Effects are parsed from each card's `effect_definitions` CSV column by
-`EffectFactory`, not registered by name at startup:
+A card's effective strength is never written onto the card. `get_card_stat`
+starts from the printed value and applies every continuous effect currently in
+play (Ka's +2 strength for all your cards, for example), then any turn-scoped boosts.
+Costs work the same way: `calculate_card_cost` applies every cost modifier in
+play, and variable-cost cards such as Copy take their cost from the chosen
+target. When a card leaves play, its effects stop applying automatically
+because nothing was ever written.
 
-```python
-# In effect_registry.py
-effects = EffectFactory.parse_effects(card.effect_definitions, card)
-# e.g. "stat_boost:strength:2" -> [StatBoostEffect(card, strength, 2)]
+### Randomness
 
-```
+The rules contain one random event: a direct attack picks a random card from
+the defender's hand. Everything else is deterministic. The simulation harness
+seeds this per game so that every simulated game can be replayed exactly.
 
-**When:** card loaded from CSV (`CardLoader.load_cards()`) **Where:**
-`EffectFactory.parse_effects()`
+## Card effects
 
-#### 2. Instantiation (Card Creation)
-
-Parsed effects are bound to the card and retrieved via:
-
-```python
-effects = EffectRegistry.get_effects(card)
-# Returns list of effect instances bound to that card
-
-```
-
-**When:** Card loader creates cards from CSV **Where:**
-
-`EffectRegistry.get_effects()`
-
-#### 3. Execution (During Play)
-
-Different effect types execute at different times:
-
-**PlayEffect** - Executed when action card is played:
-
-```python
-# In game_engine.py -> _resolve_action_card()
-effects = EffectRegistry.get_effects(card)
-for effect in effects:
-    if isinstance(effect, PlayEffect):
-        effect.apply(game_state, player=player, **kwargs)
-
-```
-
-**TriggeredEffect** - Executed when trigger condition met:
-
-```python
-# In game_engine.py -> _trigger_when_played_effects()
-if effect.trigger == TriggerTiming.WHEN_PLAYED:
-    if effect.should_trigger(game_state, played_card=card):
-        effect.apply(game_state, player=player, **kwargs)
-
-```
-
-**ContinuousEffect** - Checked during stat calculations:
-
-```python
-# In game_engine.py -> get_card_stat()
-for effect in all_continuous_effects:
-    value = effect.modify_stat(card, stat_name, value, game_state)
-
-```
-
-**CostModificationEffect** - Checked during cost calculation:
-
-```python
-# In game_engine.py -> calculate_card_cost()
-for effect in cost_modifying_effects:
-    cost = effect.modify_card_cost(card, cost, game_state, player)
-
-```
-
-### Effect Execution
-
-See [EFFECT_SYSTEM_ARCHITECTURE.md](EFFECT_SYSTEM_ARCHITECTURE.md) for detailed
-effect execution flows and examples.
-
----
-
-## Game State Management
-
-### State Container: GameState
-
-```python
-@dataclass
-class GameState:
-    game_id: str
-    players: Dict[str, Player]          # player_id -> Player
-    active_player_id: str
-    first_player_id: str
-    turn_number: int = 1
-    phase: Phase = Phase.START
-    play_by_play: List[Dict] = field(default_factory=list)
-    game_log: List[str] = field(default_factory=list)
-
-```
-
-**Key Methods:**
-
-- `get_active_player()` - Returns Player object for current turn
-- `get_opponent(player_id)` - Returns opponent Player object
-- `get_card_controller(card)` - Searches in_play lists first, then uses
-
-card.controller field
-
-- `change_control(card, new_controller)` - Used by Twist effect
-
-### State Persistence
-
-PostgreSQL with in-memory caching:
-
-```python
-# game_service.py
-class GameService:
-    def __init__(self):
-        self.games: Dict[str, GameEngine] = {}  # In-memory cache
-
-    def get_game(self, game_id: str) -> Optional[GameEngine]:
-        # Check cache first
-        if game_id in self.games:
-            return self.games[game_id]
-
-        # Load from database if not cached
-        game_state = self._load_game_from_db(game_id)
-        if game_state:
-            self.games[game_id] = GameEngine(game_state)
-            return self.games[game_id]
-
-```
-
-**Benefits:**
-- ✅ Games persist across server restarts
-- ✅ Production-ready persistence layer
-- ✅ Two-tier caching (memory + database)
-- ✅ JSONB storage for flexible schema
-
-**Database Schema (PostgreSQL):**
-
-```sql
--- Implemented schema
-CREATE TABLE games (
-    id UUID PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    player1_id VARCHAR NOT NULL,
-    player1_name VARCHAR NOT NULL,
-    player2_id VARCHAR NOT NULL,
-    player2_name VARCHAR NOT NULL,
-    status VARCHAR NOT NULL,  -- 'active', 'completed', 'abandoned'
-    winner_id VARCHAR,
-    turn_number INTEGER DEFAULT 1,
-    active_player_id VARCHAR NOT NULL,
-    phase VARCHAR NOT NULL,
-    game_state JSONB NOT NULL  -- Complete serialized GameState
-);
-
--- Indexes for common queries
-CREATE INDEX idx_games_player1 ON games(player1_id);
-CREATE INDEX idx_games_player2 ON games(player2_id);
-CREATE INDEX idx_games_status ON games(status);
-CREATE INDEX idx_games_updated_at ON games(updated_at DESC);
-
-```
-
-**See Also:** `docs/development/archive/POSTGRES_IMPLEMENTATION.md` for
-
-implementation details.
-
-### Turn Flow
+Card behaviour is data. Each row of `backend/data/cards.csv` has an `effects`
+column in a small DSL, and `EffectFactory` parses it into effect objects:
 
 ```text
-START PHASE
-├── Gain Charge (2 on turn 1, 4 after)
-├── Check state-based actions
-└── Transition to MAIN
-
-MAIN PHASE
-├── Player can:
-│   ├── Play cards (pay Charge)
-│   ├── Initiate tussles (pay Charge)
-│   └── End turn
-└── Check state-based actions after each action
-
-END PHASE
-├── Reset turn counters
-├── Switch active player
-├── Increment turn number
-└── Transition back to START (new game)
-
+Ka            stat_boost:strength:2
+Sock Serpent  break_target:1:opponent
+Archer        cannot_tussle;remove_stamina_ability:1
 ```
 
-**Implemented in:** `turn_manager.py` and `game_engine.py`
-
-### State-Based Actions
-
-Checked after every game action:
-
-1. **Break cards with 0 stamina** - Cards reduced to 0 stamina go to break zone
-1. **Trigger "when broken" effects** - Snuggles, Umbruh
-1. **Check victory conditions** - Opponent has no cards in hand and no cards in
-
-play
-
-**Where:** `game_engine.check_state_based_actions()`
-
----
-
-## Card Lifecycle
-
-### Card States (Zones)
-
-```python
-class Zone(Enum):
-    HAND = "Hand"
-    IN_PLAY = "InPlay"
-    BREAK = "Break"
-
-```
-
-### Card Data Model
-
-```python
-@dataclass
-class Card:
-    # Static properties (from CSV)
-    name: str
-    card_type: CardType  # TOY or ACTION
-    cost: int
-    effect_text: str
-    speed: Optional[int]
-    strength: Optional[int]
-    stamina: Optional[int]
-
-    # Ownership & Control
-    owner: str = ""           # Player ID who owns card (original deck)
-    controller: str = ""      # Player ID who controls card (can change via Twist)
-
-    # Current state
-    zone: Zone = Zone.HAND
-    current_stamina: Optional[int] = None
-    modifications: Dict[str, int] = field(default_factory=dict)
-
-```
-
-### Card Movement
-
-#### Creation (Deck Building)
-
-```python
-# game_service.py -> _create_deck()
-card = Card(
-    name=template.name,
-    # ... other fields
-    owner=owner_id,
-    controller=owner_id,  # Initially same as owner
-)
-
-```
-
-**Starting zone:** HAND
-
-#### Playing a Card
-
-**TOY Cards:**
-
-```python
-# game_engine.py -> play_card()
-card.zone = Zone.IN_PLAY
-card.controller = player.player_id
-player.in_play.append(card)
-
-```
-
-**ACTION Cards:**
-
-```python
-# game_engine.py -> play_card()
-engine._resolve_action_card(card, player, **kwargs)
-card.zone = Zone.BREAK
-player.break_zone.append(card)
-
-```
-
-#### Breaking a Card
-
-```python
-# game_state.py -> break_card()
-if was_in_play:
-    player.in_play.remove(card)
-card.zone = Zone.BREAK
-player.break_zone.append(card)
-# Trigger "when broken" effects
-
-```
-
-#### Fixing a Card (Wake effect)
-
-```python
-# game_state.py -> fix_card()
-player.break_zone.remove(card)
-card.zone = Zone.HAND
-player.hand.append(card)
-
-```
-
-#### Control Change (Twist effect)
-
-```python
-# game_state.py -> change_control()
-old_controller.in_play.remove(card)
-card.controller = new_controller.player_id
-new_controller.in_play.append(card)
-
-```
-
-**Key Concepts:** Ownership vs Control
-- `card.owner` never changes (used when card leaves play)
-- `card.controller` changes with Twist
-- `get_card_controller()` searches `in_play` lists, then falls back to
-
-`card.controller` field
-
----
-
-## Target Selection System
-
-### Current Implementation (Dec 2025)
-
-**Frontend Flow:**
-
-1. **User clicks "Play Card"** on a card requiring targets
-1. **Frontend checks** `ValidAction.target_options` (provided by backend via
-
-`/valid-actions` endpoint)
-
-1. **Target Selection Modal** appears if `target_options` is populated
-1. **User selects target(s)** from the available cards
-1. **API request sent** with `target_ids` (card IDs, not names)
-
-**Backend Flow:**
-
-1. **ActionValidator** determines valid targets based on effect type
-1. **ValidAction** includes `target_options` (list of card IDs), `min_targets`,
-
-`max_targets`
-
-1. **ActionExecutor** receives `target_ids` and executes the action
-1. **Effect classes** define `get_valid_targets()` method for their specific
-
-requirements
-
-### Target Validation Example
-
-```python
-# action_validator.py
-def _get_target_info(self, card: Card, player: Player) -> dict:
-    """Get target requirements for a card's effects."""
-    effects = EffectRegistry.get_effects(card)
-
-    for effect in effects:
-        if isinstance(effect, PlayEffect) and effect.requires_targets():
-            valid_targets = effect.get_valid_targets(self.game_state, player)
-            return {
-                "requires_targets": True,
-                "target_options": [t.id for t in valid_targets],
-                "max_targets": getattr(effect, 'max_targets', 1),
-                "min_targets": getattr(effect, 'min_targets', 1),
-            }
-
-    return {
-        "requires_targets": False,
-        "target_options": None,
-        "max_targets": 0,
-        "min_targets": 0,
-    }
-
-```
-
-**Card Identification:**
-
-All cards are identified by unique IDs (`card.id`). Target selection uses ID-
-based lookups exclusively - no name-based lookups in gameplay logic.
-
-### Effect Target Validation
-
-```python
-class PlayEffect:
-    def get_valid_targets(
-        self,
-        game_state: "GameState",
-        player: Player
-    ) -> List["Card"]:
-        """Return list of valid target cards for this effect."""
-        return []
-
-```
-
-**Used by:** Both AI player and ActionValidator to determine valid targets
-
----
-
-## API Layer
-
-### Endpoint Categories
-
-**Game Management** (`routes_games.py`):
-- `POST /games` - Create new game
-- `GET /games/{game_id}` - Get game state
-- `GET /games/{game_id}/logs` - Get debug logs (for development)
-- `POST /games/narrative` - Generate bedtime story narrative
-
-**Game Actions** (`routes_actions.py`):
-- `POST /games/{game_id}/play-card` - Play card from hand
-- `POST /games/{game_id}/tussle` - Initiate tussle
-- `POST /games/{game_id}/end-turn` - End current turn
-- `POST /games/{game_id}/ai-turn` - AI takes turn (auto-selects action)
-- `GET /games/{game_id}/valid-actions` - Get available actions for current
-
-player
-
-### Request/Response Flow
-
-**Example: Play Twist Card**
+There are 27 effect types in four families: continuous (stat and cost
+modifiers, protection), triggered (start of turn, when broken, when another
+card is played), play effects (Actions, and Toys' "when played" abilities) and
+activated abilities. All 45 cards are expressed this way, including Copy,
+Twist and Knight. A new card usually needs a CSV row and nothing else; a new
+mechanic needs one effect class and one parser branch.
+
+[EFFECT_SYSTEM_ARCHITECTURE.md](EFFECT_SYSTEM_ARCHITECTURE.md) covers the DSL,
+the class hierarchy and where each family hooks into the engine.
+[ADDING_NEW_CARDS.md](ADDING_NEW_CARDS.md) is the how-to.
+
+## One path for every action
+
+Two classes sit between callers and the engine:
+
+- **`ActionValidator.get_valid_actions(player_id)`** lists every legal action
+  for the active player as `ValidAction` objects: action type, card ID, Charge
+  cost, the legal targets (`target_options`), minimum and maximum target
+  counts, and any alternative cost. Tussles that would certainly lose are
+  filtered out for the AI.
+- **`ActionExecutor`** carries out a chosen card play or tussle: it resolves
+  target IDs to cards, rejects targets outside the effect's legal set, works
+  out the cost, calls the engine and builds the play-by-play description.
+
+The web client renders `ValidAction`s directly, the AI's enumerator searches
+over them, and the simulation runner replays through the executor. When a
+targeting rule changes, every caller sees the change at once.
+
+### A card play, end to end
 
 ```text
-Frontend Request:
-POST /games/{game_id}/play-card
-{
-  "player_id": "alice",
-  "card_name": "Twist",
-  "target_card_name": "Ka"
-}
-
-Backend Processing:
-1. Find player by player_id
-2. Find Twist card in player.hand
-3. Calculate cost (check for cost modifications)
-4. Find target card (zone-specific search)
-5. Validate can_play_card (enough Charge, right phase, etc.)
-6. Execute play_card:
-   - Remove from hand
-   - Resolve effect (TwistEffect.apply)
-   - Move to break zone
-7. Check state-based actions
-8. Update play-by-play log
-
-Frontend Response:
-{
-  "success": true,
-  "message": "Successfully played Twist (took control of Ka)",
-  "game_state": { "turn": 2, "phase": "Main" }
-}
-
+POST /games/{id}/play-card  { player_id, card_id, target_card_id }
+  routes_actions.play_card
+    → GameService.get_game(id)                    cache hit, or load and deserialise from DB
+    → check it is player_id's turn
+    → ActionExecutor.execute_play_card
+        → _handle_targets, _validate_effect_targets
+        → engine.calculate_card_cost              depends on the target for variable-cost cards
+        → engine.play_card
+            → can_play_card, spend Charge
+            → Toy: into play, fire "when played" effects
+              Action: resolve play effects, move to break zone
+            → check_state_based_actions
+            → fire "when another card is played" triggers
+    → state.add_play_by_play
+    → GameService.update_game                     cache + DB upsert; stats and playback if the game ended
+  ← ActionResponse { success, message, game_state }
 ```
 
-### State Serialization
-
-**Backend → Frontend:**
-
-```python
-# routes_games.py -> get_game_state()
-return GameStateResponse(
-    game_id=game_id,
-    turn=game_state.turn_number,
-    phase=game_state.phase.value,
-    active_player_id=game_state.active_player_id,
-    players={
-        p_id: PlayerState(
-            player_id=p.player_id,
-            name=p.name,
-            charge=p.charge,
-            hand_count=len(p.hand),
-            hand=cards if reveal_hand else None,
-            in_play=[_card_to_state(c) for c in p.in_play],
-            break_zone=[_card_to_state(c) for c in p.break_zone]
-        )
-        for p_id, p in game_state.players.items()
-    },
-    play_by_play=game_state.play_by_play
-)
-
-```
-
-**⚠️ Issue:** Full state sent on every request (no delta updates)
-
----
-
-## Frontend Architecture
-
-For a high-level tour of the frontend codebase and how it integrates with the
-backend, see `FRONTEND_OVERVIEW.md` in this folder.
-
-### State Management
-
-**React Query** for server state:
-
-```typescript
-// useGame.ts
-const { data: gameState } = useQuery({
-  queryKey: ['game', gameId, playerId],
-  queryFn: () => gameService.getGameState(gameId, playerId),
-  refetchInterval: 1000  // Poll every second
-});
-
-```
-
-**Local React state** for UI:
-- Selected card
-- Target selection modal state
-- Card hover preview
-
-### Component Hierarchy
-
-```text
-App
-└── GameBoard
-    ├── PlayerZone (opponent)
-    │   ├── PlayerInfoBar
-    │   ├── InPlayZone
-    │   └── BreakZoneDisplay
-    ├── PlayerZone (current player)
-    │   ├── PlayerInfoBar
-    │   ├── InPlayZone
-    │   ├── BreakZoneDisplay
-    │   └── HandZone
-    ├── ActionPanel
-    ├── TargetSelectionModal
-    ├── CardHoverPreview
-    ├── LoadingScreen
-    └── VictoryScreen
-
-```
-
-### Card Rendering
-
-```typescript
-<CardDisplay
-  card={card}
-  onClick={() => handleCardClick(card)}
-  isSelected={selectedCard?.name === card.name}
-  effectiveStats={calculateEffectiveStats(card)}
-/>
-
-```
-
-**⚠️ Issue:** Card selection uses `card.name` for matching (should use ID)
-
----
-
-## Frontend Design System
-
-The GGLTCG frontend uses a comprehensive design system to ensure visual
-consistency and maintainability.
-
-### Spacing Design System
-
-All spacing uses CSS custom properties (design tokens) defined in
-`frontend/src/index.css`:
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--spacing-component-xs` | 8px | Tight spacing (buttons, compact cards) |
-| `--spacing-component-sm` | 12px | Compact spacing (mobile, card padding) |
-| `--spacing-component-md` | 16px | Standard spacing (most components) |
-| `--spacing-component-lg` | 24px | Generous spacing (panels, modals) |
-| `--spacing-component-xl` | 32px | Large spacing (page sections) |
-
-**Usage:**
-
-```tsx
-<div style={{ padding: 'var(--spacing-component-md)' }}>
-<div style={{ gap: 'var(--spacing-component-sm)' }}>
-
-```
-
-**Rule:** NEVER use hardcoded pixel values or Tailwind spacing utilities (`p-4`,
-
-`gap-2`) for component spacing.
-
-See: `.github/instructions/coding.instructions.md` for complete standards.
-
-### Typography Design System
-
-Typography follows WCAG AA accessibility standards:
-
-| Element | Classes | Example |
-|---------|---------|---------|
-| H1 | `text-4xl font-bold text-white` | Victory screen |
-| H2 | `text-2xl font-bold text-game-highlight` | Panel titles |
-| Body | `text-base text-white` | Content |
-| Secondary | `text-sm text-gray-300` | Descriptions |
-| Muted | `text-xs text-gray-400` | Metadata |
-
-**Fonts:**
-- **Bangers:** Headings, card names, game branding
-- **Lato:** Body text, labels, UI text
-
-See: `docs/development/TYPOGRAPHY_DESIGN_SYSTEM.md` for complete documentation.
-
-### Responsive Strategy
-
-The `useResponsive` hook provides consistent breakpoint detection:
-
-```tsx
-const { isDesktop, isTablet, isMobile, isLandscape } = useResponsive();
-
-```
-
-**Breakpoints:**
-- **Desktop:** ≥1024px - Full 2-column layout
-- **Tablet:** 768-1023px - Compact spacing, side-by-side zones
-- **Mobile:** <768px - Stacked layout, scrollable
-
-### Component Patterns
-
-**Unified Components:**
-- `Button` - Consistent button variants (primary, secondary, danger)
-- `Modal` - Accessible modal wrapper with focus trap
-
-**Zone Layout (Desktop):**
-
-```text
-┌─────────────────────────────────────┬──────────────┐
-│  Opponent InPlay  │  Opponent Break │              │
-│─────────────────────────────────────│   Messages   │
-│  My InPlay        │  My Break       │   + Actions  │
-│─────────────────────────────────────│   (350px)    │
-│            My Hand (full-width)     │              │
-└─────────────────────────────────────┴──────────────┘
-
-```
-
----
-
-## Known Issues & Technical Debt
-
-### ~~Critical Issues~~ ✅ RESOLVED
-
-1. ~~**Code Duplication Between AI and Human Player Paths**~~ ✅ RESOLVED (Nov
-
-21, 2025)
-
-- **Solution Implemented:** Created `ActionValidator` and `ActionExecutor`
-
-classes
-
-- **Result:**
-- ~457 lines of duplication eliminated
-- Single source of truth for validation (`ActionValidator`)
-- Single source of truth for execution (`ActionExecutor`)
-- Both human and AI paths use identical logic
-- Bugs only need to be fixed once
-- **Files Created:**
-- `/backend/src/game_engine/validation/action_validator.py` (372 lines)
-- `/backend/src/game_engine/validation/action_executor.py` (420 lines)
-- **Files Refactored:**
-- `/backend/src/api/routes_actions.py` (880 → 523 lines, -357 lines)
-
-1. **Complex and Ambiguous Function Arguments** - Resolved with structured
-
-action types (Nov 2025)
-
-- Created structured action types in
-
-`/backend/src/game_engine/models/actions.py`
-
-- ActionExecutor uses explicit parameters instead of kwargs
-- All target and cost handling consolidated in executor
-
-### Resolved Issues ✅
-
-1. **In-Memory Game State** - Migrated to PostgreSQL with Alembic (Nov 2025)
-1. **AI Can't Handle Targets** - AI now successfully selects targets and
-   alternative costs (Nov 2025)
-
-### Active Issues
-
-**Target Filtering Logic Duplication:**
-
-- Target filtering logic duplicated in frontend and backend
-- Cost calculation partially duplicated
-- Valid action checking scattered across multiple files
-
-### Recently Resolved Issues ✅
-
-**Effect Registration is Manual:** - ✅ MOSTLY RESOLVED (Dec 2025)
-
-- All 30 cards now use data-driven effect definitions in CSV (`effects` column)
-- `EffectFactory` parses effect definitions from CSV at runtime
-- Only 1 legacy manual registration remains (Snuggles - marked as NOT WORKING)
-- Nearly all of the 30 cards use the automated data-driven effect system
-
-**Frontend Uses Card Names:** - ✅ MOSTLY RESOLVED (Dec 2025)
-
-- Most components now use `card.id` for React keys (InPlayZone, HandZone,
-
-TargetSelectionModal, PlayerZone)
-
-- Only remaining name-based keys:
-- `DeckSelection.tsx` - Uses card template names (acceptable, not game cards)
-- `PlayerStats.tsx` - Uses `card.card_name` for historical game data display
-- No React warnings for duplicate keys in active gameplay
-
-**Hardcoded Card Names:** - ✅ RESOLVED (Dec 2025)
-
-- No special handling for specific cards found in routes
-- All card behavior driven by effect metadata from CSV
-- Card name lookups only used for deck building and card templates (not gameplay
-
-logic)
-
----
-
-## Database & Persistence
-
-**Architecture:**
-
-- Two-tier caching (in-memory + PostgreSQL)
-- Serialized GameState in JSONB column
-- Denormalized metadata for efficient queries
-- Survives server restarts
-
-**Schema:**
-
-```sql
-CREATE TABLE games (
-    id UUID PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    player1_id VARCHAR NOT NULL,
-    player2_id VARCHAR NOT NULL,
-    status VARCHAR NOT NULL,
-    winner_id VARCHAR,
-    game_state JSONB NOT NULL
-);
-
-```
-
-**See:** `docs/development/DATABASE_SCHEMA.md` for complete schema details.
-
----
-
-## Recommendations
-
-### Immediate (Before Adding Features)
-
-1. **✅ Document architecture** (this document)
-1. **✅ Implement unique card IDs** - COMPLETED
-- All cards use unique IDs for lookups
-- Fixed critical bug class related to duplicate card names
-- Database uses card IDs throughout
-
-1. **Consolidate target selection logic** - IN PROGRESS
-- Backend uses ActionValidator for target validation ✅
-- Frontend still has some duplicate logic for target filtering
-- Target options now passed from backend via ValidAction ✅
-
-### Short Term
-
-1. **Add integration tests**
-- Test full game flows
-- Test all card effects
-- Regression protection
-
-1. **✅ Complete data-driven effect migration** - MOSTLY COMPLETED
-- Nearly all of the 30 cards migrated to data-driven effects
-- Effect factory has comprehensive error handling
-- Effect string syntax documented in effect_registry.py
-
-### Medium Term
-
-1. **Normalize database schema**
-- Separate tables for structured queries
-- Enable advanced analytics
-- Optimize for leaderboards
-
-1. **Add WebSocket support** (for online multiplayer)
-- Real-time state updates
-- Reduce polling overhead
-- Foundation for 1v1 online play
-
----
-
-## Glossary
-
-**Charge:** Currency for playing cards and initiating tussles
-**Break Zone:** Where cards go when defeated or broken **In Play:** Active toys
-
-that can tussle **Controller:** Player who currently controls a card (can change
-via Twist) **Owner:** Player whose deck the card came from (never changes)
-
-**Effect:** Card behavior (continuous, triggered, activated, or play) **State-
-
-Based Action:** Automatic game rule check (break 0-stamina cards, check
-
-victory)
-
----
-
-*This document reflects the current production architecture. Keep it in sync
-
-with code changes.*
+## API and persistence
+
+### Routers
+
+| Router | Prefix | Purpose |
+| --- | --- | --- |
+| games | `/games` | Create a game, quick play, random deck, card list, game state, narrative |
+| actions | `/games/{id}` | `play-card`, `tussle`, `end-turn`, `activate-ability`, `valid-actions`, `ai-turn` |
+| lobby | `/games/lobby` | Create, join, poll and start a multiplayer game by code |
+| auth | `/auth` | Google sign-in, token refresh, profile, saved decks |
+| stats | `/stats` | Leaderboards, player and card statistics |
+| admin | `/admin` | Read-only views of games, AI logs, playbacks and users |
+| simulation | `/admin/simulation` | Start, pause, resume and inspect simulation runs |
+| maintenance | `/maintenance` | Database stats and cleanup, for the scheduled job |
+
+`GET /health` reports database status, the applied migration, the deployed
+commit and the active AI models. Interactive API docs are at `/docs`.
+
+### Game state storage
+
+`GameService` keeps live games in an in-process cache and writes through to the
+database after every action. Each game is a row in `games` holding the full
+serialised `GameState` as JSON, plus a few denormalised columns (players,
+status, turn, winner) for queries. A game survives a server restart or a
+free-tier sleep: the next request loads and deserialises it.
+
+`api/serialization.py` converts between the engine's objects and JSON. Effect
+objects are never stored. A card's effect string is the source of truth, and
+effects are rebuilt from it on load, including a transformed Copy's borrowed
+effects.
+
+| Table | Contents |
+| --- | --- |
+| `users` | Google accounts, display names, saved decks |
+| `games` | One row per game: JSON state plus metadata |
+| `game_playback` | Turn-by-turn record of finished games |
+| `game_stats`, `player_stats` | Per-game summaries and per-player, per-card aggregates for leaderboards |
+| `ai_decision_logs` | Every AI turn's prompt, response and chosen sequence |
+| `simulation_runs`, `simulation_games` | LLM simulation results |
+| `api_usage_daily` | Daily Gemini request counts for simulation budgets |
+
+Schema changes ship as Alembic migrations (14 so far), applied by the
+production start command before the server starts. `database.py` configures
+connection pooling for PostgreSQL and skips it for SQLite.
+
+## Multiplayer and synchronisation
+
+A player creates a lobby and gets a 6-character code; the second player joins
+with it; both pick decks; the server creates the game when both decks are in.
+During play, both clients poll game state every 2 seconds. There are no
+websockets. Turns in this game take seconds to minutes and nothing happens
+between turns, so polling costs little and fits a free-tier host that sleeps
+and cannot hold long-lived connections.
+
+The AI's turn is driven the same way. The client calls `POST /ai-turn`, the
+server executes one AI action and returns, and the client calls again until
+the AI ends its turn. The client paces the resulting snapshots so each move is
+visible (see [FRONTEND_OVERVIEW.md](FRONTEND_OVERVIEW.md#the-ais-turn-and-pacing)).
+
+## Authentication
+
+The client gets a Google ID token from Google Identity Services and posts it
+to `/auth/google`. The backend verifies it against the OAuth client ID,
+creates or loads the user, and returns its own JWT (HS256, 24-hour lifetime),
+which the client sends as a bearer token and refreshes on expiry. Admin routes
+additionally require the token's email to be in the `ADMIN_EMAILS` allowlist;
+an empty allowlist admits nobody. Auth endpoints are rate-limited per IP.
+Details are in [AUTH_IMPLEMENTATION.md](AUTH_IMPLEMENTATION.md).
+
+## AI opponent and simulation
+
+The AI never generates moves. For each turn the enumerator searches the real
+action space on cloned game states, using `ActionValidator` and
+`ActionExecutor`, and ranks the legal sequences it finds. One Gemini call
+picks one of the top 12, and the server executes it step by step. The model
+cannot make an illegal move because it only ever sees legal ones. See
+[AI_CURRENT_STATE.md](ai/AI_CURRENT_STATE.md).
+
+Because only the selection step uses a model, the same pipeline runs without
+one. The simulation harness swaps the Gemini call for a local policy and plays
+tens of thousands of games on a laptop to measure card and deck strength. A
+2,000-game Gemini run confirmed that the scripted results predict LLM play.
+See [SIMULATION_SYSTEM.md](SIMULATION_SYSTEM.md).
+
+## Operations
+
+- **Deploys**: merging to `main` deploys the API to Render and the client to
+  Vercel. See [DEPLOYMENT.md](../deployment/DEPLOYMENT.md).
+- **Health**: `/health` shows the deployed commit, so a merge can be confirmed
+  live without playing a game.
+- **Errors**: Sentry on both sides, enabled by DSN environment variables.
+- **Analytics**: PostHog. The client sends lobby and game lifecycle events; the
+  server sends one game-analysis event per human player at game end, joined on
+  the Google account ID.
+- **Cleanup**: a daily GitHub Actions job calls `/maintenance/cleanup` to mark
+  abandoned games and purge old logs, keeping the free-tier database small.
+- **AI debugging**: the admin dashboard shows each AI decision with its full
+  prompt and response, and every finished game's playback.
+
+## Testing
+
+- **Backend**: 60 pytest modules covering the engine and every card effect
+  (one module per card batch), serialization round-trips, card-data integrity
+  (every effect string in `cards.csv` must parse), auth, admin gating, the AI
+  enumerator and planner, and the simulation harnesses. CI runs them against
+  in-memory SQLite with a dummy API key, so no test depends on Gemini or a real
+  database.
+- **Frontend**: Vitest and Testing Library for components, hooks, the state
+  diff and the admin client.
+- **CI** (`.github/workflows/ci.yml`): backend tests, frontend lint, type-check,
+  build and tests on every pull request.
+
+Engine tests must respect turn parity: turn 2 belongs to the second player.
+A fixture that sets `turn_number=2` with the first player active describes a
+state the game can never reach.
+
+## Design decisions
+
+**Rules live only on the server.** The client never decides what is legal.
+This costs a round trip per action but removes a whole class of client/server
+disagreement, and it is what lets the AI, the simulations and the web client
+share one implementation.
+
+**Card effects are data.** Early cards were Python classes, one per card. The
+move to a CSV DSL with generic, parameterised effect classes means most new
+cards are a spreadsheet row, the game's designer can read and propose them, and
+an integrity test checks every row in CI.
+
+**The AI chooses; the engine enumerates.** Earlier versions asked the model to
+produce move sequences, and it kept producing illegal ones (wrong Charge sums,
+impossible targets). Moving sequence generation into the engine made illegal
+moves impossible by construction and cut the AI to one model call per turn.
+
+**Game state is a JSON document.** The game state is a deeply nested object
+that is always read and written whole, so it is stored as one document per
+game, with a few columns pulled out for queries. Analytics that need structure
+use the playback and stats tables instead.
+
+**Polling instead of websockets.** Explained under
+[Multiplayer and synchronisation](#multiplayer-and-synchronisation).
+
+## Known limitations
+
+- **Two actions bypass `ActionExecutor`.** The human `tussle` route calls the
+  engine directly, and activated abilities (Archer) are applied inline in their
+  route, with the same logic repeated in the AI route and the enumerator.
+  Folding both into the executor would complete the single-path design.
+- **The engine imports from the API package** (`ValidAction` from
+  `api.schemas`, database models for the simulation rate limiter). The
+  dependency should point the other way.
+- **Effects are re-parsed on every lookup.** `EffectRegistry.get_effects`
+  rebuilds effect objects from the CSV string each time it is called, including
+  inside stat calculations. This is fast enough at this scale, and keeps
+  effects stateless, but it is the first thing to cache if enumeration ever
+  needs to go deeper.
+- **Single-process cache.** `GameService`'s cache assumes one backend process,
+  which matches the free-tier deployment. Scaling out would mean reading
+  through to the database on every request or adding a shared cache.
+
+Resolved issues and their history are in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
