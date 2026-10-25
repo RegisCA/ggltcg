@@ -261,15 +261,6 @@ Individual decks do care a lot. In mirror matches the first player won 67.5%
 with Apex and only 10% with Legacy_Best, and `greedy` found the same direction
 independently. These effects cancel out across decks.
 
-### The harness found a real bug
-
-Investigating unexplained plan-execution fallbacks showed that the simulation
-runner called the engine directly instead of going through `ActionExecutor`,
-so targeted effects resolved with no target. Copy and Twist were scored as the
-worst cards in the game while doing nothing for their cost. Production was
-never affected, since the live API always used `ActionExecutor`. The fix routes
-the runner through the same path, and a regression test pins it.
-
 ### The AI's 8-action turn limit binds for combos
 
 The enumerator caps a sequence at 8 actions. At that cap the 95th-percentile
@@ -320,9 +311,9 @@ a standalone report.
   they are not built yet.
 - **The 2-Toy minimum** slightly biases Action-card estimates, since Actions
   are only ever observed alongside enough Toys.
-- **Simulation rows created before 2026-07-26** came from the buggy runner and
-  should not be used for card-level analysis. They remain valid for turn
-  counts and seat effects.
+- **Simulation rows created before 2026-07-26** came from a runner version
+  in which targeted effects did not resolve, so they should not be used for
+  card-level analysis. They remain valid for turn counts and seat effects.
 
 ## Further reading
 
