@@ -361,30 +361,26 @@ class GameEngine:
             self.game_state.log_event(f"Cannot play {card.name}: {reason}")
             return False
         
-        # Check if alternative cost is being used via alternative_cost_card_id
+        # Alternative cost (Ballaber): break the named card instead of paying
+        # Charge. The only way to skip the Charge cost is a card actually
+        # broken here — there is no "already paid" flag a caller could set.
+        card_to_break = None
         alternative_cost_card_id = kwargs.get("alternative_cost_card_id")
-        alternative_cost_paid = kwargs.get("alternative_cost_paid", False)
-        alternative_cost_card_name = kwargs.get("alternative_cost_card", None)
-        
-        # Handle alternative cost if card_id is provided (direct API call)
-        if alternative_cost_card_id and not alternative_cost_paid:
+        if alternative_cost_card_id:
             from .rules.effects.continuous_effects import BallaberCostEffect
             if card.has_effect_type(BallaberCostEffect):
-                card_to_break = self._find_alternative_cost_card(
-                    player, alternative_cost_card_id
-                )
-                if card_to_break:
-                    # Break the card to pay alternative cost
-                    was_in_play = card_to_break in player.in_play
-                    owner = self.game_state.get_card_owner(card_to_break)
-                    self._break_card(card_to_break, owner, was_in_play=was_in_play)
-                    alternative_cost_paid = True
-                    alternative_cost_card_name = card_to_break.name
+                found = self._find_alternative_cost_card(player, alternative_cost_card_id)
+                if found is not None and found is not card:
+                    card_to_break = found
         
-        if alternative_cost_paid and alternative_cost_card_name:
-            # Alternative cost already paid by action_executor or above
+        if card_to_break is not None:
+            # Name before breaking: leaving play resets a transformed Copy's name
+            broken_name = card_to_break.name
+            was_in_play = card_to_break in player.in_play
+            owner = self.game_state.get_card_owner(card_to_break)
+            self._break_card(card_to_break, owner, was_in_play=was_in_play)
             self.game_state.log_event(
-                f"{player.name} plays {card.name} by breaking {alternative_cost_card_name} (alternative cost)"
+                f"{player.name} plays {card.name} by breaking {broken_name} (alternative cost)"
             )
         else:
             # Calculate and pay normal cost

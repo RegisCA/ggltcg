@@ -90,16 +90,6 @@ def _archer_game():
     return setup, p1, p2
 
 
-def test_activate_ability_rejects_own_card_target():
-    setup, p1, _ = _archer_game()
-    archer, ka = _card(p1.in_play, "Archer"), _card(p1.in_play, "Ka")
-
-    with pytest.raises(ValueError, match="Invalid target"):
-        ActionExecutor(setup.engine).execute_activate_ability("player1", archer.id, target_id=ka.id)
-    assert p1.charge == 5
-    assert ka.current_stamina == ka.stamina
-
-
 def test_activate_ability_rejects_protected_target():
     setup, p1, p2 = _archer_game()
     archer, beary = _card(p1.in_play, "Archer"), _card(p2.in_play, "Beary")
@@ -143,13 +133,13 @@ def _route_client(setup, monkeypatch):
 
 
 def test_activate_ability_route_rejects_invalid_target(monkeypatch):
-    setup, p1, _ = _archer_game()
-    archer, ka = _card(p1.in_play, "Archer"), _card(p1.in_play, "Ka")
+    setup, p1, p2 = _archer_game()
+    archer, beary = _card(p1.in_play, "Archer"), _card(p2.in_play, "Beary")
     client, saved = _route_client(setup, monkeypatch)
 
     response = client.post(
         f"/games/{setup.game_state.game_id}/activate-ability",
-        json={"player_id": "player1", "card_id": archer.id, "target_id": ka.id, "amount": 1},
+        json={"player_id": "player1", "card_id": archer.id, "target_id": beary.id, "amount": 1},
     )
 
     assert response.status_code == 400
@@ -275,3 +265,206 @@ def test_stolen_copy_reverts_when_broken():
     assert copy_card not in p2.in_play
     assert copy_card.name == "Copy"
     assert copy_card.controller == "player1"
+
+
+# ---------------------------------------------------------------------------
+# Review follow-ups
+# ---------------------------------------------------------------------------
+
+def test_validator_does_not_offer_ballaber_as_its_own_alt_cost():
+    """If Ballaber were offered, the AI (or llm_player's first-option
+    fallback) could pick it, the executor would reject it, and /ai-turn
+    would 500."""
+    from game_engine.validation import ActionValidator
+
+    setup, _ = create_game_with_cards(
+        player1_hand=["Ballaber"],
+        turn_number=3,
+        active_player="player1",
+        player1_charge=0,
+    )
+    actions = ActionValidator(setup.engine).get_valid_actions("player1")
+
+    assert not any(a.card_name == "Ballaber" for a in actions if a.action_type == "play_card")
+
+
+def test_validator_offers_other_cards_as_ballaber_alt_cost():
+    from game_engine.validation import ActionValidator
+
+    setup, _ = create_game_with_cards(
+        player1_hand=["Ballaber", "Wake"],
+        player1_in_play=["Ka"],
+        turn_number=3,
+        active_player="player1",
+        player1_charge=0,
+    )
+    p1 = setup.game_state.players["player1"]
+    ballaber = _card(p1.hand, "Ballaber")
+    action = next(
+        a for a in ActionValidator(setup.engine).get_valid_actions("player1")
+        if a.action_type == "play_card" and a.card_id == ballaber.id
+    )
+
+    assert set(action.alternative_cost_options) == {c.id for c in p1.hand + p1.in_play} - {ballaber.id}
+
+
+def test_play_card_has_no_free_play_flag():
+    """Only a card actually broken waives the Charge cost; a caller can't
+    claim the alternative cost was already paid."""
+    setup, _ = create_game_with_cards(
+        player1_hand=["Ballaber"],
+        player1_in_play=["Ka"],
+        turn_number=3,
+        active_player="player1",
+        player1_charge=2,
+    )
+    p1 = setup.game_state.players["player1"]
+    ballaber = _card(p1.hand, "Ballaber")
+
+    played = setup.engine.play_card(
+        p1, ballaber, alternative_cost_paid=True, alternative_cost_card="Ka"
+    )
+
+    assert played is False  # Ballaber costs 3; no card broken, so Charge is due
+    assert ballaber in p1.hand
+    assert p1.charge == 2
+    assert len(p1.in_play) == 1
+
+
+def test_activate_ability_rejects_target_in_hand():
+    setup, _ = create_game_with_cards(
+        player1_in_play=["Archer"],
+        player2_hand=["Umbruh"],
+        turn_number=3,
+        active_player="player1",
+        player1_charge=5,
+    )
+    gs = setup.game_state
+    archer = _card(gs.players["player1"].in_play, "Archer")
+    umbruh = _card(gs.players["player2"].hand, "Umbruh")
+
+    from game_engine.validation import CardNotFoundError
+    with pytest.raises(CardNotFoundError):
+        ActionExecutor(setup.engine).execute_activate_ability("player1", archer.id, target_id=umbruh.id)
+    assert gs.players["player1"].charge == 5
+
+
+def test_activate_ability_rejects_target_for_untargeted_ability(monkeypatch):
+    from game_engine.rules.effects.action_effects import ArcherActivatedAbility
+
+    setup, p1, p2 = _archer_game()
+    archer, umbruh = _card(p1.in_play, "Archer"), _card(p2.in_play, "Umbruh")
+    monkeypatch.setattr(ArcherActivatedAbility, "requires_targets", lambda self: False)
+
+    with pytest.raises(ValueError, match="doesn't take a target"):
+        ActionExecutor(setup.engine).execute_activate_ability("player1", archer.id, target_id=umbruh.id)
+    assert p1.charge == 5
+
+
+@pytest.mark.parametrize("missing", ["card", "target"])
+def test_activate_ability_route_not_found_is_404(monkeypatch, missing):
+    setup, p1, p2 = _archer_game()
+    archer, umbruh = _card(p1.in_play, "Archer"), _card(p2.in_play, "Umbruh")
+    client, saved = _route_client(setup, monkeypatch)
+    body = {"player_id": "player1", "card_id": archer.id, "target_id": umbruh.id, "amount": 1}
+    body["card_id" if missing == "card" else "target_id"] = "no-such-card"
+
+    response = client.post(f"/games/{setup.game_state.game_id}/activate-ability", json=body)
+
+    assert response.status_code == 404
+    assert saved == []
+
+
+class _FakeActivateAI:
+    """Stub for /ai-turn: always activates Archer with the given target and
+    records what the route reports via record_execution_result."""
+
+    def __init__(self, archer_id, target_id):
+        self.archer_id = archer_id
+        self.target_id = target_id
+        self.results = []
+
+    def select_action(self, game_state, player_id, valid_actions, game_engine=None):
+        for i, action in enumerate(valid_actions):
+            if action.action_type == "activate_ability":
+                return (i, "fake")
+        raise AssertionError("expected an activate_ability action")
+
+    def get_action_details(self, selected_action):
+        return {"action_type": "activate_ability", "card_id": self.archer_id,
+                "target_id": self.target_id, "amount": 1}
+
+    def get_endpoint_name(self):
+        return "FakeAI"
+
+    def get_last_decision_info(self):
+        return {"model_name": "fake", "prompts_version": "fake", "action_number": 1,
+                "reasoning": "fake", "prompt": "", "response": "", "plan": None}
+
+    def record_execution_result(self, success, error_message=None):
+        self.results.append((success, error_message))
+
+
+def _ai_turn(setup, monkeypatch, fake_ai):
+    import api.routes_actions as routes_actions
+
+    client, saved = _route_client(setup, monkeypatch)
+    monkeypatch.setattr(routes_actions, "get_ai_player", lambda game_id=None: fake_ai)
+    response = client.post(f"/games/{setup.game_state.game_id}/ai-turn", params={"player_id": "player1"})
+    return response, saved
+
+
+def test_ai_turn_activate_invalid_target_is_recorded(monkeypatch):
+    setup, p1, p2 = _archer_game()
+    archer, beary = _card(p1.in_play, "Archer"), _card(p2.in_play, "Beary")
+    fake_ai = _FakeActivateAI(archer.id, beary.id)  # protected: not a valid target
+
+    response, saved = _ai_turn(setup, monkeypatch, fake_ai)
+
+    assert response.status_code == 500
+    assert "AI activate_ability failed" in response.json()["detail"]
+    assert [ok for ok, _ in fake_ai.results] == [False]
+    assert p1.charge == 5
+    assert saved == []
+
+
+def test_ai_turn_activate_resolution_error_is_recorded(monkeypatch):
+    from game_engine.rules.effects.action_effects import ArcherActivatedAbility
+
+    setup, p1, p2 = _archer_game()
+    archer, umbruh = _card(p1.in_play, "Archer"), _card(p2.in_play, "Umbruh")
+    fake_ai = _FakeActivateAI(archer.id, umbruh.id)
+
+    def _boom(self, game_state, **kwargs):
+        raise RuntimeError("cascade failed")
+    monkeypatch.setattr(ArcherActivatedAbility, "apply", _boom)
+
+    response, saved = _ai_turn(setup, monkeypatch, fake_ai)
+
+    assert response.status_code == 500
+    assert "cascade failed" in response.json()["detail"]
+    assert fake_ai.results == [(False, "cascade failed")]
+    assert saved == []
+
+
+def test_ai_turn_activate_saves_victory_entry(monkeypatch):
+    setup, _ = create_game_with_cards(
+        player1_in_play=["Archer"],
+        player2_in_play=["Hind Leg Kicker"],
+        turn_number=3,
+        active_player="player1",
+        player1_charge=5,
+    )
+    gs = setup.game_state
+    archer = _card(gs.players["player1"].in_play, "Archer")
+    hlk = _card(gs.players["player2"].in_play, "Hind Leg Kicker")
+    fake_ai = _FakeActivateAI(archer.id, hlk.id)
+
+    response, saved = _ai_turn(setup, monkeypatch, fake_ai)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["game_state"] == {"winner": "player1", "is_game_over": True}
+    assert body["ai_turn_summary"]["action"] == "activate_ability"
+    assert fake_ai.results == [(True, None)]
+    assert saved[-1][-2:] == ["activate_ability", "victory"]

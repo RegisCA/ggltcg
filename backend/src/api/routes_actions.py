@@ -6,7 +6,7 @@ Endpoints for playing cards, initiating tussles, ending turns, etc.
 
 import logging
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from api.schemas import (
     PlayCardRequest,
@@ -21,7 +21,7 @@ from api.game_service import get_game_service
 from api.stats_service import get_stats_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
-from game_engine.validation import ActionValidator, ActionExecutor
+from game_engine.validation import ActionValidator, ActionExecutor, CardNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,60 @@ router = APIRouter(prefix="/games", tags=["actions"])
 # ============================================================================
 # All action execution logic has been moved to ActionExecutor for consistency
 # between human and AI player paths.
+
+
+def _finish_action(
+    service,
+    game_id: str,
+    engine,
+    player,
+    action_type: str,
+    result,
+    win_message: str,
+    ai_endpoint: Optional[str] = None,
+    ai_turn_summary: Optional[Dict[str, Any]] = None,
+) -> ActionResponse:
+    """
+    Record a successful action and save the game — shared by every action
+    route (human and /ai-turn) so the order can't drift between copies:
+    the action's play-by-play entry, then the victory entry if it won the
+    game, then update_game (which writes the playback and stats, so both
+    entries must already be there), then the response.
+
+    Args:
+        win_message: Response message on victory; "{winner}" is replaced by
+            the winner's name.
+    """
+    game_state = engine.game_state
+    game_state.add_play_by_play(
+        player_name=player.name,
+        action_type=action_type,
+        description=result.description,
+        ai_endpoint=ai_endpoint,
+    )
+
+    if result.winner:
+        winner_name = game_state.players[result.winner].name
+        game_state.add_play_by_play(
+            player_name=winner_name,
+            action_type="victory",
+            description=f"{winner_name} wins! All opponent's cards are broken."
+        )
+        service.update_game(game_id, engine)
+        return ActionResponse(
+            success=True,
+            message=win_message.format(winner=winner_name),
+            game_state={"winner": result.winner, "is_game_over": True},
+            ai_turn_summary=ai_turn_summary,
+        )
+
+    service.update_game(game_id, engine)
+    return ActionResponse(
+        success=True,
+        message=result.description,  # Use detailed description for better UX
+        game_state={"turn": game_state.turn_number, "phase": game_state.phase.value},
+        ai_turn_summary=ai_turn_summary,
+    )
 
 
 @router.post("/{game_id}/play-card", response_model=ActionResponse)
@@ -84,37 +138,9 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
                 message=result.message
             )
         
-        # Log to play-by-play BEFORE victory check (so action appears first)
-        game_state.add_play_by_play(
-            player_name=player.name,
-            action_type="play_card",
-            description=result.description,
-        )
-        
-        # Check for victory
-        if result.winner:
-            # Add victory message to play-by-play AFTER the winning action
-            winner_name = game_state.players[result.winner].name
-            game_state.add_play_by_play(
-                player_name=winner_name,
-                action_type="victory",
-                description=f"{winner_name} wins! All opponent's cards are broken."
-            )
-            # Save updated game state to database
-            service.update_game(game_id, engine)
-            return ActionResponse(
-                success=True,
-                message=f"Card played! {game_state.players[result.winner].name} wins the game!",
-                game_state={"winner": result.winner, "is_game_over": True}
-            )
-        
-        # Save updated game state to database
-        service.update_game(game_id, engine)
-        
-        return ActionResponse(
-            success=True,
-            message=result.description,  # Use detailed description for better UX
-            game_state={"turn": game_state.turn_number, "phase": game_state.phase.value}
+        return _finish_action(
+            service, game_id, engine, player, "play_card", result,
+            win_message="Card played! {winner} wins the game!",
         )
         
     except ValueError as e:
@@ -158,46 +184,21 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
             attacker_id=request.attacker_id,
             defender_id=request.defender_id,
         )
+
+        if not result.success:
+            return ActionResponse(
+                success=False,
+                message="Failed to initiate tussle (insufficient Charge, invalid target, or card restrictions)"
+            )
+
+        return _finish_action(
+            service, game_id, engine, player, "tussle", result,
+            win_message="Tussle successful! {winner} wins the game!",
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-    if not result.success:
-        return ActionResponse(
-            success=False,
-            message="Failed to initiate tussle (insufficient Charge, invalid target, or card restrictions)"
-        )
-
-    # Log to play-by-play BEFORE victory check (so action appears first)
-    game_state.add_play_by_play(
-        player_name=player.name,
-        action_type="tussle",
-        description=result.description,
-    )
-
-    if result.winner:
-        # Victory entry goes in before saving so the stored playback has it
-        winner_name = game_state.players[result.winner].name
-        game_state.add_play_by_play(
-            player_name=winner_name,
-            action_type="victory",
-            description=f"{winner_name} wins! All opponent's cards are broken."
-        )
-        service.update_game(game_id, engine)
-        return ActionResponse(
-            success=True,
-            message=f"Tussle successful! {winner_name} wins the game!",
-            game_state={"winner": result.winner}
-        )
-
-    service.update_game(game_id, engine)
-
-    return ActionResponse(
-        success=True,
-        message=result.description,
-        game_state={"turn": game_state.turn_number}
-    )
 
 
 @router.post("/{game_id}/end-turn", response_model=ActionResponse)
@@ -288,39 +289,17 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
             target_id=request.target_id,
             amount=request.amount or 1,
         )
+
+        return _finish_action(
+            service, game_id, engine, player, "activate_ability", result,
+            win_message="Ability activated! {winner} wins the game!",
+        )
+    except CardNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-    game_state.add_play_by_play(
-        player_name=player.name,
-        action_type="activate_ability",
-        description=result.description
-    )
-
-    if result.winner:
-        # Victory entry goes in before saving so the stored playback has it
-        winner_name = game_state.players[result.winner].name
-        game_state.add_play_by_play(
-            player_name=winner_name,
-            action_type="victory",
-            description=f"{winner_name} wins! All opponent's cards are broken."
-        )
-        service.update_game(game_id, engine)
-        return ActionResponse(
-            success=True,
-            message=f"Ability activated! {winner_name} wins the game!",
-            game_state={"winner": result.winner}
-        )
-
-    service.update_game(game_id, engine)
-
-    return ActionResponse(
-        success=True,
-        message=result.description,
-        game_state={"turn": game_state.turn_number}
-    )
 
 
 @router.get("/{game_id}/valid-actions", response_model=ValidActionsResponse)
@@ -618,40 +597,12 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if hasattr(ai_player, 'record_execution_result'):
                     ai_player.record_execution_result(success=True)
                 
-                # Log to play-by-play
                 # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
-                game_state.add_play_by_play(
-                    player_name=player.name,
-                    action_type="play_card",
-                    description=result.description,
+                return _finish_action(
+                    service, game_id, engine, player, "play_card", result,
+                    win_message="AI card played! {winner} wins the game!",
                     ai_endpoint=ai_endpoint_name,
-                )
-                
-                # Check for victory
-                if result.winner:
-                    winner_name = game_state.players[result.winner].name
-                    game_state.add_play_by_play(
-                        player_name=winner_name,
-                        action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are broken."
-                    )
-                    # Save updated game state to database
-                    service.update_game(game_id, engine)
-                    return ActionResponse(
-                        success=True,
-                        message=f"AI card played! {winner_name} wins the game!",
-                        game_state={"winner": result.winner, "is_game_over": True},
-                        ai_turn_summary=turn_summary
-                    )
-                
-                # Save updated game state to database
-                service.update_game(game_id, engine)
-                
-                return ActionResponse(
-                    success=True,
-                    message=result.description,  # Use detailed description for better UX
-                    game_state={"turn": game_state.turn_number},
-                    ai_turn_summary=turn_summary
+                    ai_turn_summary=turn_summary,
                 )
                 
             except ValueError as e:
@@ -689,40 +640,12 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if hasattr(ai_player, 'record_execution_result'):
                     ai_player.record_execution_result(success=True)
                 
-                # Log to play-by-play
                 # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
-                game_state.add_play_by_play(
-                    player_name=player.name,
-                    action_type="tussle",
-                    description=result.description,
+                return _finish_action(
+                    service, game_id, engine, player, "tussle", result,
+                    win_message="AI tussle successful! {winner} wins!",
                     ai_endpoint=ai_endpoint_name,
-                )
-                
-                # Check for victory
-                if result.winner:
-                    winner_name = game_state.players[result.winner].name
-                    game_state.add_play_by_play(
-                        player_name=winner_name,
-                        action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are broken."
-                    )
-                    # Save updated game state to database
-                    service.update_game(game_id, engine)
-                    return ActionResponse(
-                        success=True,
-                        message=f"AI tussle successful! {winner_name} wins!",
-                        game_state={"winner": result.winner, "is_game_over": True},
-                        ai_turn_summary=turn_summary
-                    )
-                
-                # Save updated game state to database
-                service.update_game(game_id, engine)
-                
-                return ActionResponse(
-                    success=True,
-                    message=result.description,  # Use detailed description for better UX
-                    game_state={"turn": game_state.turn_number},
-                    ai_turn_summary=turn_summary
+                    ai_turn_summary=turn_summary,
                 )
                 
             except ValueError as e:
@@ -771,44 +694,23 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                     f"  Game: {game_id}, Turn: {game_state.turn_number}"
                 )
                 raise HTTPException(status_code=500, detail=f"AI activate_ability failed: {e}")
+            except Exception as e:
+                # Effect resolution (e.g. a when-broken cascade) failed
+                if hasattr(ai_player, 'record_execution_result'):
+                    ai_player.record_execution_result(success=False, error_message=str(e))
+                logger.exception(f"AI activate_ability raised during resolution: {e}")
+                raise HTTPException(status_code=500, detail=f"AI activate_ability failed: {e}")
 
             # Record successful execution for v3 tracking
             if hasattr(ai_player, 'record_execution_result'):
                 ai_player.record_execution_result(success=True)
 
             # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
-            game_state.add_play_by_play(
-                player_name=player.name,
-                action_type="activate_ability",
-                description=result.description,
+            return _finish_action(
+                service, game_id, engine, player, "activate_ability", result,
+                win_message="AI ability activated! {winner} wins!",
                 ai_endpoint=ai_endpoint_name,
-            )
-
-            # Check for victory
-            if result.winner:
-                winner_name = game_state.players[result.winner].name
-                game_state.add_play_by_play(
-                    player_name=winner_name,
-                    action_type="victory",
-                    description=f"{winner_name} wins! All opponent's cards are broken."
-                )
-                # Save updated game state to database
-                service.update_game(game_id, engine)
-                return ActionResponse(
-                    success=True,
-                    message=f"AI ability activated! {winner_name} wins!",
-                    game_state={"winner": result.winner, "is_game_over": True},
-                    ai_turn_summary=turn_summary
-                )
-
-            # Save updated game state to database
-            service.update_game(game_id, engine)
-
-            return ActionResponse(
-                success=True,
-                message=result.description,
-                game_state={"turn": game_state.turn_number},
-                ai_turn_summary=turn_summary
+                ai_turn_summary=turn_summary,
             )
         
         else:

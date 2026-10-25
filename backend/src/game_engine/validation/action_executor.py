@@ -60,6 +60,10 @@ def build_tussle_description(
     return f"{attacker_label} tussled{target} ({cost} Charge)"
 
 
+class CardNotFoundError(ValueError):
+    """A referenced player or card doesn't exist where the action needs it."""
+
+
 @dataclass
 class ExecutionResult:
     """Result of executing an action."""
@@ -304,19 +308,20 @@ class ActionExecutor:
         excludes protected cards such as Beary).
 
         Raises:
-            ValueError: If the source card, ability or target is invalid, or
-                the player can't afford it
+            CardNotFoundError: If the player, source card or target doesn't exist
+            ValueError: If the ability or target is invalid, or the player
+                can't afford it
         """
         from ..rules.effects.base_effect import ActivatedEffect
         from ..rules.effects.effect_registry import EffectRegistry
 
         player = self.game_state.players.get(player_id)
         if player is None:
-            raise ValueError(f"Player {player_id} not found")
+            raise CardNotFoundError(f"Player {player_id} not found")
 
         source = next((c for c in player.in_play if c.id == card_id), None)
         if source is None:
-            raise ValueError(f"Card with ID {card_id} not found in play")
+            raise CardNotFoundError(f"Card with ID {card_id} not found in play")
 
         effect = next(
             (e for e in EffectRegistry.get_effects(source) if isinstance(e, ActivatedEffect)),
@@ -335,9 +340,14 @@ class ActionExecutor:
 
         target = None
         if target_id:
-            target = self.game_state.find_card_by_id(target_id)
+            if not effect.requires_targets():
+                raise ValueError(f"{source.name}'s ability doesn't take a target")
+            target = next(
+                (c for c in self.game_state.get_all_cards_in_play() if c.id == target_id),
+                None,
+            )
             if target is None:
-                raise ValueError(f"Target card with ID {target_id} not found")
+                raise CardNotFoundError(f"Target card with ID {target_id} not found in play")
         if effect.requires_targets():
             valid_ids = {t.id for t in effect.get_valid_targets(self.game_state)}
             if target is None or target.id not in valid_ids:

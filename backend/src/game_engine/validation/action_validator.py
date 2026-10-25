@@ -134,9 +134,10 @@ class ActionValidator:
             alternative_cost_options = None
             
             if card.has_effect_type(BallaberCostEffect):
-                # Can break any card in hand or in play
+                # Can break any other card in hand or in play (not itself)
                 alt_cards = [
                     c for c in (player.in_play + (player.hand or []))
+                    if c is not card
                 ]
                 if alt_cards:
                     alternative_cost_available = True
