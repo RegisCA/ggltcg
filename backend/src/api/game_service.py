@@ -5,6 +5,7 @@ This service manages game persistence using PostgreSQL database.
 Games are stored in the database and loaded on demand.
 """
 
+import re
 import uuid
 import logging
 from typing import Dict, Optional
@@ -28,6 +29,43 @@ from api.serialization import (
 )
 from api.stats_service import get_stats_service
 from api.analytics import capture_game_analyzed, is_ai_player
+
+
+# A tussle with no defender: "X tussled directly (N Charge)" or
+# "X tussled Y from hand (N Charge)" — see build_tussle_description.
+_DIRECT_ATTACK_RE = re.compile(r" tussled (directly|.+ from hand) \(\d+ Charge\)$")
+
+
+def count_player_actions(game_state: GameState) -> Dict[str, Dict[str, int]]:
+    """
+    Count cards played, tussles and direct attacks per player ID from the
+    play-by-play log.
+
+    Entries record the acting player by *name* (GameState.add_play_by_play),
+    so names are mapped back to IDs here. Classification uses action_type;
+    a tussle with no defender ("tussled directly" / "tussled X from hand",
+    see build_tussle_description) is a direct attack, not a tussle.
+    """
+    counts = {
+        pid: {'cards_played': 0, 'tussles': 0, 'direct_attacks': 0}
+        for pid in game_state.players
+    }
+    name_to_id = {p.name: pid for pid, p in game_state.players.items()}
+
+    for entry in game_state.play_by_play:
+        pid = name_to_id.get(entry.get('player', ''))
+        if pid is None:
+            continue
+        action_type = entry.get('action_type')
+        if action_type == 'play_card':
+            counts[pid]['cards_played'] += 1
+        elif action_type == 'tussle':
+            if _DIRECT_ATTACK_RE.search(entry.get('description', '')):
+                counts[pid]['direct_attacks'] += 1
+            else:
+                counts[pid]['tussles'] += 1
+
+    return counts
 
 
 class GameService:
@@ -156,6 +194,8 @@ class GameService:
         player2_name: str,
         player2_deck: list[str],
         first_player_id: Optional[str] = None,
+        game_id: Optional[str] = None,
+        save_to_db: bool = True,
     ) -> tuple[str, GameEngine]:
         """
         Create a new game with two players.
@@ -168,6 +208,10 @@ class GameService:
             player2_name: Display name for player 2
             player2_deck: List of card names for player 2's deck
             first_player_id: ID of player who goes first (random if None)
+            game_id: Use this ID instead of generating one (lobby games reuse
+                the lobby's existing row ID)
+            save_to_db: Insert the game row. False when the caller owns the
+                row and persists the state itself (start_lobby_game).
             
         Returns:
             Tuple of (game_id, GameEngine instance)
@@ -183,7 +227,8 @@ class GameService:
             )
         
         # Generate unique game ID
-        game_id = str(uuid.uuid4())
+        if game_id is None:
+            game_id = str(uuid.uuid4())
         
         # Create player 1's cards
         player1_cards = self._create_deck(player1_deck, player1_id)
@@ -230,7 +275,8 @@ class GameService:
         engine.start_turn()
         
         # Save to database
-        self._save_game_to_db(game_id, engine)
+        if save_to_db:
+            self._save_game_to_db(game_id, engine)
         
         # Cache in memory
         self._cache[game_id] = engine
@@ -347,50 +393,21 @@ class GameService:
         winner_name = game_state.players[winner_id].name
         loser_name = game_state.players[loser_id].name
         
-        # Count actions from play-by-play log
-        winner_cards_played = 0
-        winner_tussles = 0
-        winner_direct_attacks = 0
-        loser_cards_played = 0
-        loser_tussles = 0
-        loser_direct_attacks = 0
-        
-        for entry in game_state.play_by_play:
-            player = entry.get('player', '')
-            description = entry.get('description', '').lower()
-            
-            # Count cards played (look for "spent X Charge to play")
-            if 'spent' in description and 'charge to play' in description:
-                if player == winner_id:
-                    winner_cards_played += 1
-                elif player == loser_id:
-                    loser_cards_played += 1
-            
-            # Count tussles (look for "initiated tussle" or "tussle")
-            if 'tussle' in description:
-                if player == winner_id:
-                    winner_tussles += 1
-                elif player == loser_id:
-                    loser_tussles += 1
-            
-            # Count direct attacks (look for "attacked directly" or "direct attack")
-            if 'direct' in description and 'attack' in description:
-                if player == winner_id:
-                    winner_direct_attacks += 1
-                elif player == loser_id:
-                    loser_direct_attacks += 1
+        counts = count_player_actions(game_state)
+        winner_counts = counts[winner_id]
+        loser_counts = counts[loser_id]
         
         return {
             'game_id': uuid.UUID(game_id),
             'winner_id': winner_name,
             'loser_id': loser_name,
             'total_turns': game_state.turn_number,
-            'winner_cards_played': winner_cards_played,
-            'winner_tussles_initiated': winner_tussles,
-            'winner_direct_attacks': winner_direct_attacks,
-            'loser_cards_played': loser_cards_played,
-            'loser_tussles_initiated': loser_tussles,
-            'loser_direct_attacks': loser_direct_attacks,
+            'winner_cards_played': winner_counts['cards_played'],
+            'winner_tussles_initiated': winner_counts['tussles'],
+            'winner_direct_attacks': winner_counts['direct_attacks'],
+            'loser_cards_played': loser_counts['cards_played'],
+            'loser_tussles_initiated': loser_counts['tussles'],
+            'loser_direct_attacks': loser_counts['direct_attacks'],
         }
     
     def _save_game_stats(self, game_id: str, engine: GameEngine) -> None:
@@ -438,29 +455,13 @@ class GameService:
             starting_deck_p2 = get_deck_names(player2)
             logger.info(f"Game {game_id}: Reconstructed decks - P1: {starting_deck_p1}, P2: {starting_deck_p2}")
         
-        # Calculate tussle stats from play-by-play
-        # Note: The game engine logs tussles as "{player}'s {card} tussles {opponent}'s {card}"
-        # We can count initiations but tussle wins are not explicitly logged
-        p1_tussles = 0
+        # Tussle counts from play-by-play. Tussle wins are not explicitly
+        # logged, so tussles_won stays 0 until we add explicit logging.
+        counts = count_player_actions(game_state)
+        p1_tussles = counts[player1_id]['tussles']
         p1_tussles_won = 0
-        p2_tussles = 0
+        p2_tussles = counts[player2_id]['tussles']
         p2_tussles_won = 0
-        
-        for entry in game_state.play_by_play:
-            description = entry.get('description', '').lower()
-            player_name = entry.get('player', '')
-            
-            # Match tussle format: "{player}'s {card} tussles {opponent}'s {card}"
-            if ' tussles ' in description:
-                # Find which player initiated by checking whose name appears first
-                if description.startswith(player1.name.lower()):
-                    p1_tussles += 1
-                elif description.startswith(player2.name.lower()):
-                    p2_tussles += 1
-            
-            # Note: Tussle wins are not explicitly logged in play-by-play
-            # We would need to infer from "is broken" entries following tussles
-            # For now, tussles_won will remain 0 until we add explicit logging
         
         # Save game playback
         try:
@@ -841,7 +842,9 @@ class GameService:
                 # Start the game!
                 logger.info(f"Both players ready, starting game {game_model.id}")
                 
-                # Create actual game state using real player IDs
+                # Create actual game state using real player IDs. Reuse the
+                # lobby row's ID and let this method persist the state below,
+                # so no second games row (with a different ID) is inserted.
                 game_id, engine = self.create_game(
                     player1_id=player1_id,
                     player1_name=game_model.player1_name,
@@ -849,6 +852,8 @@ class GameService:
                     player2_id=player2_id,
                     player2_name=game_model.player2_name,
                     player2_deck=decks[player2_id],
+                    game_id=str(game_model.id),
+                    save_to_db=False,
                 )
                 
                 # Update the existing game model with new state
@@ -863,8 +868,6 @@ class GameService:
                 
                 db.commit()
                 
-                # Cache the engine
-                self._cache[str(game_model.id)] = engine
                 
                 return {
                     "game_id": str(game_model.id),
