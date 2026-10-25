@@ -21,15 +21,9 @@ Quick navigation for development documentation.
 - [AUTH_IMPLEMENTATION.md](AUTH_IMPLEMENTATION.md) - Google OAuth details
 - [MULTIPLAYER_LOBBY_IMPLEMENTATION.md](MULTIPLAYER_LOBBY_IMPLEMENTATION.md) - Multiplayer system
 
-## Sessions & Postmortems
-
-Located in `sessions/`:
-
-- [SESSION_POSTMORTEM_2026_01_05.md](sessions/SESSION_POSTMORTEM_2026_01_05.md) - January 5 disaster analysis
-
 ## Archives
 
-- `archive/` - Completed or obsolete planning docs (MVP progress, old bug fixes, etc.)
+- `archive/` - Completed or obsolete planning docs (effect migration, refactoring, Postgres and card-batch plans)
 - `ai/archive/` - Old game analysis documents
 
 ## Plans

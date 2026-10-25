@@ -615,7 +615,6 @@ python -m simulation.cli list-runs --limit 5
 ## Related Documentation
 
 - [SIMULATION_SYSTEM.md](../../../docs/development/SIMULATION_SYSTEM.md) - Simulation system guide
-- [SIMULATION_IMPROVEMENTS.md](../../../docs/development/archive/SIMULATION_IMPROVEMENTS.md) - Enhancement history (archived)
 - [AI_CURRENT_STATE.md](../../../docs/development/ai/AI_CURRENT_STATE.md) - Current AI architecture (enum + Gemini)
 - [ARCHITECTURE.md](../../../docs/development/ARCHITECTURE.md) - Overall game architecture
 

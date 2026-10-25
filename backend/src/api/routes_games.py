@@ -4,7 +4,7 @@ Game management API routes.
 Endpoints for creating, retrieving, and deleting games.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any, List
 
 from api.schemas import (
@@ -22,6 +22,8 @@ from api.schemas import (
     CardDataResponse,
 )
 from api.game_service import get_game_service
+from api.stats_service import get_stats_service
+from api.admin_auth import get_current_admin_user
 from game_engine.models.card import Zone
 from game_engine.data.card_loader import load_all_cards
 from game_engine.ai.prompts import get_narrative_prompt
@@ -337,10 +339,32 @@ def _card_to_state(card, engine, player) -> CardState:
     )
 
 
-@router.get("/{game_id}/logs")
+@router.get("/{game_id}/ai-plan-summary")
+async def get_ai_plan_summary(game_id: str) -> Dict[str, Any]:
+    """
+    Per-turn AI plan summaries (strategy, planner, execution status) for the
+    victory-screen recap.
+
+    Only available once the game is over, so it can't reveal the AI's plan
+    mid-game. Raw prompts/responses stay behind the admin-only
+    /admin/ai-logs endpoint.
+    """
+    service = get_game_service()
+    engine = service.get_game(game_id)
+
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+    if engine.game_state.winner_id is None:
+        raise HTTPException(status_code=409, detail="Game is still in progress")
+
+    logs = get_stats_service().get_ai_plan_summaries(game_id)
+    return {"count": len(logs), "logs": logs}
+
+
+@router.get("/{game_id}/logs", dependencies=[Depends(get_current_admin_user)])
 async def get_game_logs(game_id: str) -> Dict[str, List[str]]:
     """
-    Get the game event log for debugging.
+    Get the game event log for debugging. Admin only.
     
     Returns the internal game_log which contains all game events including debug messages.
     """
@@ -353,12 +377,11 @@ async def get_game_logs(game_id: str) -> Dict[str, List[str]]:
     return {"logs": engine.game_state.game_log}
 
 
-@router.get("/{game_id}/debug")
+@router.get("/{game_id}/debug", dependencies=[Depends(get_current_admin_user)])
 async def get_game_debug_state(game_id: str) -> Dict[str, Any]:
     """
-    Get detailed debug information about a game's internal state.
+    Get detailed debug information about a game's internal state. Admin only.
     
-    ⚠️ **DEV-ONLY ENDPOINT** - Not secure for production use.
     Exposes complete internal game state including:
     - All cards in all zones with full details
     - Effect definitions (CSV strings)
@@ -366,8 +389,8 @@ async def get_game_debug_state(game_id: str) -> Dict[str, Any]:
     - Card modifications and transformations
     - Internal flags like _is_transformed
     
-    **Security Note**: This endpoint reveals complete game state including opponent's
-    hand. If test players discover this and use it to cheat, we'll buy them pizza! 🍕
+    **Security Note**: This endpoint reveals complete game state including both
+    hands, so it requires an allowlisted admin (see admin_auth.py).
     
     Returns:
         Comprehensive debug view of the game state with all internal details exposed.

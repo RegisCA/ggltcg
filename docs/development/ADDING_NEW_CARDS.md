@@ -107,8 +107,9 @@ on turn 1
 - `direct_attack` – This card may attack the opponent directly even when they
 have cards in play
 
-- `remove_stamina_ability:charge_cost[:amount]` – Activated ability: spend
-`charge_cost` Charge to remove `amount` (default 1) stamina from a target card
+- `remove_stamina_ability:charge_cost[:amount]` – Activated ability: remove
+stamina from an opponent's card. Both parameters are validated, but the ability
+currently always costs 1 Charge and removes 1 stamina per activation
 
 #### Special Effects
 
@@ -240,16 +241,18 @@ class MyNewEffect(PlayEffect):
     def requires_targets(self) -> bool:
         return False  # or True if targeting
 
-    def get_valid_targets(self, game_state: GameState, **kwargs: Any) -> List[Card]:
+    def get_valid_targets(self, game_state: GameState, player: Optional[Player] = None) -> List[Card]:
         return []  # Return valid target cards if requires_targets is True
 
 ```
 
-### 2c. Register Effect in Effect Registry
+### 2c. Add a Parser Branch
 
 **File**: `backend/src/game_engine/rules/effects/effect_registry.py`
 
-Import and add to the registry if using class-based effects.
+Add a branch for the new keyword in `EffectFactory.parse_effects`, with a
+`_parse_<keyword>` method that validates the parameters and returns the effect.
+This is the only registration step: there is no separate name-based registry.
 
 ---
 

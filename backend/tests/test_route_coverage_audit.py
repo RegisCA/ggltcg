@@ -246,7 +246,7 @@ def test_ai_turn_route_dispatches_play_card():
             }
 
     original_get_ai_player = routes_actions.get_ai_player
-    routes_actions.get_ai_player = lambda: _FakeAIPlayer()
+    routes_actions.get_ai_player = lambda game_id=None: _FakeAIPlayer()
     original_use_database = service.use_database
     service.use_database = False
     try:
@@ -335,7 +335,7 @@ def test_ai_turn_route_dispatches_tussle():
             }
 
     original_get_ai_player = routes_actions.get_ai_player
-    routes_actions.get_ai_player = lambda: _FakeAIPlayer()
+    routes_actions.get_ai_player = lambda game_id=None: _FakeAIPlayer()
     original_use_database = service.use_database
     service.use_database = False
     try:
@@ -423,7 +423,7 @@ def test_ai_turn_route_dispatches_activate_ability():
             }
 
     original_get_ai_player = routes_actions.get_ai_player
-    routes_actions.get_ai_player = lambda: _FakeAIPlayer()
+    routes_actions.get_ai_player = lambda game_id=None: _FakeAIPlayer()
     original_use_database = service.use_database
     service.use_database = False
     try:
@@ -484,7 +484,7 @@ def test_ai_turn_route_falls_back_to_end_turn_when_ai_selects_none():
             }
 
     original_get_ai_player = routes_actions.get_ai_player
-    routes_actions.get_ai_player = lambda: _FakeAIPlayer()
+    routes_actions.get_ai_player = lambda game_id=None: _FakeAIPlayer()
     original_use_database = service.use_database
     service.use_database = False
     try:
@@ -753,7 +753,7 @@ def test_ai_turn_route_announces_plan_strategy_once_per_turn():
 
     fake_ai = _FakeAIPlayer()
     original_get_ai_player = routes_actions.get_ai_player
-    routes_actions.get_ai_player = lambda: fake_ai
+    routes_actions.get_ai_player = lambda game_id=None: fake_ai
     original_use_database = service.use_database
     service.use_database = False
     try:

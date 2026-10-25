@@ -84,11 +84,9 @@ class GameState:
     play_by_play: List[Dict[str, Any]] = field(default_factory=list)
     starting_decks: Dict[str, List[str]] = field(default_factory=dict)
     charge_history: List[TurnChargeRecord] = field(default_factory=list)
-    # Internal: Charge tracking for current turn (not serialized).
-    # Note: If GameState is serialized mid-turn and deserialized,
-    # these fields reset to defaults. Mid-turn serialization is not
-    # supported for Charge tracking - finalize_turn_charge_tracking() must
-    # be called before serialization to preserve accurate Charge data.
+    # Internal: Charge tracking for the current turn. Persisted by
+    # api.serialization (games are saved after every action); GameState.to_dict
+    # (the client view) omits them.
     _turn_charge_snapshot: int = field(default=0, repr=False)
     _turn_charge_gained: int = field(default=0, repr=False)
 
