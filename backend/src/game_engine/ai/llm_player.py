@@ -10,6 +10,7 @@ match first, falling back to a small LLM execution call only when ambiguous.
 
 import json
 import logging
+from collections import OrderedDict
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
@@ -670,20 +671,42 @@ class LLMPlayer:
         return self.provider_client.get_display_name(self.model_name)
 
 
-# Singleton instance
+# Shared instance for game-independent calls (get_llm_response)
 _ai_player: Optional[LLMPlayer] = None
 
+# One instance per game: LLMPlayer holds the current turn plan, keyed only by
+# turn number, so games on the same turn must not share an instance.
+# Least-recently-used games are evicted past the cap.
+MAX_CACHED_GAME_AI_PLAYERS = 64
+_game_ai_players: "OrderedDict[str, LLMPlayer]" = OrderedDict()
 
-def get_ai_player() -> LLMPlayer:
+
+def get_ai_player(game_id: Optional[str] = None) -> LLMPlayer:
     """
-    Get the singleton AI player instance (Gemini, enum-based planning).
+    Get the AI player (Gemini, enum-based planning).
+
+    With a game_id, returns that game's own instance, so its turn plan can't
+    leak into another game. Without one, returns a shared instance for calls
+    that hold no plan state.
     """
     global _ai_player
 
-    if _ai_player is None:
-        logger.debug("🤖 Initializing AI player")
-        _ai_player = LLMPlayer()
-    return _ai_player
+    if game_id is None:
+        if _ai_player is None:
+            logger.debug("🤖 Initializing AI player")
+            _ai_player = LLMPlayer()
+        return _ai_player
+
+    ai_player = _game_ai_players.get(game_id)
+    if ai_player is None:
+        logger.debug("🤖 Initializing AI player for game %s", game_id)
+        ai_player = LLMPlayer()
+        _game_ai_players[game_id] = ai_player
+        while len(_game_ai_players) > MAX_CACHED_GAME_AI_PLAYERS:
+            _game_ai_players.popitem(last=False)
+    else:
+        _game_ai_players.move_to_end(game_id)
+    return ai_player
 
 
 def get_llm_response(prompt: str, is_json: bool = True) -> str:

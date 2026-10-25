@@ -486,7 +486,7 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    ai_player = get_ai_player()
+    ai_player = get_ai_player(game_id)
 
     # filter_for_ai=True matches what the enumerator used internally to build
     # the plan's candidate sequences (drops guaranteed-loss tussles) — keeping
