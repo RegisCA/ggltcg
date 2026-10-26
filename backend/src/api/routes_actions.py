@@ -6,7 +6,7 @@ Endpoints for playing cards, initiating tussles, ending turns, etc.
 
 import logging
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from api.schemas import (
     PlayCardRequest,
@@ -21,7 +21,7 @@ from api.game_service import get_game_service
 from api.stats_service import get_stats_service
 from game_engine.models.card import CardType
 from game_engine.ai.llm_player import get_ai_player
-from game_engine.validation import ActionValidator, ActionExecutor, build_tussle_description, card_label
+from game_engine.validation import ActionValidator, ActionExecutor, CardNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,60 @@ router = APIRouter(prefix="/games", tags=["actions"])
 # ============================================================================
 # All action execution logic has been moved to ActionExecutor for consistency
 # between human and AI player paths.
+
+
+def _finish_action(
+    service,
+    game_id: str,
+    engine,
+    player,
+    action_type: str,
+    result,
+    win_message: str,
+    ai_endpoint: Optional[str] = None,
+    ai_turn_summary: Optional[Dict[str, Any]] = None,
+) -> ActionResponse:
+    """
+    Record a successful action and save the game — shared by every action
+    route (human and /ai-turn) so the order can't drift between copies:
+    the action's play-by-play entry, then the victory entry if it won the
+    game, then update_game (which writes the playback and stats, so both
+    entries must already be there), then the response.
+
+    Args:
+        win_message: Response message on victory; "{winner}" is replaced by
+            the winner's name.
+    """
+    game_state = engine.game_state
+    game_state.add_play_by_play(
+        player_name=player.name,
+        action_type=action_type,
+        description=result.description,
+        ai_endpoint=ai_endpoint,
+    )
+
+    if result.winner:
+        winner_name = game_state.players[result.winner].name
+        game_state.add_play_by_play(
+            player_name=winner_name,
+            action_type="victory",
+            description=f"{winner_name} wins! All opponent's cards are broken."
+        )
+        service.update_game(game_id, engine)
+        return ActionResponse(
+            success=True,
+            message=win_message.format(winner=winner_name),
+            game_state={"winner": result.winner, "is_game_over": True},
+            ai_turn_summary=ai_turn_summary,
+        )
+
+    service.update_game(game_id, engine)
+    return ActionResponse(
+        success=True,
+        message=result.description,  # Use detailed description for better UX
+        game_state={"turn": game_state.turn_number, "phase": game_state.phase.value},
+        ai_turn_summary=ai_turn_summary,
+    )
 
 
 @router.post("/{game_id}/play-card", response_model=ActionResponse)
@@ -84,37 +138,9 @@ async def play_card(game_id: str, request: PlayCardRequest) -> ActionResponse:
                 message=result.message
             )
         
-        # Log to play-by-play BEFORE victory check (so action appears first)
-        game_state.add_play_by_play(
-            player_name=player.name,
-            action_type="play_card",
-            description=result.description,
-        )
-        
-        # Check for victory
-        if result.winner:
-            # Add victory message to play-by-play AFTER the winning action
-            winner_name = game_state.players[result.winner].name
-            game_state.add_play_by_play(
-                player_name=winner_name,
-                action_type="victory",
-                description=f"{winner_name} wins! All opponent's cards are broken."
-            )
-            # Save updated game state to database
-            service.update_game(game_id, engine)
-            return ActionResponse(
-                success=True,
-                message=f"Card played! {game_state.players[result.winner].name} wins the game!",
-                game_state={"winner": result.winner, "is_game_over": True}
-            )
-        
-        # Save updated game state to database
-        service.update_game(game_id, engine)
-        
-        return ActionResponse(
-            success=True,
-            message=result.description,  # Use detailed description for better UX
-            game_state={"turn": game_state.turn_number, "phase": game_state.phase.value}
+        return _finish_action(
+            service, game_id, engine, player, "play_card", result,
+            win_message="Card played! {winner} wins the game!",
         )
         
     except ValueError as e:
@@ -150,81 +176,27 @@ async def initiate_tussle(game_id: str, request: TussleRequest) -> ActionRespons
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    # Find attacker by ID
-    attacker = next((c for c in player.in_play if c.id == request.attacker_id), None)
-    if attacker is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Attacker with ID '{request.attacker_id}' not found in play"
-        )
-    
-    # Find defender (if specified)
-    defender = None
-    if request.defender_id:
-        # Find defender by ID (no need to restrict search - ID is globally unique)
-        defender = game_state.find_card_by_id(request.defender_id)
-        if defender is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Defender with ID '{request.defender_id}' not found"
-            )
-    
-    # Initiate tussle
+    executor = ActionExecutor(engine)
+
     try:
-        # Calculate cost before tussle
-        cost = engine.calculate_tussle_cost(attacker, player)
+        result = executor.execute_tussle(
+            player_id=request.player_id,
+            attacker_id=request.attacker_id,
+            defender_id=request.defender_id,
+        )
 
-        # Ownership labels must be captured pre-tussle: a broken card's
-        # controller is reset to its owner during resolution.
-        attacker_label = card_label(attacker, game_state)
-        defender_label = card_label(defender, game_state) if defender else None
-
-        success, broken_from_hand = engine.initiate_tussle(attacker, defender, player)
-        
-        if not success:
+        if not result.success:
             return ActionResponse(
                 success=False,
                 message="Failed to initiate tussle (insufficient Charge, invalid target, or card restrictions)"
             )
-        
-        # Check state-based actions
-        engine.check_state_based_actions()
-        
-        # Log to play-by-play with cost BEFORE victory check (so action appears first)
-        description = build_tussle_description(
-            cost, attacker_label, defender_label=defender_label, broken_from_hand=broken_from_hand
+
+        return _finish_action(
+            service, game_id, engine, player, "tussle", result,
+            win_message="Tussle successful! {winner} wins the game!",
         )
-        game_state.add_play_by_play(
-            player_name=player.name,
-            action_type="tussle",
-            description=description,
-        )
-        
-        # Save updated game state to database
-        service.update_game(game_id, engine)
-        
-        # Check for victory
-        winner = game_state.winner_id
-        if winner:
-            # Add victory message to play-by-play AFTER the winning action
-            winner_name = game_state.players[winner].name
-            game_state.add_play_by_play(
-                player_name=winner_name,
-                action_type="victory",
-                description=f"{winner_name} wins! All opponent's cards are broken."
-            )
-            return ActionResponse(
-                success=True,
-                message=f"Tussle successful! {winner_name} wins the game!",
-                game_state={"winner": winner}
-            )
-        
-        return ActionResponse(
-            success=True,
-            message=description,
-            game_state={"turn": game_state.turn_number}
-        )
-    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -307,113 +279,25 @@ async def activate_ability(game_id: str, request: ActivateAbilityRequest) -> Act
     player = game_state.players.get(request.player_id)
     if player is None:
         raise HTTPException(status_code=404, detail=f"Player {request.player_id} not found")
-    
-    # Find the card with the ability by ID
-    source_card = None
-    for card in player.in_play:
-        if card.id == request.card_id:
-            source_card = card
-            break
-    
-    if source_card is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Card with ID {request.card_id} not found in play"
-        )
-    
-    # Get the activated effect
-    from game_engine.rules.effects import EffectRegistry
-    from game_engine.rules.effects.base_effect import ActivatedEffect
-    
-    effects = EffectRegistry.get_effects(source_card)
-    activated_effect = None
-    for effect in effects:
-        if isinstance(effect, ActivatedEffect):
-            activated_effect = effect
-            break
-    
-    if activated_effect is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Card {source_card.name} has no activated ability"
-        )
-    
-    # Calculate cost (for Archer, it's the amount)
-    amount = request.amount or 1
-    cost = activated_effect.cost_charge * amount
-    
-    # Check if player can afford it
-    if player.charge < cost:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Not enough Charge (need {cost}, have {player.charge})"
-        )
-    
-    # Get target if specified
-    target_card = None
-    if request.target_id:
-        # Find target by ID in all cards in play
-        all_cards = game_state.get_all_cards_in_play()
-        for card in all_cards:
-            if card.id == request.target_id:
-                target_card = card
-                break
-        
-        if target_card is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Target card with ID {request.target_id} not found in play"
-            )
-    
+
+    executor = ActionExecutor(engine)
+
     try:
-        # Pay the cost
-        player.spend_charge(cost)
-
-        # Apply the ability
-        activated_effect.apply(
-            game_state,
-            target=target_card,
-            amount=amount,
-            game_engine=engine
+        result = executor.execute_activate_ability(
+            player_id=request.player_id,
+            card_id=request.card_id,
+            target_id=request.target_id,
+            amount=request.amount or 1,
         )
 
-        # Log to play-by-play
-        description = f"{source_card.name} used its ability"
-        if target_card:
-            description += f" on {target_card.name}"
-        if amount > 1:
-            description += f" (amount {amount})"
-
-        game_state.add_play_by_play(
-            player_name=player.name,
-            action_type="activate_ability",
-            description=description
+        return _finish_action(
+            service, game_id, engine, player, "activate_ability", result,
+            win_message="Ability activated! {winner} wins the game!",
         )
-        
-        # Save updated game state to database
-        service.update_game(game_id, engine)
-        
-        # Check for victory
-        winner = game_state.winner_id
-        if winner:
-            winner_name = game_state.players[winner].name
-            game_state.add_play_by_play(
-                player_name=winner_name,
-                action_type="victory",
-                description=f"{winner_name} wins! All opponent's cards are broken."
-            )
-            return ActionResponse(
-                success=True,
-                message=f"Ability activated! {winner} wins the game!",
-                game_state={"winner": winner}
-            )
-        
-        return ActionResponse(
-            success=True,
-            message=description,
-            game_state={"turn": game_state.turn_number}
-        )
-    
+    except CardNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -713,40 +597,12 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if hasattr(ai_player, 'record_execution_result'):
                     ai_player.record_execution_result(success=True)
                 
-                # Log to play-by-play
                 # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
-                game_state.add_play_by_play(
-                    player_name=player.name,
-                    action_type="play_card",
-                    description=result.description,
+                return _finish_action(
+                    service, game_id, engine, player, "play_card", result,
+                    win_message="AI card played! {winner} wins the game!",
                     ai_endpoint=ai_endpoint_name,
-                )
-                
-                # Check for victory
-                if result.winner:
-                    winner_name = game_state.players[result.winner].name
-                    game_state.add_play_by_play(
-                        player_name=winner_name,
-                        action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are broken."
-                    )
-                    # Save updated game state to database
-                    service.update_game(game_id, engine)
-                    return ActionResponse(
-                        success=True,
-                        message=f"AI card played! {winner_name} wins the game!",
-                        game_state={"winner": result.winner, "is_game_over": True},
-                        ai_turn_summary=turn_summary
-                    )
-                
-                # Save updated game state to database
-                service.update_game(game_id, engine)
-                
-                return ActionResponse(
-                    success=True,
-                    message=result.description,  # Use detailed description for better UX
-                    game_state={"turn": game_state.turn_number},
-                    ai_turn_summary=turn_summary
+                    ai_turn_summary=turn_summary,
                 )
                 
             except ValueError as e:
@@ -784,40 +640,12 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
                 if hasattr(ai_player, 'record_execution_result'):
                     ai_player.record_execution_result(success=True)
                 
-                # Log to play-by-play
                 # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
-                game_state.add_play_by_play(
-                    player_name=player.name,
-                    action_type="tussle",
-                    description=result.description,
+                return _finish_action(
+                    service, game_id, engine, player, "tussle", result,
+                    win_message="AI tussle successful! {winner} wins!",
                     ai_endpoint=ai_endpoint_name,
-                )
-                
-                # Check for victory
-                if result.winner:
-                    winner_name = game_state.players[result.winner].name
-                    game_state.add_play_by_play(
-                        player_name=winner_name,
-                        action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are broken."
-                    )
-                    # Save updated game state to database
-                    service.update_game(game_id, engine)
-                    return ActionResponse(
-                        success=True,
-                        message=f"AI tussle successful! {winner_name} wins!",
-                        game_state={"winner": result.winner, "is_game_over": True},
-                        ai_turn_summary=turn_summary
-                    )
-                
-                # Save updated game state to database
-                service.update_game(game_id, engine)
-                
-                return ActionResponse(
-                    success=True,
-                    message=result.description,  # Use detailed description for better UX
-                    game_state={"turn": game_state.turn_number},
-                    ai_turn_summary=turn_summary
+                    ai_turn_summary=turn_summary,
                 )
                 
             except ValueError as e:
@@ -845,132 +673,45 @@ async def ai_take_turn(game_id: str, player_id: str) -> ActionResponse:
             card_id = action_details["card_id"]
             target_id = action_details.get("target_id")
             amount = action_details.get("amount", 1)
-            
-            # Find the card with the ability
-            source_card = None
-            for card in player.in_play:
-                if card.id == card_id:
-                    source_card = card
-                    break
-            
-            if source_card is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"AI selected card with ID {card_id} not found in play"
-                )
-            
-            # Get the activated effect
-            from game_engine.rules.effects import EffectRegistry
-            from game_engine.rules.effects.base_effect import ActivatedEffect
-            
-            effects = EffectRegistry.get_effects(source_card)
-            activated_effect = None
-            for effect in effects:
-                if isinstance(effect, ActivatedEffect):
-                    activated_effect = effect
-                    break
-            
-            if activated_effect is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Card {source_card.name} has no activated ability"
-                )
-            
-            # Calculate cost
-            cost = activated_effect.cost_charge * amount
-            
-            # Check if player can afford it
-            if player.charge < cost:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"AI tried to activate ability without enough Charge (need {cost}, have {player.charge})"
-                )
-            
-            # Get target if specified
-            target_card = None
-            if target_id:
-                all_cards = game_state.get_all_cards_in_play()
-                for card in all_cards:
-                    if card.id == target_id:
-                        target_card = card
-                        break
-                
-                if target_card is None:
-                    logger.error(
-                        f"🤖 LLM HALLUCINATION DETECTED - AI activate_ability target not found:\n"
-                        f"  Card ID: {card_id}\n"
-                        f"  Target ID: {target_id}\n"
-                        f"  Game: {game_id}, Turn: {game_state.turn_number}"
-                    )
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"AI selected invalid target ID (likely LLM hallucination): {target_id}"
-                    )
-            
+
+            executor = ActionExecutor(engine)
+
             try:
-                # Pay the cost
-                player.spend_charge(cost)
-
-                # Apply the ability
-                activated_effect.apply(
-                    game_state,
-                    target=target_card,
+                result = executor.execute_activate_ability(
+                    player_id=player_id,
+                    card_id=card_id,
+                    target_id=target_id,
                     amount=amount,
-                    game_engine=engine
                 )
-                
-                # Record successful execution for v3 tracking
-                if hasattr(ai_player, 'record_execution_result'):
-                    ai_player.record_execution_result(success=True)
-                
-                # Log to play-by-play
-                description = f"{source_card.name} used its ability"
-                if target_card:
-                    description += f" on {target_card.name}"
-                if amount > 1:
-                    description += f" (amount {amount})"
-
-                # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
-                game_state.add_play_by_play(
-                    player_name=player.name,
-                    action_type="activate_ability",
-                    description=description,
-                    ai_endpoint=ai_endpoint_name,
-                )
-                
-                # Check for victory
-                winner = game_state.winner_id
-                if winner:
-                    winner_name = game_state.players[winner].name
-                    game_state.add_play_by_play(
-                        player_name=winner_name,
-                        action_type="victory",
-                        description=f"{winner_name} wins! All opponent's cards are broken."
-                    )
-                    # Save updated game state to database
-                    service.update_game(game_id, engine)
-                    return ActionResponse(
-                        success=True,
-                        message=f"AI ability activated! {winner_name} wins!",
-                        game_state={"winner": winner, "is_game_over": True},
-                        ai_turn_summary=turn_summary
-                    )
-                
-                # Save updated game state to database
-                service.update_game(game_id, engine)
-                
-                return ActionResponse(
-                    success=True,
-                    message=description,
-                    game_state={"turn": game_state.turn_number},
-                    ai_turn_summary=turn_summary
-                )
-                
-            except Exception as e:
-                # Record execution failure for v3 tracking
+            except ValueError as e:
                 if hasattr(ai_player, 'record_execution_result'):
                     ai_player.record_execution_result(success=False, error_message=str(e))
-                raise HTTPException(status_code=500, detail=f"AI activate_ability failed: {str(e)}")
+                logger.error(
+                    f"🤖 AI activate_ability rejected (possible LLM hallucination):\n"
+                    f"  Card ID: {card_id}\n"
+                    f"  Target ID: {target_id}\n"
+                    f"  Error: {e}\n"
+                    f"  Game: {game_id}, Turn: {game_state.turn_number}"
+                )
+                raise HTTPException(status_code=500, detail=f"AI activate_ability failed: {e}")
+            except Exception as e:
+                # Effect resolution (e.g. a when-broken cascade) failed
+                if hasattr(ai_player, 'record_execution_result'):
+                    ai_player.record_execution_result(success=False, error_message=str(e))
+                logger.exception(f"AI activate_ability raised during resolution: {e}")
+                raise HTTPException(status_code=500, detail=f"AI activate_ability failed: {e}")
+
+            # Record successful execution for v3 tracking
+            if hasattr(ai_player, 'record_execution_result'):
+                ai_player.record_execution_result(success=True)
+
+            # Note: AI reasoning is stored in AI logs, not play-by-play (keeps it factual)
+            return _finish_action(
+                service, game_id, engine, player, "activate_ability", result,
+                win_message="AI ability activated! {winner} wins!",
+                ai_endpoint=ai_endpoint_name,
+                ai_turn_summary=turn_summary,
+            )
         
         else:
             logger.error(f"Unknown action type from AI: {action_details['action_type']}")

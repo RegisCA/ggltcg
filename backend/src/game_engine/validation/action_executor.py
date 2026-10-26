@@ -10,7 +10,6 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from game_engine.models.card import CardType, Zone
 from game_engine.models.game_state import GameState
 from game_engine.models.player import Player
 from game_engine.models.card import Card
@@ -59,6 +58,10 @@ def build_tussle_description(
     else:
         target = " directly"
     return f"{attacker_label} tussled{target} ({cost} Charge)"
+
+
+class CardNotFoundError(ValueError):
+    """A referenced player or card doesn't exist where the action needs it."""
 
 
 @dataclass
@@ -155,14 +158,11 @@ class ActionExecutor:
         opponent = self.game_state.get_opponent(player.player_id)
         opponent_charge_before = opponent.charge
 
-        # Execute the play
-        success = False
-        if kwargs.get("alternative_cost_paid"):
-            # Alternative cost path: manually handle card play
-            success = self._execute_alternative_cost_play(player, card, kwargs)
-        else:
-            # Normal play_card flow
-            success = self.engine.play_card(player, card, **kwargs)
+        # Execute the play. An alternative cost (Ballaber) is paid inside
+        # engine.play_card, so the played Toy gets the same treatment as a
+        # normal play: controller set, when-played and when-other-card-played
+        # (Hind Leg Kicker) triggers.
+        success = self.engine.play_card(player, card, **kwargs)
         
         if not success:
             return ExecutionResult(
@@ -290,6 +290,94 @@ class ActionExecutor:
             winner=winner
         )
     
+    def execute_activate_ability(
+        self,
+        player_id: str,
+        card_id: str,
+        target_id: Optional[str] = None,
+        amount: int = 1,
+    ) -> ExecutionResult:
+        """
+        Execute an activated ability (e.g. Archer).
+
+        Shared by the human /activate-ability route, the AI /ai-turn dispatch
+        and the enumerator, so all three validate the same way: the source
+        card must be in the player's play zone, the ability must be usable
+        now (ActivatedEffect.can_apply), the Charge must cover cost x amount,
+        and a target must be one of the effect's valid targets (which
+        excludes protected cards such as Beary).
+
+        Raises:
+            CardNotFoundError: If the player, source card or target doesn't exist
+            ValueError: If the ability or target is invalid, or the player
+                can't afford it
+        """
+        from ..rules.effects.base_effect import ActivatedEffect
+        from ..rules.effects.effect_registry import EffectRegistry
+
+        player = self.game_state.players.get(player_id)
+        if player is None:
+            raise CardNotFoundError(f"Player {player_id} not found")
+
+        source = next((c for c in player.in_play if c.id == card_id), None)
+        if source is None:
+            raise CardNotFoundError(f"Card with ID {card_id} not found in play")
+
+        effect = next(
+            (e for e in EffectRegistry.get_effects(source) if isinstance(e, ActivatedEffect)),
+            None,
+        )
+        if effect is None:
+            raise ValueError(f"Card {source.name} has no activated ability")
+        if not effect.can_apply(self.game_state):
+            raise ValueError(f"{source.name}'s ability cannot be activated now")
+
+        if amount < 1:
+            raise ValueError("Amount must be at least 1")
+        cost = effect.cost_charge * amount
+        if player.charge < cost:
+            raise ValueError(f"Not enough Charge (need {cost}, have {player.charge})")
+
+        target = None
+        if target_id:
+            if not effect.requires_targets():
+                raise ValueError(f"{source.name}'s ability doesn't take a target")
+            target = next(
+                (c for c in self.game_state.get_all_cards_in_play() if c.id == target_id),
+                None,
+            )
+            if target is None:
+                raise CardNotFoundError(f"Target card with ID {target_id} not found in play")
+        if effect.requires_targets():
+            valid_ids = {t.id for t in effect.get_valid_targets(self.game_state)}
+            if target is None or target.id not in valid_ids:
+                raise ValueError(
+                    f"Invalid target for {source.name}'s ability"
+                    + (f": {target.name} (ID: {target.id})" if target else "")
+                )
+
+        # Labels before resolution: breaking the target resets its controller.
+        source_label = card_label(source, self.game_state)
+        target_label = card_label(target, self.game_state) if target else None
+
+        player.spend_charge(cost)
+        effect.apply(self.game_state, target=target, amount=amount, game_engine=self.engine)
+        self.engine.check_state_based_actions()
+
+        description = f"{source_label} used its ability"
+        if target_label:
+            description += f" on {target_label}"
+        if amount > 1:
+            description += f" (amount {amount})"
+
+        return ExecutionResult(
+            success=True,
+            message=description,
+            description=description,
+            cost=cost,
+            winner=self.game_state.check_victory(),
+        )
+
     # ========================================================================
     # Private Helper Methods
     # ========================================================================
@@ -321,15 +409,13 @@ class ActionExecutor:
                  if c.id == alternative_cost_card_id),
                 None
             )
-            if card_to_break is None:
+            if card_to_break is None or card_to_break is card:
                 raise ValueError(
                     f"Alternative cost card with ID '{alternative_cost_card_id}' not found"
                 )
-            # Break the card via game engine to trigger effects
-            was_in_play = card_to_break in player.in_play
-            owner = self.game_state.get_card_owner(card_to_break)
-            self.engine._break_card(card_to_break, owner, was_in_play=was_in_play)
-            kwargs["alternative_cost_paid"] = True
+            # engine.play_card breaks it (via _break_card, so when-broken
+            # triggers fire) as part of paying the cost.
+            kwargs["alternative_cost_card_id"] = card_to_break.id
             kwargs["alternative_cost_card"] = card_to_break.name
             cost = 0
         else:
@@ -411,40 +497,6 @@ class ActionExecutor:
         
         return kwargs
     
-    def _execute_alternative_cost_play(
-        self,
-        player: Player,
-        card: Card,
-        kwargs: Dict[str, Any]
-    ) -> bool:
-        """
-        Execute card play with alternative cost.
-        
-        Alternative cost was already paid (card already broken), so we just need
-        to pay 0 Charge and move the card to the appropriate zone.
-        
-        Returns:
-            bool: True if successful
-        """
-        # Pay 0 Charge (should always succeed)
-        if not player.spend_charge(0):
-            return False
-        
-        # Remove from hand
-        player.hand.remove(card)
-        
-        # Toys go to in play
-        if card.card_type == CardType.TOY:
-            card.zone = Zone.IN_PLAY
-            player.in_play.append(card)
-        elif card.card_type == CardType.ACTION:
-            # Actions resolve and go to break zone
-            self.engine._resolve_action_card(card, player, **kwargs)
-            card.zone = Zone.BREAK
-            player.break_zone.append(card)
-        
-        return True
-    
     def _capture_target_labels(self, kwargs: Dict[str, Any]) -> Dict[str, str]:
         """
         Snapshot ownership-annotated names (card_label) for the play's targets,
@@ -503,7 +555,7 @@ class ActionExecutor:
 
         # Alternative-cost plays (e.g. Ballaber) pay by breaking a card, not
         # Charge — the cost note goes in the trailing parens instead.
-        if kwargs.get("alternative_cost_paid"):
+        if kwargs.get("alternative_cost_card"):
             cost_note = f"broke {kwargs['alternative_cost_card']} for cost"
         else:
             cost_note = f"{cost} Charge"

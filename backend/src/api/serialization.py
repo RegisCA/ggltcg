@@ -33,6 +33,9 @@ def serialize_card(card: Card) -> Dict[str, Any]:
     # Using modifications dict to avoid changing Card model
     if hasattr(card, '_is_transformed') and card._is_transformed:
         modifications['_is_transformed'] = True
+        # Printed card to revert to on leaving play (Copy or Clone)
+        if getattr(card, '_original_name', None):
+            modifications['_original_name'] = card._original_name
     
     serialized = {
         "id": card.id,
@@ -71,6 +74,7 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
     # Get modifications and check for transformed Copy cards
     modifications = data.get("modifications", {})
     is_transformed = modifications.pop('_is_transformed', False)
+    original_name = modifications.pop('_original_name', None)
     
     card = Card(
         id=data["id"],
@@ -96,6 +100,8 @@ def deserialize_card(data: Dict[str, Any]) -> Card:
     # This will cause EffectRegistry to recreate _copied_effects
     if is_transformed:
         card._is_transformed = True
+        if original_name:
+            card._original_name = original_name
         # Recreate _copied_effects from effect_definitions
         from game_engine.rules.effects.effect_registry import EffectFactory
         if hasattr(card, 'effect_definitions') and card.effect_definitions:
