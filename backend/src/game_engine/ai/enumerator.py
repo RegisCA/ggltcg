@@ -31,8 +31,6 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from game_engine.game_engine import GameEngine
-from game_engine.rules.effects import EffectRegistry
-from game_engine.rules.effects.base_effect import ActivatedEffect
 from game_engine.validation import ActionExecutor, ActionValidator
 
 from .card_metadata import CHARGE_GAIN_ON_PLAY
@@ -206,37 +204,14 @@ def _apply_step(engine: GameEngine, player_id: str, step: Dict[str, Any]) -> boo
             res = executor.execute_tussle(player_id, step["card_id"], defender_id=None)
             return res.success
         if at == "activate_ability":
-            return _apply_activate(engine, player_id, step["card_id"],
-                                   target_ids[0] if target_ids else None)
+            res = executor.execute_activate_ability(
+                player_id, step["card_id"], target_id=target_ids[0] if target_ids else None,
+            )
+            return res.success
     except Exception as exc:  # pragma: no cover - defensive; pruned silently
         logger.debug("enumerator: step %s failed: %s", at, exc)
         return False
     return False
-
-
-def _apply_activate(engine: GameEngine, player_id: str, card_id: str,
-                    target_id: Optional[str]) -> bool:
-    """Apply an activated ability (e.g. Archer), mirroring routes_actions.
-
-    ActionExecutor has no activate path, so this replicates the endpoint's:
-    find source card → resolve its ActivatedEffect → pay Charge → apply → settle.
-    """
-    gs = engine.game_state
-    player = gs.players[player_id]
-    source = next((c for c in player.in_play if c.id == card_id), None)
-    if source is None:
-        return False
-    effect = next(
-        (e for e in EffectRegistry.get_effects(source) if isinstance(e, ActivatedEffect)),
-        None,
-    )
-    if effect is None or player.charge < effect.cost_charge:
-        return False
-    target = gs.find_card_by_id(target_id) if target_id else None
-    player.spend_charge(effect.cost_charge)
-    effect.apply(gs, target=target, amount=1, game_engine=engine)
-    engine.check_state_based_actions()
-    return True
 
 
 def _action_charge_cost(step: Dict[str, Any], charge_before: int, charge_after: int) -> int:

@@ -84,13 +84,13 @@ class Card:
             self._reset_copy_transformation()
     
     def _reset_copy_transformation(self):
-        """Reset Copy card to original state by reloading from card definition."""
+        """Reset a Copy/Clone card to its printed state by reloading its card definition."""
         from ..data.card_loader import load_cards_dict
         
-        # Load Copy card definition from CSV (single source of truth)
+        # Load the card's own definition (Copy or Clone) from CSV (single source of truth)
         try:
             cards_dict = load_cards_dict()
-            copy_definition = cards_dict.get("Copy")
+            copy_definition = cards_dict.get(getattr(self, '_original_name', None) or "Copy")
             
             if copy_definition:
                 # Restore properties from card definition

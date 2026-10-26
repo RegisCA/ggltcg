@@ -491,6 +491,10 @@ class CopyEffect(PlayEffect):
         if not target or not copy_card:
             return
         
+        # Remember the printed card (Copy or Clone) so leaving play reverts to it
+        if not getattr(copy_card, '_is_transformed', False):
+            copy_card._original_name = copy_card.name
+
         # Mark card as transformed (used by reset_modifications to know to reset)
         copy_card._is_transformed = True
         

@@ -7,6 +7,7 @@ Provides centralized validation and execution logic for all game actions.
 from game_engine.validation.action_validator import ActionValidator
 from game_engine.validation.action_executor import (
     ActionExecutor,
+    CardNotFoundError,
     ExecutionResult,
     build_tussle_description,
     card_label,
@@ -15,6 +16,7 @@ from game_engine.validation.action_executor import (
 __all__ = [
     'ActionValidator',
     'ActionExecutor',
+    'CardNotFoundError',
     'ExecutionResult',
     'build_tussle_description',
     'card_label',
