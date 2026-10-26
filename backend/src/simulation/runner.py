@@ -490,9 +490,9 @@ class SimulationRunner:
             self._execute_end_turn(engine, game_state)
             return True
 
-        # play_card and tussle go through ActionExecutor, which is what
-        # api/routes_actions.py uses for live games AND what the enumerator uses
-        # to build plans. Calling engine.play_card/initiate_tussle directly here
+        # play_card, tussle and activate_ability go through ActionExecutor, which
+        # is what api/routes_actions.py uses for live games AND what the
+        # enumerator uses to build plans. Calling engine.play_card/initiate_tussle directly here
         # skipped ActionExecutor._handle_targets, so every targeted effect (Copy,
         # Glue, Stomp, Drop, Twist, Sun, Jumpscare...) silently resolved with no
         # target: the card was paid for, did nothing, and went to the break zone.
@@ -529,48 +529,18 @@ class SimulationRunner:
                 logger.warning(f"tussle raised: {e}")
 
         elif action.action_type == "activate_ability":
-            card = next(
-                (c for c in player.in_play if c.id == action.card_id),
-                None
-            )
-            if card:
-                details = ai_player.get_action_details(action)
-                target_ids = details.get("target_ids") or []
-                
-                # Get the activated effect from the card
-                from game_engine.rules.effects import EffectRegistry
-                from game_engine.rules.effects.base_effect import ActivatedEffect
-                
-                effects = EffectRegistry.get_effects(card)
-                activated_effect = None
-                for effect in effects:
-                    if isinstance(effect, ActivatedEffect):
-                        activated_effect = effect
-                        break
-                
-                if activated_effect:
-                    # Find target card if specified
-                    target_card = None
-                    if target_ids:
-                        all_cards = game_state.get_all_cards_in_play()
-                        for c in all_cards:
-                            if c.id == target_ids[0]:
-                                target_card = c
-                                break
-                    
-                    # Pay the cost (default amount is 1)
-                    amount = 1
-                    cost = activated_effect.cost_charge * amount
-                    if player.charge >= cost:
-                        player.spend_charge(cost)
-                        
-                        # Apply the ability
-                        activated_effect.apply(
-                            game_state,
-                            target=target_card,
-                            amount=amount,
-                            game_engine=engine
-                        )
+            details = ai_player.get_action_details(action)
+            try:
+                result = executor.execute_activate_ability(
+                    player.player_id,
+                    action.card_id,
+                    target_id=details.get("target_id"),
+                    amount=details.get("amount", 1),
+                )
+                self._note_rejection(result, "activate_ability")
+            except ValueError as e:
+                self.rejected_actions += 1
+                logger.warning(f"activate_ability raised: {e}")
         
         return False
     
