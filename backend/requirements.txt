@@ -36,11 +36,11 @@ pytest-asyncio==1.4.0  # required for pytest 9 support (0.24.0 pins pytest<9)
 httpx==0.28.1
 
 # Security: minimum safe versions for transitive runtime dependencies
-pyasn1>=0.6.4  # not directly required, minimum safe version to avoid ReDoS and resource-exhaustion CVEs (CVE-2026-59884/-59885/-59886)
+pyasn1>=0.6.5  # not directly required, minimum safe version to avoid ReDoS and resource-exhaustion CVEs (CVE-2026-59884/-59885/-59886)
 anyio>=4.14.2  # not directly required, minimum safe version to avoid Race Condition / resource exhaustion
 requests>=2.32.2  # not directly required, minimum safe version to avoid multiple CVEs
 
 # Development
-black==26.3.1
+black==26.10.1
 ruff==0.8.4
 certifi>=2026.10.19  # not directly required, minimum safe version to avoid advisory

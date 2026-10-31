@@ -46,7 +46,7 @@
   },
   "overrides": {
     "form-data": "^4.0.6",
-    "dompurify": "^3.4.16",
-    "follow-redirects": "^1.16.1"
+    "dompurify": "^3.4.17",
+    "follow-redirects": "^1.16.2"
   }
 }
